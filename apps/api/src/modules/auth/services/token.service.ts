@@ -1,0 +1,56 @@
+import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomBytes } from 'node:crypto';
+import type { EnvConfig } from '../../../config/env.validation.js';
+import { parseDurationToSeconds } from '../../../common/utils/duration.js';
+
+export interface AccessTokenPayload {
+  sub: string;
+  email: string;
+  roles: string[];
+  sessionId: string;
+}
+
+/// Access tokens are signed JWTs (short-lived, stateless verification).
+/// Refresh/verification/reset/challenge/exchange tokens are opaque random
+/// strings, stored only as a sha256 hash — sha256 (not argon2) is
+/// appropriate here because these are high-entropy random values, not
+/// human-chosen secrets; brute-forcing a 256-bit random value is infeasible
+/// regardless of hash speed. See PasswordHasherService for the
+/// human-facing-secret case (passwords, MFA backup codes).
+@Injectable()
+export class TokenService {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService<EnvConfig, true>,
+  ) {}
+
+  generateOpaqueToken(bytes = 32): string {
+    return randomBytes(bytes).toString('base64url');
+  }
+
+  hashOpaqueToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  signAccessToken(payload: AccessTokenPayload): string {
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_ACCESS_SECRET', { infer: true }),
+      expiresIn: this.configService.get('JWT_ACCESS_TTL', { infer: true }),
+    });
+  }
+
+  getAccessTokenTtlSeconds(): number {
+    return parseDurationToSeconds(
+      this.configService.get('JWT_ACCESS_TTL', { infer: true }),
+    );
+  }
+
+  getRefreshTokenExpiry(rememberMe: boolean): Date {
+    const ttl = rememberMe
+      ? this.configService.get('JWT_REFRESH_TTL_REMEMBER_ME', { infer: true })
+      : this.configService.get('JWT_REFRESH_TTL', { infer: true });
+    return new Date(Date.now() + parseDurationToSeconds(ttl) * 1000);
+  }
+}
