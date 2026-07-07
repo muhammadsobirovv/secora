@@ -8,11 +8,18 @@ import { TransactionalAdapterPrisma } from '@nestjs-cls/transactional-adapter-pr
 import { validateEnv } from './config/env.validation.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PrismaService } from './prisma/prisma.service.js';
+import type { PrismaClient } from './prisma-types.js';
 import { ProvidersModule } from './common/providers/providers.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { AuditModule } from './modules/audit/audit.module.js';
+import { RbacModule } from './modules/rbac/rbac.module.js';
+import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module.js';
+import { UserPreferencesModule } from './modules/user-preferences/user-preferences.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
 
 @Module({
   imports: [
@@ -29,7 +36,9 @@ import { RolesGuard } from './common/guards/roles.guard.js';
       plugins: [
         new ClsPluginTransactional({
           imports: [PrismaModule],
-          adapter: new TransactionalAdapterPrisma({
+          // Explicitly parameterized with our generated PrismaClient type
+          // (not @prisma/client's default) — see prisma-transaction.types.ts.
+          adapter: new TransactionalAdapterPrisma<PrismaClient>({
             prismaInjectionToken: PrismaService,
           }),
         }),
@@ -40,6 +49,12 @@ import { RolesGuard } from './common/guards/roles.guard.js';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     ProvidersModule,
+    AuditModule,
+    RbacModule,
+    OrganizationsModule,
+    ApiKeysModule,
+    UserPreferencesModule,
+    AuthModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.
