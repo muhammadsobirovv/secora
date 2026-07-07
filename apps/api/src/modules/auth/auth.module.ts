@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { RbacModule } from '../rbac/rbac.module.js';
+import { OrganizationsModule } from '../organizations/organizations.module.js';
+import { UserPreferencesModule } from '../user-preferences/user-preferences.module.js';
 import { USERS_REPOSITORY } from './domain/repositories/users.repository.interface.js';
 import { SESSIONS_REPOSITORY } from './domain/repositories/sessions.repository.interface.js';
 import { REFRESH_TOKENS_REPOSITORY } from './domain/repositories/refresh-tokens.repository.interface.js';
@@ -20,17 +23,36 @@ import { PasswordHasherService } from './services/password-hasher.service.js';
 import { TokenService } from './services/token.service.js';
 import { TotpService } from './services/totp.service.js';
 import { DeviceParserService } from './services/device-parser.service.js';
+import { SessionIssuerService } from './services/session-issuer.service.js';
+import { RegisterUseCase } from './use-cases/register.use-case.js';
+import { LoginUseCase } from './use-cases/login.use-case.js';
+import { MfaChallengeUseCase } from './use-cases/mfa-challenge.use-case.js';
+import { RefreshUseCase } from './use-cases/refresh.use-case.js';
+import { LogoutUseCase } from './use-cases/logout.use-case.js';
+import { ForgotPasswordUseCase } from './use-cases/forgot-password.use-case.js';
+import { ResetPasswordUseCase } from './use-cases/reset-password.use-case.js';
+import { ChangePasswordUseCase } from './use-cases/change-password.use-case.js';
+import { VerifyEmailUseCase } from './use-cases/verify-email.use-case.js';
+import { ResendVerificationEmailUseCase } from './use-cases/resend-verification-email.use-case.js';
+import { MfaSetupUseCase } from './use-cases/mfa-setup.use-case.js';
+import { MfaConfirmUseCase } from './use-cases/mfa-confirm.use-case.js';
+import { MfaDisableUseCase } from './use-cases/mfa-disable.use-case.js';
+import { OAuthLoginUseCase } from './use-cases/oauth-login.use-case.js';
+import { OAuthExchangeUseCase } from './use-cases/oauth-exchange.use-case.js';
+import { ListSessionsUseCase } from './use-cases/list-sessions.use-case.js';
+import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case.js';
 
-// Controllers, use-cases, and Passport strategies land here in subsequent
-// tasks — see /home/kali/.claude/plans/lucky-spinning-tarjan.md. This
-// module currently wires the repository (ports-and-adapters) layer and the
-// technical services use-cases will orchestrate.
+// Controllers and Passport strategies land here in the next task — see
+// /home/kali/.claude/plans/lucky-spinning-tarjan.md.
 @Module({
   imports: [
     // Empty register(): TokenService passes secret/expiresIn explicitly on
     // every sign() call (from env config), so no module-level default is
     // needed — JwtModule is only imported here to make JwtService injectable.
     JwtModule.register({}),
+    RbacModule,
+    OrganizationsModule,
+    UserPreferencesModule,
   ],
   providers: [
     { provide: USERS_REPOSITORY, useClass: PrismaUsersRepository },
@@ -60,6 +82,24 @@ import { DeviceParserService } from './services/device-parser.service.js';
     TokenService,
     TotpService,
     DeviceParserService,
+    SessionIssuerService,
+    RegisterUseCase,
+    LoginUseCase,
+    MfaChallengeUseCase,
+    RefreshUseCase,
+    LogoutUseCase,
+    ForgotPasswordUseCase,
+    ResetPasswordUseCase,
+    ChangePasswordUseCase,
+    VerifyEmailUseCase,
+    ResendVerificationEmailUseCase,
+    MfaSetupUseCase,
+    MfaConfirmUseCase,
+    MfaDisableUseCase,
+    OAuthLoginUseCase,
+    OAuthExchangeUseCase,
+    ListSessionsUseCase,
+    RevokeSessionUseCase,
   ],
   exports: [
     USERS_REPOSITORY,
@@ -74,6 +114,23 @@ import { DeviceParserService } from './services/device-parser.service.js';
     TokenService,
     TotpService,
     DeviceParserService,
+    RegisterUseCase,
+    LoginUseCase,
+    MfaChallengeUseCase,
+    RefreshUseCase,
+    LogoutUseCase,
+    ForgotPasswordUseCase,
+    ResetPasswordUseCase,
+    ChangePasswordUseCase,
+    VerifyEmailUseCase,
+    ResendVerificationEmailUseCase,
+    MfaSetupUseCase,
+    MfaConfirmUseCase,
+    MfaDisableUseCase,
+    OAuthLoginUseCase,
+    OAuthExchangeUseCase,
+    ListSessionsUseCase,
+    RevokeSessionUseCase,
   ],
 })
 export class AuthModule {}
