@@ -1,5 +1,5 @@
-// PentestHub AI — Auth module data model.
-// See docs/modules/01-auth.md for the design rationale.
+// PentestHub AI — Auth + platform-foundation data model.
+// See docs/modules/01-auth.md and docs/adr/0001-auth-module.md for rationale.
 
 generator client {
   provider = "prisma-client"
@@ -10,27 +10,38 @@ datasource db {
   provider = "postgresql"
 }
 
+// ---------------------------------------------------------------------------
+// User
+// ---------------------------------------------------------------------------
+
 /// A registered user account. Password auth and OAuth auth are both optional
 /// per-user — passwordHash is null for OAuth-only accounts.
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String?
-  displayName   String
-  avatarUrl     String?
-  emailVerified Boolean   @default(false)
-  status        UserStatus @default(ACTIVE)
-  failedLoginCount Int    @default(0)
-  lockedUntil   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String     @id @default(uuid())
+  email            String     @unique
+  passwordHash     String?
+  displayName      String
+  avatarUrl        String?
+  emailVerified    Boolean    @default(false)
+  status           UserStatus @default(ACTIVE)
+  failedLoginCount Int        @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  oauthAccounts        OAuthAccount[]
-  refreshTokens        RefreshToken[]
-  sessions              Session[]
-  mfaFactor             MfaFactor?
+  oauthAccounts           OAuthAccount[]
+  refreshTokens            RefreshToken[]
+  sessions                  Session[]
+  mfaFactor                 MfaFactor?
   emailVerificationTokens EmailVerificationToken[]
-  passwordResetTokens   PasswordResetToken[]
+  passwordResetTokens     PasswordResetToken[]
+  mfaChallengeTokens       MfaChallengeToken[]
+  oauthExchangeCodes       OAuthExchangeCode[]
+  auditEvents               AuditEvent[]
+  userRoles                 UserRole[]
+  organizationMemberships OrganizationMember[]
+  apiKeys                   ApiKey[]
+  preferences                UserPreferences?
 
   @@map("users")
 }
@@ -41,15 +52,19 @@ enum UserStatus {
   DELETED
 }
 
+// ---------------------------------------------------------------------------
+// OAuth
+// ---------------------------------------------------------------------------
+
 /// A linked OAuth identity (Google, GitHub, ...). A user can link multiple providers.
 model OAuthAccount {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   userId         String
   provider       OAuthProvider
   providerUserId String
   accessToken    String?
   refreshToken   String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime      @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -63,16 +78,45 @@ enum OAuthProvider {
   GITHUB
 }
 
+/// One-time code handed to the frontend after an OAuth callback, exchanged
+/// for real tokens via POST /auth/oauth/exchange. Keeps access/refresh
+/// tokens out of the redirect URL (browser history, referrer headers, logs).
+model OAuthExchangeCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("oauth_exchange_codes")
+}
+
+// ---------------------------------------------------------------------------
+// Sessions & tokens
+// ---------------------------------------------------------------------------
+
 /// One browser/app session tied to a specific device. Distinct from RefreshToken:
 /// a session is the human-facing "device" record; a refresh token is the credential.
 model Session {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
   deviceName   String
   ipAddress    String
   userAgent    String
-  createdAt    DateTime @default(now())
-  lastActiveAt DateTime @default(now())
+  /// Parsed from userAgent at session-creation time (ua-parser-js). Nullable
+  /// because parsing can fail on unusual/unknown user agents.
+  browser      String?
+  os           String?
+  /// Geo-IP location, e.g. "City, Country". Left unpopulated for now — no
+  /// geo-IP provider is configured in this environment. Column exists so a
+  /// provider can be wired later without a migration.
+  location     String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
   revokedAt    DateTime?
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -84,13 +128,13 @@ model Session {
 
 /// Refresh tokens are stored hashed (never plaintext) and rotated on every use.
 model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  sessionId  String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  revokedAt  DateTime?
+  id                String    @id @default(uuid())
+  userId            String
+  sessionId         String
+  tokenHash         String    @unique
+  expiresAt         DateTime
+  createdAt         DateTime  @default(now())
+  revokedAt         DateTime?
   replacedByTokenId String?
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -101,27 +145,67 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// ---------------------------------------------------------------------------
+// MFA
+// ---------------------------------------------------------------------------
+
 /// TOTP-based MFA factor. One per user for v1 (no backup-codes-as-separate-factor yet).
 model MfaFactor {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  secret         String
-  enabled        Boolean  @default(false)
-  backupCodes    String[]
-  createdAt      DateTime @default(now())
-  confirmedAt    DateTime?
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  secret      String
+  enabled     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  backupCodes MfaBackupCode[]
 
   @@map("mfa_factors")
 }
 
-model EmailVerificationToken {
-  id        String   @id @default(uuid())
+/// Individually hashed, single-use backup codes. Replaces a plain string
+/// array so each code can be consumed exactly once and never stored in
+/// plaintext.
+model MfaBackupCode {
+  id          String    @id @default(uuid())
+  mfaFactorId String
+  codeHash    String
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  mfaFactor MfaFactor @relation(fields: [mfaFactorId], references: [id], onDelete: Cascade)
+
+  @@index([mfaFactorId])
+  @@map("mfa_backup_codes")
+}
+
+/// Issued after password verification when MFA is enabled; consumed by
+/// POST /auth/mfa/challenge to complete login.
+model MfaChallengeToken {
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_challenge_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Email verification / password reset
+// ---------------------------------------------------------------------------
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -131,15 +215,205 @@ model EmailVerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// RBAC foundation (Role / Permission / UserRole / RolePermission)
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+  userRoles        UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Organizations (foundation for future team workspaces)
+// ---------------------------------------------------------------------------
+
+/// A workspace. Every user gets one personal Organization created at
+/// registration (see docs/adr/0001-auth-module.md) — invites, switching,
+/// and multi-member workflows are future-module work, not this sprint.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members OrganizationMember[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid())
+  organizationId String
+  userId         String
+  role           OrgMemberRole
+  joinedAt       DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ---------------------------------------------------------------------------
+// API keys (foundation for future CLI / browser extension / automation)
+// ---------------------------------------------------------------------------
+
+/// Schema + repository only this sprint — no issuing/listing/revoking
+/// endpoints and no API-key auth strategy yet.
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  /// Hashed like refresh tokens — the raw key is shown once at creation
+  /// and never stored.
+  keyHash    String    @unique
+  /// Short visible identifier (e.g. first 8 chars of the raw key) so a
+  /// user can tell keys apart in a list without re-exposing the secret.
+  prefix     String
+  scopes     String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// ---------------------------------------------------------------------------
+// User preferences
+// ---------------------------------------------------------------------------
+
+model UserPreferences {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  theme                 Theme    @default(SYSTEM)
+  language              String   @default("en")
+  timezone              String   @default("UTC")
+  notificationsEnabled Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+/// userId is nullable + SetNull on delete so audit history survives account
+/// deletion (a deleted account's history is still worth keeping).
+model AuditEvent {
+  id        String         @id @default(uuid())
+  userId    String?
+  type      AuditEventType
+  ipAddress String
+  userAgent String
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@map("audit_events")
+}
+
+enum AuditEventType {
+  REGISTER
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  ACCOUNT_LOCKED
+  LOGOUT
+  REFRESH_TOKEN_ROTATED
+  REFRESH_TOKEN_REUSE_DETECTED
+  EMAIL_VERIFIED
+  VERIFICATION_EMAIL_RESENT
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  PASSWORD_CHANGED
+  MFA_ENABLED
+  MFA_DISABLED
+  MFA_CHALLENGE_SUCCESS
+  MFA_CHALLENGE_FAILURE
+  OAUTH_LINKED
+  OAUTH_LOGIN
+  SESSION_REVOKED
 }
