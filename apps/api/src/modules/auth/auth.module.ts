@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { USERS_REPOSITORY } from './domain/repositories/users.repository.interface.js';
 import { SESSIONS_REPOSITORY } from './domain/repositories/sessions.repository.interface.js';
 import { REFRESH_TOKENS_REPOSITORY } from './domain/repositories/refresh-tokens.repository.interface.js';
@@ -15,12 +16,22 @@ import { PrismaMfaRepository } from './infrastructure/persistence/prisma/prisma-
 import { PrismaPasswordResetTokensRepository } from './infrastructure/persistence/prisma/prisma-password-reset-tokens.repository.js';
 import { PrismaEmailVerificationTokensRepository } from './infrastructure/persistence/prisma/prisma-email-verification-tokens.repository.js';
 import { PrismaOAuthExchangeCodesRepository } from './infrastructure/persistence/prisma/prisma-oauth-exchange-codes.repository.js';
+import { PasswordHasherService } from './services/password-hasher.service.js';
+import { TokenService } from './services/token.service.js';
+import { TotpService } from './services/totp.service.js';
+import { DeviceParserService } from './services/device-parser.service.js';
 
-// Controllers, use-cases, technical services (password hasher, token, totp,
-// device-parser), and Passport strategies land here in subsequent tasks —
-// see /home/kali/.claude/plans/lucky-spinning-tarjan.md. This module
-// currently wires the repository (ports-and-adapters) layer only.
+// Controllers, use-cases, and Passport strategies land here in subsequent
+// tasks — see /home/kali/.claude/plans/lucky-spinning-tarjan.md. This
+// module currently wires the repository (ports-and-adapters) layer and the
+// technical services use-cases will orchestrate.
 @Module({
+  imports: [
+    // Empty register(): TokenService passes secret/expiresIn explicitly on
+    // every sign() call (from env config), so no module-level default is
+    // needed — JwtModule is only imported here to make JwtService injectable.
+    JwtModule.register({}),
+  ],
   providers: [
     { provide: USERS_REPOSITORY, useClass: PrismaUsersRepository },
     { provide: SESSIONS_REPOSITORY, useClass: PrismaSessionsRepository },
@@ -45,6 +56,10 @@ import { PrismaOAuthExchangeCodesRepository } from './infrastructure/persistence
       provide: OAUTH_EXCHANGE_CODES_REPOSITORY,
       useClass: PrismaOAuthExchangeCodesRepository,
     },
+    PasswordHasherService,
+    TokenService,
+    TotpService,
+    DeviceParserService,
   ],
   exports: [
     USERS_REPOSITORY,
@@ -55,6 +70,10 @@ import { PrismaOAuthExchangeCodesRepository } from './infrastructure/persistence
     PASSWORD_RESET_TOKENS_REPOSITORY,
     EMAIL_VERIFICATION_TOKENS_REPOSITORY,
     OAUTH_EXCHANGE_CODES_REPOSITORY,
+    PasswordHasherService,
+    TokenService,
+    TotpService,
+    DeviceParserService,
   ],
 })
 export class AuthModule {}
