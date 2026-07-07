@@ -21,11 +21,20 @@ export class TotpService {
   }
 
   async verifyCode(secret: string, token: string): Promise<boolean> {
-    // epochTolerance allows one 30s step of clock drift either side —
-    // otherwise a user's TOTP app being a few seconds ahead/behind rejects
-    // every code.
-    const result = await verify({ secret, token, epochTolerance: 1 });
-    return result.valid;
+    try {
+      // epochTolerance allows one 30s step of clock drift either side —
+      // otherwise a user's TOTP app being a few seconds ahead/behind
+      // rejects every code.
+      const result = await verify({ secret, token, epochTolerance: 1 });
+      return result.valid;
+    } catch {
+      // otplib throws (rather than returning { valid: false }) on
+      // malformed input, e.g. a 10-char backup code reaching this instead
+      // of the TOTP-shaped 6 digits it expects. Callers that try TOTP
+      // before falling back to a backup code (mfa-challenge, mfa-disable)
+      // rely on this returning false, not throwing, for any non-match.
+      return false;
+    }
   }
 
   generateBackupCodes(count: number = BACKUP_CODE_COUNT): string[] {

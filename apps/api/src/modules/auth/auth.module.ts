@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { UserPreferencesModule } from '../user-preferences/user-preferences.module.js';
@@ -41,11 +42,20 @@ import { OAuthLoginUseCase } from './use-cases/oauth-login.use-case.js';
 import { OAuthExchangeUseCase } from './use-cases/oauth-exchange.use-case.js';
 import { ListSessionsUseCase } from './use-cases/list-sessions.use-case.js';
 import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case.js';
+import { GetCurrentUserUseCase } from './use-cases/get-current-user.use-case.js';
+import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { GoogleStrategy } from './strategies/google.strategy.js';
+import { GithubStrategy } from './strategies/github.strategy.js';
+import { AuthController } from './controllers/auth.controller.js';
+import { PasswordController } from './controllers/password.controller.js';
+import { EmailVerificationController } from './controllers/email-verification.controller.js';
+import { MfaController } from './controllers/mfa.controller.js';
+import { OAuthController } from './controllers/oauth.controller.js';
+import { SessionsController } from './controllers/sessions.controller.js';
 
-// Controllers and Passport strategies land here in the next task — see
-// /home/kali/.claude/plans/lucky-spinning-tarjan.md.
 @Module({
   imports: [
+    PassportModule,
     // Empty register(): TokenService passes secret/expiresIn explicitly on
     // every sign() call (from env config), so no module-level default is
     // needed — JwtModule is only imported here to make JwtService injectable.
@@ -53,6 +63,14 @@ import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case.js';
     RbacModule,
     OrganizationsModule,
     UserPreferencesModule,
+  ],
+  controllers: [
+    AuthController,
+    PasswordController,
+    EmailVerificationController,
+    MfaController,
+    OAuthController,
+    SessionsController,
   ],
   providers: [
     { provide: USERS_REPOSITORY, useClass: PrismaUsersRepository },
@@ -100,6 +118,10 @@ import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case.js';
     OAuthExchangeUseCase,
     ListSessionsUseCase,
     RevokeSessionUseCase,
+    GetCurrentUserUseCase,
+    JwtStrategy,
+    GoogleStrategy,
+    GithubStrategy,
   ],
   exports: [
     USERS_REPOSITORY,
