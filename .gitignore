@@ -30,6 +30,10 @@ dist
 # Prisma generated client
 apps/api/generated/
 
+# Dev-local mail/storage provider output
+apps/api/.mail-outbox/
+apps/api/.storage/
+
 
 # Debug
 npm-debug.log*
