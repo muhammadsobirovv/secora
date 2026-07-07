@@ -615,21 +615,27 @@ over the open-ended "prefer X" language above where they conflict.
 | Mobile/Desktop | Flutter (deferred until web core is stable) |
 | First module | Auth (email + Google/GitHub OAuth) + Dashboard shell |
 
-## Monorepo layout (planned)
+## Monorepo layout (actual, as of scaffold)
 
 ```
 pentesthub-ai/
 ├── PROJECT_SPEC.md
+├── turbo.json
+├── pnpm-workspace.yaml
 ├── apps/
-│   ├── web/          # Next.js frontend
-│   └── api/           # NestJS backend
+│   ├── web/                    # Next.js 16 (React 19, TS) frontend
+│   └── api/                    # NestJS 11 (TS) backend
 ├── packages/
-│   ├── shared/        # shared types, DTOs, constants
-│   ├── ui/             # shared design system / components
-│   └── config/         # shared eslint/tsconfig/tailwind config
+│   ├── shared/                 # shared types / DTOs (@pentesthub/shared)
+│   ├── ui/                     # shared design system / components (@pentesthub/ui)
+│   ├── eslint-config/          # shared eslint flat configs (@pentesthub/eslint-config)
+│   └── typescript-config/      # shared tsconfig bases (@pentesthub/typescript-config)
 └── docs/
-    └── modules/        # per-module design docs, ADRs
+    └── modules/                # per-module design docs, ADRs
 ```
+
+Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
+`check-types`, `test`, `dev` pipelines all verified working end to end).
 
 ## Module rollout order (subject to revision after each module ships)
 
