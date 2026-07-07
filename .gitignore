@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# Prisma generated client
+apps/api/generated/
+
 
 # Debug
 npm-debug.log*

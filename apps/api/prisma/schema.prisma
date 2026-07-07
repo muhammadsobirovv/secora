@@ -1,0 +1,145 @@
+// PentestHub AI — Auth module data model.
+// See docs/modules/01-auth.md for the design rationale.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A registered user account. Password auth and OAuth auth are both optional
+/// per-user — passwordHash is null for OAuth-only accounts.
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?
+  displayName   String
+  avatarUrl     String?
+  emailVerified Boolean   @default(false)
+  status        UserStatus @default(ACTIVE)
+  failedLoginCount Int    @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  oauthAccounts        OAuthAccount[]
+  refreshTokens        RefreshToken[]
+  sessions              Session[]
+  mfaFactor             MfaFactor?
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens   PasswordResetToken[]
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+/// A linked OAuth identity (Google, GitHub, ...). A user can link multiple providers.
+model OAuthAccount {
+  id             String   @id @default(uuid())
+  userId         String
+  provider       OAuthProvider
+  providerUserId String
+  accessToken    String?
+  refreshToken   String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+/// One browser/app session tied to a specific device. Distinct from RefreshToken:
+/// a session is the human-facing "device" record; a refresh token is the credential.
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  deviceName   String
+  ipAddress    String
+  userAgent    String
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+  revokedAt    DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Refresh tokens are stored hashed (never plaintext) and rotated on every use.
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  sessionId  String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  revokedAt  DateTime?
+  replacedByTokenId String?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+/// TOTP-based MFA factor. One per user for v1 (no backup-codes-as-separate-factor yet).
+model MfaFactor {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  secret         String
+  enabled        Boolean  @default(false)
+  backupCodes    String[]
+  createdAt      DateTime @default(now())
+  confirmedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mfa_factors")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
