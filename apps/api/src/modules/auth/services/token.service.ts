@@ -13,12 +13,12 @@ export interface AccessTokenPayload {
 }
 
 /// Access tokens are signed JWTs (short-lived, stateless verification).
-/// Refresh/verification/reset/challenge/exchange tokens are opaque random
-/// strings, stored only as a sha256 hash — sha256 (not argon2) is
-/// appropriate here because these are high-entropy random values, not
-/// human-chosen secrets; brute-forcing a 256-bit random value is infeasible
-/// regardless of hash speed. See PasswordHasherService for the
-/// human-facing-secret case (passwords, MFA backup codes).
+/// Refresh/verification/reset/challenge/exchange tokens — and MFA backup
+/// codes — are opaque random strings, stored only as a sha256 hash: sha256
+/// (not argon2) is appropriate because these are high-entropy crypto-random
+/// values, not human-chosen secrets, so a presented value can be looked up
+/// by hash directly rather than argon2-verified against every candidate.
+/// See PasswordHasherService for the human-chosen-secret case (passwords).
 @Injectable()
 export class TokenService {
   constructor(
