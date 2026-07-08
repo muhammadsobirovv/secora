@@ -36,4 +36,16 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // @typescript-eslint/unbound-method false-positives on jest.fn()
+    // properties in mock objects (e.g. `expect(mock.method).toHaveBeenCalledWith(...)`)
+    // — it doesn't know those aren't real prototype methods that lose
+    // `this` binding. The jest-aware fix is eslint-plugin-jest's own
+    // unbound-method rule; scoping it off here instead of adding a new
+    // dependency for one rule.
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );
