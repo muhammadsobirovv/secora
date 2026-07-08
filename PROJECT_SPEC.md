@@ -639,7 +639,13 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 
 ## Module rollout order (subject to revision after each module ships)
 
-1. Auth + Dashboard shell (current)
+1. Auth + Dashboard shell — **auth backend done** (NestJS API: register,
+   email verification, login, logout, JWT + refresh-token rotation with
+   reuse detection, argon2 password hashing, forgot/reset/change password,
+   Google/GitHub OAuth, TOTP MFA + backup codes, RBAC foundation, session/
+   device management, audit logging, rate limiting, Swagger docs, seed
+   data. See `docs/modules/01-auth.md` and `docs/adr/0001-auth-module.md`).
+   **Dashboard shell (Next.js frontend) not started** — next up.
 2. Recon Module (WHOIS/DNS/subdomain enum/tech fingerprinting)
 3. Vulnerability Tools (encoders/decoders/JWT/payload generators — no external deps)
 4. Bug Bounty Workspace (targets, scope tracking, findings)
