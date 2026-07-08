@@ -19,7 +19,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --passWithNoTests",
     "test:debug": "NODE_OPTIONS='--experimental-vm-modules --inspect-brk' jest --runInBand",
-    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --passWithNoTests"
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --passWithNoTests",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-integration.json --passWithNoTests --runInBand"
   },
   "dependencies": {
     "@nestjs-cls/transactional": "^3.2.1",
