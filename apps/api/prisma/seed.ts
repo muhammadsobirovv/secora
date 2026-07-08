@@ -98,16 +98,16 @@ async function seedUser(input: SeedUserInput, roleIdByName: Map<string, string>)
     create: { userId: user.id, roleId },
   });
 
-  const existingMembership = await prisma.organizationMember.findFirst({ where: { userId: user.id } });
+  const existingMembership = await prisma.workspaceMember.findFirst({ where: { userId: user.id } });
   if (!existingMembership) {
-    const organization = await prisma.organization.create({
+    const workspace = await prisma.workspace.create({
       data: {
         name: `${input.displayName}'s Workspace`,
         slug: `${input.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${randomBytes(3).toString("hex")}`,
       },
     });
-    await prisma.organizationMember.create({
-      data: { organizationId: organization.id, userId: user.id, role: "OWNER" },
+    await prisma.workspaceMember.create({
+      data: { workspaceId: workspace.id, userId: user.id, role: "OWNER" },
     });
   }
 

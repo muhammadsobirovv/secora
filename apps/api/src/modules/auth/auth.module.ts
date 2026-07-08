@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { RbacModule } from '../rbac/rbac.module.js';
-import { OrganizationsModule } from '../organizations/organizations.module.js';
+import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { UserPreferencesModule } from '../user-preferences/user-preferences.module.js';
 import { USERS_REPOSITORY } from './domain/repositories/users.repository.interface.js';
 import { SESSIONS_REPOSITORY } from './domain/repositories/sessions.repository.interface.js';
@@ -61,7 +61,7 @@ import { SessionsController } from './controllers/sessions.controller.js';
     // needed — JwtModule is only imported here to make JwtService injectable.
     JwtModule.register({}),
     RbacModule,
-    OrganizationsModule,
+    WorkspacesModule,
     UserPreferencesModule,
   ],
   controllers: [

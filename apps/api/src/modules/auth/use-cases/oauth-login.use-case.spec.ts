@@ -14,9 +14,9 @@ import {
   type OAuthExchangeCodesRepository,
 } from '../domain/repositories/oauth-exchange-codes.repository.interface.js';
 import {
-  ORGANIZATIONS_REPOSITORY,
-  type OrganizationsRepository,
-} from '../../organizations/domain/repositories/organizations.repository.interface.js';
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import {
   USER_PREFERENCES_REPOSITORY,
   type UserPreferencesRepository,
@@ -73,15 +73,21 @@ describe('OAuthLoginUseCase', () => {
         findValidByHash: jest.fn(),
         markUsed: jest.fn(),
       };
-    const organizationsRepository: jest.Mocked<OrganizationsRepository> = {
+    const workspacesRepository: jest.Mocked<WorkspacesRepository> = {
       create: jest
-        .fn<OrganizationsRepository['create']>()
+        .fn<WorkspacesRepository['create']>()
         .mockResolvedValue({ id: 'org-1' } as never),
       addMember: jest.fn(),
+      findById: jest.fn(),
+      findPersonalWorkspaceForUser: jest.fn(),
+      update: jest.fn(),
+      listMembers: jest.fn(),
+      isMember: jest.fn(),
     };
     const userPreferencesRepository: jest.Mocked<UserPreferencesRepository> = {
       createDefault: jest.fn(),
       findByUserId: jest.fn(),
+      update: jest.fn(),
     };
     const rbacService = {
       assignDefaultRole: jest.fn(),
@@ -103,7 +109,7 @@ describe('OAuthLoginUseCase', () => {
         provide: OAUTH_EXCHANGE_CODES_REPOSITORY,
         useValue: oauthExchangeCodesRepository,
       },
-      { provide: ORGANIZATIONS_REPOSITORY, useValue: organizationsRepository },
+      { provide: WORKSPACES_REPOSITORY, useValue: workspacesRepository },
       {
         provide: USER_PREFERENCES_REPOSITORY,
         useValue: userPreferencesRepository,
@@ -118,7 +124,7 @@ describe('OAuthLoginUseCase', () => {
       usersRepository,
       oauthAccountsRepository,
       oauthExchangeCodesRepository,
-      organizationsRepository,
+      workspacesRepository,
       auditService,
     };
   }
@@ -174,7 +180,7 @@ describe('OAuthLoginUseCase', () => {
         emailVerified: true,
       }),
     );
-    expect(deps.organizationsRepository.create).toHaveBeenCalled();
+    expect(deps.workspacesRepository.create).toHaveBeenCalled();
     expect(deps.oauthAccountsRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'new-user' }),
     );
