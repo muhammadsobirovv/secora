@@ -48,4 +48,16 @@ export default tseslint.config(
       '@typescript-eslint/unbound-method': 'off',
     },
   },
+  {
+    // supertest's res.body is untyped (any) by design — asserting on its
+    // runtime shape via expect(...) *is* the test. Typing every response
+    // against ApiSuccessResponse<T>/ApiErrorResponse would add ceremony
+    // without catching anything expect() doesn't already catch.
+    files: ['**/*.e2e-spec.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
+  },
 );
