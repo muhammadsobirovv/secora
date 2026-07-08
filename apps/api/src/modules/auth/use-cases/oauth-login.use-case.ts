@@ -3,9 +3,9 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { AuditService } from '../../audit/audit.service.js';
 import { RbacService } from '../../rbac/rbac.service.js';
 import {
-  ORGANIZATIONS_REPOSITORY,
-  type OrganizationsRepository,
-} from '../../organizations/domain/repositories/organizations.repository.interface.js';
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import {
   USER_PREFERENCES_REPOSITORY,
   type UserPreferencesRepository,
@@ -51,8 +51,8 @@ export class OAuthLoginUseCase {
     private readonly oauthAccountsRepository: OAuthAccountsRepository,
     @Inject(OAUTH_EXCHANGE_CODES_REPOSITORY)
     private readonly oauthExchangeCodesRepository: OAuthExchangeCodesRepository,
-    @Inject(ORGANIZATIONS_REPOSITORY)
-    private readonly organizationsRepository: OrganizationsRepository,
+    @Inject(WORKSPACES_REPOSITORY)
+    private readonly workspacesRepository: WorkspacesRepository,
     @Inject(USER_PREFERENCES_REPOSITORY)
     private readonly userPreferencesRepository: UserPreferencesRepository,
     private readonly rbacService: RbacService,
@@ -95,12 +95,12 @@ export class OAuthLoginUseCase {
         userId = user.id;
         await this.rbacService.assignDefaultRole(userId);
 
-        const organization = await this.organizationsRepository.create({
+        const workspace = await this.workspacesRepository.create({
           name: `${input.displayName}'s Workspace`,
           slug: generateUniqueSlug(input.displayName),
         });
-        await this.organizationsRepository.addMember(
-          organization.id,
+        await this.workspacesRepository.addMember(
+          workspace.id,
           userId,
           'OWNER',
         );

@@ -1,12 +1,13 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import type { AuthErrorCode } from '@pentesthub/shared';
+import type { AppErrorCode } from '@pentesthub/shared';
 
-/// Every use-case throws this (never a raw NestJS HttpException) so the
-/// global exception filter can always surface a stable `code` the frontend
-/// branches on, matching AuthErrorResponseDto in @pentesthub/shared.
+/// Every use-case/command/query handler throws this (never a raw NestJS
+/// HttpException) so the global exception filter can always surface a
+/// stable `code` the frontend branches on, matching AppErrorResponseDto
+/// in @pentesthub/shared.
 export class AppException extends HttpException {
   constructor(
-    public readonly code: AuthErrorCode,
+    public readonly code: AppErrorCode,
     message: string,
     status: HttpStatus = HttpStatus.BAD_REQUEST,
   ) {

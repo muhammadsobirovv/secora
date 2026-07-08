@@ -39,9 +39,18 @@ model User {
   oauthExchangeCodes       OAuthExchangeCode[]
   auditEvents               AuditEvent[]
   userRoles                 UserRole[]
-  organizationMemberships OrganizationMember[]
+  workspaceMemberships    WorkspaceMember[]
   apiKeys                   ApiKey[]
   preferences                UserPreferences?
+
+  projectsCreated      Project[]
+  projectMemberships   ProjectMember[]
+  projectFavorites     ProjectFavorite[]
+  targetsCreated       Target[]
+  notesAuthored        Note[]
+  evidenceCreated      Evidence[]
+  attachmentsUploaded  Attachment[]
+  activityEvents       ActivityEvent[]
 
   @@map("users")
 }
@@ -282,43 +291,389 @@ model UserRole {
 }
 
 // ---------------------------------------------------------------------------
-// Organizations (foundation for future team workspaces)
+// Workspaces (Module 1: personal workspace at registration; Module 2:
+// settings/avatar + the Projects/Targets/... foundation attaches here)
 // ---------------------------------------------------------------------------
 
-/// A workspace. Every user gets one personal Organization created at
-/// registration (see docs/adr/0001-auth-module.md) — invites, switching,
-/// and multi-member workflows are future-module work, not this sprint.
-model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+/// Every user gets one personal Workspace created at registration (see
+/// docs/adr/0001-auth-module.md). Invites, switching, and multi-member
+/// workflows beyond the OWNER/ADMIN/MEMBER foundation are future-module
+/// work. `plan` is reserved for a future billing tier — unread by
+/// anything this sprint, just avoids a migration on a large table later.
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  avatarUrl   String?
+  description String?
+  plan        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  members OrganizationMember[]
+  members        WorkspaceMember[]
+  settings       WorkspaceSettings?
+  projects       Project[]
+  tags           Tag[]
+  attachments    Attachment[]
+  activityEvents ActivityEvent[]
 
-  @@map("organizations")
+  @@map("workspaces")
 }
 
-model OrganizationMember {
-  id             String           @id @default(uuid())
-  organizationId String
-  userId         String
-  role           OrgMemberRole
-  joinedAt       DateTime         @default(now())
+model WorkspaceSettings {
+  id                   String        @id @default(uuid())
+  workspaceId          String        @unique
+  defaultProjectStatus ProjectStatus @default(ACTIVE)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, userId])
+  @@map("workspace_settings")
+}
+
+model WorkspaceMember {
+  id          String              @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceMemberRole
+  joinedAt    DateTime            @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
   @@index([userId])
-  @@map("organization_members")
+  @@map("workspace_members")
 }
 
-enum OrgMemberRole {
+enum WorkspaceMemberRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+/// `visibility` is reserved for future access-control beyond
+/// ProjectMember/WorkspaceMember — not enforced by any query this sprint.
+/// `deletedAt` (soft delete) is independent of `status`: an ARCHIVED
+/// project is still visible in an "archived" filter; a deleted one isn't
+/// visible anywhere until restored... except deletion has no restore path
+/// (only archive does) — see ProjectsModule README-equivalent (ADR 0002).
+enum ProjectVisibility {
+  PRIVATE
+  WORKSPACE
+  PUBLIC
+}
+
+model Project {
+  id          String            @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  status      ProjectStatus     @default(ACTIVE)
+  visibility  ProjectVisibility @default(WORKSPACE)
+  createdBy   String
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User            @relation(fields: [createdBy], references: [id])
+  members   ProjectMember[]
+  favorites ProjectFavorite[]
+  targets        Target[]
+  notes          Note[]
+  evidence       Evidence[]
+  tags           ProjectTag[]
+  activityEvents ActivityEvent[]
+
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+enum ProjectMemberRole {
+  OWNER
+  CONTRIBUTOR
+  VIEWER
+}
+
+model ProjectMember {
+  id        String            @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectMemberRole @default(CONTRIBUTOR)
+  addedAt   DateTime          @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+/// Per-user favorite — not a flat boolean on Project, since different
+/// members of the same project favorite it independently.
+model ProjectFavorite {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_favorites")
+}
+
+// ---------------------------------------------------------------------------
+// Tags (workspace-scoped, reusable across Projects and Targets)
+// ---------------------------------------------------------------------------
+
+model Tag {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  color       String?
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectTags ProjectTag[]
+  targetTags  TargetTag[]
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, tagId])
+  @@map("project_tags")
+}
+
+model TargetTag {
+  targetId String
+  tagId    String
+
+  target Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([targetId, tagId])
+  @@map("target_tags")
+}
+
+// ---------------------------------------------------------------------------
+// Targets
+// ---------------------------------------------------------------------------
+
+enum TargetType {
+  DOMAIN
+  SUBDOMAIN
+  URL
+  IP_ADDRESS
+  CIDR
+  API
+  MOBILE_APP
+  INTERNAL_ASSET
+}
+
+enum TargetEnvironment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+  UNKNOWN
+}
+
+enum TargetScopeStatus {
+  IN_SCOPE
+  OUT_OF_SCOPE
+  PENDING_REVIEW
+}
+
+/// `value` holds the actual domain/IP/URL/CIDR/... string; `type` says how
+/// to interpret it. No Recon logic reads/writes this model yet —
+/// `customFields` is a forward-compat escape hatch for future-module
+/// per-target data without a schema change.
+model Target {
+  id           String            @id @default(uuid())
+  projectId    String
+  type         TargetType
+  value        String
+  name         String?
+  description  String?
+  environment  TargetEnvironment @default(UNKNOWN)
+  scopeStatus  TargetScopeStatus @default(PENDING_REVIEW)
+  customFields Json?
+  createdBy    String
+  deletedAt    DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  project  Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator  User        @relation(fields: [createdBy], references: [id])
+  notes    Note[]
+  evidence Evidence[]
+  tags     TargetTag[]
+
+  @@index([projectId])
+  @@index([type])
+  @@map("targets")
+}
+
+// ---------------------------------------------------------------------------
+// Notes (Markdown; optionally attached to a specific Target)
+// ---------------------------------------------------------------------------
+
+model Note {
+  id        String    @id @default(uuid())
+  projectId String
+  targetId  String?
+  title     String?
+  content   String
+  authorId  String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target  Target? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([projectId])
+  @@index([targetId])
+  @@map("notes")
+}
+
+// ---------------------------------------------------------------------------
+// Evidence
+// ---------------------------------------------------------------------------
+
+enum EvidenceType {
+  SCREENSHOT
+  HTTP_REQUEST
+  HTTP_RESPONSE
+  FILE
+  LOG
+  VIDEO
+}
+
+/// `textContent` holds HTTP request/response or log text captured inline;
+/// screenshots/files/video are backed by an Attachment instead. `checksum`
+/// (SHA-256 hex) is computed at upload time for file-backed evidence.
+model Evidence {
+  id          String       @id @default(uuid())
+  projectId   String
+  targetId    String?
+  type        EvidenceType
+  title       String
+  description String?
+  textContent String?
+  checksum    String?
+  createdBy   String
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target  Target? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  creator User    @relation(fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@index([targetId])
+  @@map("evidence")
+}
+
+// ---------------------------------------------------------------------------
+// Attachments (polymorphic — see docs/adr/0002-workspace-foundation-module.md)
+// ---------------------------------------------------------------------------
+
+enum AttachableType {
+  WORKSPACE
+  PROJECT
+  TARGET
+  NOTE
+  EVIDENCE
+}
+
+/// No DB-level FK to the attached-to row (attachableType/attachableId is a
+/// loose reference, not a relation) — the parent-existence check happens
+/// in the upload command handler, not the database. Deliberate: this is
+/// the one relation in the schema that needs to point at five different
+/// parent tables, which a real FK can't express. workspaceId is always
+/// set (even when attachableType is TARGET/NOTE/etc.) so storage
+/// ownership/quota tracking never needs to join through the polymorphic
+/// reference.
+model Attachment {
+  id             String         @id @default(uuid())
+  workspaceId    String
+  attachableType AttachableType
+  attachableId   String
+  fileName       String
+  mimeType       String
+  sizeBytes      Int
+  storageKey     String
+  uploadedBy     String
+  deletedAt      DateTime?
+  createdAt      DateTime       @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader  User      @relation(fields: [uploadedBy], references: [id])
+
+  @@index([attachableType, attachableId])
+  @@index([workspaceId])
+  @@map("attachments")
+}
+
+// ---------------------------------------------------------------------------
+// Activity timeline (user-facing collaboration history — deliberately
+// separate from AuditEvent, which is immutable security logging; see
+// docs/adr/0002-workspace-foundation-module.md)
+// ---------------------------------------------------------------------------
+
+/// entityType/entityId is a loose reference for the same reason as
+/// Attachment above, plus one more: this table must be able to describe
+/// entities from modules that don't exist yet (Recon, AI, ...) without a
+/// schema change — an ActivityEvent surviving its subject's hard deletion
+/// is a feature (the timeline still reads "Target X was deleted"), not a
+/// bug, so the lack of cascade-on-delete here is intentional, not just
+/// tolerated.
+model ActivityEvent {
+  id          String   @id @default(uuid())
+  workspaceId String
+  projectId   String?
+  actorUserId String?
+  verb        String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  actor     User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([entityType, entityId])
+  @@map("activity_events")
 }
 
 // ---------------------------------------------------------------------------

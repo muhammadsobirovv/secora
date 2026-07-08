@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
+import { CqrsModule } from '@nestjs/cqrs';
 import { ClsPluginTransactional } from '@nestjs-cls/transactional';
 import { TransactionalAdapterPrisma } from '@nestjs-cls/transactional-adapter-prisma';
 import { validateEnv } from './config/env.validation.js';
@@ -16,10 +17,18 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
-import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module.js';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module.js';
 import { UserPreferencesModule } from './modules/user-preferences/user-preferences.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ProjectsModule } from './modules/projects/projects.module.js';
+import { TargetsModule } from './modules/targets/targets.module.js';
+import { NotesModule } from './modules/notes/notes.module.js';
+import { EvidenceModule } from './modules/evidence/evidence.module.js';
+import { AttachmentsModule } from './modules/attachments/attachments.module.js';
+import { TagsModule } from './modules/tags/tags.module.js';
+import { ActivityModule } from './modules/activity/activity.module.js';
+import { SearchModule } from './modules/search/search.module.js';
 
 @Module({
   imports: [
@@ -27,6 +36,11 @@ import { AuthModule } from './modules/auth/auth.module.js';
       isGlobal: true,
       validate: validateEnv,
     }),
+    // Global CommandBus/QueryBus/EventBus — feature modules just declare
+    // their @CommandHandler/@QueryHandler/@EventsHandler classes as
+    // providers; the CQRS explorer (registered by forRoot) discovers them
+    // app-wide, no per-module CqrsModule import needed.
+    CqrsModule.forRoot(),
     // Wires nestjs-cls's transactional plugin so `@Transactional()` on a
     // use-case method opens one Prisma transaction that every repository
     // call within it participates in transparently (see PrismaModule).
@@ -51,10 +65,18 @@ import { AuthModule } from './modules/auth/auth.module.js';
     ProvidersModule,
     AuditModule,
     RbacModule,
-    OrganizationsModule,
+    WorkspacesModule,
     ApiKeysModule,
     UserPreferencesModule,
     AuthModule,
+    ProjectsModule,
+    TargetsModule,
+    NotesModule,
+    EvidenceModule,
+    AttachmentsModule,
+    TagsModule,
+    ActivityModule,
+    SearchModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

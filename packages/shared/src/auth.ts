@@ -132,22 +132,7 @@ export interface RevokeSessionRequestDto {
 }
 
 // --- Errors ----------------------------------------------------------------------
+// Moved to errors.ts and broadened to AppErrorCode (Module 2) — re-exported
+// here under the old name so no Module 1 import site needs to change.
 
-export interface AuthErrorResponseDto {
-  statusCode: number;
-  code: AuthErrorCode;
-  message: string;
-}
-
-export type AuthErrorCode =
-  | "EMAIL_ALREADY_REGISTERED"
-  | "INVALID_CREDENTIALS"
-  | "ACCOUNT_LOCKED"
-  | "ACCOUNT_SUSPENDED"
-  | "EMAIL_NOT_VERIFIED"
-  | "INVALID_OR_EXPIRED_TOKEN"
-  | "MFA_CODE_INVALID"
-  | "MFA_CHALLENGE_EXPIRED"
-  | "MFA_NOT_ENABLED"
-  | "MFA_ALREADY_ENABLED"
-  | "RATE_LIMITED";
+export type { AppErrorResponseDto as AuthErrorResponseDto, AppErrorCode as AuthErrorCode } from "./errors.js";

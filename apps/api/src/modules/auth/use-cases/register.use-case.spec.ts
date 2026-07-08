@@ -12,9 +12,9 @@ import {
   type EmailVerificationTokensRepository,
 } from '../domain/repositories/email-verification-tokens.repository.interface.js';
 import {
-  ORGANIZATIONS_REPOSITORY,
-  type OrganizationsRepository,
-} from '../../organizations/domain/repositories/organizations.repository.interface.js';
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import {
   USER_PREFERENCES_REPOSITORY,
   type UserPreferencesRepository,
@@ -72,15 +72,21 @@ describe('RegisterUseCase', () => {
         markUsed: jest.fn(),
         invalidateAllForUser: jest.fn(),
       };
-    const organizationsRepository: jest.Mocked<OrganizationsRepository> = {
+    const workspacesRepository: jest.Mocked<WorkspacesRepository> = {
       create: jest
-        .fn<OrganizationsRepository['create']>()
+        .fn<WorkspacesRepository['create']>()
         .mockResolvedValue({ id: 'org-1' } as never),
       addMember: jest.fn(),
+      findById: jest.fn(),
+      findPersonalWorkspaceForUser: jest.fn(),
+      update: jest.fn(),
+      listMembers: jest.fn(),
+      isMember: jest.fn(),
     };
     const userPreferencesRepository: jest.Mocked<UserPreferencesRepository> = {
       createDefault: jest.fn(),
       findByUserId: jest.fn(),
+      update: jest.fn(),
     };
     const mailService: jest.Mocked<MailService> = { send: jest.fn() };
     const rbacService = {
@@ -111,7 +117,7 @@ describe('RegisterUseCase', () => {
         provide: EMAIL_VERIFICATION_TOKENS_REPOSITORY,
         useValue: emailVerificationTokensRepository,
       },
-      { provide: ORGANIZATIONS_REPOSITORY, useValue: organizationsRepository },
+      { provide: WORKSPACES_REPOSITORY, useValue: workspacesRepository },
       {
         provide: USER_PREFERENCES_REPOSITORY,
         useValue: userPreferencesRepository,
@@ -130,7 +136,7 @@ describe('RegisterUseCase', () => {
       useCase,
       usersRepository,
       emailVerificationTokensRepository,
-      organizationsRepository,
+      workspacesRepository,
       userPreferencesRepository,
       mailService,
       rbacService,
@@ -149,8 +155,8 @@ describe('RegisterUseCase', () => {
       expect.objectContaining({ email: baseInput.email, emailVerified: false }),
     );
     expect(deps.rbacService.assignDefaultRole).toHaveBeenCalledWith('user-1');
-    expect(deps.organizationsRepository.create).toHaveBeenCalled();
-    expect(deps.organizationsRepository.addMember).toHaveBeenCalledWith(
+    expect(deps.workspacesRepository.create).toHaveBeenCalled();
+    expect(deps.workspacesRepository.addMember).toHaveBeenCalledWith(
       'org-1',
       'user-1',
       'OWNER',

@@ -14,9 +14,9 @@ import type { EnvConfig } from '../../../config/env.validation.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { RbacService } from '../../rbac/rbac.service.js';
 import {
-  ORGANIZATIONS_REPOSITORY,
-  type OrganizationsRepository,
-} from '../../organizations/domain/repositories/organizations.repository.interface.js';
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import {
   USER_PREFERENCES_REPOSITORY,
   type UserPreferencesRepository,
@@ -46,8 +46,8 @@ export class RegisterUseCase {
     @Inject(USERS_REPOSITORY) private readonly usersRepository: UsersRepository,
     @Inject(EMAIL_VERIFICATION_TOKENS_REPOSITORY)
     private readonly emailVerificationTokensRepository: EmailVerificationTokensRepository,
-    @Inject(ORGANIZATIONS_REPOSITORY)
-    private readonly organizationsRepository: OrganizationsRepository,
+    @Inject(WORKSPACES_REPOSITORY)
+    private readonly workspacesRepository: WorkspacesRepository,
     @Inject(USER_PREFERENCES_REPOSITORY)
     private readonly userPreferencesRepository: UserPreferencesRepository,
     @Inject(MAIL_SERVICE) private readonly mailService: MailService,
@@ -58,7 +58,7 @@ export class RegisterUseCase {
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
-  /// Runs the User + default-role + personal-Organization + default-
+  /// Runs the User + default-role + personal-Workspace + default-
   /// UserPreferences writes in one transaction (via nestjs-cls) so a
   /// failure partway through never leaves an orphaned account.
   @Transactional()
@@ -82,15 +82,11 @@ export class RegisterUseCase {
 
     await this.rbacService.assignDefaultRole(user.id);
 
-    const organization = await this.organizationsRepository.create({
+    const workspace = await this.workspacesRepository.create({
       name: `${input.displayName}'s Workspace`,
       slug: generateUniqueSlug(input.displayName),
     });
-    await this.organizationsRepository.addMember(
-      organization.id,
-      user.id,
-      'OWNER',
-    );
+    await this.workspacesRepository.addMember(workspace.id, user.id, 'OWNER');
 
     await this.userPreferencesRepository.createDefault(user.id);
 
@@ -112,7 +108,7 @@ export class RegisterUseCase {
       type: 'REGISTER',
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
-      metadata: { organizationId: organization.id },
+      metadata: { workspaceId: workspace.id },
     });
 
     return {
