@@ -639,19 +639,25 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 
 ## Module rollout order (subject to revision after each module ships)
 
-1. Auth + Dashboard shell — **auth backend done** (NestJS API: register,
-   email verification, login, logout, JWT + refresh-token rotation with
-   reuse detection, argon2 password hashing, forgot/reset/change password,
-   Google/GitHub OAuth, TOTP MFA + backup codes, RBAC foundation, session/
-   device management, audit logging, rate limiting, Swagger docs, seed
-   data. See `docs/modules/01-auth.md` and `docs/adr/0001-auth-module.md`).
-   **Dashboard shell (Next.js frontend) not started** — next up.
-2. Recon Module (WHOIS/DNS/subdomain enum/tech fingerprinting)
-3. Vulnerability Tools (encoders/decoders/JWT/payload generators — no external deps)
-4. Bug Bounty Workspace (targets, scope tracking, findings)
-5. Report Generator
-6. AI Assistant integration
-7. CVE Center
-8. Knowledge Base
-9. Admin Panel
-10. Integrations, Voice Assistant, Mobile/Desktop (Flutter), Marketplace/Plugin SDK
+1. Auth (Module 1) — **done** (NestJS API: register, email verification,
+   login, logout, JWT + refresh-token rotation with reuse detection,
+   argon2 password hashing, forgot/reset/change password, Google/GitHub
+   OAuth, TOTP MFA + backup codes, RBAC foundation, session/device
+   management, audit logging, rate limiting, Swagger docs, seed data.
+   See `docs/modules/01-auth.md` and `docs/adr/0001-auth-module.md`).
+2. Workspace Foundation + Dashboard UI (Module 2) — **done** (backend:
+   Workspaces, Projects, Targets, Notes, Evidence, Attachments, Tags,
+   event-driven Activity Timeline, Search — all domain-agnostic storage,
+   no Recon/AI logic attached; frontend: full Next.js dashboard covering
+   Module 1 auth UI plus every Module 2 resource, Settings, command
+   palette, dark-mode-first responsive shell. See
+   `docs/adr/0002-workspace-foundation-module.md`).
+3. Recon Module (WHOIS/DNS/subdomain enum/tech fingerprinting)
+4. Vulnerability Tools (encoders/decoders/JWT/payload generators — no external deps)
+5. Bug Bounty Workspace (targets, scope tracking, findings)
+6. Report Generator
+7. AI Assistant integration
+8. CVE Center
+9. Knowledge Base
+10. Admin Panel
+11. Integrations, Voice Assistant, Mobile/Desktop (Flutter), Marketplace/Plugin SDK

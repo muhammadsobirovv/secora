@@ -1,0 +1,213 @@
+"use client";
+
+import { Suspense, use } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { FileText, ImageIcon, Plus, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/common/empty-state";
+import { ListSkeleton } from "@/components/common/skeletons";
+import { ErrorState } from "@/components/common/error-state";
+import { useProject } from "@/features/projects/hooks/use-projects";
+import { useTargets } from "@/features/targets/hooks/use-targets";
+import { useNotes } from "@/features/notes/hooks/use-notes";
+import { useEvidenceList } from "@/features/evidence/hooks/use-evidence";
+import { useActivity } from "@/features/activity/hooks/use-activity";
+import { ProjectStatusBadge } from "@/features/projects/components/project-status-badge";
+import { ProjectActionsMenu } from "@/features/projects/components/project-actions-menu";
+import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
+import { ActivityFeed } from "@/features/activity/components/activity-feed";
+import { formatDate } from "@/lib/format";
+
+export default function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  return (
+    <Suspense>
+      <ProjectDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+function ProjectDetailContent({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  const { projectId } = use(params);
+  const { data: project, isLoading, isError, refetch } = useProject(projectId);
+  const tabParam = useSearchParams().get("tab");
+  const initialTab = ["targets", "notes", "evidence", "activity"].includes(tabParam ?? "")
+    ? tabParam!
+    : "targets";
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (isError || !project) {
+    return <ErrorState description="Couldn't load this project." onRetry={() => void refetch()} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{project.name}</h1>
+            <ProjectStatusBadge status={project.status} />
+          </div>
+          {project.description && (
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{project.description}</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {project.tags.map((tag) => (
+              <Badge key={tag.id} variant="outline">
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <ProjectActionsMenu project={project} />
+      </div>
+
+      <Tabs defaultValue={initialTab}>
+        <TabsList>
+          <TabsTrigger value="targets">Targets</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="evidence">Evidence</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="targets" className="pt-4">
+          <TargetsTab projectId={projectId} />
+        </TabsContent>
+        <TabsContent value="notes" className="pt-4">
+          <NotesTab projectId={projectId} />
+        </TabsContent>
+        <TabsContent value="evidence" className="pt-4">
+          <EvidenceTab projectId={projectId} />
+        </TabsContent>
+        <TabsContent value="activity" className="pt-4">
+          <ActivityTab projectId={projectId} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function TargetsTab({ projectId }: { projectId: string }) {
+  const { data: targets, isLoading } = useTargets(projectId);
+  if (isLoading) return <ListSkeleton />;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Button size="sm" asChild>
+          <Link href={`/targets/new?projectId=${projectId}`}>
+            <Plus className="size-4" /> Add target
+          </Link>
+        </Button>
+      </div>
+      {!targets || targets.length === 0 ? (
+        <EmptyState icon={Target} title="No targets yet" description="Add domains, IPs, URLs, and more." />
+      ) : (
+        <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
+          {targets.map((target) => (
+            <Link
+              key={target.id}
+              href={`/targets/${target.id}`}
+              className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/40"
+            >
+              <div className="flex items-center gap-3">
+                <TargetTypeBadge type={target.type} />
+                <span className="font-mono text-sm">{target.value}</span>
+              </div>
+              <Badge variant="outline">{target.scopeStatus.replace("_", " ")}</Badge>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotesTab({ projectId }: { projectId: string }) {
+  const { data: notes, isLoading } = useNotes(projectId);
+  if (isLoading) return <ListSkeleton />;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Button size="sm" asChild>
+          <Link href={`/notes/new?projectId=${projectId}`}>
+            <Plus className="size-4" /> New note
+          </Link>
+        </Button>
+      </div>
+      {!notes || notes.length === 0 ? (
+        <EmptyState icon={FileText} title="No notes yet" description="Capture findings in markdown." />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {notes.map((note) => (
+            <Link key={note.id} href={`/notes/${note.id}`}>
+              <Card className="h-full transition-shadow hover:shadow-md">
+                <CardContent className="pt-6">
+                  <p className="truncate font-medium">{note.title ?? "Untitled note"}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{note.content}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{formatDate(note.updatedAt)}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvidenceTab({ projectId }: { projectId: string }) {
+  const { data: evidence, isLoading } = useEvidenceList(projectId);
+  if (isLoading) return <ListSkeleton />;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Button size="sm" asChild>
+          <Link href={`/evidence/new?projectId=${projectId}`}>
+            <Plus className="size-4" /> Add evidence
+          </Link>
+        </Button>
+      </div>
+      {!evidence || evidence.length === 0 ? (
+        <EmptyState icon={ImageIcon} title="No evidence yet" description="Screenshots, requests, logs, and files." />
+      ) : (
+        <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
+          {evidence.map((item) => (
+            <Link
+              key={item.id}
+              href={`/evidence/${item.id}`}
+              className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/40"
+            >
+              <span className="font-medium">{item.title}</span>
+              <Badge variant="outline">{item.type.replace("_", " ")}</Badge>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityTab({ projectId }: { projectId: string }) {
+  const { data, isLoading } = useActivity({ projectId });
+  return <ActivityFeed events={data} isLoading={isLoading} />;
+}

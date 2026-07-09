@@ -1,0 +1,144 @@
+"use client";
+
+import Link from "next/link";
+import {
+  Activity as ActivityIcon,
+  Building2,
+  FolderKanban,
+  Plus,
+  Search,
+  Settings,
+  Star,
+  Tags,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/common/stat-card";
+import { EmptyState } from "@/components/common/empty-state";
+import { CardGridSkeleton } from "@/components/common/skeletons";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useWorkspace, useWorkspaceMembers } from "@/features/workspace/hooks/use-workspace";
+import { useProjects } from "@/features/projects/hooks/use-projects";
+import { useTags } from "@/features/tags/hooks/use-tags";
+import { useActivity } from "@/features/activity/hooks/use-activity";
+import { useUiStore } from "@/lib/stores/ui-store";
+import { ProjectCard } from "@/features/projects/components/project-card";
+import { ActivityFeed } from "@/features/activity/components/activity-feed";
+import { WorkspaceAvatar } from "@/features/workspace/components/workspace-avatar";
+
+export default function DashboardHomePage() {
+  const { user } = useAuth();
+  const { data: workspace } = useWorkspace();
+  const { data: members } = useWorkspaceMembers();
+  const { data: projects, isLoading: projectsLoading } = useProjects();
+  const { data: tags } = useTags();
+  const { data: activity, isLoading: activityLoading } = useActivity({ limit: 8 });
+  const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
+
+  const recentProjects = (projects ?? []).slice(0, 6);
+  const favoriteCount = (projects ?? []).filter((p) => p.isFavorite).length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">
+            Welcome back{user ? `, ${user.displayName.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-sm text-muted-foreground">Here&apos;s what&apos;s happening in your workspace.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setCommandPaletteOpen(true)}>
+            <Search className="size-4" /> Search
+          </Button>
+          <Button asChild>
+            <Link href="/projects/new">
+              <Plus className="size-4" /> New project
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Projects" value={projects?.length ?? 0} icon={FolderKanban} isLoading={projectsLoading} />
+        <StatCard label="Favorites" value={favoriteCount} icon={Star} isLoading={projectsLoading} />
+        <StatCard label="Tags" value={tags?.length ?? 0} icon={Tags} />
+        <StatCard label="Team members" value={members?.length ?? 0} icon={Users} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">Recent projects</h2>
+            <Button variant="link" asChild className="h-auto p-0">
+              <Link href="/projects">View all</Link>
+            </Button>
+          </div>
+          {projectsLoading ? (
+            <CardGridSkeleton count={4} />
+          ) : recentProjects.length === 0 ? (
+            <EmptyState
+              icon={FolderKanban}
+              title="No projects yet"
+              description="Create your first project to start tracking targets, notes, and evidence."
+              action={
+                <Button asChild size="sm">
+                  <Link href="/projects/new">
+                    <Plus className="size-4" /> New project
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {recentProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Building2 className="size-4" /> Workspace
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <WorkspaceAvatar workspace={workspace} className="size-10" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{workspace?.name}</p>
+                  <p className="text-xs text-muted-foreground">{members?.length ?? 0} member(s)</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" asChild>
+                  <Link href="/workspace">Overview</Link>
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" asChild>
+                  <Link href="/settings/workspace">
+                    <Settings className="size-3.5" /> Settings
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ActivityIcon className="size-4" /> Recent activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityFeed events={activity} isLoading={activityLoading} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
