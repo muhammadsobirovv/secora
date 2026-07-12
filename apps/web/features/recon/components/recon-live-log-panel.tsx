@@ -1,0 +1,57 @@
+"use client";
+
+import * as React from "react";
+import { Circle, Terminal } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useReconJobLogs } from "../hooks/use-recon";
+
+const LEVEL_COLOR: Record<string, string> = {
+  DEBUG: "text-muted-foreground",
+  INFO: "text-foreground",
+  WARN: "text-warning",
+  ERROR: "text-destructive",
+};
+
+/// Only connects the SSE stream while the job is actually running — a
+/// finished job's history is complete already (ReconJobLog rows persist),
+/// so re-streaming it live would be pointless work. `enabled` is the
+/// caller's job.status not being terminal.
+export function ReconLiveLogPanel({ jobId, enabled }: { jobId: string; enabled: boolean }) {
+  const { logs, connected, error } = useReconJobLogs(jobId, enabled);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [logs]);
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Terminal className="size-3.5" /> Live log
+        </div>
+        {enabled && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Circle
+              className={cn("size-2", connected ? "fill-success text-success" : "fill-muted text-muted")}
+            />
+            {connected ? "Streaming" : "Connecting…"}
+          </div>
+        )}
+      </div>
+      <div ref={scrollRef} className="max-h-80 overflow-y-auto px-3 py-2 font-mono text-xs">
+        {error && <p className="text-destructive">{error}</p>}
+        {logs.length === 0 && !error && (
+          <p className="text-muted-foreground">
+            {enabled ? "Waiting for output…" : "No live output for a finished job."}
+          </p>
+        )}
+        {logs.map((log) => (
+          <div key={log.id} className={cn("whitespace-pre-wrap", LEVEL_COLOR[log.level])}>
+            <span className="text-muted-foreground">[{log.level}]</span> {log.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

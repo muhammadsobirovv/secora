@@ -3,7 +3,7 @@
 import { Suspense, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FileText, ImageIcon, Plus, Target } from "lucide-react";
+import { FileText, ImageIcon, Plus, Radar, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +17,12 @@ import { useTargets } from "@/features/targets/hooks/use-targets";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { useEvidenceList } from "@/features/evidence/hooks/use-evidence";
 import { useActivity } from "@/features/activity/hooks/use-activity";
+import { useReconJobsForProject } from "@/features/recon/hooks/use-recon";
 import { ProjectStatusBadge } from "@/features/projects/components/project-status-badge";
 import { ProjectActionsMenu } from "@/features/projects/components/project-actions-menu";
 import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
+import { ReconJobList } from "@/features/recon/components/recon-job-list";
 import { formatDate } from "@/lib/format";
 
 export default function ProjectDetailPage({
@@ -43,7 +45,7 @@ function ProjectDetailContent({
   const { projectId } = use(params);
   const { data: project, isLoading, isError, refetch } = useProject(projectId);
   const tabParam = useSearchParams().get("tab");
-  const initialTab = ["targets", "notes", "evidence", "activity"].includes(tabParam ?? "")
+  const initialTab = ["targets", "notes", "evidence", "recon", "activity"].includes(tabParam ?? "")
     ? tabParam!
     : "targets";
 
@@ -87,6 +89,7 @@ function ProjectDetailContent({
           <TabsTrigger value="targets">Targets</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="evidence">Evidence</TabsTrigger>
+          <TabsTrigger value="recon">Scan History</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -98,6 +101,9 @@ function ProjectDetailContent({
         </TabsContent>
         <TabsContent value="evidence" className="pt-4">
           <EvidenceTab projectId={projectId} />
+        </TabsContent>
+        <TabsContent value="recon" className="pt-4">
+          <ReconTab projectId={projectId} />
         </TabsContent>
         <TabsContent value="activity" className="pt-4">
           <ActivityTab projectId={projectId} />
@@ -197,17 +203,4 @@ function EvidenceTab({ projectId }: { projectId: string }) {
               href={`/evidence/${item.id}`}
               className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/40"
             >
-              <span className="font-medium">{item.title}</span>
-              <Badge variant="outline">{item.type.replace("_", " ")}</Badge>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ActivityTab({ projectId }: { projectId: string }) {
-  const { data, isLoading } = useActivity({ projectId });
-  return <ActivityFeed events={data} isLoading={isLoading} />;
-}
+              <span className="font-medium">{item.t

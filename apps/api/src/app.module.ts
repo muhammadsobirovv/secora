@@ -29,6 +29,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 import { ActivityModule } from './modules/activity/activity.module.js';
 import { SearchModule } from './modules/search/search.module.js';
+import { ReconModule } from './modules/recon/recon.module.js';
 
 @Module({
   imports: [
@@ -54,6 +55,13 @@ import { SearchModule } from './modules/search/search.module.js';
           // (not @prisma/client's default) — see prisma-transaction.types.ts.
           adapter: new TransactionalAdapterPrisma<PrismaClient>({
             prismaInjectionToken: PrismaService,
+            // Prisma's own default interactive-transaction timeout (5s) is
+            // tight for handlers doing several real writes inside one
+            // transaction (e.g. Recon's persistToolResult(): a finding
+            // upsert batch + an Evidence create + a status update). 15s
+            // gives realistic headroom without masking a genuinely
+            // runaway transaction (still bounded, not infinite).
+            defaultTxOptions: { timeout: 15_000 },
           }),
         }),
       ],
@@ -77,6 +85,7 @@ import { SearchModule } from './modules/search/search.module.js';
     TagsModule,
     ActivityModule,
     SearchModule,
+    ReconModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

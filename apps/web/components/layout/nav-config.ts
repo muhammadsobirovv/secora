@@ -29,11 +29,11 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Targets", href: "/targets", icon: Target },
   { label: "Notes", href: "/notes", icon: FileText },
   { label: "Evidence", href: "/evidence", icon: ImageIcon },
+  { label: "Recon", href: "/recon", icon: Radar },
   { label: "Activity", href: "/activity", icon: Activity },
 ];
 
 export const FUTURE_NAV: NavItem[] = [
-  { label: "Recon", href: "#", icon: Radar, comingSoon: true },
   { label: "AI Assistant", href: "#", icon: Bot, comingSoon: true },
   { label: "Bug Bounty", href: "#", icon: Bug, comingSoon: true },
   { label: "Reports", href: "#", icon: FileBarChart, comingSoon: true },

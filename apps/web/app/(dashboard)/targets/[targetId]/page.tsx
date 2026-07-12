@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { FileText, ImageIcon } from "lucide-react";
+import { FileText, ImageIcon, Radar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,11 @@ import { ListSkeleton } from "@/components/common/skeletons";
 import { useTarget } from "@/features/targets/hooks/use-targets";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { useEvidenceList } from "@/features/evidence/hooks/use-evidence";
+import { useReconJobsForTarget } from "@/features/recon/hooks/use-recon";
 import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
 import { TargetActionsMenu } from "@/features/targets/components/target-actions-menu";
+import { CreateReconJobDialog } from "@/features/recon/components/create-recon-job-dialog";
+import { ReconJobList } from "@/features/recon/components/recon-job-list";
 import { formatDate } from "@/lib/format";
 
 const SCOPE_VARIANT: Record<string, "success" | "destructive" | "outline"> = {
@@ -30,6 +33,7 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
     target?.projectId ?? "",
     targetId,
   );
+  const { data: reconJobs, isLoading: reconLoading } = useReconJobsForTarget(targetId);
 
   if (isLoading) {
     return (
@@ -78,6 +82,22 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
       </div>
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Radar className="size-4" /> Recon
+          </CardTitle>
+          <CreateReconJobDialog targetId={targetId} targetType={target.type} />
+        </CardHeader>
+        <CardContent>
+          <ReconJobList
+            jobs={reconJobs}
+            isLoading={reconLoading}
+            emptyDescription="Start a scan to enumerate subdomains, ports, and technologies."
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="size-4" /> Notes
@@ -108,30 +128,4 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ImageIcon className="size-4" /> Evidence
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {evidenceLoading ? (
-            <ListSkeleton rows={2} />
-          ) : !evidence || evidence.length === 0 ? (
-            <EmptyState icon={ImageIcon} title="No evidence for this target" />
-          ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {evidence.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/evidence/${item.id}`}
-                  className="flex items-center justify-between py-2 hover:text-primary"
-                >
-                  <span className="truncate text-sm">{item.title}</span>
-                  <Badge variant="outline">{item.type.replace("_", " ")}</Badge>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+         

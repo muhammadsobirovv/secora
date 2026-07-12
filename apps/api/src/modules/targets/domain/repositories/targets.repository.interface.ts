@@ -34,8 +34,11 @@ export interface ListTargetsFilter {
   tagId?: string;
 }
 
-/// No Recon logic reads/writes this repository — it's pure CRUD over a
-/// typed string + metadata (docs/adr/0002-workspace-foundation-module.md).
+/// Pure CRUD over a typed string + metadata
+/// (docs/adr/0002-workspace-foundation-module.md). Recon (Module 3) is a
+/// consumer like any other — PromoteFindingToTargetCommand calls create()
+/// the same way a user-driven "add target" flow would, since a promoted
+/// finding is just a normal Target from every other module's perspective.
 export interface TargetsRepository {
   create(input: CreateTargetInput): Promise<Target>;
   findById(id: string): Promise<TargetWithTags | null>;
