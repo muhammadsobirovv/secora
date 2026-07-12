@@ -32,6 +32,9 @@ export class LoginUseCase {
     private readonly tokenService: TokenService,
     private readonly sessionIssuer: SessionIssuerService,
     private readonly auditService: AuditService,
+    // See prisma.service.ts for why @Inject(ConfigService) is required
+    // here.
+    @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -130,5 +133,4 @@ export class LoginUseCase {
       'Invalid email or password.',
       HttpStatus.UNAUTHORIZED,
     );
-  }
-}
+  

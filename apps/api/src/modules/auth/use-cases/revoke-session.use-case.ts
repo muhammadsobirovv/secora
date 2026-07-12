@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 import { AuditService } from '../../audit/audit.service.js';
 import {
   SESSIONS_REPOSITORY,
@@ -26,6 +27,8 @@ export class RevokeSessionUseCase {
     private readonly auditService: AuditService,
   ) {}
 
+  // Same atomicity rationale as logout.use-case.ts.
+  @Transactional()
   async execute(input: RevokeSessionInput): Promise<void> {
     const session = await this.sessionsRepository.findById(input.sessionId);
     // 404 (not 403) if it belongs to someone else — don't confirm the

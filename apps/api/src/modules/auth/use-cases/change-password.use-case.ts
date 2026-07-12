@@ -1,4 +1,5 @@
 import { Inject, Injectable, HttpStatus } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 import type { ChangePasswordDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { AuditService } from '../../audit/audit.service.js';
@@ -35,6 +36,8 @@ export class ChangePasswordUseCase {
     private readonly auditService: AuditService,
   ) {}
 
+  // Same atomicity rationale as reset-password.use-case.ts.
+  @Transactional()
   async execute(input: ChangePasswordInput): Promise<void> {
     const user = await this.usersRepository.findById(input.userId);
     if (!user?.passwordHash) {

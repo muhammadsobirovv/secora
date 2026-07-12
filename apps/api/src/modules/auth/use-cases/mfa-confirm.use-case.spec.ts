@@ -1,9 +1,13 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { compileTransactionalTestingModule } from '../../../test-utils/transactional-testing-module.js';
 import { MfaConfirmUseCase } from './mfa-confirm.use-case.js';
-import type { MfaRepository } from '../domain/repositories/mfa.repository.interface.js';
-import type { TokenService } from '../services/token.service.js';
-import type { TotpService } from '../services/totp.service.js';
-import type { AuditService } from '../../audit/audit.service.js';
+import {
+  MFA_REPOSITORY,
+  type MfaRepository,
+} from '../domain/repositories/mfa.repository.interface.js';
+import { TokenService } from '../services/token.service.js';
+import { TotpService } from '../services/totp.service.js';
+import { AuditService } from '../../audit/audit.service.js';
 import type { MfaFactor } from '../../../prisma-types.js';
 
 describe('MfaConfirmUseCase', () => {
@@ -19,7 +23,7 @@ describe('MfaConfirmUseCase', () => {
     enabled: false,
   } as MfaFactor;
 
-  function buildUseCase(overrides?: {
+  async function buildUseCase(overrides?: {
     factor?: MfaFactor | null;
     codeValid?: boolean;
   }) {
@@ -54,17 +58,19 @@ describe('MfaConfirmUseCase', () => {
       log: jest.fn(),
     } as unknown as jest.Mocked<AuditService>;
 
-    const useCase = new MfaConfirmUseCase(
-      mfaRepository,
-      tokenService,
-      totpService,
-      auditService,
-    );
+    const moduleRef = await compileTransactionalTestingModule([
+      MfaConfirmUseCase,
+      { provide: MFA_REPOSITORY, useValue: mfaRepository },
+      { provide: TokenService, useValue: tokenService },
+      { provide: TotpService, useValue: totpService },
+      { provide: AuditService, useValue: auditService },
+    ]);
+    const useCase = moduleRef.get(MfaConfirmUseCase);
     return { useCase, mfaRepository, auditService };
   }
 
   it('confirms the factor and returns fresh backup codes', async () => {
-    const deps = buildUseCase();
+    const deps = await buildUseCase();
 
     const result = await deps.useCase.execute(baseInput);
 
@@ -80,7 +86,7 @@ describe('MfaConfirmUseCase', () => {
   });
 
   it("rejects when there's no setup in progress", async () => {
-    const deps = buildUseCase({ factor: null });
+    const deps = await buildUseCase({ factor: null });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
       code: 'MFA_NOT_ENABLED',
@@ -88,7 +94,7 @@ describe('MfaConfirmUseCase', () => {
   });
 
   it('rejects when MFA is already confirmed', async () => {
-    const deps = buildUseCase({
+    const deps = await buildUseCase({
       factor: { ...unconfirmedFactor, enabled: true },
     });
 
@@ -98,7 +104,7 @@ describe('MfaConfirmUseCase', () => {
   });
 
   it('rejects an invalid TOTP code', async () => {
-    const deps = buildUseCase({ codeValid: false });
+    const deps = await buildUseCase({ codeValid: false });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
       code: 'MFA_CODE_INVALID',

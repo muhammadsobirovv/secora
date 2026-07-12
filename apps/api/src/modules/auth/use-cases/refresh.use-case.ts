@@ -1,4 +1,5 @@
 import { Inject, Injectable, HttpStatus } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { AuthTokensDto, RefreshRequestDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { AuditService } from '../../audit/audit.service.js';
@@ -65,8 +66,32 @@ export class RefreshUseCase {
       throw this.invalidToken();
     }
 
+    // Atomically claim this token for rotation BEFORE creating the new
+    // token row — closes the race where two concurrent refresh calls both
+    // read the same active token, then both mint a new one from it (see
+    // rotateIfActive doc comment). If we lose the race, someone else
+    // already rotated (or revoked) it between our findByHash and now:
+    // treat that the same as reuse-of-a-rotated-token.
+    const newTokenId = randomUUID();
+    const rotationWon = await this.refreshTokensRepository.rotateIfActive(
+      token.id,
+      newTokenId,
+    );
+    if (!rotationWon) {
+      await this.refreshTokensRepository.revokeAllForSession(token.sessionId);
+      await this.sessionsRepository.revoke(token.sessionId);
+      await this.auditService.log({
+        userId: token.userId,
+        type: 'REFRESH_TOKEN_REUSE_DETECTED',
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+      });
+      throw this.invalidToken();
+    }
+
     const rawNewToken = this.tokenService.generateOpaqueToken();
-    const newToken = await this.refreshTokensRepository.create({
+    await this.refreshTokensRepository.create({
+      id: newTokenId,
       userId: token.userId,
       sessionId: token.sessionId,
       tokenHash: this.tokenService.hashOpaqueToken(rawNewToken),
@@ -75,7 +100,6 @@ export class RefreshUseCase {
       // per-token. Documented as a known simplification in the ADR.
       expiresAt: this.tokenService.getRefreshTokenExpiry(false),
     });
-    await this.refreshTokensRepository.markRotated(token.id, newToken.id);
     await this.sessionsRepository.touchLastActive(token.sessionId);
 
     const roles = await this.rbacService.getRoleNamesForUser(user.id);

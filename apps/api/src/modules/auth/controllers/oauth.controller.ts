@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   Req,
   Res,
@@ -33,9 +34,11 @@ interface OAuthRequest extends Request {
 @ApiTags('auth')
 @Controller('auth/oauth')
 export class OAuthController {
+  // See prisma.service.ts for why @Inject(ConfigService) is required here.
   constructor(
     private readonly oauthLoginUseCase: OAuthLoginUseCase,
     private readonly oauthExchangeUseCase: OAuthExchangeUseCase,
+    @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -102,6 +105,11 @@ export class OAuthController {
       ...extractRequestContext(req),
     });
     const frontendUrl = this.configService.get('FRONTEND_URL', { infer: true });
-    res.redirect(`${frontendUrl}/auth/oauth/callback?code=${exchangeCode}`);
-  }
-}
+    // The actual page lives at apps/web/app/(auth)/oauth/callback/page.tsx
+    // — the (auth) segment is a route group and doesn't appear in the URL,
+    // so the real path is /oauth/callback, not /auth/oauth/callback. It
+    // also must match proxy.ts's PUBLIC_PATHS entry exactly, or the
+    // middleware bounces the (not-yet-authenticated) visitor to /login
+    // before the page ever gets a chance to exchange the code.
+    res.redirect(`${frontendUrl}/oauth/callback?code=${exchangeCode}`);
+  

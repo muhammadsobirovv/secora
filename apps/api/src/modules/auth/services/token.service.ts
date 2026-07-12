@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'node:crypto';
@@ -21,8 +21,10 @@ export interface AccessTokenPayload {
 /// See PasswordHasherService for the human-chosen-secret case (passwords).
 @Injectable()
 export class TokenService {
+  // See prisma.service.ts for why @Inject(ConfigService) is required here.
   constructor(
-    private readonly jwtService: JwtService,
+    @Inject(JwtService) private readonly jwtService: JwtService,
+    @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -52,5 +54,4 @@ export class TokenService {
       ? this.configService.get('JWT_REFRESH_TTL_REMEMBER_ME', { infer: true })
       : this.configService.get('JWT_REFRESH_TTL', { infer: true });
     return new Date(Date.now() + parseDurationToSeconds(ttl) * 1000);
-  }
-}
+  

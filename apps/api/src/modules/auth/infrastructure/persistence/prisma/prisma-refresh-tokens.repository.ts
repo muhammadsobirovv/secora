@@ -28,6 +28,17 @@ export class PrismaRefreshTokensRepository implements RefreshTokensRepository {
     });
   }
 
+  async rotateIfActive(
+    id: string,
+    replacedByTokenId: string,
+  ): Promise<boolean> {
+    const result = await this.txHost.tx.refreshToken.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date(), replacedByTokenId },
+    });
+    return result.count === 1;
+  }
+
   async revoke(id: string): Promise<void> {
     await this.txHost.tx.refreshToken.update({
       where: { id },
@@ -39,6 +50,4 @@ export class PrismaRefreshTokensRepository implements RefreshTokensRepository {
     await this.txHost.tx.refreshToken.updateMany({
       where: { sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
-    });
-  }
-}
+ 

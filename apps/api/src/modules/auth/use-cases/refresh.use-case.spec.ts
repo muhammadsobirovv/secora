@@ -28,7 +28,10 @@ describe('RefreshUseCase', () => {
     replacedByTokenId: null,
   } as RefreshToken;
 
-  function buildUseCase(overrides?: { token?: RefreshToken | null }) {
+  function buildUseCase(overrides?: {
+    token?: RefreshToken | null;
+    rotationWon?: boolean;
+  }) {
     const usersRepository: jest.Mocked<UsersRepository> = {
       findById: jest.fn<UsersRepository['findById']>().mockResolvedValue(user),
       findByEmail: jest.fn(),
@@ -57,6 +60,9 @@ describe('RefreshUseCase', () => {
           overrides?.token === undefined ? validToken : overrides.token,
         ),
       markRotated: jest.fn(),
+      rotateIfActive: jest
+        .fn<RefreshTokensRepository['rotateIfActive']>()
+        .mockResolvedValue(overrides?.rotationWon ?? true),
       revoke: jest.fn(),
       revokeAllForSession: jest.fn(),
     };
@@ -99,9 +105,9 @@ describe('RefreshUseCase', () => {
 
     const result = await deps.useCase.execute(baseInput);
 
-    expect(deps.refreshTokensRepository.markRotated).toHaveBeenCalledWith(
+    expect(deps.refreshTokensRepository.rotateIfActive).toHaveBeenCalledWith(
       'token-1',
-      'token-2',
+      expect.any(String),
     );
     expect(deps.sessionsRepository.touchLastActive).toHaveBeenCalledWith(
       'session-1',
@@ -166,6 +172,21 @@ describe('RefreshUseCase', () => {
     expect(
       deps.refreshTokensRepository.revokeAllForSession,
     ).not.toHaveBeenCalled();
+  });
+
+  it('treats a lost rotation race (concurrent refresh) as reuse', async () => {
+    const deps = buildUseCase({ rotationWon: false });
+
+    await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
+      code: 'INVALID_OR_EXPIRED_TOKEN',
+    });
+    expect(
+      deps.refreshTokensRepository.revokeAllForSession,
+    ).toHaveBeenCalledWith('session-1');
+    expect(deps.sessionsRepository.revoke).toHaveBeenCalledWith('session-1');
+    expect(deps.auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'REFRESH_TOKEN_REUSE_DETECTED' }),
+    );
   });
 
   it('rejects when the associated user is no longer active', async () => {

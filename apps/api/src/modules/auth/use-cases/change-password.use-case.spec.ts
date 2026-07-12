@@ -1,10 +1,20 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { compileTransactionalTestingModule } from '../../../test-utils/transactional-testing-module.js';
 import { ChangePasswordUseCase } from './change-password.use-case.js';
-import type { UsersRepository } from '../domain/repositories/users.repository.interface.js';
-import type { SessionsRepository } from '../domain/repositories/sessions.repository.interface.js';
-import type { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository.interface.js';
-import type { PasswordHasherService } from '../services/password-hasher.service.js';
-import type { AuditService } from '../../audit/audit.service.js';
+import {
+  USERS_REPOSITORY,
+  type UsersRepository,
+} from '../domain/repositories/users.repository.interface.js';
+import {
+  SESSIONS_REPOSITORY,
+  type SessionsRepository,
+} from '../domain/repositories/sessions.repository.interface.js';
+import {
+  REFRESH_TOKENS_REPOSITORY,
+  type RefreshTokensRepository,
+} from '../domain/repositories/refresh-tokens.repository.interface.js';
+import { PasswordHasherService } from '../services/password-hasher.service.js';
+import { AuditService } from '../../audit/audit.service.js';
 import type { Session, User } from '../../../prisma-types.js';
 
 describe('ChangePasswordUseCase', () => {
@@ -22,7 +32,7 @@ describe('ChangePasswordUseCase', () => {
     { id: 'session-other' } as Session,
   ];
 
-  function buildUseCase(overrides?: {
+  async function buildUseCase(overrides?: {
     user?: User | null;
     passwordValid?: boolean;
   }) {
@@ -54,6 +64,7 @@ describe('ChangePasswordUseCase', () => {
       create: jest.fn(),
       findByHash: jest.fn(),
       markRotated: jest.fn(),
+      rotateIfActive: jest.fn(),
       revoke: jest.fn(),
       revokeAllForSession: jest.fn(),
     };
@@ -69,13 +80,15 @@ describe('ChangePasswordUseCase', () => {
       log: jest.fn(),
     } as unknown as jest.Mocked<AuditService>;
 
-    const useCase = new ChangePasswordUseCase(
-      usersRepository,
-      sessionsRepository,
-      refreshTokensRepository,
-      passwordHasher,
-      auditService,
-    );
+    const moduleRef = await compileTransactionalTestingModule([
+      ChangePasswordUseCase,
+      { provide: USERS_REPOSITORY, useValue: usersRepository },
+      { provide: SESSIONS_REPOSITORY, useValue: sessionsRepository },
+      { provide: REFRESH_TOKENS_REPOSITORY, useValue: refreshTokensRepository },
+      { provide: PasswordHasherService, useValue: passwordHasher },
+      { provide: AuditService, useValue: auditService },
+    ]);
+    const useCase = moduleRef.get(ChangePasswordUseCase);
     return {
       useCase,
       usersRepository,
@@ -86,7 +99,7 @@ describe('ChangePasswordUseCase', () => {
   }
 
   it('changes the password and revokes every other session but keeps the current one', async () => {
-    const deps = buildUseCase();
+    const deps = await buildUseCase();
 
     await deps.useCase.execute(baseInput);
 
@@ -110,7 +123,7 @@ describe('ChangePasswordUseCase', () => {
   });
 
   it('rejects when the current password is wrong', async () => {
-    const deps = buildUseCase({ passwordValid: false });
+    const deps = await buildUseCase({ passwordValid: false });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
       code: 'INVALID_CREDENTIALS',
@@ -119,10 +132,7 @@ describe('ChangePasswordUseCase', () => {
   });
 
   it('rejects an OAuth-only account with no password to check against', async () => {
-    const deps = buildUseCase({ user: { ...user, passwordHash: null } });
+    const deps = await buildUseCase({ user: { ...user, passwordHash: null } });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
-      code: 'INVALID_CREDENTIALS',
-    });
-  });
-});
+      code: 'INVALID

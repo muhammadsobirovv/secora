@@ -8,4 +8,9 @@ export class MfaDisableDto implements MfaDisableRequestDto {
   @IsString()
   @IsNotEmpty()
   code!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currentPassword!: string;
 }

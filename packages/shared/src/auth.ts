@@ -113,6 +113,11 @@ export interface MfaChallengeRequestDto {
 
 export interface MfaDisableRequestDto {
   code: string;
+  // Re-proves account ownership before permanently disabling MFA — same
+  // pattern as ChangePasswordDto. Without this, a live (stolen) access
+  // token plus one captured MFA code is sufficient to permanently disable
+  // MFA on the account — see docs/reviews/0001-module-1-architecture-review.md §6.
+  currentPassword: string;
 }
 
 // --- Sessions / devices --------------------------------------------------------

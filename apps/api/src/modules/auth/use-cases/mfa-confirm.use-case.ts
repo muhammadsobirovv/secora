@@ -1,4 +1,5 @@
 import { Inject, Injectable, HttpStatus } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 import type {
   MfaConfirmRequestDto,
   MfaConfirmResponseDto,
@@ -27,6 +28,10 @@ export class MfaConfirmUseCase {
     private readonly auditService: AuditService,
   ) {}
 
+  // Confirming the factor and replacing backup codes must commit
+  // together — a partial failure would leave MFA "enabled" with stale or
+  // missing backup codes.
+  @Transactional()
   async execute(input: MfaConfirmInput): Promise<MfaConfirmResponseDto> {
     const factor = await this.mfaRepository.findFactorByUserId(input.userId);
     if (!factor) {
