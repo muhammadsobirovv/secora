@@ -30,27 +30,28 @@ model User {
   updatedAt        DateTime   @updatedAt
 
   oauthAccounts           OAuthAccount[]
-  refreshTokens            RefreshToken[]
-  sessions                  Session[]
-  mfaFactor                 MfaFactor?
+  refreshTokens           RefreshToken[]
+  sessions                Session[]
+  mfaFactor               MfaFactor?
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
-  mfaChallengeTokens       MfaChallengeToken[]
-  oauthExchangeCodes       OAuthExchangeCode[]
-  auditEvents               AuditEvent[]
-  userRoles                 UserRole[]
+  mfaChallengeTokens      MfaChallengeToken[]
+  oauthExchangeCodes      OAuthExchangeCode[]
+  auditEvents             AuditEvent[]
+  userRoles               UserRole[]
   workspaceMemberships    WorkspaceMember[]
-  apiKeys                   ApiKey[]
-  preferences                UserPreferences?
+  apiKeys                 ApiKey[]
+  preferences             UserPreferences?
 
-  projectsCreated      Project[]
-  projectMemberships   ProjectMember[]
-  projectFavorites     ProjectFavorite[]
-  targetsCreated       Target[]
-  notesAuthored        Note[]
-  evidenceCreated      Evidence[]
-  attachmentsUploaded  Attachment[]
-  activityEvents       ActivityEvent[]
+  projectsCreated     Project[]
+  projectMemberships  ProjectMember[]
+  projectFavorites    ProjectFavorite[]
+  targetsCreated      Target[]
+  notesAuthored       Note[]
+  evidenceCreated     Evidence[]
+  attachmentsUploaded Attachment[]
+  activityEvents      ActivityEvent[]
+  reconJobsRequested  ReconJob[]
 
   @@map("users")
 }
@@ -248,7 +249,7 @@ model Role {
   createdAt   DateTime @default(now())
 
   rolePermissions RolePermission[]
-  userRoles        UserRole[]
+  userRoles       UserRole[]
 
   @@map("roles")
 }
@@ -316,6 +317,8 @@ model Workspace {
   tags           Tag[]
   attachments    Attachment[]
   activityEvents ActivityEvent[]
+  reconJobs      ReconJob[]
+  reconFindings  ReconFinding[]
 
   @@map("workspaces")
 }
@@ -388,15 +391,17 @@ model Project {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  creator   User            @relation(fields: [createdBy], references: [id])
-  members   ProjectMember[]
-  favorites ProjectFavorite[]
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator        User              @relation(fields: [createdBy], references: [id])
+  members        ProjectMember[]
+  favorites      ProjectFavorite[]
   targets        Target[]
   notes          Note[]
   evidence       Evidence[]
   tags           ProjectTag[]
   activityEvents ActivityEvent[]
+  reconJobs      ReconJob[]
+  reconFindings  ReconFinding[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -509,9 +514,10 @@ enum TargetScopeStatus {
 }
 
 /// `value` holds the actual domain/IP/URL/CIDR/... string; `type` says how
-/// to interpret it. No Recon logic reads/writes this model yet —
-/// `customFields` is a forward-compat escape hatch for future-module
-/// per-target data without a schema change.
+/// to interpret it. `customFields` is a forward-compat escape hatch for
+/// future-module per-target data without a schema change — still unused
+/// by Recon (Module 3), which stores its structured results in
+/// ReconFinding instead, keeping this field free for later modules.
 model Target {
   id           String            @id @default(uuid())
   projectId    String
@@ -527,11 +533,14 @@ model Target {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
-  project  Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator  User        @relation(fields: [createdBy], references: [id])
-  notes    Note[]
-  evidence Evidence[]
-  tags     TargetTag[]
+  project              Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator              User           @relation(fields: [createdBy], references: [id])
+  notes                Note[]
+  evidence             Evidence[]
+  tags                 TargetTag[]
+  reconJobs            ReconJob[]
+  reconFindings        ReconFinding[]
+  promotedFromFindings ReconFinding[] @relation("ReconFindingPromotedTarget")
 
   @@index([projectId])
   @@index([type])
@@ -592,9 +601,10 @@ model Evidence {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  target  Target? @relation(fields: [targetId], references: [id], onDelete: SetNull)
-  creator User    @relation(fields: [createdBy], references: [id])
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target        Target?           @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  creator       User              @relation(fields: [createdBy], references: [id])
+  reconToolRuns ReconJobToolRun[]
 
   @@index([projectId])
   @@index([targetId])
@@ -640,6 +650,184 @@ model Attachment {
   @@index([attachableType, attachableId])
   @@index([workspaceId])
   @@map("attachments")
+}
+
+// ---------------------------------------------------------------------------
+// Recon (Module 3) — see docs/adr/0003-recon-engine-module.md
+// ---------------------------------------------------------------------------
+
+enum ReconTool {
+  NMAP
+  SUBFINDER
+  HTTPX
+  DNSX
+  NAABU
+  WHATWEB
+  ASSETFINDER
+  GOWITNESS
+  AMASS
+  KATANA
+  GAU
+  WAYBACKURLS
+  WHOIS
+  ASN
+}
+
+enum ReconJobStatus {
+  PENDING
+  RUNNING
+  RETRYING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ReconJobLogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+enum ReconFindingType {
+  SUBDOMAIN
+  URL
+  OPEN_PORT
+  SERVICE
+  TECHNOLOGY
+  DNS_RECORD
+  HTTP_HEADER
+  CERTIFICATE
+  SCREENSHOT
+  SECURITY_HEADER
+  WHOIS_RECORD
+  ASN
+}
+
+/// One requested scan against one Target. `tools` is the immutable request
+/// spec captured at creation time; per-tool *live* state lives in
+/// ReconJobToolRun so a future "retry only the failed tools" doesn't need
+/// to mutate the original request. workspaceId/projectId are denormalized
+/// off target->project->workspace (same reasoning as Attachment.workspaceId
+/// above) so the worker's claim/list queries never join through
+/// Target/Project just to filter or authorize.
+model ReconJob {
+  id                String         @id @default(uuid())
+  workspaceId       String
+  projectId         String
+  targetId          String
+  tools             ReconTool[]
+  status            ReconJobStatus @default(PENDING)
+  retryCount        Int            @default(0)
+  maxRetries        Int            @default(2)
+  timeoutSeconds    Int            @default(600)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  claimedBy         String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelRequestedAt DateTime?
+  error             String?
+  requestedBy       String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target    Target            @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  requester User              @relation(fields: [requestedBy], references: [id])
+  toolRuns  ReconJobToolRun[]
+  logs      ReconJobLog[]
+  findings  ReconFinding[]
+
+  // The worker's claim query: WHERE status IN ('PENDING','RETRYING') ORDER BY createdAt.
+  @@index([status, createdAt])
+  @@index([targetId])
+  @@index([projectId])
+  @@index([workspaceId])
+  @@map("recon_jobs")
+}
+
+/// Per-tool execution state within a job — what the "progress" UI and the
+/// worker's sequential per-tool loop both read/write.
+model ReconJobToolRun {
+  id                  String         @id @default(uuid())
+  jobId               String
+  tool                ReconTool
+  status              ReconJobStatus @default(PENDING)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  exitCode            Int?
+  findingsCount       Int            @default(0)
+  errorMessage        String?
+  rawOutputEvidenceId String?
+  createdAt           DateTime       @default(now())
+
+  job               ReconJob      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rawOutputEvidence Evidence?     @relation(fields: [rawOutputEvidenceId], references: [id], onDelete: SetNull)
+  logs              ReconJobLog[]
+
+  @@index([jobId])
+  @@map("recon_job_tool_runs")
+}
+
+/// Append-only, source of truth for the SSE live-log stream. `seq` is a
+/// separate monotonic cursor from `id` (a UUIDv4 PK isn't sortable, and
+/// fast tool output can produce several rows within the same millisecond,
+/// so `createdAt` alone isn't a safe "since" cursor either).
+model ReconJobLog {
+  id        String           @id @default(uuid())
+  seq       BigInt           @unique @default(autoincrement())
+  jobId     String
+  toolRunId String?
+  level     ReconJobLogLevel @default(INFO)
+  message   String
+  createdAt DateTime         @default(now())
+
+  job     ReconJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  toolRun ReconJobToolRun? @relation(fields: [toolRunId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, seq])
+  @@map("recon_job_logs")
+}
+
+/// Polymorphic, tool-agnostic result row — the "common schema" every tool
+/// adapter's Normalizer writes into; a new tool needs no schema change,
+/// only a new Normalizer producing rows in this shape. `data` holds the
+/// full type-specific structured details; `value` is a short
+/// human-readable summary for list views. Screenshots are the one type
+/// that's file-backed: `data` holds only the *latest* pointer
+/// (`{evidenceId, attachmentId, url}`); the full, non-overwritten capture
+/// history lives in Evidence+Attachment instead (see ReconJobToolRun).
+/// Deduplication is this table's unique constraint below plus an
+/// upsert-on-conflict write, not separate application logic.
+model ReconFinding {
+  id               String           @id @default(uuid())
+  jobId            String
+  workspaceId      String
+  projectId        String
+  targetId         String
+  type             ReconFindingType
+  value            String
+  data             Json
+  source           ReconTool
+  dedupKey         String
+  firstSeenAt      DateTime         @default(now())
+  lastSeenAt       DateTime         @default(now())
+  promotedTargetId String?
+  createdAt        DateTime         @default(now())
+
+  job            ReconJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target         Target    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  promotedTarget Target?   @relation("ReconFindingPromotedTarget", fields: [promotedTargetId], references: [id], onDelete: SetNull)
+
+  @@unique([targetId, type, dedupKey])
+  @@index([jobId])
+  @@index([targetId, type])
+  @@index([projectId])
+  @@map("recon_findings")
 }
 
 // ---------------------------------------------------------------------------
@@ -709,14 +897,14 @@ model ApiKey {
 // ---------------------------------------------------------------------------
 
 model UserPreferences {
-  id                    String   @id @default(uuid())
-  userId                String   @unique
-  theme                 Theme    @default(SYSTEM)
-  language              String   @default("en")
-  timezone              String   @default("UTC")
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  theme                Theme    @default(SYSTEM)
+  language             String   @default("en")
+  timezone             String   @default("UTC")
   notificationsEnabled Boolean  @default(true)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -767,8 +955,4 @@ enum AuditEventType {
   MFA_ENABLED
   MFA_DISABLED
   MFA_CHALLENGE_SUCCESS
-  MFA_CHALLENGE_FAILURE
-  OAUTH_LINKED
-  OAUTH_LOGIN
-  SESSION_REVOKED
-}
+ 
