@@ -7,6 +7,7 @@ import type {
   RegisterResponseDto,
 } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
+import { Prisma, type User } from '../../../prisma-types.js';
 import { MAIL_SERVICE } from '../../../common/providers/tokens.js';
 import type { MailService } from '../../../common/providers/mail/mail-service.interface.js';
 import { generateUniqueSlug } from '../../../common/utils/slug.js';
@@ -55,6 +56,10 @@ export class RegisterUseCase {
     private readonly auditService: AuditService,
     private readonly passwordHasher: PasswordHasherService,
     private readonly tokenService: TokenService,
+    // See prisma.service.ts for why @Inject(ConfigService) is required
+    // here (generic ConfigService<EnvConfig, true> param types lose their
+    // design:paramtypes metadata under tsx/esbuild).
+    @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -73,12 +78,32 @@ export class RegisterUseCase {
     }
 
     const passwordHash = await this.passwordHasher.hash(input.password);
-    const user = await this.usersRepository.create({
-      email: input.email,
-      passwordHash,
-      displayName: input.displayName,
-      emailVerified: false,
-    });
+    // The findByEmail check above is TOCTOU-vulnerable: two concurrent
+    // registrations for the same email can both pass it before either
+    // commits. The unique constraint on User.email is the real guard —
+    // catch its violation here and map it to the same 409 the pre-check
+    // returns, instead of letting a raw P2002 surface as a 500.
+    let user: User;
+    try {
+      user = await this.usersRepository.create({
+        email: input.email,
+        passwordHash,
+        displayName: input.displayName,
+        emailVerified: false,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new AppException(
+          'EMAIL_ALREADY_REGISTERED',
+          'An account with this email already exists.',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw error;
+    }
 
     await this.rbacService.assignDefaultRole(user.id);
 
@@ -116,5 +141,4 @@ export class RegisterUseCase {
       message:
         'Registration successful. Please check your email to verify your account.',
     };
-  }
-}
+  

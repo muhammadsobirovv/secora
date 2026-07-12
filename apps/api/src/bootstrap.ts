@@ -1,6 +1,8 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
+import type { Express } from 'express';
 import type { EnvConfig } from './config/env.validation.js';
 
 /// Shared between main.ts and the e2e test bootstrap so tests exercise the
@@ -8,6 +10,19 @@ import type { EnvConfig } from './config/env.validation.js';
 /// hand-copied re-implementation that could drift.
 export function configureApp(app: INestApplication): void {
   const configService = app.get<ConfigService<EnvConfig, true>>(ConfigService);
+
+  app.use(helmet());
+
+  // See TRUST_PROXY_HOPS in env.validation.ts — sets Express's exact
+  // proxy-hop count so req.ip resolves correctly (or is left alone in
+  // unproxied local dev, where the default of 0 is correct).
+  const trustProxyHops = configService.get('TRUST_PROXY_HOPS', {
+    infer: true,
+  });
+  if (trustProxyHops > 0) {
+    const expressInstance = app.getHttpAdapter().getInstance() as Express;
+    expressInstance.set('trust proxy', trustProxyHops);
+  }
 
   app.enableCors({
     origin: configService.get('FRONTEND_URL', { infer: true }),

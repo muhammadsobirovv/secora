@@ -1,4 +1,5 @@
 import { Inject, Injectable, HttpStatus } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 import type { ResetPasswordDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { AuditService } from '../../audit/audit.service.js';
@@ -41,6 +42,10 @@ export class ResetPasswordUseCase {
     private readonly auditService: AuditService,
   ) {}
 
+  // Password hash update + session/refresh-token revocation must all
+  // commit together — a partial failure that updates the password but
+  // leaves old sessions alive would defeat the point of a reset.
+  @Transactional()
   async execute(input: ResetPasswordInput): Promise<void> {
     const token = await this.passwordResetTokensRepository.findValidByHash(
       this.tokenService.hashOpaqueToken(input.token),

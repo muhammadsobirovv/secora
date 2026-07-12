@@ -35,7 +35,10 @@ export function ChangePasswordForm() {
   async function onSubmit(values: FormValues) {
     setSubmitting(true);
     try {
-      await authApi.changePassword(values);
+      await authApi.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
       toast.success("Password changed");
       form.reset();
     } catch (error) {

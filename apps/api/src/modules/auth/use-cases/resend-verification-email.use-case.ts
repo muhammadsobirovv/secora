@@ -31,6 +31,9 @@ export class ResendVerificationEmailUseCase {
     @Inject(MAIL_SERVICE) private readonly mailService: MailService,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
+    // See prisma.service.ts for why @Inject(ConfigService) is required
+    // here.
+    @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -64,5 +67,4 @@ export class ResendVerificationEmailUseCase {
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
     });
-  }
-}
+  

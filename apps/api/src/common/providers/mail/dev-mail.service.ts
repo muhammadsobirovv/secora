@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -14,7 +14,11 @@ const OUTBOX_DIR = join(process.cwd(), '.mail-outbox');
 export class DevMailService implements MailService {
   private readonly logger = new Logger(DevMailService.name);
 
-  constructor(private readonly configService: ConfigService<EnvConfig, true>) {}
+  // See prisma.service.ts for why @Inject(ConfigService) is required here.
+  constructor(
+    @Inject(ConfigService)
+    private readonly configService: ConfigService<EnvConfig, true>,
+  ) {}
 
   async send(message: MailMessage): Promise<void> {
     const from = this.configService.get('MAIL_FROM', { infer: true });
@@ -30,5 +34,4 @@ export class DevMailService implements MailService {
       message.text,
     ].join('\n');
     await writeFile(join(OUTBOX_DIR, filename), content, 'utf-8');
-  }
-}
+  

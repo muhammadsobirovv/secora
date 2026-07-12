@@ -13,7 +13,16 @@ import type { AccessTokenPayload } from '../services/token.service.js';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    configService: ConfigService<EnvConfig, true>,
+    // Explicit @Inject(ConfigService) here (not just relying on the
+    // constructor's type annotation) because this class extends a
+    // dynamically-created mixin (PassportStrategy(...)): TypeScript's
+    // emitted design:paramtypes metadata for a mixin subclass constructor
+    // isn't reliable once ANY other parameter in the same constructor uses
+    // @Inject — Nest then can't resolve the un-decorated parameter at
+    // runtime ("argument at index [0] is available" / undefined
+    // dependency). Decorating every parameter sidesteps the reflection gap
+    // entirely instead of depending on it.
+    @Inject(ConfigService) configService: ConfigService<EnvConfig, true>,
     @Inject(USERS_REPOSITORY) private readonly usersRepository: UsersRepository,
   ) {
     super({

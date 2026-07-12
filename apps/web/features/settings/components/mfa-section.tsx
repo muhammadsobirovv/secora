@@ -27,6 +27,7 @@ export function MfaSection() {
   const [step, setStep] = React.useState<Step>("idle");
   const [setupData, setSetupData] = React.useState<MfaSetupResponseDto | null>(null);
   const [code, setCode] = React.useState("");
+  const [disablePassword, setDisablePassword] = React.useState("");
   const [backupCodes, setBackupCodes] = React.useState<string[] | null>(null);
   const [busy, setBusy] = React.useState(false);
 
@@ -60,12 +61,13 @@ export function MfaSection() {
   async function disable() {
     setBusy(true);
     try {
-      await authApi.mfaDisable({ code });
+      await authApi.mfaDisable({ code, currentPassword: disablePassword });
       setStep("idle");
       setCode("");
+      setDisablePassword("");
       toast.success("Two-factor authentication disabled");
     } catch {
-      toast.error("Invalid code. Please try again.");
+      toast.error("Invalid code or password. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -141,20 +143,36 @@ export function MfaSection() {
         )}
 
         {step === "confirm-disable" && (
-          <div className="flex max-w-xs items-end gap-2">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="mfa-disable-code">Enter a code to disable</Label>
+          <div className="flex max-w-xs flex-col gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="mfa-disable-password">Current password</Label>
               <Input
-                id="mfa-disable-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="123456 or backup code"
+                id="mfa-disable-password"
+                type="password"
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                autoComplete="current-password"
               />
             </div>
-            <Button variant="destructive" onClick={() => void disable()} disabled={busy || !code}>
-              {busy && <Loader2 className="size-3.5 animate-spin" />}
-              Disable
-            </Button>
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="mfa-disable-code">Enter a code to disable</Label>
+                <Input
+                  id="mfa-disable-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="123456 or backup code"
+                />
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => void disable()}
+                disabled={busy || !code || !disablePassword}
+              >
+                {busy && <Loader2 className="size-3.5 animate-spin" />}
+                Disable
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

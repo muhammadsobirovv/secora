@@ -1,9 +1,16 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
+import { compileTransactionalTestingModule } from '../../../test-utils/transactional-testing-module.js';
 import { RevokeSessionUseCase } from './revoke-session.use-case.js';
-import type { SessionsRepository } from '../domain/repositories/sessions.repository.interface.js';
-import type { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository.interface.js';
-import type { AuditService } from '../../audit/audit.service.js';
+import {
+  SESSIONS_REPOSITORY,
+  type SessionsRepository,
+} from '../domain/repositories/sessions.repository.interface.js';
+import {
+  REFRESH_TOKENS_REPOSITORY,
+  type RefreshTokensRepository,
+} from '../domain/repositories/refresh-tokens.repository.interface.js';
+import { AuditService } from '../../audit/audit.service.js';
 import type { Session } from '../../../prisma-types.js';
 
 describe('RevokeSessionUseCase', () => {
@@ -14,7 +21,7 @@ describe('RevokeSessionUseCase', () => {
     userAgent: 'jest',
   };
 
-  function buildUseCase(overrides?: { session?: Session | null }) {
+  async function buildUseCase(overrides?: { session?: Session | null }) {
     const sessionsRepository: jest.Mocked<SessionsRepository> = {
       create: jest.fn(),
       findById: jest
@@ -33,6 +40,7 @@ describe('RevokeSessionUseCase', () => {
       create: jest.fn(),
       findByHash: jest.fn(),
       markRotated: jest.fn(),
+      rotateIfActive: jest.fn(),
       revoke: jest.fn(),
       revokeAllForSession: jest.fn(),
     };
@@ -40,11 +48,13 @@ describe('RevokeSessionUseCase', () => {
       log: jest.fn(),
     } as unknown as jest.Mocked<AuditService>;
 
-    const useCase = new RevokeSessionUseCase(
-      sessionsRepository,
-      refreshTokensRepository,
-      auditService,
-    );
+    const moduleRef = await compileTransactionalTestingModule([
+      RevokeSessionUseCase,
+      { provide: SESSIONS_REPOSITORY, useValue: sessionsRepository },
+      { provide: REFRESH_TOKENS_REPOSITORY, useValue: refreshTokensRepository },
+      { provide: AuditService, useValue: auditService },
+    ]);
+    const useCase = moduleRef.get(RevokeSessionUseCase);
     return {
       useCase,
       sessionsRepository,
@@ -54,7 +64,7 @@ describe('RevokeSessionUseCase', () => {
   }
 
   it('revokes the session and its refresh tokens', async () => {
-    const deps = buildUseCase();
+    const deps = await buildUseCase();
 
     await deps.useCase.execute(baseInput);
 
@@ -68,7 +78,7 @@ describe('RevokeSessionUseCase', () => {
   });
 
   it('404s rather than confirming a session belongs to someone else', async () => {
-    const deps = buildUseCase({
+    const deps = await buildUseCase({
       session: { id: 'session-1', userId: 'someone-else' } as Session,
     });
 
@@ -79,10 +89,7 @@ describe('RevokeSessionUseCase', () => {
   });
 
   it("404s when the session doesn't exist", async () => {
-    const deps = buildUseCase({ session: null });
+    const deps = await buildUseCase({ session: null });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-  });
-});
+      Not

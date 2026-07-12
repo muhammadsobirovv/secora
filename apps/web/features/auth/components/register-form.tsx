@@ -29,7 +29,8 @@ export function RegisterForm() {
   async function onSubmit(values: RegisterFormValues) {
     setSubmitting(true);
     try {
-      await authApi.register(values);
+      const { confirmPassword: _confirmPassword, ...registerPayload } = values;
+      await authApi.register(registerPayload);
       setRegisteredEmail(values.email);
     } catch (error) {
       if (error instanceof ApiError && error.code === "EMAIL_ALREADY_REGISTERED") {

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 import type { LogoutRequestDto } from '@pentesthub/shared';
 import { AuditService } from '../../audit/audit.service.js';
 import {
@@ -29,6 +30,10 @@ export class LogoutUseCase {
 
   /// Idempotent — logging out with an already-invalid token is a no-op,
   /// not an error, since the end state the client wants is already true.
+  // Revoking the refresh tokens and the session must commit together — a
+  // partial failure would leave a "revoked" session with still-live
+  // tokens (or vice versa).
+  @Transactional()
   async execute(input: LogoutInput): Promise<void> {
     const token = await this.refreshTokensRepository.findByHash(
       this.tokenService.hashOpaqueToken(input.refreshToken),
