@@ -81,4 +81,59 @@ export class ToolRunnerRegistry {
       [httpx.tool, httpx],
       [dnsx.tool, dnsx],
       [naabu.tool, naabu],
-      [whatweb.to
+      [whatweb.tool, whatweb],
+      [assetfinder.tool, assetfinder],
+      [gowitness.tool, gowitness],
+      [amass.tool, amass],
+      [katana.tool, katana],
+      [gau.tool, gau],
+      [waybackurls.tool, waybackurls],
+      [whois.tool, whois],
+      [asn.tool, asn],
+    ]);
+    this.normalizers = new Map<ReconTool, Normalizer>([
+      ['NMAP', nmapNormalizer],
+      ['SUBFINDER', subfinderNormalizer],
+      ['HTTPX', httpxNormalizer],
+      ['DNSX', dnsxNormalizer],
+      ['NAABU', naabuNormalizer],
+      ['WHATWEB', whatwebNormalizer],
+      ['ASSETFINDER', assetfinderNormalizer],
+      ['GOWITNESS', gowitnessNormalizer],
+      ['AMASS', amassNormalizer],
+      ['KATANA', katanaNormalizer],
+      ['GAU', gauNormalizer],
+      ['WAYBACKURLS', waybackurlsNormalizer],
+      ['WHOIS', whoisNormalizer],
+      ['ASN', asnNormalizer],
+    ]);
+  }
+
+  resolveRunner(tool: ReconTool, target: ToolRunTarget): ToolRunner {
+    const runner = this.runners.get(tool);
+    if (!runner) {
+      throw new AppException(
+        'RECON_TOOL_NOT_SUPPORTED_FOR_TARGET_TYPE',
+        `No ToolRunner registered for ${tool}`,
+      );
+    }
+    if (!isToolCompatibleWithTargetType(tool, target.type)) {
+      throw new AppException(
+        'RECON_TOOL_NOT_SUPPORTED_FOR_TARGET_TYPE',
+        `${tool} does not support target type ${target.type}`,
+      );
+    }
+    return runner;
+  }
+
+  resolveNormalizer(tool: ReconTool): Normalizer {
+    const normalizer = this.normalizers.get(tool);
+    if (!normalizer) {
+      throw new AppException(
+        'RECON_TOOL_NOT_SUPPORTED_FOR_TARGET_TYPE',
+        `No Normalizer registered for ${tool}`,
+      );
+    }
+    return normalizer;
+  }
+}

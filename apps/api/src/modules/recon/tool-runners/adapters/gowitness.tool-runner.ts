@@ -79,4 +79,7 @@ export class GowitnessToolRunner implements ToolRunner {
         }),
       };
     } finally {
-      await rm(scratchDir, { recursive: true, 
+      await rm(scratchDir, { recursive: true, force: true });
+    }
+  }
+}

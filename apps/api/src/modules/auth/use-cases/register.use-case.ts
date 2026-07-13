@@ -141,4 +141,5 @@ export class RegisterUseCase {
       message:
         'Registration successful. Please check your email to verify your account.',
     };
-  
+  }
+}

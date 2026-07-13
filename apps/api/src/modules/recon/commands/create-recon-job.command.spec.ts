@@ -153,4 +153,8 @@ describe('CreateReconJobHandler', () => {
         }),
       ),
     ).rejects.toMatchObject({
-      code: 'RECON_TOOL_NOT_SUPPORTED_F
+      code: 'RECON_TOOL_NOT_SUPPORTED_FOR_TARGET_TYPE',
+    });
+    expect(reconJobsRepository.create).not.toHaveBeenCalled();
+  });
+});

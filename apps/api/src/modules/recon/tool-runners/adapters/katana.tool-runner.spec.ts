@@ -40,4 +40,7 @@ describe('KatanaToolRunner', () => {
     });
     const call = spawner.spawn.mock.calls[0][0];
     expect(call.args).toEqual(
-      expect.arrayContaining(['-depth', '2'
+      expect.arrayContaining(['-depth', '2', '-u', 'https://example.com']),
+    );
+  });
+});

@@ -29,4 +29,7 @@ export class AssetfinderToolRunner implements ToolRunner {
       command: bin,
       args: ['--subs-only', ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

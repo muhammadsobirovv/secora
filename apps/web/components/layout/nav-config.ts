@@ -13,6 +13,7 @@ import {
   Bug,
   FileBarChart,
   ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,6 +31,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Notes", href: "/notes", icon: FileText },
   { label: "Evidence", href: "/evidence", icon: ImageIcon },
   { label: "Recon", href: "/recon", icon: Radar },
+  { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert },
   { label: "Activity", href: "/activity", icon: Activity },
 ];
 
@@ -37,7 +39,7 @@ export const FUTURE_NAV: NavItem[] = [
   { label: "AI Assistant", href: "#", icon: Bot, comingSoon: true },
   { label: "Bug Bounty", href: "#", icon: Bug, comingSoon: true },
   { label: "Reports", href: "#", icon: FileBarChart, comingSoon: true },
-  { label: "CVE Center", href: "#", icon: ShieldAlert, comingSoon: true },
+  { label: "CVE Center", href: "#", icon: ShieldCheck, comingSoon: true },
 ];
 
 export const SETTINGS_NAV: NavItem = { label: "Settings", href: "/settings/profile", icon: Settings };

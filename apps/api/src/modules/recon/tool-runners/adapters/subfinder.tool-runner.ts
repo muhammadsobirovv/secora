@@ -27,4 +27,7 @@ export class SubfinderToolRunner implements ToolRunner {
       command: bin,
       args: ['-d', ctx.target.value, '-silent', '-json'],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

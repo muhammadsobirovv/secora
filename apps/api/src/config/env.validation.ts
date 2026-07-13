@@ -90,4 +90,78 @@ const envSchema = z.object({
   RECON_TOOL_BIN_WHOIS: z.string().default('whois'),
   // ASN lookup reuses the same `whois` binary against Team Cymru's
   // whois-based bulk ASN lookup service (plain WHOIS protocol, no API key)
-  // — s
+  // — see asn.tool-runner.ts. Configurable in case an environment needs a
+  // different ASN-lookup WHOIS host.
+  RECON_TOOL_ASN_WHOIS_HOST: z.string().default('whois.cymru.com'),
+
+  // Vulnerability worker (Module 4) — see
+  // docs/adr/0004-vulnerability-engine-module.md. Mirrors the RECON_WORKER_*
+  // keys above field-for-field, plus heartbeat (Job System: Worker
+  // Heartbeat / Dead Worker Recovery), which Module 3 didn't need.
+  VULN_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
+  VULN_WORKER_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(2000),
+  VULN_JOB_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(1800),
+  VULN_JOB_MAX_RETRIES: z.coerce.number().int().nonnegative().default(2),
+  VULN_JOB_RETRY_BASE_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5000),
+  VULN_JOB_RETRY_MAX_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(120000),
+  VULN_JOB_LOG_SSE_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1000),
+  // A RUNNING job whose lastHeartbeatAt is older than now - this interval is
+  // considered orphaned (its worker died mid-job) — see
+  // VulnScanJobPollerService.sweepOrphans. Must be comfortably larger than
+  // VULN_WORKER_HEARTBEAT_INTERVAL_MS so one or two missed beats (a slow GC
+  // pause, a busy event loop) don't false-positive a live worker as dead.
+  VULN_WORKER_HEARTBEAT_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15000),
+  VULN_WORKER_HEARTBEAT_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60000),
+
+  // Tool binary names — same rationale as RECON_TOOL_BIN_* above.
+  VULN_TOOL_BIN_NUCLEI: z.string().default('nuclei'),
+  VULN_TOOL_BIN_FFUF: z.string().default('ffuf'),
+  VULN_TOOL_BIN_DIRSEARCH: z.string().default('dirsearch'),
+  VULN_TOOL_BIN_FEROXBUSTER: z.string().default('feroxbuster'),
+  VULN_TOOL_BIN_NIKTO: z.string().default('nikto'),
+
+  // Wordlist paths for the two content-discovery fuzzers that need one
+  // supplied explicitly (dirsearch and feroxbuster both ship/select a
+  // reasonable default internally when none is given). Defaults match the
+  // common SecLists install path on Kali; override per-environment.
+  VULN_TOOL_WORDLIST_FFUF: z
+    .string()
+    .default('/usr/share/seclists/Discovery/Web-Content/common.txt'),
+});
+
+export type EnvConfig = z.infer<typeof envSchema>;
+
+export function validateEnv(config: Record<string, unknown>): EnvConfig {
+  const result = envSchema.safeParse(config);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment configuration:\n${issues}`);
+  }
+  return result.data;
+}

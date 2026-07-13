@@ -28,4 +28,7 @@ export class WhoisToolRunner implements ToolRunner {
       command: bin,
       args: [ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

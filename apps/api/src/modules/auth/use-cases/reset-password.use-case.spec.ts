@@ -156,4 +156,6 @@ describe('ResetPasswordUseCase', () => {
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
       code: 'INVALID_OR_EXPIRED_TOKEN',
     });
-    expect(deps.usersRepository.updatePasswordHash).n
+    expect(deps.usersRepository.updatePasswordHash).not.toHaveBeenCalled();
+  });
+});

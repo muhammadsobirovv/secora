@@ -97,4 +97,7 @@ describe('PrismaReconJobLogsRepository (integration)', () => {
       message: 'fourth',
     });
 
-    const since = await repository.listSince(
+    const since = await repository.listSince(jobId, cursor);
+    expect(since.map((l) => l.message)).toEqual(['second', 'third', 'fourth']);
+  });
+});

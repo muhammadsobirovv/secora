@@ -34,4 +34,5 @@ export class DevMailService implements MailService {
       message.text,
     ].join('\n');
     await writeFile(join(OUTBOX_DIR, filename), content, 'utf-8');
-  
+  }
+}

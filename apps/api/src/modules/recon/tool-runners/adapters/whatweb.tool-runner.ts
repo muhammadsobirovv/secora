@@ -29,4 +29,7 @@ export class WhatWebToolRunner implements ToolRunner {
       command: bin,
       args: ['--log-json=-', '--no-errors', ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

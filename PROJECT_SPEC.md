@@ -222,6 +222,13 @@ Visual Screenshots
 
 # Vulnerability Tools
 
+> Note: "Module 4" in the rollout order below was redefined by the project
+> owner into the **Vulnerability Engine** (external scanner orchestration —
+> Nuclei/ffuf/dirsearch/feroxbuster/Nikto — producing validated Findings; see
+> `docs/adr/0004-vulnerability-engine-module.md`), not the client-side
+> payload/encoder toolbox described in this section. The toolbox below
+> remains an unimplemented, unscheduled idea, kept here for future reference.
+
 Include:
 
 Reverse Shell Generator
@@ -652,8 +659,32 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
    Module 1 auth UI plus every Module 2 resource, Settings, command
    palette, dark-mode-first responsive shell. See
    `docs/adr/0002-workspace-foundation-module.md`).
-3. Recon Module (WHOIS/DNS/subdomain enum/tech fingerprinting)
-4. Vulnerability Tools (encoders/decoders/JWT/payload generators — no external deps)
+3. Recon Module (Module 3) — **done** (backend: 14 tools — Subfinder,
+   Amass, Assetfinder, HTTPX, Katana, Gau, Waybackurls, DNSx, Naabu, Nmap,
+   WhatWeb, Gowitness, WHOIS, ASN lookup — behind one `ToolRunner`/
+   `Normalizer` abstraction, a distributed-worker-safe job queue with
+   atomic claiming/retry/cancel/orphan-sweep, a polymorphic `ReconFinding`
+   model with dedup-key + unique-constraint deduplication, "Promote
+   Finding to Target," SSE live logs; frontend: job list/detail/progress/
+   findings UI integrated into the target and project pages plus a
+   workspace-wide `/recon` landing page. See
+   `docs/adr/0003-recon-engine-module.md`).
+4. Vulnerability Engine (Module 4) — **done**. Redefined from this
+   document's original "Vulnerability Tools" placeholder (a client-side
+   encoder/payload-generator toolbox) into a full scanner-orchestration
+   engine per explicit direction from the project owner: Recon Assets →
+   Scan Jobs → external scanners (Nuclei, ffuf, dirsearch, feroxbuster,
+   Nikto behind one `ScannerRunner`/`Normalizer` abstraction, extension
+   points reserved for SQLMap/XSStrike/Dalfox/Wapiti/OWASP ZAP) →
+   normalized `VulnFinding`s (severity/CVSS/CWE/OWASP category, dedup-key
+   + unique-constraint deduplication, auto-attached text Evidence) → Scan
+   Queue with Pause/Resume/Cancel/Retry/Priority/Worker Heartbeat/Dead
+   Worker Recovery → Activity Timeline → events reserved for a future AI
+   hook. The original "Vulnerability Tools" payload/encoder toolbox this
+   section used to describe is not built and isn't currently on the
+   roadmap under that name; the encoder/JWT/hash-utility items listed
+   above this section remain unimplemented client-side utilities, not
+   part of Module 4. See `docs/adr/0004-vulnerability-engine-module.md`.
 5. Bug Bounty Workspace (targets, scope tracking, findings)
 6. Report Generator
 7. AI Assistant integration

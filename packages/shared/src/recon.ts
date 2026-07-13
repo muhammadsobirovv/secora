@@ -146,4 +146,10 @@ export const TOOL_TARGET_TYPE_COMPATIBILITY: Record<ReconTool, string[]> = {
 };
 
 /// Only these finding types map to a real Target type — the rest (ports,
-/// services
+/// services, technologies, headers, certificates) describe something
+/// *about* a target, not a new addressable target themselves, so they're
+/// not promotable.
+export const FINDING_TYPE_TO_TARGET_TYPE: Partial<Record<ReconFindingType, string>> = {
+  SUBDOMAIN: "SUBDOMAIN",
+  URL: "URL",
+};

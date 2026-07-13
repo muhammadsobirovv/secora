@@ -39,18 +39,34 @@ import {
   ReconJobStartedEvent,
 } from '../../recon/events/recon-job-events.js';
 import { ReconFindingPromotedEvent } from '../../recon/events/recon-finding-events.js';
+import {
+  VulnScanJobCancelledEvent,
+  VulnScanJobCompletedEvent,
+  VulnScanJobCreatedEvent,
+  VulnScanJobFailedEvent,
+  VulnScanJobPausedEvent,
+  VulnScanJobResumedEvent,
+  VulnScanJobStartedEvent,
+} from '../../vuln/events/vuln-scan-job-events.js';
+import {
+  VulnFindingConfirmedEvent,
+  VulnFindingCreatedEvent,
+  VulnFindingResolvedEvent,
+  VulnFindingUpdatedEvent,
+} from '../../vuln/events/vuln-finding-events.js';
 
 /// The single listener that turns every domain event into an ActivityEvent
 /// row. This is what "generic enough for future modules" means in
 /// practice (docs/adr/0002-workspace-foundation-module.md, Decision 2):
 /// each module (Module 2's Projects/Targets/Notes/Evidence/Attachments/
-/// Workspace, Module 3's Recon) just needs its own events to implement
-/// ActivityDomainEvent and get added to the @EventsHandler(...) list
-/// below — it never needs to know this class, this repository, or the
-/// ActivityEvent table exist. Module 3 also runs a second copy of this
-/// class inside the Recon worker's own process (see WorkerModule) — see
-/// docs/adr/0003-recon-engine-module.md for why that's necessary
-/// (@nestjs/cqrs's EventBus doesn't cross OS-process boundaries).
+/// Workspace, Module 3's Recon, Module 4's Vulnerability Engine) just
+/// needs its own events to implement ActivityDomainEvent and get added to
+/// the @EventsHandler(...) list below — it never needs to know this
+/// class, this repository, or the ActivityEvent table exist. Modules 3
+/// and 4 also run a second copy of this class inside the shared worker
+/// process (see WorkerModule) — see docs/adr/0003-recon-engine-module.md
+/// for why that's necessary (@nestjs/cqrs's EventBus doesn't cross
+/// OS-process boundaries).
 @EventsHandler(
   ProjectCreatedEvent,
   ProjectUpdatedEvent,
@@ -76,6 +92,17 @@ import { ReconFindingPromotedEvent } from '../../recon/events/recon-finding-even
   ReconJobFailedEvent,
   ReconJobCancelledEvent,
   ReconFindingPromotedEvent,
+  VulnScanJobCreatedEvent,
+  VulnScanJobStartedEvent,
+  VulnScanJobCompletedEvent,
+  VulnScanJobFailedEvent,
+  VulnScanJobCancelledEvent,
+  VulnScanJobPausedEvent,
+  VulnScanJobResumedEvent,
+  VulnFindingCreatedEvent,
+  VulnFindingUpdatedEvent,
+  VulnFindingConfirmedEvent,
+  VulnFindingResolvedEvent,
 )
 export class ActivityRecordingHandler implements IEventHandler<ActivityDomainEvent> {
   constructor(

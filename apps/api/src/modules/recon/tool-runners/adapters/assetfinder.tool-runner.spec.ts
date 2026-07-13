@@ -46,4 +46,7 @@ describe('AssetfinderToolRunner', () => {
     const call = spawner.spawn.mock.calls[0][0];
     expect(Array.isArray(call.args)).toBe(true);
     expect(call.args.filter((a) => a.includes('/etc/passwd'))).toHaveLength(1);
-    expect(call
+    expect(call.command).toBe('assetfinder');
+    expect(call.args).toContain('--subs-only');
+  });
+});

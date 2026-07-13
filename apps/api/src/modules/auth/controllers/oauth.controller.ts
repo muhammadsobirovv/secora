@@ -112,4 +112,5 @@ export class OAuthController {
     // middleware bounces the (not-yet-authenticated) visitor to /login
     // before the page ever gets a chance to exchange the code.
     res.redirect(`${frontendUrl}/oauth/callback?code=${exchangeCode}`);
-  
+  }
+}

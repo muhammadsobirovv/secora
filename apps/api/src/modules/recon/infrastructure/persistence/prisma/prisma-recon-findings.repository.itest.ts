@@ -166,3 +166,12 @@ describe('PrismaReconFindingsRepository (integration)', () => {
     const [finding] = await repository.list({
       workspaceId,
       targetId,
+      type: 'SUBDOMAIN',
+    });
+    const promoted = await repository.markPromoted(
+      finding.id,
+      promotedTarget.id,
+    );
+    expect(promoted.promotedTargetId).toBe(promotedTarget.id);
+  });
+});

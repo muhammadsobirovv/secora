@@ -50,4 +50,5 @@ export class RetryReconJobHandler implements ICommandHandler<
 
     const refreshed = await this.reconJobsRepository.findById(job.id);
     return toReconJobDto(refreshed!);
-  
+  }
+}

@@ -372,4 +372,14 @@ export class ReconJobExecutionService {
     );
   }
 
-  private async countFi
+  private async countFindings(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<number> {
+    const findings = await this.findingsRepository.list({
+      workspaceId,
+      jobId,
+    });
+    return findings.length;
+  }
+}

@@ -37,4 +37,5 @@ export class ListReconFindingsQueryParamsDto implements ListReconFindingsShape {
   @ApiPropertyOptional({ enum: RECON_FINDING_TYPES })
   @IsOptional()
   @IsIn(RECON_FINDING_TYPES)
-  ty
+  type?: ReconFindingType;
+}

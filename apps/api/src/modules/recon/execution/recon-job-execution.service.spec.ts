@@ -321,4 +321,11 @@ describe('ReconJobExecutionService', () => {
       expect.objectContaining({ status: 'FAILED', errorMessage: 'boom' }),
     );
     expect(toolRunsRepository.markComplete).toHaveBeenCalledWith(
-  
+      'tr-2',
+      expect.objectContaining({ status: 'COMPLETED' }),
+    );
+    // The job as a whole still completes — a single tool failing isn't a
+    // job-level failure.
+    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
+  });
+});

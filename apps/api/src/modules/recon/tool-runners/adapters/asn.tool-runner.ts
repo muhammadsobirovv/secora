@@ -35,4 +35,7 @@ export class AsnToolRunner implements ToolRunner {
       command: bin,
       args: ['-h', host, ` -v ${ctx.target.value}`],
       signal: ctx.signal,
-      onStderrLine: (lin
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

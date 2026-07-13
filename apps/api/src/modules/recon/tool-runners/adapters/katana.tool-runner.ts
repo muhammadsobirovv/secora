@@ -32,4 +32,7 @@ export class KatanaToolRunner implements ToolRunner {
       command: bin,
       args: ['-u', ctx.target.value, '-silent', '-depth', '2'],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

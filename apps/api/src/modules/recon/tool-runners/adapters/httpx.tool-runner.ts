@@ -37,4 +37,7 @@ export class HttpxToolRunner implements ToolRunner {
         '-server',
       ],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

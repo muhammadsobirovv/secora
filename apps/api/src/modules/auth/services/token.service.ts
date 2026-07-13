@@ -54,4 +54,5 @@ export class TokenService {
       ? this.configService.get('JWT_REFRESH_TTL_REMEMBER_ME', { infer: true })
       : this.configService.get('JWT_REFRESH_TTL', { infer: true });
     return new Date(Date.now() + parseDurationToSeconds(ttl) * 1000);
-  
+  }
+}

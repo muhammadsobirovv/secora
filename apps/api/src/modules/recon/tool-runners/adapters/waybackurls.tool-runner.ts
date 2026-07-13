@@ -33,4 +33,7 @@ export class WaybackurlsToolRunner implements ToolRunner {
       command: bin,
       args: [ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

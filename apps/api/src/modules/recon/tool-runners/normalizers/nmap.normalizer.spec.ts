@@ -40,4 +40,6 @@ describe('NmapNormalizer', () => {
 
   it('returns no findings for malformed XML instead of throwing', () => {
     const findings = new NmapNormalizer().normalize('not xml at all &<>');
-    expect(Array.isArray(findings)).toBe(
+    expect(Array.isArray(findings)).toBe(true);
+  });
+});
