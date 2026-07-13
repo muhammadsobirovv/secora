@@ -67,4 +67,5 @@ export class ResendVerificationEmailUseCase {
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
     });
-  
+  }
+}

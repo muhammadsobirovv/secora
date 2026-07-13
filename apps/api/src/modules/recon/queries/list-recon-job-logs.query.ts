@@ -57,4 +57,5 @@ export class ListReconJobLogsHandler implements IQueryHandler<
       query.sinceSeq !== null ? BigInt(query.sinceSeq) : null,
     );
     return logs.map(toReconJobLogDto);
-  
+  }
+}

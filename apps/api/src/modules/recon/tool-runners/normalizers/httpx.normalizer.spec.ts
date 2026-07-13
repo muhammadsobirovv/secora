@@ -37,4 +37,6 @@ describe('HttpxNormalizer', () => {
       status_code: 200,
     });
     const findings = new HttpxNormalizer().normalize(raw);
-    expect(findings.filter((f) => f.type === 'HTTP_HEADER')).toHaveLeng
+    expect(findings.filter((f) => f.type === 'HTTP_HEADER')).toHaveLength(0);
+  });
+});

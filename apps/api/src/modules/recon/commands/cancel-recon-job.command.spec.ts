@@ -120,4 +120,6 @@ describe('CancelReconJobHandler', () => {
 
     await expect(
       handler.execute(new CancelReconJobCommand('user-1', 'job-1')),
-    ).rejects.toMatchObject({ code: 'RECON_JOB_
+    ).rejects.toMatchObject({ code: 'RECON_JOB_NOT_CANCELLABLE' });
+  });
+});

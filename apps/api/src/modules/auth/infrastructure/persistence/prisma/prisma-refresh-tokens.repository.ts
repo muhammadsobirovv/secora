@@ -50,4 +50,6 @@ export class PrismaRefreshTokensRepository implements RefreshTokensRepository {
     await this.txHost.tx.refreshToken.updateMany({
       where: { sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
- 
+    });
+  }
+}

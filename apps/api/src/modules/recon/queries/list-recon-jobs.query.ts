@@ -55,4 +55,5 @@ export class ListReconJobsHandler implements IQueryHandler<
       limit: query.filter.limit,
     });
     return jobs.map(toReconJobDto);
-  
+  }
+}

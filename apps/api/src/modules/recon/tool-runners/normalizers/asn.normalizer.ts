@@ -38,4 +38,9 @@ export class AsnNormalizer implements Normalizer {
           allocated: allocated ?? null,
           asName: asName ?? null,
         },
-        dedupKey: asnDedupKey(ip, as
+        dedupKey: asnDedupKey(ip, asNumber),
+      });
+    }
+    return findings;
+  }
+}

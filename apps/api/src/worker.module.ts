@@ -11,19 +11,29 @@ import type { PrismaClient } from './prisma-types.js';
 import { ProvidersModule } from './common/providers/providers.module.js';
 import { ActivityModule } from './modules/activity/activity.module.js';
 import { ReconCoreModule } from './modules/recon/recon-core.module.js';
+import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
 /// RolesGuard, exception filter, response interceptor — all meaningless
 /// with no HTTP server), no AuthModule/RbacModule/AuditModule/
-/// ApiKeysModule/UserPreferencesModule (nothing in the recon execution
-/// path touches them). Mirrors AppModule's infrastructure wiring
+/// ApiKeysModule/UserPreferencesModule (nothing in the recon/vuln
+/// execution paths touch them). Mirrors AppModule's infrastructure wiring
 /// (Config/Cls-transactional/Prisma/Providers) because this is a
 /// genuinely separate NestFactory.createApplicationContext() root with
 /// its own DI container — @Global() modules in AppModule's tree don't
 /// reach this one. Imports ActivityModule directly (a second instance,
 /// in a second OS process) because @nestjs/cqrs's EventBus doesn't cross
 /// process boundaries — see docs/adr/0003-recon-engine-module.md.
+///
+/// One OS process runs both pollers (ReconJobPollerService and
+/// VulnScanJobPollerService — see worker.main.ts): Module 4 deliberately
+/// did not introduce a second worker binary/deployment unit. Each
+/// module's own poll loop, concurrency cap, and claim query are still
+/// fully independent (they claim from different tables); "one process,
+/// two independent loops" is simpler to deploy than "one process per
+/// module" while preserving the same "controllers only enqueue, workers
+/// execute" separation from the API process.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
@@ -48,6 +58,7 @@ import { ReconCoreModule } from './modules/recon/recon-core.module.js';
     ProvidersModule,
     ActivityModule,
     ReconCoreModule,
+    VulnCoreModule,
   ],
 })
 export class WorkerModule {}

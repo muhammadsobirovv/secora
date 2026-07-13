@@ -133,4 +133,9 @@ export class ReconJobsController {
       };
       void poll();
 
-      re
+      return () => {
+        stopped = true;
+      };
+    });
+  }
+}

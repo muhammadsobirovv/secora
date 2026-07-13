@@ -92,4 +92,7 @@ describe('RevokeSessionUseCase', () => {
     const deps = await buildUseCase({ session: null });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toBeInstanceOf(
-      Not
+      NotFoundException,
+    );
+  });
+});

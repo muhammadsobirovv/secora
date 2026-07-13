@@ -39,4 +39,5 @@ export class GetReconJobHandler implements IQueryHandler<
       query.jobId,
     );
     return toReconJobDto(job);
-  
+  }
+}

@@ -37,4 +37,5 @@ export default function ReconLandingPage() {
         </CardContent>
       </Card>
     </div>
-  
+  );
+}

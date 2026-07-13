@@ -61,4 +61,7 @@ describe('GowitnessToolRunner', () => {
     );
 
     // The scratch directory is removed afterward regardless of outcome.
-    expect(capturedScratchDir).toBeDefined()
+    expect(capturedScratchDir).toBeDefined();
+    expect(existsSync(capturedScratchDir!)).toBe(false);
+  });
+});

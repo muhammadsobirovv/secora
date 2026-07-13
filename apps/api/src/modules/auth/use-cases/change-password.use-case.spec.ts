@@ -135,4 +135,7 @@ describe('ChangePasswordUseCase', () => {
     const deps = await buildUseCase({ user: { ...user, passwordHash: null } });
 
     await expect(deps.useCase.execute(baseInput)).rejects.toMatchObject({
-      code: 'INVALID
+      code: 'INVALID_CREDENTIALS',
+    });
+  });
+});

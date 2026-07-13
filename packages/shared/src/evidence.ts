@@ -4,7 +4,12 @@ export type EvidenceType =
   | "HTTP_RESPONSE"
   | "FILE"
   | "LOG"
-  | "VIDEO";
+  | "VIDEO"
+  // Added for Module 4 (Vulnerability Engine) — a scanner's fuzz payload
+  // and the exact command used to reproduce a finding. Purely additive;
+  // every pre-existing EvidenceType value/consumer is unaffected.
+  | "PAYLOAD"
+  | "COMMAND";
 
 export interface EvidenceDto {
   id: string;

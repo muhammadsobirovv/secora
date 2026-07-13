@@ -45,4 +45,18 @@ export function SessionRestorer({ children }: { children: React.ReactNode }) {
         // Refresh token expired/invalid — stay logged out, no error UI
         // needed, the dashboard layout will redirect to /login. Must
         // also clear the stored token + the "pentesthub_session" marker
-        // cookie here (not just le
+        // cookie here (not just leave them for the next 401 interceptor
+        // to clean up): proxy.ts redirects /login -> / whenever that
+        // marker cookie is present, and if it's never cleared after a
+        // failed refresh, a stale session survives as: "/" bounces to
+        // "/login" client-side (no valid session), while the marker
+        // cookie makes proxy.ts immediately bounce "/login" back to "/"
+        // — an infinite redirect loop with no error ever surfaced.
+        clearStoredRefreshToken();
+      })
+      .finally(() => setHydrated());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <>{children}</>;
+}

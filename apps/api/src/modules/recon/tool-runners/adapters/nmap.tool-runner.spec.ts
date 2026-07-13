@@ -63,4 +63,7 @@ describe('NmapToolRunner', () => {
     // The dangerous string is exactly one argv element — never merged
     // into a longer string that a shell could re-parse.
     expect(call.args.filter((a) => a.includes('rm -rf'))).toHaveLength(1);
-    expect(call.
+    expect(call.command).toBe('nmap');
+    expect(call.signal).toBe(signal);
+  });
+});

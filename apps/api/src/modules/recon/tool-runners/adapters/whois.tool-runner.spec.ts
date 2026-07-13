@@ -40,3 +40,6 @@ describe('WhoisToolRunner', () => {
     });
     const call = spawner.spawn.mock.calls[0][0];
     expect(call.args).toEqual(['example.com']);
+    expect(call.command).toBe('whois');
+  });
+});

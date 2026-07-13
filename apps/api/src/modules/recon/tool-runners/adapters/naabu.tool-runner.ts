@@ -36,4 +36,8 @@ export class NaabuToolRunner implements ToolRunner {
         '-top-ports',
         '100',
       ],
-      signal: ctx.sig
+      signal: ctx.signal,
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

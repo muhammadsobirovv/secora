@@ -41,4 +41,6 @@ describe('WhatWebToolRunner', () => {
     const call = spawner.spawn.mock.calls[0][0];
     expect(Array.isArray(call.args)).toBe(true);
     expect(call.args.filter((a) => a.includes(';id'))).toHaveLength(1);
-  
+    expect(call.command).toBe('whatweb');
+  });
+});

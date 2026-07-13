@@ -32,4 +32,7 @@ export class AmassToolRunner implements ToolRunner {
       command: bin,
       args: ['enum', '-passive', '-silent', '-d', ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

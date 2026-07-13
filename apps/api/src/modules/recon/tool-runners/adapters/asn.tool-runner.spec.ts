@@ -47,4 +47,7 @@ describe('AsnToolRunner', () => {
       },
     );
     const call = spawner.spawn.mock.calls[0][0];
-    expect(call.comman
+    expect(call.command).toBe('whois');
+    expect(call.args).toEqual(['-h', 'whois.cymru.com', ' -v 8.8.8.8']);
+  });
+});

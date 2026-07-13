@@ -41,4 +41,6 @@ describe('WaybackurlsToolRunner', () => {
     );
     const call = spawner.spawn.mock.calls[0][0];
     expect(call.args).toEqual(['example.com']);
-    expect(
+    expect(call.command).toBe('waybackurls');
+  });
+});

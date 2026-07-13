@@ -87,4 +87,7 @@ export class MfaDisableUseCase {
       userId: input.userId,
       type: 'MFA_DISABLED',
       ipAddress: input.ipAddress,
-      userAgent: input.
+      userAgent: input.userAgent,
+    });
+  }
+}

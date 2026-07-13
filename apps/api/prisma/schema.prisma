@@ -52,6 +52,9 @@ model User {
   attachmentsUploaded Attachment[]
   activityEvents      ActivityEvent[]
   reconJobsRequested  ReconJob[]
+  vulnScanJobsRequested VulnScanJob[]
+  vulnScanTemplatesCreated VulnScanTemplate[]
+  vulnFindingsCreated VulnFinding[]
 
   @@map("users")
 }
@@ -319,6 +322,9 @@ model Workspace {
   activityEvents ActivityEvent[]
   reconJobs      ReconJob[]
   reconFindings  ReconFinding[]
+  vulnScanJobs      VulnScanJob[]
+  vulnFindings      VulnFinding[]
+  vulnScanTemplates VulnScanTemplate[]
 
   @@map("workspaces")
 }
@@ -402,6 +408,8 @@ model Project {
   activityEvents ActivityEvent[]
   reconJobs      ReconJob[]
   reconFindings  ReconFinding[]
+  vulnScanJobs   VulnScanJob[]
+  vulnFindings   VulnFinding[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -541,6 +549,8 @@ model Target {
   reconJobs            ReconJob[]
   reconFindings        ReconFinding[]
   promotedFromFindings ReconFinding[] @relation("ReconFindingPromotedTarget")
+  vulnScanJobs         VulnScanJob[]
+  vulnFindings         VulnFinding[]
 
   @@index([projectId])
   @@index([type])
@@ -582,6 +592,10 @@ enum EvidenceType {
   FILE
   LOG
   VIDEO
+  // Module 4 (Vulnerability Engine) additions — purely additive, existing
+  // values/usages (Recon) are untouched. See docs/adr/0004.
+  PAYLOAD
+  COMMAND
 }
 
 /// `textContent` holds HTTP request/response or log text captured inline;
@@ -605,6 +619,13 @@ model Evidence {
   target        Target?           @relation(fields: [targetId], references: [id], onDelete: SetNull)
   creator       User              @relation(fields: [createdBy], references: [id])
   reconToolRuns ReconJobToolRun[]
+  vulnToolRuns  VulnScanJobToolRun[]
+  vulnFindingsAsRequest    VulnFinding[] @relation("VulnFindingRequestEvidence")
+  vulnFindingsAsResponse   VulnFinding[] @relation("VulnFindingResponseEvidence")
+  vulnFindingsAsScreenshot VulnFinding[] @relation("VulnFindingScreenshotEvidence")
+  vulnFindingsAsPayload    VulnFinding[] @relation("VulnFindingPayloadEvidence")
+  vulnFindingsAsCommand    VulnFinding[] @relation("VulnFindingCommandEvidence")
+  vulnFindingsAsRawOutput  VulnFinding[] @relation("VulnFindingRawOutputEvidence")
 
   @@index([projectId])
   @@index([targetId])
@@ -831,6 +852,287 @@ model ReconFinding {
 }
 
 // ---------------------------------------------------------------------------
+// Vulnerability Engine (Module 4) — see docs/adr/0004-vulnerability-engine-module.md
+// Consumes Recon's Target assets and produces validated VulnFinding rows.
+// Mirrors Module 3's job/worker architecture exactly (see that ADR for the
+// rationale this module deliberately reuses rather than reinvents):
+// ScanJob (request) -> ScanJobToolRun (per-scanner live state) -> ScanJobLog
+// (SSE source of truth) -> VulnFinding (deduplicated result). Evidence is
+// the existing Module 2 Evidence/Attachment pair, not a parallel table —
+// HTTP request/response/payload/command/raw-output are all just text
+// (Evidence.textContent); only a future visual scanner (ZAP) would ever
+// need Evidence.type=SCREENSHOT + a real Attachment.
+// ---------------------------------------------------------------------------
+
+/// v1 adapters. SQLMap/XSStrike/Dalfox/Wapiti/OWASP ZAP are documented
+/// extension points (see ScannerRunnerRegistry) but have no enum value yet
+/// — adding one is a single-line addition here plus a migration, same as
+/// any other new enum value; it does not by itself imply an adapter exists.
+enum VulnScanner {
+  NUCLEI
+  FFUF
+  DIRSEARCH
+  FEROXBUSTER
+  NIKTO
+}
+
+/// PAUSED is the one addition relative to ReconJobStatus (Module 3 has no
+/// pause/resume) — see VulnScanJobExecutionService for how a pause differs
+/// from a cancel (graceful: finishes the in-flight scanner, does not
+/// AbortController.abort() it).
+enum VulnScanJobStatus {
+  PENDING
+  RUNNING
+  PAUSED
+  RETRYING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum VulnScanJobLogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+enum VulnFindingSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum VulnFindingStatus {
+  NEW
+  CONFIRMED
+  DUPLICATE
+  ACCEPTED_RISK
+  FIXED
+  FALSE_POSITIVE
+}
+
+/// How sure the *scanner* was, independent of the analyst's own
+/// FindingStatus triage decision — e.g. Nuclei template matches are always
+/// CONFIRMED (a template match is definitionally exact); a ffuf/dirsearch/
+/// feroxbuster content-discovery hit is only ever MEDIUM (a 200/301 on a
+/// guessed path is suggestive, not proof); Nikto's signature-based checks
+/// vary per plugin and default to MEDIUM.
+enum VulnFindingConfidence {
+  LOW
+  MEDIUM
+  HIGH
+  CONFIRMED
+}
+
+/// OWASP Top 10:2021 category identifiers. UNKNOWN covers findings a
+/// scanner can't map to any category (most raw content-discovery hits).
+enum OwaspCategory {
+  A01_BROKEN_ACCESS_CONTROL
+  A02_CRYPTOGRAPHIC_FAILURES
+  A03_INJECTION
+  A04_INSECURE_DESIGN
+  A05_SECURITY_MISCONFIGURATION
+  A06_VULNERABLE_OUTDATED_COMPONENTS
+  A07_IDENTIFICATION_AUTH_FAILURES
+  A08_SOFTWARE_DATA_INTEGRITY_FAILURES
+  A09_LOGGING_MONITORING_FAILURES
+  A10_SERVER_SIDE_REQUEST_FORGERY
+  UNKNOWN
+}
+
+/// A reusable named preset of {scanners, per-scanner config} — "Start Scan"
+/// can reference one instead of the caller re-specifying scanner options
+/// every time. `config` is a free-form JSON map keyed by VulnScanner (e.g.
+/// {"NUCLEI": {"severity": ["high","critical"]}, "FFUF": {"wordlist": "..."}}
+/// ), read by each ScannerRunner via VulnScanJob.config at execution time —
+/// adding a new scanner-specific option is never a schema change.
+/// isBuiltIn templates (seeded, createdBy null) can't be deleted.
+model VulnScanTemplate {
+  id          String        @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  scanners    VulnScanner[]
+  config      Json?
+  isBuiltIn   Boolean       @default(false)
+  createdBy   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User?         @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  jobs      VulnScanJob[]
+
+  @@index([workspaceId])
+  @@map("vuln_scan_templates")
+}
+
+/// One requested vulnerability scan against one Target — mirrors ReconJob
+/// field-for-field except `priority` (Job System: Priority) and the
+/// pause/resume + heartbeat columns (Job System: Pause/Resume, Worker
+/// Heartbeat, Dead Worker Recovery), none of which Module 3 needed.
+/// `config` is the resolved effective per-scanner options for *this* job
+/// (copied from the template at creation time if templateId is set, or
+/// caller-supplied directly) — immutable once the job exists, same
+/// reasoning as ReconJob.tools.
+model VulnScanJob {
+  id                String            @id @default(uuid())
+  workspaceId       String
+  projectId         String
+  targetId          String
+  scanners          VulnScanner[]
+  templateId        String?
+  config            Json?
+  status            VulnScanJobStatus @default(PENDING)
+  priority          Int               @default(0)
+  retryCount        Int               @default(0)
+  maxRetries        Int               @default(2)
+  timeoutSeconds    Int               @default(1800)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  claimedBy         String?
+  lastHeartbeatAt   DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelRequestedAt DateTime?
+  pauseRequestedAt  DateTime?
+  pausedAt          DateTime?
+  error             String?
+  requestedBy       String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  workspace Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target    Target                @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  template  VulnScanTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  requester User                  @relation(fields: [requestedBy], references: [id])
+  toolRuns  VulnScanJobToolRun[]
+  logs      VulnScanJobLog[]
+  findings  VulnFinding[]
+
+  // The worker's claim query: WHERE status IN ('PENDING','RETRYING') ORDER
+  // BY priority DESC, createdAt ASC (Job System: Priority).
+  @@index([status, priority, createdAt])
+  @@index([targetId])
+  @@index([projectId])
+  @@index([workspaceId])
+  @@map("vuln_scan_jobs")
+}
+
+/// Per-scanner execution state within a job — identical role to
+/// ReconJobToolRun.
+model VulnScanJobToolRun {
+  id                  String            @id @default(uuid())
+  jobId               String
+  scanner             VulnScanner
+  status              VulnScanJobStatus @default(PENDING)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  exitCode            Int?
+  findingsCount       Int               @default(0)
+  errorMessage        String?
+  rawOutputEvidenceId String?
+  createdAt           DateTime          @default(now())
+
+  job               VulnScanJob      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rawOutputEvidence Evidence?        @relation(fields: [rawOutputEvidenceId], references: [id], onDelete: SetNull)
+  logs              VulnScanJobLog[]
+
+  @@index([jobId])
+  @@map("vuln_scan_job_tool_runs")
+}
+
+/// Append-only SSE log source of truth — identical role to ReconJobLog
+/// (see that model's comment for why `seq` exists separately from `id`).
+model VulnScanJobLog {
+  id        String              @id @default(uuid())
+  seq       BigInt              @unique @default(autoincrement())
+  jobId     String
+  toolRunId String?
+  level     VulnScanJobLogLevel @default(INFO)
+  message   String
+  createdAt DateTime            @default(now())
+
+  job     VulnScanJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  toolRun VulnScanJobToolRun? @relation(fields: [toolRunId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, seq])
+  @@map("vuln_scan_job_logs")
+}
+
+/// The unified Finding model. `path` + `vulnType` + `signature` are the
+/// three extra dedup inputs beyond target/scanner that ReconFinding didn't
+/// need (Deduplication: "Target, Path, Scanner, Vulnerability Type,
+/// Signature") — `dedupKey` below is the pure-function hash of all three
+/// plus `matchedAt`, so the actual dedup rule stays in one small utility
+/// (tool-runners/dedup/vuln-dedup-key.util.ts), never scattered across
+/// normalizers, exactly like Module 3. Evidence is six *optional* pointers
+/// rather than a join table — simplest shape for "at most one of each
+/// kind per finding", which is all six categories in the spec ever need.
+model VulnFinding {
+  id             String                @id @default(uuid())
+  jobId          String
+  workspaceId    String
+  projectId      String
+  targetId       String
+  title          String
+  description    String
+  severity       VulnFindingSeverity
+  cvssScore      Float?
+  cvssVector     String?
+  cwe            String?
+  owaspCategory  OwaspCategory?
+  scanner        VulnScanner
+  scannerVersion String?
+  confidence     VulnFindingConfidence @default(MEDIUM)
+  status         VulnFindingStatus     @default(NEW)
+  vulnType       String
+  path           String?
+  signature      String
+  matchedAt      String
+  data           Json
+  dedupKey       String
+  tags           String[]
+  references     String[]
+  createdBy      String?
+  firstSeenAt    DateTime              @default(now())
+  lastSeenAt     DateTime              @default(now())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  requestEvidenceId    String?
+  responseEvidenceId   String?
+  screenshotEvidenceId String?
+  payloadEvidenceId    String?
+  commandEvidenceId    String?
+  rawOutputEvidenceId  String?
+
+  job      VulnScanJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project  Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target   Target      @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  creator  User?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  requestEvidence    Evidence? @relation("VulnFindingRequestEvidence", fields: [requestEvidenceId], references: [id], onDelete: SetNull)
+  responseEvidence   Evidence? @relation("VulnFindingResponseEvidence", fields: [responseEvidenceId], references: [id], onDelete: SetNull)
+  screenshotEvidence Evidence? @relation("VulnFindingScreenshotEvidence", fields: [screenshotEvidenceId], references: [id], onDelete: SetNull)
+  payloadEvidence    Evidence? @relation("VulnFindingPayloadEvidence", fields: [payloadEvidenceId], references: [id], onDelete: SetNull)
+  commandEvidence    Evidence? @relation("VulnFindingCommandEvidence", fields: [commandEvidenceId], references: [id], onDelete: SetNull)
+  rawOutputEvidence  Evidence? @relation("VulnFindingRawOutputEvidence", fields: [rawOutputEvidenceId], references: [id], onDelete: SetNull)
+
+  @@unique([targetId, scanner, dedupKey])
+  @@index([jobId])
+  @@index([targetId, severity])
+  @@index([projectId])
+  @@index([workspaceId, status])
+  @@map("vuln_findings")
+}
+
+// ---------------------------------------------------------------------------
 // Activity timeline (user-facing collaboration history — deliberately
 // separate from AuditEvent, which is immutable security logging; see
 // docs/adr/0002-workspace-foundation-module.md)
@@ -955,4 +1257,8 @@ enum AuditEventType {
   MFA_ENABLED
   MFA_DISABLED
   MFA_CHALLENGE_SUCCESS
- 
+  MFA_CHALLENGE_FAILURE
+  OAUTH_LINKED
+  OAUTH_LOGIN
+  SESSION_REVOKED
+}

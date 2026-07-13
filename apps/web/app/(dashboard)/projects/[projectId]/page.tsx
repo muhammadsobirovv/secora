@@ -3,7 +3,7 @@
 import { Suspense, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FileText, ImageIcon, Plus, Radar, Target } from "lucide-react";
+import { FileText, ImageIcon, Plus, Radar, ShieldAlert, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +18,13 @@ import { useNotes } from "@/features/notes/hooks/use-notes";
 import { useEvidenceList } from "@/features/evidence/hooks/use-evidence";
 import { useActivity } from "@/features/activity/hooks/use-activity";
 import { useReconJobsForProject } from "@/features/recon/hooks/use-recon";
+import { useVulnScanJobsForProject } from "@/features/vuln/hooks/use-vuln";
 import { ProjectStatusBadge } from "@/features/projects/components/project-status-badge";
 import { ProjectActionsMenu } from "@/features/projects/components/project-actions-menu";
 import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { ReconJobList } from "@/features/recon/components/recon-job-list";
+import { VulnScanJobList } from "@/features/vuln/components/vuln-scan-job-list";
 import { formatDate } from "@/lib/format";
 
 export default function ProjectDetailPage({
@@ -45,7 +47,7 @@ function ProjectDetailContent({
   const { projectId } = use(params);
   const { data: project, isLoading, isError, refetch } = useProject(projectId);
   const tabParam = useSearchParams().get("tab");
-  const initialTab = ["targets", "notes", "evidence", "recon", "activity"].includes(tabParam ?? "")
+  const initialTab = ["targets", "notes", "evidence", "recon", "vuln", "activity"].includes(tabParam ?? "")
     ? tabParam!
     : "targets";
 
@@ -90,6 +92,7 @@ function ProjectDetailContent({
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="evidence">Evidence</TabsTrigger>
           <TabsTrigger value="recon">Scan History</TabsTrigger>
+          <TabsTrigger value="vuln">Vulnerabilities</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -104,6 +107,9 @@ function ProjectDetailContent({
         </TabsContent>
         <TabsContent value="recon" className="pt-4">
           <ReconTab projectId={projectId} />
+        </TabsContent>
+        <TabsContent value="vuln" className="pt-4">
+          <VulnTab projectId={projectId} />
         </TabsContent>
         <TabsContent value="activity" className="pt-4">
           <ActivityTab projectId={projectId} />
@@ -203,4 +209,51 @@ function EvidenceTab({ projectId }: { projectId: string }) {
               href={`/evidence/${item.id}`}
               className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/40"
             >
-              <span className="font-medium">{item.t
+              <span className="font-medium">{item.title}</span>
+              <Badge variant="outline">{item.type.replace("_", " ")}</Badge>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReconTab({ projectId }: { projectId: string }) {
+  const { data: jobs, isLoading } = useReconJobsForProject(projectId);
+  return (
+    <div className="flex flex-col gap-3">
+      {!jobs || jobs.length === 0 ? (
+        <EmptyState
+          icon={Radar}
+          title="No scan history yet"
+          description="Start a scan from any target in this project to see it here."
+        />
+      ) : (
+        <ReconJobList jobs={jobs} isLoading={isLoading} showTarget />
+      )}
+    </div>
+  );
+}
+
+function VulnTab({ projectId }: { projectId: string }) {
+  const { data: jobs, isLoading } = useVulnScanJobsForProject(projectId);
+  return (
+    <div className="flex flex-col gap-3">
+      {!jobs || jobs.length === 0 ? (
+        <EmptyState
+          icon={ShieldAlert}
+          title="No vulnerability scans yet"
+          description="Start a scan from any target in this project to see it here."
+        />
+      ) : (
+        <VulnScanJobList jobs={jobs} isLoading={isLoading} showTarget />
+      )}
+    </div>
+  );
+}
+
+function ActivityTab({ projectId }: { projectId: string }) {
+  const { data, isLoading } = useActivity({ projectId });
+  return <ActivityFeed events={data} isLoading={isLoading} />;
+}

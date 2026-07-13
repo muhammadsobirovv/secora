@@ -8,6 +8,9 @@ const TYPE_LABEL: Record<EvidenceType, string> = {
   FILE: "File",
   LOG: "Log",
   VIDEO: "Video",
+  // Added for Module 4 (Vulnerability Engine) — see packages/shared/src/evidence.ts.
+  PAYLOAD: "Payload",
+  COMMAND: "Command",
 };
 
 export function EvidenceTypeBadge({ type }: { type: EvidenceType }) {

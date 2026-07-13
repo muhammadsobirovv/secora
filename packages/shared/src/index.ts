@@ -15,3 +15,5 @@ export * from "./workspace-foundation-endpoints.js";
 export * from "./user-preferences.js";
 export * from "./recon.js";
 export * from "./recon-endpoints.js";
+export * from "./vuln.js";
+export * from "./vuln-endpoints.js";

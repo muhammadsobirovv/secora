@@ -36,4 +36,7 @@ export class DnsxToolRunner implements ToolRunner {
         '-txt',
       ],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

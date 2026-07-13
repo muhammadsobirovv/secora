@@ -35,4 +35,7 @@ export class NmapToolRunner implements ToolRunner {
       command: bin,
       args: ['-Pn', '--top-ports', '100', '-oX', '-', ctx.target.value],
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line
+      onStderrLine: (line) => ctx.onLog('WARN', line),
+    });
+  }
+}

@@ -188,4 +188,7 @@ describe('PrismaReconJobsRepository (integration)', () => {
     const cancelled = await repository.cancelIfPending(pendingJob.id);
     expect(cancelled?.status).toBe('CANCELLED');
 
-    const alreadyCancelled = await repository.cancelI
+    const alreadyCancelled = await repository.cancelIfPending(pendingJob.id);
+    expect(alreadyCancelled).toBeNull();
+  });
+});

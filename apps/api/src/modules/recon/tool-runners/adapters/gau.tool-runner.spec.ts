@@ -39,4 +39,7 @@ describe('GauToolRunner', () => {
       infer: true,
     });
     const call = spawner.spawn.mock.calls[0][0];
-    expect(call.args).toEqual(['example.com`whoami`'])
+    expect(call.args).toEqual(['example.com`whoami`']);
+    expect(call.command).toBe('gau');
+  });
+});

@@ -160,4 +160,5 @@ describe('PromoteFindingToTargetHandler', () => {
       ),
     ).rejects.toMatchObject({ code: 'RECON_FINDING_ALREADY_PROMOTED' });
     expect(targetsRepository.create).not.toHaveBeenCalled();
- 
+  });
+});

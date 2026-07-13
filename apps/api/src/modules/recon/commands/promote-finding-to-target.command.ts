@@ -121,3 +121,5 @@ export class PromoteFindingToTargetHandler implements ICommandHandler<
 
     const withTags = await this.targetsRepository.findById(target.id);
     return toTargetDto(withTags!);
+  }
+}

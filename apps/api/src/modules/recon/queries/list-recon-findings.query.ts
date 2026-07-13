@@ -54,4 +54,5 @@ export class ListReconFindingsHandler implements IQueryHandler<
       type: query.filter.type,
     });
     return findings.map(toReconFindingDto);
-  
+  }
+}

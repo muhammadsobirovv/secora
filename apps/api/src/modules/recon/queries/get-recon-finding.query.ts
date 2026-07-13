@@ -55,4 +55,5 @@ export class GetReconFindingHandler implements IQueryHandler<
       );
     }
     return toReconFindingDto(finding);
-  
+  }
+}

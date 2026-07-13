@@ -129,4 +129,11 @@ export class ReconJobPollerService {
           error: 'Worker process lost while job was running.',
         });
       } else {
-        await this.jobsRepository.mark
+        await this.jobsRepository.markFailed(
+          job.id,
+          'Worker process lost while job was running; retries exhausted.',
+        );
+      }
+    }
+  }
+}

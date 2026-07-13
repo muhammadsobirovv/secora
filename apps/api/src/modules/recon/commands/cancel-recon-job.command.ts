@@ -115,4 +115,6 @@ export class CancelReconJobHandler implements ICommandHandler<
     }
 
     const refreshed = await this.reconJobsRepository.findById(job.id);
-    re
+    return toReconJobDto(refreshed!);
+  }
+}

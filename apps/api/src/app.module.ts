@@ -30,6 +30,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
 import { ActivityModule } from './modules/activity/activity.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 import { ReconModule } from './modules/recon/recon.module.js';
+import { VulnModule } from './modules/vuln/vuln.module.js';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { ReconModule } from './modules/recon/recon.module.js';
     ActivityModule,
     SearchModule,
     ReconModule,
+    VulnModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

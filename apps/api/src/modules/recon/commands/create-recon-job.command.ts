@@ -95,4 +95,12 @@ export class CreateReconJobHandler implements ICommandHandler<
         command.userId,
         job.id,
         {
-          
+          tools: command.data.tools,
+          targetId: target.id,
+        },
+      ),
+    );
+
+    return toReconJobDto(job);
+  }
+}

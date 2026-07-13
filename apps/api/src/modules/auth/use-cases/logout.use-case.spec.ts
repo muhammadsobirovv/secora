@@ -90,4 +90,6 @@ describe('LogoutUseCase', () => {
     await deps.useCase.execute(baseInput);
 
     expect(deps.sessionsRepository.revoke).not.toHaveBeenCalled();
-    expect(deps.auditService.log).n
+    expect(deps.auditService.log).not.toHaveBeenCalled();
+  });
+});

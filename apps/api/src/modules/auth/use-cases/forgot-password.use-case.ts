@@ -65,4 +65,5 @@ export class ForgotPasswordUseCase {
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
     });
-  
+  }
+}

@@ -83,4 +83,7 @@ describe('dedup-key.util', () => {
       normalizeUrl('https://Example.com/'),
     );
     expect(screenshotDedupKey('HTTPS://Example.com/')).toBe(
-      'https://exampl
+      'https://example.com/',
+    );
+  });
+});

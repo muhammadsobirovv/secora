@@ -1,0 +1,42 @@
+import type { VulnFindingDto } from '@pentesthub/shared';
+import type { VulnFinding } from '../../../prisma-types.js';
+
+export function toVulnFindingDto(finding: VulnFinding): VulnFindingDto {
+  return {
+    id: finding.id,
+    jobId: finding.jobId,
+    workspaceId: finding.workspaceId,
+    projectId: finding.projectId,
+    targetId: finding.targetId,
+    title: finding.title,
+    description: finding.description,
+    severity: finding.severity,
+    cvssScore: finding.cvssScore,
+    cvssVector: finding.cvssVector,
+    cwe: finding.cwe,
+    owaspCategory: finding.owaspCategory,
+    scanner: finding.scanner,
+    scannerVersion: finding.scannerVersion,
+    confidence: finding.confidence,
+    status: finding.status,
+    vulnType: finding.vulnType,
+    path: finding.path,
+    signature: finding.signature,
+    matchedAt: finding.matchedAt,
+    data: finding.data as Record<string, unknown>,
+    dedupKey: finding.dedupKey,
+    tags: finding.tags,
+    references: finding.references,
+    createdBy: finding.createdBy,
+    firstSeenAt: finding.firstSeenAt.toISOString(),
+    lastSeenAt: finding.lastSeenAt.toISOString(),
+    createdAt: finding.createdAt.toISOString(),
+    updatedAt: finding.updatedAt.toISOString(),
+    requestEvidenceId: finding.requestEvidenceId,
+    responseEvidenceId: finding.responseEvidenceId,
+    screenshotEvidenceId: finding.screenshotEvidenceId,
+    payloadEvidenceId: finding.payloadEvidenceId,
+    commandEvidenceId: finding.commandEvidenceId,
+    rawOutputEvidenceId: finding.rawOutputEvidenceId,
+  };
+}
