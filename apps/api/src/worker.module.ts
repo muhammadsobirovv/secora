@@ -12,6 +12,7 @@ import { ProvidersModule } from './common/providers/providers.module.js';
 import { ActivityModule } from './modules/activity/activity.module.js';
 import { ReconCoreModule } from './modules/recon/recon-core.module.js';
 import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
+import { AiCoreModule } from './modules/ai/ai-core.module.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
@@ -34,6 +35,13 @@ import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 /// two independent loops" is simpler to deploy than "one process per
 /// module" while preserving the same "controllers only enqueue, workers
 /// execute" separation from the API process.
+///
+/// Module 5 adds AiCoreModule here for the same cross-process-EventBus
+/// reason as ActivityModule: AiSummaryHandler (Event Integration) listens
+/// for ReconJobCompletedEvent/VulnFinding*Event, which are published from
+/// inside this worker process's own execution services, not from the API
+/// process — a second AiSummaryHandler instance living only in AppModule
+/// would never see them.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
@@ -59,6 +67,7 @@ import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
     ActivityModule,
     ReconCoreModule,
     VulnCoreModule,
+    AiCoreModule,
   ],
 })
 export class WorkerModule {}

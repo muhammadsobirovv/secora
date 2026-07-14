@@ -99,6 +99,22 @@ Each user has:
 
 # AI Assistant
 
+> Note: Built as **Module 5 — AI Security Copilot** — **Phase 1 done**
+> (backend "brain": workspace/project-aware chat with automatic context
+> gathering, RAG over pgvector, a 5-provider abstraction — OpenAI,
+> Anthropic, Gemini, Ollama, OpenRouter — switchable by configuration with
+> no keys wired yet, an editable prompt-module architecture, tool calling
+> — search findings/recon/evidence/notes/projects/targets/templates,
+> create note, draft report, generate PoC, generate payloads — SSE token
+> streaming with cancel/regenerate/continue, prompt-injection guardrails,
+> and strict workspace/project isolation; frontend: `/ai` dashboard with
+> conversation history, context indicator, suggested questions, streaming
+> chat, Markdown rendering). **Phase 2 not started**: Voice Interaction,
+> Smart Code Block toolbar, One-Click Code/Conversation Export, Terminal
+> Mode, Artifact Mode, Interactive Canvas — see
+> `docs/adr/0005-ai-security-copilot-module.md` for the full decision
+> record and phasing rationale.
+
 Integrate a powerful AI assistant.
 
 The AI must understand cybersecurity.
@@ -131,6 +147,12 @@ Never hallucinate technical facts. Clearly distinguish verified facts from sugge
 ---
 
 # Voice Assistant
+
+> Note: Designed as part of Module 5's AI Security Copilot (a
+> `SpeechProvider` interface with a Web Speech API adapter now, cloud
+> adapters — OpenAI Whisper, Azure Speech, Google Speech, ElevenLabs — as
+> future extensions) but not yet implemented; scheduled for Module 5 Phase
+> 2. See `docs/adr/0005-ai-security-copilot-module.md`.
 
 Support speech recognition.
 
@@ -687,7 +709,25 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
    part of Module 4. See `docs/adr/0004-vulnerability-engine-module.md`.
 5. Bug Bounty Workspace (targets, scope tracking, findings)
 6. Report Generator
-7. AI Assistant integration
+7. AI Assistant integration (Module 5) — **Phase 1 done**. Built as the
+   "AI Security Copilot": workspace/project-aware AI Chat with automatic
+   context gathering (no manual pasting), a RAG layer over pgvector
+   (per-workspace/per-project isolated memory), a 5-provider abstraction
+   (OpenAI/Anthropic/Gemini/Ollama/OpenRouter — switchable by config, no
+   keys wired yet per explicit direction), an editable prompt-module
+   architecture (system/security/recon/finding-analysis/report/coding,
+   never hardcoded in controllers), a provider-agnostic tool-calling
+   framework (search findings/recon/evidence/notes/projects/targets/
+   templates, create note, draft report, generate PoC, generate
+   payloads) built to be extended by future modules without touching the
+   chat engine, SSE token streaming with cancel/regenerate/continue,
+   prompt-injection guardrails, and workspace/project isolation enforced
+   on every command/query. Frontend: `/ai` dashboard (conversation
+   history, context indicator, suggested questions, streaming chat,
+   Markdown rendering). **Phase 2 (not started, pending approval)**:
+   Voice Interaction, Smart Code Block toolbar, One-Click Code/
+   Conversation Export, Terminal Mode, Artifact Mode, Interactive Canvas.
+   See `docs/adr/0005-ai-security-copilot-module.md`.
 8. CVE Center
 9. Knowledge Base
 10. Admin Panel
