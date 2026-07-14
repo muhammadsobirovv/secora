@@ -1,7 +1,8 @@
-# 0005: AI Security Copilot module (Module 5, Phase 1)
+# 0005: AI Security Copilot module (Module 5, Phase 1 + Phase 2)
 
-Status: Accepted (Phase 1 only — Phase 2 not started, pending approval)
-Date: 2026-07-14
+Status: Accepted — Phase 1 and Phase 2 both shipped
+Date: 2026-07-14 (Phase 1), 2026-07-14 (Phase 2, same day, approved
+immediately after Phase 1 verification/commit completed)
 
 ## Context
 
@@ -216,6 +217,95 @@ with a small `CodeBlock` sub-component adding a hover-revealed copy
 button — full Smart Code Block toolbar (download/expand/wrap/fullscreen)
 is Phase 2.
 
+## Phase 2 decision: the "UX layer"
+
+With Phase 1 verified (build/lint/typecheck/test green, committed and
+pushed) the project owner approved Phase 2 in full — all six deferred
+items, no further phasing — with the explicit condition that Module 5
+still ends here: work stops again before Module 6 (Bug Bounty Workspace)
+pending a separate approval.
+
+### 10. Voice Interaction: a real client adapter, a real (but unconfigured) backend registry
+
+`SpeechProvider` (`apps/api/src/modules/ai/speech/speech-provider.interface.ts`)
+is the voice equivalent of `AiProvider`: `transcribe()`/`synthesize()`,
+`isConfigured()`, and a `capabilities: ("transcribe" | "synthesize")[]`
+list so a TTS-only adapter (ElevenLabs has no transcription API) can be
+told apart from "not configured yet" rather than throwing a generic
+error. `AiSpeechProviderRegistryService` is the same "constructor
+injection + Map" registry as `AiProviderRegistryService`, exposed via
+`GET /ai/speech/providers`. Five adapters: `WEB_SPEECH` is a documented
+marker only (`isConfigured()` always `true`, `transcribe`/`synthesize`
+both throw explaining they're client-only) — the browser's Web Speech API
+has no server round-trip, so the actual implementation is entirely
+frontend (`apps/web/features/ai/hooks/use-ai-voice.ts`): a mic button
+(`useSpeechToText`, wrapping `SpeechRecognition`) appends recognized
+speech into the chat input for the user to review before sending, and a
+per-message Speak/Stop Speaking action (`useTextToSpeech`, wrapping
+`speechSynthesis`) reads assistant replies aloud. Both hooks report
+`supported: false` on browsers lacking the API (Firefox has no
+`SpeechRecognition`) so the buttons simply don't render, rather than
+showing something broken. The four cloud adapters — OpenAI (reuses
+`AI_OPENAI_API_KEY` — Whisper transcription + the TTS endpoint are the
+same OpenAI account as chat, not a separate product), Azure Speech,
+Google Speech, ElevenLabs (TTS-only) — are real `fetch()`-based clients,
+each `isConfigured(): false` until keys are supplied, same "ships
+complete, wired later" posture as the five chat providers.
+
+### 11. Smart Code Block toolbar + Interactive Canvas: both live in `CodeBlock`
+
+`ai-message-markdown.tsx`'s `CodeBlock` (the `pre` renderer override) grew
+from a bare Copy button into the full spec: a language badge read off
+rehype-highlight's `language-xxx` class, a Download button (extension
+inferred from the language via a lookup table, falling back to `.txt`), a
+line-wrap toggle, an expand/collapse affordance for anything over 18
+lines (`TALL_BLOCK_LINE_THRESHOLD`) so a long generated payload list
+doesn't dominate the whole conversation by default, and a Fullscreen
+view (a Radix `Dialog` re-rendering the same `<pre>` larger). Interactive
+Canvas is a special case inside the same component: a fenced block whose
+language is exactly `mermaid` renders through `<MermaidDiagram>` instead
+of the code toolbar — `mermaid.render()` (dynamically imported, client-
+only, `securityLevel: "strict"`) produces sanitized SVG, shown in a
+pannable (pointer-drag), zoomable (scroll wheel + buttons) container, for
+attack-chain/network-topology diagrams the model can produce.
+
+### 12. One-Click Export: pure client-side, no new backend surface
+
+Both per-message Download (Smart Code Block toolbar's sibling action on
+the message itself, not just inside code blocks) and whole-Conversation
+Export (`conversationToMarkdown()`, triggered from a new small header bar
+above the message list) are Blob-download utilities
+(`lib/download-text-file.ts`) operating on data already sitting in the
+React Query cache — no new API endpoint, since there's nothing server-
+side to compute that the frontend doesn't already have.
+
+### 13. Terminal Mode: a rendering variant, not a separate surface
+
+A toggle in the same new chat-panel header bar (persisted to
+`localStorage`) swaps the whole conversation's presentation: no avatars,
+full-width monospace lines with a `$`/border-color prompt convention
+instead of chat bubbles, black background, plain-text message rendering
+instead of `AiMessageMarkdown` (deliberately — terminal mode is about
+the *look*, not about re-implementing Markdown rendering twice). Every
+existing capability (streaming, tool-activity badges, all message
+actions) keeps working underneath — `terminalMode` is threaded as a
+boolean prop into `AiChatMessage`/`AiChatInput`, not a separate route or
+component tree.
+
+### 14. Artifact Mode: a heuristic, not a tool-name allowlist
+
+`isArtifactWorthy()` (`lib/artifact-detection.ts`) flags a message as
+artifact-worthy when it contains a fenced code block of at least 12
+lines — deliberately a content heuristic rather than gating on
+`draft_report`/`generate_poc`/`generate_payloads` tool names, so a long
+inline code answer the model writes without calling a tool still gets
+the "Open in Artifact panel" action. `AiArtifactPanel` is a resizable-
+width side panel (currently fixed 420px) with its own Copy/Download/
+Close toolbar, rendering the message's single largest code block
+(`extractPrimaryArtifact()`) through the same `AiMessageMarkdown`/
+`CodeBlock` machinery so all Smart Code Block features (download, wrap,
+fullscreen) work inside the panel too.
+
 ## Consequences
 
 - Every provider adapter being a plain `fetch()` client (no SDK
@@ -248,11 +338,27 @@ is Phase 2.
   to go through raw SQL rather than Prisma's generated client — isolated
   entirely inside `PrismaAiMemoryRepository`, so the rest of the module
   never deals with raw SQL directly.
-- Voice Interaction, Smart Code Block toolbar, One-Click Code/Conversation
-  Export, Terminal Mode, Artifact Mode, and Interactive Canvas are
-  unimplemented by design (Phase 2, deferred pending approval) — the
-  `SpeechProvider` interface exists only as a documented future seam, no
-  adapter code exists yet, not even the Web Speech API one.
+- Voice Interaction's four cloud speech adapters (OpenAI, Azure, Google,
+  ElevenLabs) ship the same way the five chat providers did in Phase 1:
+  structurally complete, `isConfigured(): false` until the project owner
+  supplies keys. Only `WEB_SPEECH` (the browser's own API, no key needed)
+  is actually reachable today — a real, working mic-input and
+  speak-aloud experience, not just a documented seam.
+- Interactive Canvas depends on the `mermaid` npm package (new frontend
+  dependency, `apps/web/package.json`) being installed — `pnpm install`
+  is required after pulling Phase 2 before `pnpm build`/`dev` will
+  succeed, same as any other new dependency.
+- Terminal Mode intentionally renders assistant messages as plain text
+  rather than through `AiMessageMarkdown` — code blocks, tables, and
+  Mermaid diagrams inside a message won't render specially while terminal
+  mode is on; this is a deliberate simplification (terminal mode is a
+  visual theme, not a second Markdown renderer), not a bug.
+- Artifact Mode's "worthy" heuristic (≥12 lines in a fenced code block) is
+  a simple line count, not a token-cost or semantic check — a very long
+  non-code answer (e.g. a verbose prose explanation with no code fence)
+  never triggers it, and a short-but-important code snippet under the
+  threshold doesn't either; acceptable for Phase 2, revisit if it proves
+  too coarse in practice.
 
 ## Provider inventory (as of this ADR)
 
@@ -263,6 +369,16 @@ is Phase 2.
 | Gemini | Yes | Yes | No |
 | Ollama | Yes | Yes (local) | No |
 | OpenRouter | Yes | No (throws `AiProviderRequestError`) | No |
+
+## Speech provider inventory (as of this ADR, Phase 2)
+
+| Provider | Transcribe | Synthesize | Configured in this environment |
+|---|---|---|---|
+| WEB_SPEECH (browser) | Yes (client-side only) | Yes (client-side only) | Always — no key needed |
+| OPENAI_SPEECH | Yes | Yes | No (reuses `AI_OPENAI_API_KEY`) |
+| AZURE_SPEECH | Yes | Yes | No |
+| GOOGLE_SPEECH | Yes | Yes | No |
+| ELEVENLABS | No (throws `SpeechProviderCapabilityError`) | Yes | No |
 
 ## Tool inventory (as of this ADR)
 

@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark, Copy, Loader2, Pin, RotateCcw, Search, Trash2, ChevronRight } from "lucide-react";
+import {
+  Bookmark,
+  Copy,
+  Download,
+  Loader2,
+  Pin,
+  RotateCcw,
+  Search,
+  Trash2,
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Maximize2,
+} from "lucide-react";
 import type { AiMessageDto } from "@pentesthub/shared";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,29 +22,43 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AiMessageMarkdown } from "./ai-message-markdown";
 import type { AiMessageStreamState } from "../hooks/use-ai";
+import { downloadTextFile } from "../lib/download-text-file";
+import { isArtifactWorthy } from "../lib/artifact-detection";
 
 /// One message bubble. AI Message Actions implemented here: Copy,
-/// Bookmark, Pin, Regenerate, Continue, Delete. Speak/Stop Speaking
-/// (Voice Interaction), Download, and Share are Phase 2 — see ADR 0005
-/// for the phasing rationale; this is the Phase 1 action set.
+/// Bookmark, Pin, Regenerate, Continue, Delete (Phase 1) plus Speak/Stop
+/// Speaking (Voice Interaction), Download, and Open in Artifact panel
+/// (Phase 2) — see ADR 0005 for the phasing rationale.
 export function AiChatMessage({
   message,
   streamState,
   isLastAssistantMessage,
+  terminalMode = false,
+  speechSupported,
+  speaking,
+  onSpeak,
+  onStopSpeaking,
   onBookmark,
   onPin,
   onRegenerate,
   onContinueGeneration,
   onDelete,
+  onOpenArtifact,
 }: {
   message: AiMessageDto;
   streamState?: AiMessageStreamState;
   isLastAssistantMessage: boolean;
+  terminalMode?: boolean;
+  speechSupported: boolean;
+  speaking: boolean;
+  onSpeak: (text: string) => void;
+  onStopSpeaking: () => void;
   onBookmark: (value: boolean) => void;
   onPin: (value: boolean) => void;
   onRegenerate: () => void;
   onContinueGeneration: () => void;
   onDelete: () => void;
+  onOpenArtifact: (content: string) => void;
 }) {
   const isUser = message.role === "USER";
   const isStreaming = Boolean(streamState?.streaming);
@@ -46,11 +73,13 @@ export function AiChatMessage({
   if (message.role === "SYSTEM" || message.role === "TOOL") return null;
 
   return (
-    <div className={cn("group flex gap-3", isUser && "flex-row-reverse")}>
-      <Avatar className="size-8 shrink-0">
-        <AvatarFallback>{isUser ? "You" : "AI"}</AvatarFallback>
-      </Avatar>
-      <div className={cn("flex max-w-[85%] flex-col gap-1.5", isUser && "items-end")}>
+    <div className={cn("group flex gap-3", isUser && !terminalMode && "flex-row-reverse")}>
+      {!terminalMode && (
+        <Avatar className="size-8 shrink-0">
+          <AvatarFallback>{isUser ? "You" : "AI"}</AvatarFallback>
+        </Avatar>
+      )}
+      <div className={cn("flex flex-col gap-1.5", terminalMode ? "w-full" : "max-w-[85%]", isUser && !terminalMode && "items-end")}>
         {streamState && streamState.toolActivity.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {streamState.toolActivity.map((tool, index) => (
@@ -68,15 +97,24 @@ export function AiChatMessage({
 
         <div
           className={cn(
-            "rounded-lg px-4 py-2.5",
-            isUser ? "bg-primary text-primary-foreground" : "bg-muted",
-            failed && "border border-destructive/50",
+            terminalMode
+              ? cn("border-l-2 pl-3 font-mono text-sm", isUser ? "border-emerald-500 text-emerald-400" : "border-lime-400 text-lime-200")
+              : cn("rounded-lg px-4 py-2.5", isUser ? "bg-primary text-primary-foreground" : "bg-muted"),
+            failed && "border-destructive/50",
+            !terminalMode && failed && "border",
           )}
         >
           {isUser ? (
-            <p className="whitespace-pre-wrap text-sm">{displayContent}</p>
+            <p className="whitespace-pre-wrap text-sm">
+              {terminalMode && <span className="select-none opacity-70">$ </span>}
+              {displayContent}
+            </p>
           ) : displayContent ? (
-            <AiMessageMarkdown content={displayContent} />
+            terminalMode ? (
+              <div className="whitespace-pre-wrap text-sm">{displayContent}</div>
+            ) : (
+              <AiMessageMarkdown content={displayContent} />
+            )
           ) : isStreaming ? (
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
           ) : null}
@@ -96,6 +134,42 @@ export function AiChatMessage({
             <Button type="button" size="icon" variant="ghost" className="size-6" onClick={handleCopy} aria-label="Copy">
               <Copy className="size-3.5" />
             </Button>
+            {!isUser && speechSupported && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className={cn("size-6", speaking && "text-primary")}
+                onClick={() => (speaking ? onStopSpeaking() : onSpeak(displayContent))}
+                aria-label={speaking ? "Stop speaking" : "Speak"}
+              >
+                {speaking ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
+              </Button>
+            )}
+            {!isUser && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                onClick={() => downloadTextFile(`ai-message-${message.id}.md`, displayContent)}
+                aria-label="Download"
+              >
+                <Download className="size-3.5" />
+              </Button>
+            )}
+            {!isUser && isArtifactWorthy(displayContent) && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                onClick={() => onOpenArtifact(displayContent)}
+                aria-label="Open in artifact panel"
+              >
+                <Maximize2 className="size-3.5" />
+              </Button>
+            )}
             <Button
               type="button"
               size="icon"

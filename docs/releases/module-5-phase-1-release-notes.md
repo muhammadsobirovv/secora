@@ -108,11 +108,12 @@ column changed.
 - **`AiChatStreamHubService` is single-process only** — no Redis or shared
   broker backs it yet. Correct for one API instance; would need a shared
   pub/sub layer before horizontally scaling the API process.
-- **Phase 2 is entirely unbuilt**: Voice Interaction (only a
-  `SpeechProvider` interface is designed, no adapter — not even Web Speech
-  API — exists), Smart Code Block toolbar (download/expand/wrap/
-  fullscreen), One-Click Code Export, Conversation Export, Terminal Mode,
-  Artifact Mode, Interactive Canvas (Mermaid diagrams etc.).
+- **Phase 2 was unbuilt at the time of this release** — see
+  `docs/releases/module-5-phase-2-release-notes.md`, shipped the same day
+  once Phase 1 verification/commit/push completed and Phase 2 was
+  approved: Voice Interaction, Smart Code Block toolbar, One-Click Code/
+  Conversation Export, Terminal Mode, Artifact Mode, and Interactive
+  Canvas are now all implemented.
 - The tool-call text-tag protocol depends on the model reliably emitting
   well-formed tags — malformed JSON degrades to an empty-input tool call
   rather than failing the turn, and an unrecognized tool name resolves to
@@ -129,8 +130,6 @@ column changed.
 
 ## Recommended next step
 
-Per explicit instruction, work stops here pending approval. The two
-options going forward are **Module 5 Phase 2** (the UX layer: Voice, code
-export, artifacts, canvas, terminal mode — designed but unbuilt) or
-**Module 6** on the existing rollout order (`PROJECT_SPEC.md`) once
-Phase 2 is approved and complete.
+Per explicit instruction, work stopped here pending approval — Phase 2
+was subsequently approved and shipped the same day; see
+`docs/releases/module-5-phase-2-release-notes.md`.
