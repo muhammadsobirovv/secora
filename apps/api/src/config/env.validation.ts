@@ -200,6 +200,23 @@ const envSchema = z.object({
   // the global ThrottlerModule default, since a single AI turn is far more
   // expensive (provider $ + latency) than a typical CRUD request.
   AI_CHAT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
+
+  // Voice Interaction (Module 5 Phase 2) — see
+  // docs/adr/0005-ai-security-copilot-module.md. WEB_SPEECH (the browser's
+  // built-in Web Speech API) needs no key and isn't listed here.
+  // OPENAI_SPEECH reuses AI_OPENAI_API_KEY (Whisper + TTS are the same
+  // OpenAI account as chat) rather than a second key. Every key below is
+  // optional by the same "boots unconfigured, fails clearly on first use"
+  // contract as the chat providers above.
+  AI_SPEECH_AZURE_API_KEY: z.string().optional(),
+  AI_SPEECH_AZURE_REGION: z.string().optional(),
+
+  AI_SPEECH_GOOGLE_API_KEY: z.string().optional(),
+
+  AI_SPEECH_ELEVENLABS_API_KEY: z.string().optional(),
+  // A well-known public ElevenLabs sample voice ("Rachel") used as the
+  // default when a caller doesn't specify one.
+  AI_SPEECH_ELEVENLABS_VOICE_ID: z.string().default('21m00Tcm4TlvDq8ikWAM'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

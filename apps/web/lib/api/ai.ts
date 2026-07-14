@@ -4,6 +4,7 @@ import type {
   AiContextSummaryDto,
   AiMessageDto,
   AiProviderStatusDto,
+  AiSpeechProviderStatusDto,
   AiSuggestedQuestionDto,
   CreateAiConversationRequestDto,
   ListAiConversationsQueryDto,
@@ -13,6 +14,7 @@ import {
   AI_CONVERSATION_ENDPOINTS,
   AI_MESSAGE_ENDPOINTS,
   AI_PROVIDER_ENDPOINTS,
+  AI_SPEECH_ENDPOINTS,
 } from "@pentesthub/shared";
 import { apiFetch } from "./client";
 
@@ -88,6 +90,10 @@ export function deleteAiMessage(messageId: string) {
 
 export function listAiProviders() {
   return apiFetch<AiProviderStatusDto[]>(AI_PROVIDER_ENDPOINTS.list);
+}
+
+export function listAiSpeechProviders() {
+  return apiFetch<AiSpeechProviderStatusDto[]>(AI_SPEECH_ENDPOINTS.list);
 }
 
 export function getAiContextSummary(projectId: string) {

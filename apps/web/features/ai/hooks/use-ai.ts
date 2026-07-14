@@ -13,6 +13,7 @@ export const aiKeys = {
   conversations: (projectId?: string) => ["ai", "conversations", projectId ?? "all"] as const,
   conversation: (id: string) => ["ai", "conversations", "detail", id] as const,
   providers: ["ai", "providers"] as const,
+  speechProviders: ["ai", "speech-providers"] as const,
   context: (projectId: string) => ["ai", "context", projectId] as const,
   suggestedQuestions: (projectId: string) => ["ai", "suggested-questions", projectId] as const,
 };
@@ -39,6 +40,15 @@ export function useAiConversation(id: string | null) {
 
 export function useAiProviders() {
   return useQuery({ queryKey: aiKeys.providers, queryFn: aiApi.listAiProviders });
+}
+
+/// Voice Interaction (Phase 2) — surfaces which speech backends are
+/// configured server-side (cloud STT/TTS), mirroring useAiProviders. Not
+/// consumed by the chat UI today (only the always-available WEB_SPEECH
+/// adapter is actually wired up client-side — see use-ai-voice.ts), but
+/// available for a future provider picker once cloud keys are supplied.
+export function useAiSpeechProviders() {
+  return useQuery({ queryKey: aiKeys.speechProviders, queryFn: aiApi.listAiSpeechProviders });
 }
 
 export function useAiContextSummary(projectId: string | null) {

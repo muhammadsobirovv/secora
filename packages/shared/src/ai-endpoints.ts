@@ -25,6 +25,10 @@ export const AI_PROVIDER_ENDPOINTS = {
   list: "/ai/providers",
 } as const;
 
+export const AI_SPEECH_ENDPOINTS = {
+  list: "/ai/speech/providers",
+} as const;
+
 export const AI_CONTEXT_ENDPOINTS = {
   summary: (projectId: string) => `/ai/context/${projectId}`,
   suggestedQuestions: (projectId: string) => `/ai/context/${projectId}/suggested-questions`,

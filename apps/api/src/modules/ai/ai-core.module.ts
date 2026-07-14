@@ -24,6 +24,13 @@ import { OllamaProvider } from './providers/adapters/ollama.provider.js';
 import { OpenRouterProvider } from './providers/adapters/openrouter.provider.js';
 import { AiProviderRegistryService } from './providers/ai-provider-registry.service.js';
 
+import { WebSpeechProvider } from './speech/adapters/web-speech.provider.js';
+import { OpenAiSpeechProvider } from './speech/adapters/openai-speech.provider.js';
+import { AzureSpeechProvider } from './speech/adapters/azure-speech.provider.js';
+import { GoogleSpeechProvider } from './speech/adapters/google-speech.provider.js';
+import { ElevenLabsProvider } from './speech/adapters/elevenlabs.provider.js';
+import { AiSpeechProviderRegistryService } from './speech/ai-speech-provider-registry.service.js';
+
 import { AiPromptBuilderService } from './prompts/ai-prompt-builder.service.js';
 import { AiContextService } from './context/ai-context.service.js';
 import { AiMemoryService } from './memory/ai-memory.service.js';
@@ -87,6 +94,13 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     OpenRouterProvider,
     AiProviderRegistryService,
 
+    WebSpeechProvider,
+    OpenAiSpeechProvider,
+    AzureSpeechProvider,
+    GoogleSpeechProvider,
+    ElevenLabsProvider,
+    AiSpeechProviderRegistryService,
+
     AiPromptBuilderService,
     AiContextService,
     AiMemoryService,
@@ -115,6 +129,7 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     AI_TOOL_CALL_LOGS_REPOSITORY,
     AI_MEMORY_REPOSITORY,
     AiProviderRegistryService,
+    AiSpeechProviderRegistryService,
     AiPromptBuilderService,
     AiContextService,
     AiMemoryService,

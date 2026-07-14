@@ -19,6 +19,7 @@ import { ReindexAiMemoryHandler } from './commands/reindex-ai-memory.command.js'
 import { ListAiConversationsHandler } from './queries/list-ai-conversations.query.js';
 import { GetAiConversationHandler } from './queries/get-ai-conversation.query.js';
 import { ListAiProvidersHandler } from './queries/list-ai-providers.query.js';
+import { ListAiSpeechProvidersHandler } from './queries/list-ai-speech-providers.query.js';
 import { GetAiContextSummaryHandler } from './queries/get-ai-context-summary.query.js';
 import { GetAiSuggestedQuestionsHandler } from './queries/get-ai-suggested-questions.query.js';
 import { SearchAiMemoryHandler } from './queries/search-ai-memory.query.js';
@@ -26,6 +27,7 @@ import { SearchAiMemoryHandler } from './queries/search-ai-memory.query.js';
 import { AiConversationsController } from './controllers/ai-conversations.controller.js';
 import { AiMessagesController } from './controllers/ai-messages.controller.js';
 import { AiProvidersController } from './controllers/ai-providers.controller.js';
+import { AiSpeechController } from './controllers/ai-speech.controller.js';
 import { AiContextController } from './controllers/ai-context.controller.js';
 import { AiMemoryController } from './controllers/ai-memory.controller.js';
 
@@ -40,6 +42,7 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     AiConversationsController,
     AiMessagesController,
     AiProvidersController,
+    AiSpeechController,
     AiContextController,
     AiMemoryController,
   ],
@@ -60,6 +63,7 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     ListAiConversationsHandler,
     GetAiConversationHandler,
     ListAiProvidersHandler,
+    ListAiSpeechProvidersHandler,
     GetAiContextSummaryHandler,
     GetAiSuggestedQuestionsHandler,
     SearchAiMemoryHandler,

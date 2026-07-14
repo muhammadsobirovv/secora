@@ -3,6 +3,15 @@
 
 export type AiProviderName = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OLLAMA" | "OPENROUTER";
 
+/// Voice Interaction (Module 5 Phase 2). WEB_SPEECH is the browser's
+/// built-in Web Speech API — always "configured" (no key needed) since it
+/// runs entirely client-side; the other four are cloud adapters, each
+/// unconfigured until the project owner supplies keys (same posture as
+/// AiProviderName above).
+export type AiSpeechProviderName = "WEB_SPEECH" | "OPENAI_SPEECH" | "AZURE_SPEECH" | "GOOGLE_SPEECH" | "ELEVENLABS";
+
+export type AiSpeechCapability = "transcribe" | "synthesize";
+
 export type AiMessageRole = "SYSTEM" | "USER" | "ASSISTANT" | "TOOL";
 
 export type AiMessageStatus = "PENDING" | "STREAMING" | "COMPLETE" | "FAILED" | "CANCELLED";
@@ -29,6 +38,14 @@ export const AI_PROVIDER_NAMES: AiProviderName[] = [
   "GEMINI",
   "OLLAMA",
   "OPENROUTER",
+];
+
+export const AI_SPEECH_PROVIDER_NAMES: AiSpeechProviderName[] = [
+  "WEB_SPEECH",
+  "OPENAI_SPEECH",
+  "AZURE_SPEECH",
+  "GOOGLE_SPEECH",
+  "ELEVENLABS",
 ];
 
 /// The internal platform tools the AI can call (AI Tool Calling). Kept here
@@ -137,6 +154,14 @@ export interface AiProviderStatusDto {
   provider: AiProviderName;
   configured: boolean;
   defaultModel: string | null;
+}
+
+/// A single speech provider's availability (Voice Interaction), mirroring
+/// AiProviderStatusDto's "list up front, never hide behind a 500" shape.
+export interface AiSpeechProviderStatusDto {
+  provider: AiSpeechProviderName;
+  configured: boolean;
+  capabilities: AiSpeechCapability[];
 }
 
 export interface AiSuggestedQuestionDto {
