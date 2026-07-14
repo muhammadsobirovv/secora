@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { AiCoreModule } from './ai-core.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
+import { VulnCoreModule } from '../vuln/vuln-core.module.js';
+import { ReconCoreModule } from '../recon/recon-core.module.js';
+import { NotesModule } from '../notes/notes.module.js';
 
 import { CreateAiConversationHandler } from './commands/create-ai-conversation.command.js';
 import { DeleteAiConversationHandler } from './commands/delete-ai-conversation.command.js';
@@ -37,7 +40,20 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
 /// comment): keeps the door open for a future background AI job without
 /// restructuring.
 @Module({
-  imports: [AiCoreModule, WorkspacesModule, ProjectsModule],
+  imports: [
+    AiCoreModule,
+    WorkspacesModule,
+    ProjectsModule,
+    // ReindexAiMemoryHandler (below) injects these repositories directly —
+    // AiCoreModule imports VulnCoreModule/ReconCoreModule/NotesModule for
+    // its *own* internal use but doesn't re-export their tokens, so this
+    // module needs them too (NestJS module encapsulation: each module that
+    // directly injects a token must have the providing module in its own
+    // `imports`, re-import is idempotent/safe).
+    VulnCoreModule,
+    ReconCoreModule,
+    NotesModule,
+  ],
   controllers: [
     AiConversationsController,
     AiMessagesController,
