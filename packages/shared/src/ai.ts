@@ -1,0 +1,171 @@
+// Module 5 — AI Security Copilot. Mirrors the shape/conventions of
+// vuln.ts (Module 4); see docs/adr/0005-ai-security-copilot-module.md.
+
+export type AiProviderName = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OLLAMA" | "OPENROUTER";
+
+export type AiMessageRole = "SYSTEM" | "USER" | "ASSISTANT" | "TOOL";
+
+export type AiMessageStatus = "PENDING" | "STREAMING" | "COMPLETE" | "FAILED" | "CANCELLED";
+
+export type AiMemorySourceType =
+  | "FINDING"
+  | "RECON_FINDING"
+  | "NOTE"
+  | "EVIDENCE"
+  | "CONVERSATION_MESSAGE"
+  | "SCAN_TEMPLATE"
+  | "TARGET"
+  | "PROJECT"
+  | "CUSTOM";
+
+/// Every provider the abstraction supports (AI Provider Architecture).
+/// Phase 1 ships all five as structurally-complete adapters; which ones are
+/// actually callable depends purely on which API keys are configured (see
+/// GET /ai/providers, which reports `configured: boolean` per provider —
+/// "changing providers must only require configuration").
+export const AI_PROVIDER_NAMES: AiProviderName[] = [
+  "OPENAI",
+  "ANTHROPIC",
+  "GEMINI",
+  "OLLAMA",
+  "OPENROUTER",
+];
+
+/// The internal platform tools the AI can call (AI Tool Calling). Kept here
+/// (not just as backend constants) so the frontend can render tool-call
+/// indicators ("Searched Findings...") with a friendly label without
+/// hardcoding a second copy of this list.
+export const AI_TOOL_NAMES = [
+  "search_findings",
+  "search_recon_data",
+  "search_evidence",
+  "search_notes",
+  "search_projects",
+  "search_targets",
+  "search_templates",
+  "create_note",
+  "draft_report",
+  "generate_poc",
+  "generate_payloads",
+] as const;
+
+export type AiToolName = (typeof AI_TOOL_NAMES)[number];
+
+export interface AiToolCallLogDto {
+  id: string;
+  conversationId: string;
+  messageId: string | null;
+  toolName: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  errorMessage: string | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface AiMessageDto {
+  id: string;
+  conversationId: string;
+  role: AiMessageRole;
+  content: string;
+  status: AiMessageStatus;
+  provider: AiProviderName | null;
+  model: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  bookmarked: boolean;
+  pinned: boolean;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  toolCalls: AiToolCallLogDto[];
+}
+
+export interface AiConversationDto {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  userId: string;
+  title: string | null;
+  provider: AiProviderName | null;
+  model: string | null;
+  pinned: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessagePreview: string | null;
+}
+
+export interface AiConversationDetailDto extends AiConversationDto {
+  messages: AiMessageDto[];
+}
+
+export interface CreateAiConversationRequestDto {
+  projectId: string;
+  title?: string;
+  provider?: AiProviderName;
+  model?: string;
+}
+
+export interface ListAiConversationsQueryDto {
+  projectId?: string;
+  search?: string;
+  pinned?: boolean;
+  limit?: number;
+}
+
+export interface SendAiMessageRequestDto {
+  content: string;
+  /// Optional context override — normally the backend auto-gathers
+  /// workspace/project context (Automatic AI Context), but a caller can
+  /// pin the AI to a specific finding/target/etc. (e.g. "Explain this
+  /// finding" button elsewhere in the app deep-linking into a fresh
+  /// conversation).
+  focusEntityType?: AiMemorySourceType;
+  focusEntityId?: string;
+}
+
+export interface RegenerateAiMessageRequestDto {
+  messageId: string;
+}
+
+/// A single provider's availability, surfaced so the frontend's provider
+/// selector can grey out anything unconfigured instead of letting the user
+/// pick a provider that will 500 on first use.
+export interface AiProviderStatusDto {
+  provider: AiProviderName;
+  configured: boolean;
+  defaultModel: string | null;
+}
+
+export interface AiSuggestedQuestionDto {
+  label: string;
+  prompt: string;
+}
+
+/// One event on an assistant message's live SSE stream (Streaming Chat).
+/// Shared between backend (AiChatStreamEvent, chat/ai-chat-stream-event.ts)
+/// and frontend (useAiMessageStream) so the wire shape can't drift.
+export type AiChatMessageStreamEvent =
+  | { type: "delta"; content: string }
+  | { type: "tool_call"; toolName: string; input: Record<string, unknown> }
+  | { type: "tool_result"; toolName: string; output: Record<string, unknown> }
+  | { type: "done"; message: AiMessageDto }
+  | { type: "error"; message: string }
+  | { type: "cancelled" };
+
+/// What GET /ai/context/:projectId returns — the "Context Indicator" the
+/// spec calls for: a terse summary of what the AI currently knows about,
+/// without the user ever pasting anything in manually.
+export interface AiContextSummaryDto {
+  workspaceId: string;
+  projectId: string;
+  targetCount: number;
+  reconFindingCount: number;
+  vulnFindingCount: number;
+  noteCount: number;
+  evidenceCount: number;
+  openCriticalOrHighFindings: number;
+  lastActivityAt: string | null;
+}

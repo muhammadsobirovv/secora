@@ -2,12 +2,20 @@
 // See docs/modules/01-auth.md and docs/adr/0001-auth-module.md for rationale.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
+// `extensions = [vector]` (Module 5 / RAG) makes `prisma migrate dev` emit
+// `CREATE EXTENSION IF NOT EXISTS vector` automatically. See AiMemoryChunk
+// below for how the resulting `vector` Postgres type is used — Prisma
+// Client has no native vector type, so that one column is written/read via
+// $queryRaw/$executeRaw only (see PrismaAiMemoryRepository), same escape
+// hatch this project already uses for anything Prisma Client can't type.
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +63,7 @@ model User {
   vulnScanJobsRequested VulnScanJob[]
   vulnScanTemplatesCreated VulnScanTemplate[]
   vulnFindingsCreated VulnFinding[]
+  aiConversations     AiConversation[]
 
   @@map("users")
 }
@@ -325,6 +334,8 @@ model Workspace {
   vulnScanJobs      VulnScanJob[]
   vulnFindings      VulnFinding[]
   vulnScanTemplates VulnScanTemplate[]
+  aiConversations   AiConversation[]
+  aiMemoryChunks    AiMemoryChunk[]
 
   @@map("workspaces")
 }
@@ -410,6 +421,8 @@ model Project {
   reconFindings  ReconFinding[]
   vulnScanJobs   VulnScanJob[]
   vulnFindings   VulnFinding[]
+  aiConversations AiConversation[]
+  aiMemoryChunks  AiMemoryChunk[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -1261,4 +1274,164 @@ enum AuditEventType {
   OAUTH_LINKED
   OAUTH_LOGIN
   SESSION_REVOKED
+}
+
+// ---------------------------------------------------------------------------
+// AI Security Copilot (Module 5) — see docs/adr/0005-ai-security-copilot-module.md
+// A conversation is always project-scoped (workspaceId denormalized off
+// project->workspace at creation, same reasoning as VulnScanJob/ReconJob —
+// list/auth queries never join through Project just to filter). The RAG
+// store (AiMemoryChunk) is the one new kind of table this module
+// introduces: chunked + embedded workspace/project content for semantic
+// retrieval. Every read against it is filtered by workspaceId first
+// (Security: Workspace Isolation) — a raw-query bug can leak across
+// projects within a workspace at worst, never across workspaces.
+// ---------------------------------------------------------------------------
+
+enum AiProviderName {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  OLLAMA
+  OPENROUTER
+}
+
+enum AiMessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum AiMessageStatus {
+  PENDING
+  STREAMING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+/// What kind of workspace/project record a RAG chunk was derived from —
+/// lets a similarity-search hit be traced back to the real row (via
+/// sourceId) and re-fetched for full, untruncated detail rather than
+/// trusting the embedded chunk text alone.
+enum AiMemorySourceType {
+  FINDING
+  RECON_FINDING
+  NOTE
+  EVIDENCE
+  CONVERSATION_MESSAGE
+  SCAN_TEMPLATE
+  TARGET
+  PROJECT
+  CUSTOM
+}
+
+/// One chat thread. `provider`/`model` are captured per-conversation (not
+/// only globally configured) so a workspace can pin — or compare — a
+/// specific provider/model without a schema change (AI Provider
+/// Architecture: "changing providers must only require configuration").
+model AiConversation {
+  id         String          @id @default(uuid())
+  workspaceId String
+  projectId  String
+  userId     String
+  title      String?
+  provider   AiProviderName?
+  model      String?
+  pinned     Boolean         @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+  toolCalls AiToolCallLog[]
+
+  @@index([workspaceId, projectId])
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+/// One turn in a conversation. `content` is the final rendered text;
+/// `status` tracks the SSE streaming lifecycle (PENDING while queued,
+/// STREAMING while the caller-visible SSE stream is still appending
+/// tokens, COMPLETE/FAILED/CANCELLED terminal — see AiChatStreamService).
+/// `bookmarked`/`pinned` back the AI Message Actions spec directly, no
+/// join table needed (single-owner favoriting, unlike ProjectFavorite).
+model AiMessage {
+  id               String          @id @default(uuid())
+  conversationId   String
+  role             AiMessageRole
+  content          String
+  status           AiMessageStatus @default(COMPLETE)
+  provider         AiProviderName?
+  model            String?
+  promptTokens     Int?
+  completionTokens Int?
+  bookmarked       Boolean         @default(false)
+  pinned           Boolean         @default(false)
+  errorMessage     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  conversation AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  toolCalls    AiToolCallLog[]
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
+/// One internal-tool invocation the AI made while composing a message (AI
+/// Tool Calling) — doubles as an audit trail (Security: Prompt Injection
+/// Protection review) and lets the UI render "Searched Findings for
+/// '...'" tool-use indicators.
+model AiToolCallLog {
+  id             String   @id @default(uuid())
+  conversationId String
+  messageId      String?
+  toolName       String
+  input          Json
+  output         Json?
+  errorMessage   String?
+  durationMs     Int?
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      AiMessage?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@map("ai_tool_call_logs")
+}
+
+/// The RAG store. `embedding` is a raw pgvector column — Prisma Client
+/// excludes `Unsupported` fields from generated create/select input, so
+/// all reads/writes of this one column go through $queryRaw/$executeRaw
+/// in PrismaAiMemoryRepository; every other column on this model stays
+/// fully typed through the normal Client. `content` is the chunked,
+/// embedded text; `sourceType`+`sourceId` trace back to the real record.
+/// `projectId` is nullable because some memory (workspace-wide
+/// conversation summaries) isn't project-scoped, but `workspaceId` is
+/// always required — the one column every similarity-search query filters
+/// on first.
+model AiMemoryChunk {
+  id          String                       @id @default(uuid())
+  workspaceId String
+  projectId   String?
+  sourceType  AiMemorySourceType
+  sourceId    String
+  chunkIndex  Int                          @default(0)
+  content     String
+  embedding   Unsupported("vector(1536)")?
+  metadata    Json?
+  createdAt   DateTime                     @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, projectId])
+  @@index([sourceType, sourceId])
+  @@map("ai_memory_chunks")
 }

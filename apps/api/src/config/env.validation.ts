@@ -151,6 +151,55 @@ const envSchema = z.object({
   VULN_TOOL_WORDLIST_FFUF: z
     .string()
     .default('/usr/share/seclists/Discovery/Web-Content/common.txt'),
+
+  // AI Security Copilot (Module 5) — see
+  // docs/adr/0005-ai-security-copilot-module.md. Every provider key is
+  // optional by design (AI Provider Architecture: "changing providers must
+  // only require configuration") — the app boots and the provider registry
+  // reports each provider's `configured` status via GET /ai/providers
+  // without any of these being set; only actually *sending* a message
+  // through an unconfigured provider fails, with a clear error, not boot.
+  AI_DEFAULT_PROVIDER: z
+    .enum(['OPENAI', 'ANTHROPIC', 'GEMINI', 'OLLAMA', 'OPENROUTER'])
+    .default('ANTHROPIC'),
+
+  AI_OPENAI_API_KEY: z.string().optional(),
+  AI_OPENAI_MODEL: z.string().default('gpt-4o'),
+  AI_OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
+
+  AI_ANTHROPIC_API_KEY: z.string().optional(),
+  AI_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5'),
+
+  AI_GEMINI_API_KEY: z.string().optional(),
+  AI_GEMINI_MODEL: z.string().default('gemini-2.5-pro'),
+
+  // Ollama is local — no API key, just a reachable base URL. `optional()`
+  // (rather than a hardcoded default) so "is Ollama configured" can mean
+  // "the operator deliberately pointed us at a local server", not "every
+  // install silently tries localhost:11434 and fails weirdly".
+  AI_OLLAMA_BASE_URL: z.string().url().optional(),
+  AI_OLLAMA_MODEL: z.string().default('llama3.1'),
+
+  AI_OPENROUTER_API_KEY: z.string().optional(),
+  AI_OPENROUTER_MODEL: z.string().default('anthropic/claude-sonnet-4.5'),
+
+  // RAG (Retrieval-Augmented Generation) tuning. Embedding dimension must
+  // match the `vector(1536)` column width in the ai_memory_chunks table
+  // (schema.prisma) — 1536 is OpenAI's text-embedding-3-small width, the
+  // one embedding model every provider path can fall back to structurally
+  // in Phase 1. Changing embedding models to a different dimension count
+  // requires a migration, not just a config change (documented in ADR 0005
+  // as a known Phase-2 caveat).
+  AI_EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(1536),
+  AI_MEMORY_CHUNK_SIZE: z.coerce.number().int().positive().default(800),
+  AI_MEMORY_CHUNK_OVERLAP: z.coerce.number().int().nonnegative().default(120),
+  AI_MEMORY_SEARCH_TOP_K: z.coerce.number().int().positive().default(8),
+
+  AI_CHAT_STREAM_MAX_TOKENS: z.coerce.number().int().positive().default(4096),
+  // Rate limiting (Security: Rate Limiting) — separate, tighter budget than
+  // the global ThrottlerModule default, since a single AI turn is far more
+  // expensive (provider $ + latency) than a typical CRUD request.
+  AI_CHAT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
