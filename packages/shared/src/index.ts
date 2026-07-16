@@ -19,3 +19,5 @@ export * from "./vuln.js";
 export * from "./vuln-endpoints.js";
 export * from "./ai.js";
 export * from "./ai-endpoints.js";
+export * from "./bugbounty.js";
+export * from "./bugbounty-endpoints.js";

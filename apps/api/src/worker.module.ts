@@ -13,6 +13,8 @@ import { ActivityModule } from './modules/activity/activity.module.js';
 import { ReconCoreModule } from './modules/recon/recon-core.module.js';
 import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 import { AiCoreModule } from './modules/ai/ai-core.module.js';
+import { BugBountyCoreModule } from './modules/bugbounty/bugbounty-core.module.js';
+import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
@@ -42,6 +44,16 @@ import { AiCoreModule } from './modules/ai/ai-core.module.js';
 /// inside this worker process's own execution services, not from the API
 /// process — a second AiSummaryHandler instance living only in AppModule
 /// would never see them.
+///
+/// Module 6 adds BugBountyCoreModule for BugBountyDeadlineNotifierService's
+/// repository dependencies (BUGBOUNTY_CALENDAR_REPOSITORY,
+/// BUGBOUNTY_NOTIFICATIONS_REPOSITORY) and registers the notifier itself as
+/// a provider here — it's a third self-scheduling poller started from
+/// worker.main.ts, following the exact same pattern as the Recon/Vuln
+/// pollers. It doesn't publish domain events consumed elsewhere in this
+/// process, but it lives in the worker process (not the API process) for
+/// the same reason the other pollers do: controllers only enqueue/read,
+/// background execution happens here.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
@@ -68,6 +80,9 @@ import { AiCoreModule } from './modules/ai/ai-core.module.js';
     ReconCoreModule,
     VulnCoreModule,
     AiCoreModule,
+    BugBountyCoreModule,
   ],
+  providers: [BugBountyDeadlineNotifierService],
+  exports: [BugBountyDeadlineNotifierService],
 })
 export class WorkerModule {}

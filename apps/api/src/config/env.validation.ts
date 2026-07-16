@@ -171,7 +171,11 @@ const envSchema = z.object({
   AI_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5'),
 
   AI_GEMINI_API_KEY: z.string().optional(),
-  AI_GEMINI_MODEL: z.string().default('gemini-2.5-pro'),
+  // gemini-2.0-flash, not -pro: as of the free-tier landscape in 2026,
+  // Gemini's Pro models require billing to be enabled, while Flash stays
+  // free with the highest request/token quotas of the free-tier lineup —
+  // the right default for a key obtained from Google AI Studio's free tier.
+  AI_GEMINI_MODEL: z.string().default('gemini-2.0-flash'),
 
   // Ollama is local — no API key, just a reachable base URL. `optional()`
   // (rather than a hardcoded default) so "is Ollama configured" can mean
@@ -217,6 +221,27 @@ const envSchema = z.object({
   // A well-known public ElevenLabs sample voice ("Rachel") used as the
   // default when a caller doesn't specify one.
   AI_SPEECH_ELEVENLABS_VOICE_ID: z.string().default('21m00Tcm4TlvDq8ikWAM'),
+
+  // Bug Bounty Workspace (Module 6) — see
+  // docs/adr/0006-bug-bounty-workspace-module.md. Duplicate Detection reuses
+  // the AI module's embedding pipeline (AiMemoryChunk, sourceType
+  // 'BUGBOUNTY_FINDING'/'BUG_REPORT') rather than a second similarity
+  // engine — this threshold is the only Module-6-specific knob.
+  BUGBOUNTY_DUPLICATE_SIMILARITY_THRESHOLD: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .default(0.75),
+  BUGBOUNTY_DEFAULT_CURRENCY: z.string().default('USD'),
+  // Deadline Notifier (Notifications: Report Deadlines / Reminder
+  // Notifications) — a calendar event gets a REPORT_DEADLINE notification
+  // once its dueAt falls within this many hours from now, checked every
+  // BUGBOUNTY_DEADLINE_POLL_INTERVAL_MS.
+  BUGBOUNTY_DEADLINE_LOOKAHEAD_HOURS: z.coerce.number().positive().default(48),
+  BUGBOUNTY_DEADLINE_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .positive()
+    .default(300_000),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -227,7 +252,4 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
     const issues = result.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
-    throw new Error(`Invalid environment configuration:\n${issues}`);
-  }
-  return result.data;
-}
+    throw new Error(`Invalid environment configuration:\n${issu

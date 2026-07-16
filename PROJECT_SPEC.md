@@ -29,6 +29,60 @@ Everything should exist inside one unified ecosystem.
 
 ---
 
+# Local-First Core Principle
+
+> Added 2026-07-16, superseding the implicit "backend executes
+> everything" assumption in every section below that predates it. Full
+> audit, decision record, and build plan: `docs/migration/local-first-architecture-migration.md`,
+> `docs/adr/0007-local-first-desktop-agent-architecture.md`,
+> `docs/migration/desktop-agent-roadmap.md`.
+
+PentestHub AI is **local-first**. The backend must never be responsible
+for expensive computation. It exists only for: Authentication, User
+accounts, Workspace/Project/Target/Note metadata, Findings metadata,
+Activity timeline, Team collaboration, API keys, Preferences, Reports
+metadata, Synchronization, Notifications, RBAC, and Audit logs.
+
+All computationally expensive work — Recon and Vulnerability tool
+execution, AI inference, local storage, file indexing, voice processing,
+local RAG, and report/PDF/Markdown/DOCX generation — runs in a new
+**Desktop Agent** (Tauri preferred; Electron acceptable only if a
+required capability has no workable Tauri equivalent), targeting
+Windows, Linux, and macOS.
+
+Key rules that follow from this:
+
+* Private target/finding/evidence data never leaves the user's machine
+  unless the user explicitly opts into sync.
+* AI never requires PentestHub's own API keys — every user brings their
+  own provider (OpenAI, Anthropic, Gemini, OpenRouter, Ollama, LM Studio,
+  DeepSeek, Mistral, Groq, Azure OpenAI), defaulting to local Ollama with
+  no key, and degrading gracefully (never crashing) if Ollama is also
+  unavailable.
+* Voice is local-first (Web Speech API primary; Whisper.cpp/Piper TTS as
+  Desktop Agent fallbacks) — cloud TTS/STT is optional, never required.
+* RAG is local only (SQLite+embeddings or LanceDB) — no mandatory cloud
+  vector database, no private data uploaded without opt-in.
+* Sync is user-selectable: Off / Metadata-Only (default) / Everything.
+* Offline mode works for workspace/projects/notes/findings/recon/
+  scanning/reports/local AI/voice/search.
+* Free tier is unlimited for everything that runs locally (Projects,
+  Targets, Recon, Scans, Reports, Markdown/PDF export, Local AI, Voice,
+  the Desktop Agent itself). Premium unlocks only Cloud Sync, Team
+  Collaboration, Cloud Backup, Advanced Analytics, Priority Queue,
+  Organization Features, and Enterprise Integrations — users never pay to
+  scan locally.
+
+This principle is being retrofitted onto Modules 1-6 via a phased,
+strangler-fig migration (see the roadmap doc) that preserves existing
+API contracts and does not break the current web UI. As of this writing,
+**no migration code has shipped yet** — Modules 3-6 still execute tool
+runners, AI calls, RAG, voice, and report rendering server-side, tracked
+as violations to fix in the roadmap's phases. See the audit doc's
+module-by-module findings for specifics.
+
+---
+
 # Target Users
 
 * Bug Bounty Hunters
@@ -712,46 +766,4 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
    `docs/adr/0003-recon-engine-module.md`).
 4. Vulnerability Engine (Module 4) — **done**. Redefined from this
    document's original "Vulnerability Tools" placeholder (a client-side
-   encoder/payload-generator toolbox) into a full scanner-orchestration
-   engine per explicit direction from the project owner: Recon Assets →
-   Scan Jobs → external scanners (Nuclei, ffuf, dirsearch, feroxbuster,
-   Nikto behind one `ScannerRunner`/`Normalizer` abstraction, extension
-   points reserved for SQLMap/XSStrike/Dalfox/Wapiti/OWASP ZAP) →
-   normalized `VulnFinding`s (severity/CVSS/CWE/OWASP category, dedup-key
-   + unique-constraint deduplication, auto-attached text Evidence) → Scan
-   Queue with Pause/Resume/Cancel/Retry/Priority/Worker Heartbeat/Dead
-   Worker Recovery → Activity Timeline → events reserved for a future AI
-   hook. The original "Vulnerability Tools" payload/encoder toolbox this
-   section used to describe is not built and isn't currently on the
-   roadmap under that name; the encoder/JWT/hash-utility items listed
-   above this section remain unimplemented client-side utilities, not
-   part of Module 4. See `docs/adr/0004-vulnerability-engine-module.md`.
-5. Bug Bounty Workspace (targets, scope tracking, findings)
-6. Report Generator
-7. AI Assistant integration (Module 5) — **Phase 1 and Phase 2 done**.
-   Built as the "AI Security Copilot": workspace/project-aware AI Chat
-   with automatic context gathering (no manual pasting), a RAG layer over
-   pgvector (per-workspace/per-project isolated memory), a 5-provider
-   abstraction (OpenAI/Anthropic/Gemini/Ollama/OpenRouter — switchable by
-   config, no keys wired yet per explicit direction), an editable
-   prompt-module architecture (system/security/recon/finding-analysis/
-   report/coding, never hardcoded in controllers), a provider-agnostic
-   tool-calling framework (search findings/recon/evidence/notes/projects/
-   targets/templates, create note, draft report, generate PoC, generate
-   payloads) built to be extended by future modules without touching the
-   chat engine, SSE token streaming with cancel/regenerate/continue,
-   prompt-injection guardrails, and workspace/project isolation enforced
-   on every command/query. Frontend: `/ai` dashboard (conversation
-   history, context indicator, suggested questions, streaming chat,
-   Markdown rendering). **Phase 2** adds the "UX layer": Voice Interaction
-   (Web Speech API mic input + speak-aloud replies, backed by a
-   `SpeechProvider` abstraction with 4 unconfigured cloud adapters), a
-   Smart Code Block toolbar (language badge, download, wrap, expand/
-   collapse, fullscreen), One-Click Code/Conversation Export, Terminal
-   Mode, Artifact Mode (a dedicated side panel for substantial generated
-   content), and Interactive Canvas (pannable/zoomable Mermaid diagrams).
-   See `docs/adr/0005-ai-security-copilot-module.md`.
-8. CVE Center
-9. Knowledge Base
-10. Admin Panel
-11. Integrations, Voice Assistant, Mobile/Desktop (Flutter), Marketplace/Plugin SDK
+   enco

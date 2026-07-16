@@ -32,12 +32,12 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Evidence", href: "/evidence", icon: ImageIcon },
   { label: "Recon", href: "/recon", icon: Radar },
   { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert },
+  { label: "Bug Bounty", href: "/bugbounty", icon: Bug },
   { label: "AI Assistant", href: "/ai", icon: Bot },
   { label: "Activity", href: "/activity", icon: Activity },
 ];
 
 export const FUTURE_NAV: NavItem[] = [
-  { label: "Bug Bounty", href: "#", icon: Bug, comingSoon: true },
   { label: "Reports", href: "#", icon: FileBarChart, comingSoon: true },
   { label: "CVE Center", href: "#", icon: ShieldCheck, comingSoon: true },
 ];
