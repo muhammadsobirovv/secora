@@ -32,6 +32,7 @@ import { SearchModule } from './modules/search/search.module.js';
 import { ReconModule } from './modules/recon/recon.module.js';
 import { VulnModule } from './modules/vuln/vuln.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
+import { BugBountyModule } from './modules/bugbounty/bugbounty.module.js';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { AiModule } from './modules/ai/ai.module.js';
     ReconModule,
     VulnModule,
     AiModule,
+    BugBountyModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

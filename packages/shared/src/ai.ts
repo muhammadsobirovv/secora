@@ -25,7 +25,12 @@ export type AiMemorySourceType =
   | "SCAN_TEMPLATE"
   | "TARGET"
   | "PROJECT"
-  | "CUSTOM";
+  | "CUSTOM"
+  // Module 6 (Bug Bounty Workspace) additions — see the matching
+  // AiMemorySourceType enum comment in schema.prisma.
+  | "BUGBOUNTY_FINDING"
+  | "BUG_REPORT"
+  | "PAYLOAD_LIBRARY_ENTRY";
 
 /// Every provider the abstraction supports (AI Provider Architecture).
 /// Phase 1 ships all five as structurally-complete adapters; which ones are

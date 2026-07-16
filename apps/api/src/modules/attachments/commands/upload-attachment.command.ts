@@ -219,6 +219,17 @@ export class UploadAttachmentHandler implements ICommandHandler<
         }
         return evidence.projectId;
       }
+      // Module 6 (Bug Bounty Workspace) enum additions — reserved for
+      // future attachment support on Knowledge Base Notes / Bug Reports.
+      // No Module 6 command uploads through this handler with these types
+      // yet, so there's no existence/workspace-ownership check to perform
+      // here; deliberately not importing KnowledgeBaseRepository/
+      // BugReportsRepository into this module to avoid a Attachments <->
+      // Bugbounty circular dependency (see this class's file-level
+      // comment). Treated like WORKSPACE: no project scope.
+      case 'KNOWLEDGE_BASE_NOTE':
+      case 'BUG_REPORT':
+        return null;
     }
   }
 

@@ -64,6 +64,15 @@ model User {
   vulnScanTemplatesCreated VulnScanTemplate[]
   vulnFindingsCreated VulnFinding[]
   aiConversations     AiConversation[]
+  // Module 6 (Bug Bounty Workspace) additive back-relations.
+  bugBountyProgramsCreated     BugBountyProgram[]
+  bugBountyFindingsCreated     BugBountyFinding[]
+  bugReportsCreated            BugReport[]
+  payloadLibraryEntriesCreated PayloadLibraryEntry[]
+  knowledgeBaseNotesAuthored   KnowledgeBaseNote[]
+  bookmarks                    Bookmark[]
+  bugBountyCalendarEventsCreated BugBountyCalendarEvent[]
+  bugBountyNotifications       BugBountyNotification[]
 
   @@map("users")
 }
@@ -336,6 +345,17 @@ model Workspace {
   vulnScanTemplates VulnScanTemplate[]
   aiConversations   AiConversation[]
   aiMemoryChunks    AiMemoryChunk[]
+  // Module 6 (Bug Bounty Workspace) — additive back-relations, same
+  // treatment every prior module received (see reconJobs/vulnFindings/
+  // aiConversations above). No existing column or behavior changes.
+  bugBountyPrograms      BugBountyProgram[]
+  bugBountyFindings      BugBountyFinding[]
+  bugReports             BugReport[]
+  payloadLibraryEntries  PayloadLibraryEntry[]
+  knowledgeBaseNotes     KnowledgeBaseNote[]
+  bookmarks              Bookmark[]
+  bugBountyCalendarEvents BugBountyCalendarEvent[]
+  bugBountyNotifications BugBountyNotification[]
 
   @@map("workspaces")
 }
@@ -423,6 +443,11 @@ model Project {
   vulnFindings   VulnFinding[]
   aiConversations AiConversation[]
   aiMemoryChunks  AiMemoryChunk[]
+  // Module 6 (Bug Bounty Workspace) additive back-relations.
+  bugBountyPrograms  BugBountyProgram[]
+  bugBountyFindings  BugBountyFinding[]
+  bugReports         BugReport[]
+  knowledgeBaseNotes KnowledgeBaseNote[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -564,6 +589,10 @@ model Target {
   promotedFromFindings ReconFinding[] @relation("ReconFindingPromotedTarget")
   vulnScanJobs         VulnScanJob[]
   vulnFindings         VulnFinding[]
+  // Module 6 (Bug Bounty Workspace) additive back-relations.
+  bugBountyProgramLinks BugBountyProgramTarget[]
+  bugBountyFindings     BugBountyFinding[]
+  knowledgeBaseNotes    KnowledgeBaseNote[]
 
   @@index([projectId])
   @@index([type])
@@ -639,6 +668,12 @@ model Evidence {
   vulnFindingsAsPayload    VulnFinding[] @relation("VulnFindingPayloadEvidence")
   vulnFindingsAsCommand    VulnFinding[] @relation("VulnFindingCommandEvidence")
   vulnFindingsAsRawOutput  VulnFinding[] @relation("VulnFindingRawOutputEvidence")
+  // Module 6 (Bug Bounty Workspace) — many-to-many via join tables rather
+  // than more named optional pointers, since a bug bounty finding/report
+  // can carry an arbitrary number of screenshots/requests, unlike
+  // VulnFinding's fixed six categories.
+  bugBountyFindingLinks BugBountyFindingEvidence[]
+  bugReportLinks        BugReportEvidence[]
 
   @@index([projectId])
   @@index([targetId])
@@ -655,6 +690,12 @@ enum AttachableType {
   TARGET
   NOTE
   EVIDENCE
+  // Module 6 (Bug Bounty Workspace) additions — purely additive new enum
+  // values, no existing value's meaning changes. Reuses the existing
+  // polymorphic Attachment table instead of a second attachment mechanism
+  // (Nothing should be duplicated).
+  KNOWLEDGE_BASE_NOTE
+  BUG_REPORT
 }
 
 /// No DB-level FK to the attached-to row (attachableType/attachableId is a
@@ -1136,6 +1177,9 @@ model VulnFinding {
   payloadEvidence    Evidence? @relation("VulnFindingPayloadEvidence", fields: [payloadEvidenceId], references: [id], onDelete: SetNull)
   commandEvidence    Evidence? @relation("VulnFindingCommandEvidence", fields: [commandEvidenceId], references: [id], onDelete: SetNull)
   rawOutputEvidence  Evidence? @relation("VulnFindingRawOutputEvidence", fields: [rawOutputEvidenceId], references: [id], onDelete: SetNull)
+  // Module 6 (Bug Bounty Workspace) — optional back-relation for the
+  // provenance link described on BugBountyFinding.vulnFindingId.
+  bugBountyFinding BugBountyFinding?
 
   @@unique([targetId, scanner, dedupKey])
   @@index([jobId])
@@ -1325,6 +1369,13 @@ enum AiMemorySourceType {
   TARGET
   PROJECT
   CUSTOM
+  // Module 6 (Bug Bounty Workspace) additions — feed the same RAG store so
+  // the AI Security Copilot (Module 5) can answer questions about, and
+  // Duplicate Detection can semantically compare, bug bounty findings/
+  // reports/payloads without a second embedding pipeline.
+  BUGBOUNTY_FINDING
+  BUG_REPORT
+  PAYLOAD_LIBRARY_ENTRY
 }
 
 /// One chat thread. `provider`/`model` are captured per-conversation (not
@@ -1434,4 +1485,486 @@ model AiMemoryChunk {
   @@index([workspaceId, projectId])
   @@index([sourceType, sourceId])
   @@map("ai_memory_chunks")
+}
+
+// ---------------------------------------------------------------------------
+// Bug Bounty Workspace (Module 6) — see docs/adr/0006-bug-bounty-workspace-module.md
+//
+// Integrates with, never duplicates, Modules 1-5: Programs/Findings/Reports
+// link to existing Target/Evidence/VulnFinding rows by FK instead of
+// re-storing their data; Asset Inventory is a read-through aggregation over
+// Target+ReconFinding+VulnFinding+Evidence (no BugBountyAsset table exists).
+// BugBountyFinding is intentionally its own model rather than an extension
+// of VulnFinding: VulnFinding.jobId is NOT NULL (every VulnFinding must
+// come from an automated VulnScanJob — Module 4's core assumption), but the
+// majority of real bug-bounty findings are discovered manually, so forcing
+// them through VulnFinding would mean fabricating scan jobs for manual
+// work. BugBountyFinding.vulnFindingId is an optional link for the case
+// where a finding *did* originate from an automated scan, giving the best
+// of both: full integration when there's scan provenance, no forced
+// coupling when there isn't.
+// ---------------------------------------------------------------------------
+
+enum BugBountyPlatform {
+  HACKERONE
+  BUGCROWD
+  INTIGRITI
+  YESWEHACK
+  SYNACK
+  INTERNAL
+  PRIVATE
+  CUSTOM
+}
+
+enum BugBountyProgramStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  ARCHIVED
+}
+
+enum ScopeItemType {
+  DOMAIN
+  WILDCARD
+  URL
+  MOBILE_APP
+  API
+  CIDR
+  IP_RANGE
+  ASN
+  CLOUD_ASSET
+}
+
+enum ScopeClassification {
+  IN_SCOPE
+  OUT_OF_SCOPE
+  UNKNOWN
+}
+
+/// A program the hunter is engaged on. `projectId` is nullable — a program
+/// can be tracked workspace-wide (a personal HackerOne program the hunter
+/// is hunting on solo) or tied to a specific client Project, matching how
+/// Note already makes its Project link required but Target link optional.
+model BugBountyProgram {
+  id                String                 @id @default(uuid())
+  workspaceId       String
+  projectId         String?
+  name              String
+  platform          BugBountyPlatform
+  organization      String?
+  url               String?
+  status            BugBountyProgramStatus @default(ACTIVE)
+  rulesMarkdown     String?
+  bountyTable       Json?
+  severityMatrix    Json?
+  disclosurePolicy  String?
+  notesMarkdown     String?
+  tags              String[]
+  createdBy         String
+  deletedAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  workspace     Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  creator       User                     @relation(fields: [createdBy], references: [id])
+  scopeItems    BugBountyProgramScopeItem[]
+  targetLinks   BugBountyProgramTarget[]
+  findings      BugBountyFinding[]
+  reports       BugReport[]
+  calendarEvents BugBountyCalendarEvent[]
+
+  @@index([workspaceId, status])
+  @@index([projectId])
+  @@map("bugbounty_programs")
+}
+
+/// One scope rule. `pattern` holds the raw text (domain/wildcard/URL/CIDR/
+/// ASN/...); `type` says how to interpret it, `classification` is the
+/// auto-classification result (or manual override) — mirrors
+/// Target.type/value/scopeStatus (Module 2) one level up, at the program
+/// level rather than the individual-asset level.
+model BugBountyProgramScopeItem {
+  id             String               @id @default(uuid())
+  programId      String
+  type           ScopeItemType
+  pattern        String
+  classification ScopeClassification @default(UNKNOWN)
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  program BugBountyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, classification])
+  @@map("bugbounty_program_scope_items")
+}
+
+/// Links an existing Target (Module 2) to a Program, without adding a
+/// column to the Target table itself — a Target can belong to more than
+/// one program over its lifetime (e.g. rescoped between engagements), and
+/// a join table keeps that history-friendly instead of a single nullable
+/// FK on Target.
+model BugBountyProgramTarget {
+  programId String
+  targetId  String
+  linkedAt  DateTime @default(now())
+
+  program BugBountyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  target  Target           @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([programId, targetId])
+  @@map("bugbounty_program_targets")
+}
+
+enum BugBountyFindingStage {
+  NEW
+  TRIAGED
+  VERIFIED
+  REPORTED
+  DUPLICATE
+  NEED_MORE_INFO
+  RESOLVED
+  CLOSED
+  ARCHIVED
+}
+
+/// The bug-bounty-specific finding lifecycle (9 stages) — deliberately
+/// separate from VulnFindingStatus (Module 4's 5-value scanner-confirmation
+/// status): a submission's life after a hunter decides to report it
+/// (Triaged → Reported → Duplicate/NeedMoreInfo → Resolved → Closed →
+/// Archived) has no equivalent in Module 4, which stops at
+/// CONFIRMED/RESOLVED. `vulnFindingId` is an optional provenance link (see
+/// file-level doc comment above) — `endpoint`/`payload`/`vulnType` are
+/// captured directly here (not just via the optional VulnFinding link)
+/// specifically so Duplicate Detection has stable fields to compare against
+/// even for manually-created findings with no VulnFinding at all.
+model BugBountyFinding {
+  id            String                @id @default(uuid())
+  workspaceId   String
+  projectId     String
+  programId     String
+  targetId      String?
+  vulnFindingId String?               @unique
+  title         String
+  description   String
+  severity      VulnFindingSeverity
+  cvssScore     Float?
+  cvssVector    String?
+  cwe           String?
+  vulnType      String?
+  endpoint      String?
+  payload       String?
+  stage         BugBountyFindingStage @default(NEW)
+  duplicateOfId String?
+  bountyAmount  Float?
+  currency      String?               @default("USD")
+  tags          String[]
+  createdBy     String
+  deletedAt     DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  program       BugBountyProgram  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  target        Target?           @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  vulnFinding   VulnFinding?      @relation(fields: [vulnFindingId], references: [id], onDelete: SetNull)
+  creator       User              @relation(fields: [createdBy], references: [id])
+  duplicateOf   BugBountyFinding? @relation("BugBountyFindingDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates    BugBountyFinding[] @relation("BugBountyFindingDuplicate")
+  evidenceLinks BugBountyFindingEvidence[]
+  reports       BugReport[]
+  knowledgeBaseNotes KnowledgeBaseNote[]
+
+  @@index([workspaceId, stage])
+  @@index([programId])
+  @@index([projectId])
+  @@map("bugbounty_findings")
+}
+
+/// Many-to-many Finding <-> Evidence — unlike VulnFinding's six fixed
+/// optional pointers (one screenshot, one request, ...), a bug bounty
+/// finding can carry an arbitrary number of each, so a join table fits
+/// better than more named FK columns.
+model BugBountyFindingEvidence {
+  findingId  String
+  evidenceId String
+  addedAt    DateTime @default(now())
+
+  finding  BugBountyFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  evidence Evidence         @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@id([findingId, evidenceId])
+  @@map("bugbounty_finding_evidence")
+}
+
+enum BugReportTemplate {
+  HACKERONE
+  BUGCROWD
+  INTIGRITI
+  MARKDOWN
+  PDF
+  HTML
+}
+
+enum BugReportStatus {
+  DRAFT
+  SUBMITTED
+  TRIAGED
+  ACCEPTED
+  REJECTED
+  DUPLICATE
+  RESOLVED
+  CLOSED
+}
+
+/// `version` is optimistic locking on the draft — the one genuinely new
+/// concurrency-control pattern this module introduces (grepped: no
+/// existing model in this schema uses a version column; see ADR 0006 for
+/// why reports specifically need it — a draft can be open in the AI Report
+/// Draft Assistant and hand-edited in the same browser tab, and losing one
+/// side's edit silently is worse here than in any Module 1-5 entity).
+/// `aiGenerated`/`aiModel`/`aiGeneratedAt` track provenance of the *last*
+/// AI draft pass without duplicating the drafted text into separate
+/// "ai-original" columns — the same summary/impact/etc. fields are edited
+/// in place after generation.
+model BugReport {
+  id                 String            @id @default(uuid())
+  workspaceId        String
+  projectId          String?
+  programId          String
+  findingId          String?
+  title              String
+  template           BugReportTemplate @default(MARKDOWN)
+  status             BugReportStatus   @default(DRAFT)
+  summary            String?
+  impact             String?
+  stepsToReproduce   String?
+  proofOfConcept     String?
+  cwe                String?
+  cvssScore          Float?
+  cvssVector         String?
+  references         String[]
+  mitigation         String?
+  aiGenerated        Boolean           @default(false)
+  aiModel            String?
+  aiGeneratedAt      DateTime?
+  bountyAmount       Float?
+  currency           String?           @default("USD")
+  platformReportUrl  String?
+  platformReportId   String?
+  submittedAt        DateTime?
+  /// Set when status first transitions to TRIAGED — feeds Statistics'
+  /// averageTimeToTriagedHours (submittedAt -> triagedAt).
+  triagedAt          DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  version            Int               @default(1)
+  createdBy          String
+  deletedAt          DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project        Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  program        BugBountyProgram    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  finding        BugBountyFinding?   @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  creator        User                @relation(fields: [createdBy], references: [id])
+  evidenceLinks  BugReportEvidence[]
+  calendarEvents BugBountyCalendarEvent[]
+  knowledgeBaseNotes KnowledgeBaseNote[]
+
+  @@index([workspaceId, status])
+  @@index([programId])
+  @@index([findingId])
+  @@map("bugbounty_reports")
+}
+
+/// Many-to-many Report <-> Evidence, same reasoning as
+/// BugBountyFindingEvidence above.
+model BugReportEvidence {
+  reportId   String
+  evidenceId String
+  addedAt    DateTime @default(now())
+
+  report   BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  evidence Evidence  @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@id([reportId, evidenceId])
+  @@map("bugbounty_report_evidence")
+}
+
+enum PayloadCategory {
+  XSS
+  SQLI
+  SSRF
+  SSTI
+  XXE
+  IDOR
+  CSRF
+  LFI
+  RFI
+  RCE
+  DESERIALIZATION
+  JWT
+  GRAPHQL
+  CSP
+  CORS
+  OPEN_REDIRECT
+}
+
+/// `workspaceId` nullable: null rows are the seeded, shared-across-every-
+/// workspace default library; non-null rows are a workspace's own custom
+/// payloads. `createdBy` nullable for the same reason (seed rows have no
+/// author).
+model PayloadLibraryEntry {
+  id             String          @id @default(uuid())
+  workspaceId    String?
+  category       PayloadCategory
+  title          String
+  description    String
+  example        String
+  references     String[]
+  tags           String[]
+  aiExplanation  String?
+  createdBy      String?
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([category])
+  @@index([workspaceId])
+  @@map("payload_library_entries")
+}
+
+/// Personal knowledge base note. `checklist` is a small JSON array of
+/// `{text, done}` items rather than a separate table — same
+/// forward-compat-escape-hatch reasoning as Target.customFields (Module 2),
+/// scoped down since checklists here are genuinely just a flat list, not
+/// structured domain data. Links to Target/Finding/Report are all optional
+/// direct FKs (matches Note.targetId in Module 2) rather than a polymorphic
+/// reference, since there are only three link targets and all three are
+/// well-known types.
+model KnowledgeBaseNote {
+  id               String    @id @default(uuid())
+  workspaceId      String
+  projectId        String?
+  targetId         String?
+  findingId        String?
+  reportId         String?
+  title            String?
+  contentMarkdown  String
+  checklist        Json?
+  authorId         String
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  target    Target?           @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  finding   BugBountyFinding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  report    BugReport?        @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  author    User              @relation(fields: [authorId], references: [id])
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([targetId])
+  @@map("knowledge_base_notes")
+}
+
+enum BookmarkEntityType {
+  TARGET
+  FINDING
+  REPORT
+  PAYLOAD
+  NOTE
+}
+
+/// Loose reference (entityType/entityId, no DB-level FK) — same pattern as
+/// ActivityEvent/Attachment (Module 2): a bookmark must be able to point at
+/// five different tables, which a real FK can't express, and a bookmark
+/// surviving its target's deletion (until the UI prunes it) is acceptable.
+model Bookmark {
+  id          String             @id @default(uuid())
+  workspaceId String
+  userId      String
+  entityType  BookmarkEntityType
+  entityId    String
+  createdAt   DateTime           @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
+  @@index([workspaceId])
+  @@map("bugbounty_bookmarks")
+}
+
+enum CalendarEventType {
+  SUBMISSION_DEADLINE
+  FOLLOW_UP
+  RETEST
+  DISCLOSURE
+}
+
+model BugBountyCalendarEvent {
+  id          String            @id @default(uuid())
+  workspaceId String
+  programId   String?
+  reportId    String?
+  type        CalendarEventType
+  title       String
+  dueAt       DateTime
+  completedAt DateTime?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  /// Set once a Report Deadline / Reminder notification has been created
+  /// for this event (BugBountyDeadlineNotifierService) — the dedupe
+  /// marker that keeps the poller from re-notifying on every tick.
+  notifiedAt  DateTime?
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  program   BugBountyProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  report    BugReport?        @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  creator   User              @relation(fields: [createdBy], references: [id])
+
+  @@index([workspaceId, dueAt])
+  @@index([dueAt, notifiedAt])
+  @@map("bugbounty_calendar_events")
+}
+
+enum BugBountyNotificationType {
+  REPORT_DEADLINE
+  REMINDER
+  PROGRAM_UPDATE
+  AI_RECOMMENDATION
+}
+
+/// `relatedEntityType`/`relatedEntityId` is a loose reference, same
+/// reasoning as Bookmark above.
+model BugBountyNotification {
+  id                String                    @id @default(uuid())
+  workspaceId       String
+  userId            String
+  type              BugBountyNotificationType
+  title             String
+  body              String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  readAt            DateTime?
+  createdAt         DateTime                  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([workspaceId, createdAt])
+  @@map("bugbounty_notifications")
 }

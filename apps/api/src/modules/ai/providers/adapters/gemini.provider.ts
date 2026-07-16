@@ -116,11 +116,21 @@ export class GeminiProvider implements AiProvider {
     const apiKey = this.getApiKey();
     if (!apiKey) throw new AiProviderNotConfiguredError(this.name);
 
-    const url = `${BASE_URL}/models/text-embedding-004:embedContent?key=${apiKey}`;
+    // text-embedding-004 was retired by Google (404s on v1beta as of 2026);
+    // gemini-embedding-001 is its GA successor. It defaults to 3072
+    // dimensions, so outputDimensionality truncates it to 1536 to match the
+    // `vector(1536)` column in ai_memory_chunks (see
+    // prisma-ai-memory.repository.ts). No manual re-normalization needed:
+    // pgvector's `<=>` operator computes true cosine distance from the raw
+    // values regardless of vector magnitude.
+    const url = `${BASE_URL}/models/gemini-embedding-001:embedContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: { parts: [{ text }] } }),
+      body: JSON.stringify({
+        content: { parts: [{ text }] },
+        outputDimensionality: 1536,
+      }),
     });
 
     if (!response.ok) {
