@@ -11,4 +11,5 @@ export class AssetInventoryQueryParamsDto implements Shape {
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  search?: st
+  search?: string;
+}

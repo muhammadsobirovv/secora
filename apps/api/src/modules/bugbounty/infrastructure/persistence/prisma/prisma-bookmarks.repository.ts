@@ -50,4 +50,5 @@ export class PrismaBookmarksRepository implements BookmarksRepository {
 
   async delete(id: string): Promise<void> {
     await this.txHost.tx.bookmark.delete({ where: { id } });
- 
+  }
+}

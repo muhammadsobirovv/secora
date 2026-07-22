@@ -11,6 +11,7 @@ import {
 import type {
   BugReport,
   BugReportStatus,
+  Prisma,
 } from '../../../../../prisma-types.js';
 
 const ALL_STATUSES: BugReportStatus[] = [
@@ -39,6 +40,10 @@ export class PrismaBugReportsRepository implements BugReportsRepository {
         findingId: input.findingId ?? null,
         title: input.title,
         template: input.template ?? 'MARKDOWN',
+        ...(input.templateKind !== undefined
+          ? { templateKind: input.templateKind }
+          : {}),
+        customTemplateId: input.customTemplateId ?? null,
         summary: input.summary ?? null,
         impact: input.impact ?? null,
         stepsToReproduce: input.stepsToReproduce ?? null,
@@ -103,6 +108,12 @@ export class PrismaBugReportsRepository implements BugReportsRepository {
         version: { increment: 1 },
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.template !== undefined ? { template: input.template } : {}),
+        ...(input.templateKind !== undefined
+          ? { templateKind: input.templateKind }
+          : {}),
+        ...(input.customTemplateId !== undefined
+          ? { customTemplateId: input.customTemplateId }
+          : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.summary !== undefined ? { summary: input.summary } : {}),
         ...(input.impact !== undefined ? { impact: input.impact } : {}),
@@ -151,6 +162,17 @@ export class PrismaBugReportsRepository implements BugReportsRepository {
         ...(input.aiModel !== undefined ? { aiModel: input.aiModel } : {}),
         ...(input.aiGeneratedAt !== undefined
           ? { aiGeneratedAt: input.aiGeneratedAt }
+          : {}),
+        ...(input.grammarCheckedAt !== undefined
+          ? { grammarCheckedAt: input.grammarCheckedAt }
+          : {}),
+        ...(input.technicalReview !== undefined
+          ? {
+              technicalReview:
+                input.technicalReview === null
+                  ? Prisma.JsonNull
+                  : (input.technicalReview as Prisma.InputJsonValue),
+            }
           : {}),
       },
     });
@@ -223,4 +245,8 @@ export class PrismaBugReportsRepository implements BugReportsRepository {
         deletedAt: null,
         ...(status ? { status } : {}),
       },
-      _sum: { bountyAmount: true }
+      _sum: { bountyAmount: true },
+    });
+    return result._sum.bountyAmount ?? 0;
+  }
+}

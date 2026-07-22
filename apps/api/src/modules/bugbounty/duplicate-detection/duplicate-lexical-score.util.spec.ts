@@ -90,4 +90,13 @@ describe('scoreLexicalMatch', () => {
     const { matchedOn } = scoreLexicalMatch(
       { title: 'IDOR on user profile endpoint' },
       candidate({
-      
+        title: 'CSRF in password reset flow',
+        targetId: null,
+        endpoint: null,
+        payload: null,
+        vulnType: null,
+      }),
+    );
+    expect(matchedOn).not.toContain('title');
+  });
+});

@@ -129,4 +129,8 @@ export class CheckDuplicateFindingHandler implements IQueryHandler<
       endpoint: candidate.endpoint,
       vulnType: candidate.vulnType,
       stage: candidate.stage,
-      similarity
+      similarityScore: Math.max(lexical.score, semanticScore),
+      matchedOn: [...matchedOn],
+    };
+  }
+}

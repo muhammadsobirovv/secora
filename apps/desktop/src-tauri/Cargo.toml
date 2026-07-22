@@ -1,0 +1,106 @@
+[package]
+name = "pentesthub-desktop"
+version = "0.1.0"
+description = "PentestHub AI Desktop Agent — local execution engine for recon, scanning, AI, RAG, voice, and reporting."
+authors = ["PentestHub AI"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "pentesthub_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# See https://tauri.app/v1/api/config/#buildconfig.beforebuildcommand
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-os = "2"
+tauri-plugin-process = "2"
+tauri-plugin-store = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+async-trait = "0.1"
+futures = "0.3"
+
+# Local database — SQLite via sqlx, async, compile-time-optional query
+# checking disabled (offline mode) since CI/sandbox has no DB to check
+# against; migrations run at startup instead (see storage/migrations.rs).
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
+
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+anyhow = "1"
+
+# Local secrets — OS keychain integration (Credential Manager / Keychain /
+# Secret Service) so API keys never sit in plaintext SQLite, matching the
+# backend's AES-256-GCM-at-rest posture but using the OS's own vault
+# instead of an app-managed key, since the Desktop Agent has no separate
+# "operator" to hold a shared encryption secret.
+keyring = "3"
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+
+# HTTP client for cloud AI providers (OpenAI/Anthropic/Gemini/Groq/
+# DeepSeek/Mistral/Azure OpenAI) and for the Sync Engine talking to the
+# existing NestJS backend.
+reqwest = { version = "0.12", features = ["json", "stream"] }
+eventsource-stream = "0.2"
+
+# Local RAG — full-text search (SQLite FTS5, enabled via the sqlite
+# feature's bundled build) plus a lightweight local vector index for
+# embedding similarity search (see rag/vector_index.rs) — no external
+# vector DB service required, everything stays on-disk.
+rusqlite = { version = "0.31", features = ["bundled", "fts5"] }
+
+which = "6"
+regex = "1"
+walkdir = "2"
+notify = "6"
+sha1 = "0.10"
+md-5 = "0.10"
+zip = "2"
+
+# Report Generator (Module 7 task #143) — every format is produced fully
+# locally, no server round-trip:
+#   - pulldown-cmark: Markdown -> HTML (also used to render Markdown
+#     content into printpdf's text layout for the PDF export path)
+#   - printpdf: pure-Rust PDF writer, no system PDF engine dependency
+#   - docx-rs: pure-Rust DOCX writer (Office Open XML), write-only which is
+#     all a report generator needs
+pulldown-cmark = "0.12"
+printpdf = "0.7"
+docx-rs = "0.4"
+
+# Local Bridge Server (Module 8) — a plain localhost HTTP+WebSocket API
+# distinct from Tauri's `invoke()` IPC. `invoke()` only exists inside the
+# Tauri webview's JS runtime; the Browser Extension's background service
+# worker and the Burp Suite (Jython) extension are separate OS processes
+# with no access to it, so they need a real network endpoint bound to
+# 127.0.0.1 to reach the Desktop Agent (captures, recon shortcuts,
+# findings, AI analysis, live sync). Token-authenticated (see
+# `bridge::auth`), never bound to a non-loopback interface.
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tokio-stream = "0.1"
+hkdf = "0.12"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"

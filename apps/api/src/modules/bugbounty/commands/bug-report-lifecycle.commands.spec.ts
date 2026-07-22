@@ -186,4 +186,16 @@ describe('UpdateBugReportHandler', () => {
         .mockResolvedValue(null),
     } as unknown as jest.Mocked<BugReportsRepository>;
     const eventBus = { publish: jest.fn() } as unknown as jest.Mocked<EventBus>;
-    const handler = new UpdateBugReportH
+    const handler = new UpdateBugReportHandler(
+      workspacesRepository,
+      reportsRepository,
+      eventBus,
+    );
+
+    await expect(
+      handler.execute(
+        new UpdateBugReportCommand('user-1', 'missing', { version: 1 }),
+      ),
+    ).rejects.toMatchObject({ code: 'BUG_REPORT_NOT_FOUND' });
+  });
+});

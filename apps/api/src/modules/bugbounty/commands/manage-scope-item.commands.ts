@@ -171,4 +171,6 @@ export class RemoveScopeItemHandler implements ICommandHandler<
       command.programId,
       command.scopeItemId,
     );
-    await this.programsRepository.removeSco
+    await this.programsRepository.removeScopeItem(command.scopeItemId);
+  }
+}

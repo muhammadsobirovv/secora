@@ -26,6 +26,12 @@ export class PrismaService
     super({
       adapter: new PrismaPg({
         connectionString: configService.get('DATABASE_URL', { infer: true }),
+        // Module 10 — High Availability / Performance: see
+        // DATABASE_POOL_MAX's doc comment in env.validation.ts for how to
+        // size this across replicas. Passed straight through to
+        // node-postgres's underlying `Pool` (`PrismaPg` forwards every
+        // option it doesn't itself consume).
+        max: configService.get('DATABASE_POOL_MAX', { infer: true }),
       }),
     });
   }

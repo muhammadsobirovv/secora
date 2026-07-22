@@ -4,7 +4,7 @@ import type { EnvConfig } from '../../../config/env.validation.js';
 import { AiProviderRegistryService } from '../providers/ai-provider-registry.service.js';
 import { collectStreamedCompletion } from '../providers/collect-stream.util.js';
 import { AiPromptBuilderService } from '../prompts/ai-prompt-builder.service.js';
-import type { AiTool } from './ai-tool.interface.js';
+import type { AiTool, AiToolContext } from './ai-tool.interface.js';
 
 @Injectable()
 export class GeneratePocTool implements AiTool {
@@ -20,6 +20,7 @@ export class GeneratePocTool implements AiTool {
 
   async execute(
     input: Record<string, unknown>,
+    context: AiToolContext,
   ): Promise<Record<string, unknown>> {
     const description =
       typeof input.description === 'string' ? input.description : '';
@@ -27,23 +28,29 @@ export class GeneratePocTool implements AiTool {
     const language =
       typeof input.language === 'string' ? input.language : 'python';
 
-    const provider = this.providerRegistry.resolveProvider();
-    const text = await collectStreamedCompletion(provider, {
-      model: provider.getDefaultModel(),
-      maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
-        infer: true,
-      }),
-      messages: [
-        {
-          role: 'system',
-          content: this.promptBuilder.buildModePrompt('coding'),
-        },
-        {
-          role: 'user',
-          content: `Write a minimal, focused proof-of-concept in ${language} demonstrating this vulnerability: ${description}`,
-        },
-      ],
-    });
+    const { provider, credential } = await this.providerRegistry.resolveProvider(
+      context.workspaceId,
+    );
+    const text = await collectStreamedCompletion(
+      provider,
+      {
+        model: provider.getDefaultModel(credential),
+        maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
+          infer: true,
+        }),
+        messages: [
+          {
+            role: 'system',
+            content: this.promptBuilder.buildModePrompt('coding'),
+          },
+          {
+            role: 'user',
+            content: `Write a minimal, focused proof-of-concept in ${language} demonstrating this vulnerability: ${description}`,
+          },
+        ],
+      },
+      credential,
+    );
 
     return { poc: text, language };
   }

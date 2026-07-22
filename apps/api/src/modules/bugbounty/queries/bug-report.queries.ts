@@ -158,4 +158,6 @@ export class RenderBugReportHandler implements IQueryHandler<
       finding,
     });
 
-    return { reportId: report.id, template: r
+    return { reportId: report.id, template: report.template, content };
+  }
+}

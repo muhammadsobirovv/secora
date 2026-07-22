@@ -107,4 +107,9 @@ export class BugcrowdImporter implements ProgramImporter {
       platform: 'BUGCROWD',
       url: parsed.code ? `https://bugcrowd.com/${parsed.code}` : undefined,
       rulesMarkdown: parsed.briefing?.policy,
-      disclosurePolicy: parsed.briefing?.d
+      disclosurePolicy: parsed.briefing?.disclosure_policy,
+      scopeItems,
+      warnings,
+    };
+  }
+}

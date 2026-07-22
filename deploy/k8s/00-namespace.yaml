@@ -1,0 +1,12 @@
+# PentestHub AI — Kubernetes deployment (Module 10: Production
+# Deployment). This directory is the multi-replica/HA counterpart to the
+# root docker-compose.yml (see that file's own comment for when to use
+# which). Apply in order (00, 01, 02, ...) or `kubectl apply -f
+# deploy/k8s/` — filenames are numbered specifically so a plain glob
+# apply resolves dependencies (namespace before anything that lives in
+# it, ConfigMap/Secret before Deployments that mount them) correctly on
+# a first-ever apply.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pentesthub

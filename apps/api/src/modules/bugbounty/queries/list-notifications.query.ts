@@ -34,4 +34,6 @@ export class ListNotificationsHandler implements IQueryHandler<
       query.userId,
       query.filter.unreadOnly,
     );
-    return notifications.map(toNotifi
+    return notifications.map(toNotificationDto);
+  }
+}

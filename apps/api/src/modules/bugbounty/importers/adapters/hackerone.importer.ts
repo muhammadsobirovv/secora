@@ -120,4 +120,7 @@ export class HackerOneImporter implements ProgramImporter {
         : undefined,
       rulesMarkdown: attributes.policy,
       scopeItems,
- 
+      warnings,
+    };
+  }
+}

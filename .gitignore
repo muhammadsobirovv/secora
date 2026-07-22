@@ -43,3 +43,10 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Module 10 — Production Deployment: real Kubernetes Secret manifests
+# (as opposed to the committed 02-secret.yaml.example template) must
+# never be committed — see that file's own comment for the recommended
+# way to create the real Secret without writing plaintext to disk at all.
+deploy/k8s/*secret*.yaml
+!deploy/k8s/*secret*.yaml.example

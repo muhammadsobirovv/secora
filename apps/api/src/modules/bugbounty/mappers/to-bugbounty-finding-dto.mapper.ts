@@ -1,4 +1,7 @@
-import type { BugBountyFindingDto } from '@pentesthub/shared';
+import type {
+  BugBountyFindingDto,
+  CvssVectorComponents,
+} from '@pentesthub/shared';
 import type { BugBountyFinding } from '../../../prisma-types.js';
 
 export function toBugBountyFindingDto(
@@ -30,5 +33,9 @@ export function toBugBountyFindingDto(
     createdAt: finding.createdAt.toISOString(),
     updatedAt: finding.updatedAt.toISOString(),
     evidenceIds,
+    capec: finding.capec,
+    owaspCategory: finding.owaspCategory,
+    mitreAttack: finding.mitreAttack as { id: string; name: string }[] | null,
+    cvssBreakdown: finding.cvssBreakdown as CvssVectorComponents | null,
   };
 }

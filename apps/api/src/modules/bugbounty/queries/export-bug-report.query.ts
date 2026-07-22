@@ -160,4 +160,10 @@ export class ExportBugReportHandler implements IQueryHandler<
       finding,
     });
     return {
-      format
+      format: 'MARKDOWN',
+      filename: `${slug}.md`,
+      mimeType: 'text/markdown',
+      content,
+    };
+  }
+}

@@ -101,6 +101,8 @@ export class CreateBugReportHandler implements ICommandHandler<
       findingId: command.data.findingId,
       title: command.data.title,
       template: command.data.template,
+      templateKind: command.data.templateKind,
+      customTemplateId: command.data.customTemplateId,
       summary: command.data.summary,
       impact: command.data.impact,
       stepsToReproduce: command.data.stepsToReproduce,
@@ -172,6 +174,8 @@ export class UpdateBugReportHandler implements ICommandHandler<
         expectedVersion: command.data.version,
         title: command.data.title,
         template: command.data.template,
+        templateKind: command.data.templateKind,
+        customTemplateId: command.data.customTemplateId,
         status: nextStatus,
         summary: command.data.summary,
         impact: command.data.impact,
@@ -352,4 +356,17 @@ export class DeleteBugReportHandler implements ICommandHandler<
   constructor(
     @Inject(WORKSPACES_REPOSITORY)
     private readonly workspacesRepository: WorkspacesRepository,
-    @Inject(BUG_REPO
+    @Inject(BUG_REPORTS_REPOSITORY)
+    private readonly reportsRepository: BugReportsRepository,
+  ) {}
+
+  async execute(command: DeleteBugReportCommand): Promise<void> {
+    await resolveBugReportForCaller(
+      this.workspacesRepository,
+      this.reportsRepository,
+      command.userId,
+      command.reportId,
+    );
+    await this.reportsRepository.softDelete(command.reportId);
+  }
+}

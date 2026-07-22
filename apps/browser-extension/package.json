@@ -1,0 +1,40 @@
+{
+  "name": "@pentesthub-ai/browser-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PentestHub AI Browser Extension (Manifest V3) — Chrome/Edge/Brave/Opera/Firefox.",
+  "type": "module",
+  "scripts": {
+    "dev:chrome": "node scripts/build.mjs --target=chrome --watch",
+    "dev:firefox": "node scripts/build.mjs --target=firefox --watch",
+    "build:chrome": "node scripts/build.mjs --target=chrome",
+    "build:firefox": "node scripts/build.mjs --target=firefox",
+    "build": "npm run build:chrome && npm run build:firefox",
+    "zip": "node scripts/zip.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.383.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "mermaid": "^11.0.0",
+    "highlight.js": "^11.9.0",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.269",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/webextension-polyfill": "^0.10.7",
+    "archiver": "^7.0.1",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.5.3",
+    "vitest": "^2.0.5"
+  }
+}

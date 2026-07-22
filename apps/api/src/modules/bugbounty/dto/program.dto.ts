@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsObject,
   IsOptional,
@@ -8,6 +9,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import type {
   BugBountyPlatform,
   BugBountyProgramStatus,
@@ -81,6 +83,15 @@ export class CreateBugBountyProgramDto implements CreateShape {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() favorite?: boolean;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() safeHarbor?: string;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  rateLimits?: Record<string, unknown>;
 }
 
 export class UpdateBugBountyProgramDto implements UpdateShape {
@@ -135,6 +146,15 @@ export class UpdateBugBountyProgramDto implements UpdateShape {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() favorite?: boolean;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() safeHarbor?: string;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  rateLimits?: Record<string, unknown>;
 }
 
 export class ListBugBountyProgramsQueryParamsDto implements ListShape {
@@ -150,4 +170,15 @@ export class ListBugBountyProgramsQueryParamsDto implements ListShape {
   @IsIn(BUGBOUNTY_PROGRAM_STATUSES)
   status?: BugBountyProgramStatus;
 
-  @ApiPropertyOption
+  @ApiPropertyOptional({ maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  favorite?: boolean;
+}

@@ -86,4 +86,5 @@ export class ListPayloadLibraryQueryParamsDto implements ListShape {
 export class ExplainPayloadDto implements ExplainShape {
   @ApiPropertyOptional() @IsOptional() @IsString() provider?: string;
 
-  @Api
+  @ApiPropertyOptional() @IsOptional() @IsString() model?: string;
+}

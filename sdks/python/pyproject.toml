@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pentesthub-ai"
+version = "0.1.0"
+description = "Official Python SDK for the PentestHub AI REST API."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "UNLICENSED" }
+authors = [{ name = "PentestHub AI" }]
+# Deliberately zero third-party runtime dependencies — every HTTP call
+# goes through the standard library's urllib.request, the same
+# "no dependency this sandbox can't verify installs cleanly" posture the
+# rest of Module 10 follows (see e.g. the TypeScript integration
+# adapters' plain-fetch approach). A `requests`-based transport is a
+# reasonable future upgrade, not a correctness requirement.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+include = ["pentesthub_ai*"]

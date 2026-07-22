@@ -9,6 +9,7 @@ const SETTINGS_NAV = [
   { label: "Security", href: "/settings/security" },
   { label: "Sessions", href: "/settings/sessions" },
   { label: "API Keys", href: "/settings/api-keys" },
+  { label: "AI Providers", href: "/settings/ai-providers" },
   { label: "Preferences", href: "/settings/preferences" },
   { label: "Workspace", href: "/settings/workspace" },
 ];

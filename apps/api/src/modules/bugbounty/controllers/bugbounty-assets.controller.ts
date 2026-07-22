@@ -22,4 +22,6 @@ export class BugBountyAssetsController {
     @Query() query: AssetInventoryQueryParamsDto,
     @CurrentUser() user: RequestUser,
   ): Promise<AssetInventoryEntryDto[]> {
-    return this.queryBus.execute(new ListAssetInventoryQuery(user.id, qu
+    return this.queryBus.execute(new ListAssetInventoryQuery(user.id, query));
+  }
+}

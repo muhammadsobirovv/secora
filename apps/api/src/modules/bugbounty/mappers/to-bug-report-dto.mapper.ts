@@ -1,4 +1,4 @@
-import type { BugReportDto } from '@pentesthub/shared';
+import type { BugReportDto, ReportTechnicalReviewDto } from '@pentesthub/shared';
 import type { BugReport } from '../../../prisma-types.js';
 
 export function toBugReportDto(
@@ -39,5 +39,9 @@ export function toBugReportDto(
     createdAt: report.createdAt.toISOString(),
     updatedAt: report.updatedAt.toISOString(),
     evidenceIds,
+    templateKind: report.templateKind,
+    customTemplateId: report.customTemplateId,
+    grammarCheckedAt: report.grammarCheckedAt?.toISOString() ?? null,
+    technicalReview: report.technicalReview as ReportTechnicalReviewDto | null,
   };
 }

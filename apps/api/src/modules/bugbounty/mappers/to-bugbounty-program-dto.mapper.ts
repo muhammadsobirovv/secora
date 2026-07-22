@@ -32,5 +32,9 @@ export function toBugBountyProgramDto(
     scopeItemCount: counts.scopeItemCount,
     targetCount: counts.targetCount,
     findingCount: counts.findingCount,
+    favorite: program.favorite,
+    safeHarbor: program.safeHarbor,
+    rateLimits: program.rateLimits as Record<string, unknown> | null,
+    lastImportedAt: program.lastImportedAt?.toISOString() ?? null,
   };
 }

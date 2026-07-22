@@ -68,4 +68,6 @@ export class MarkAllNotificationsReadHandler implements ICommandHandler<
     const count = await this.notificationsRepository.markAllRead(
       command.userId,
     );
-    r
+    return { count };
+  }
+}

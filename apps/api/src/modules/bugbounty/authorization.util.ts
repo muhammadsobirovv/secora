@@ -100,4 +100,5 @@ export async function resolveBugReportForCaller(
       HttpStatus.NOT_FOUND,
     );
   }
-  return { wo
+  return { workspaceId: workspace.id, report };
+}

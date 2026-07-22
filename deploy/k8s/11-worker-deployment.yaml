@@ -1,0 +1,37 @@
+# The background worker tier (`worker.main.ts` — Modules 3/4's Recon/
+# Vuln ToolRunner execution loop), separate from the api Deployment so
+# a long-running tool execution never competes with request-handling
+# latency. No Service/Ingress — this tier isn't addressed over HTTP by
+# anything, it only reads/writes the shared Postgres database.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: pentesthub
+  labels:
+    app: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/pentesthub-ai/pentesthub-ai-worker:latest # replace with a pinned tag/digest for any real deployment
+          envFrom:
+            - configMapRef:
+                name: pentesthub-config
+            - secretRef:
+                name: pentesthub-secrets
+          resources:
+            requests:
+              cpu: "500m" # tool execution (nmap, subfinder, etc. — see apps/api/src/modules/recon) is CPU-heavier than the API's own request handling
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+      terminationGracePeriodSeconds: 60 # longer than the API's — an in-progress recon/vuln tool run should be allowed to reach a natural checkpoint rather than being killed mid-scan

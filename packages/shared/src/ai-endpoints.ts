@@ -25,6 +25,15 @@ export const AI_PROVIDER_ENDPOINTS = {
   list: "/ai/providers",
 } as const;
 
+/// Local-First Migration Phase 1 (BYOK) — one credential row per
+/// (workspace, provider); `provider` in the path is the AiProviderName
+/// (e.g. "OPENAI").
+export const AI_PROVIDER_CREDENTIAL_ENDPOINTS = {
+  list: "/ai/provider-credentials",
+  upsert: (provider: string) => `/ai/provider-credentials/${provider}`,
+  delete: (provider: string) => `/ai/provider-credentials/${provider}`,
+} as const;
+
 export const AI_SPEECH_ENDPOINTS = {
   list: "/ai/speech/providers",
 } as const;

@@ -40,4 +40,5 @@ export class DeleteBugBountyProgramHandler implements ICommandHandler<
       command.programId,
     );
     await this.programsRepository.softDelete(command.programId);
-  
+  }
+}

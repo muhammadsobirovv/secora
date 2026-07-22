@@ -16,6 +16,8 @@ import { AI_TOOL_CALL_LOGS_REPOSITORY } from './domain/repositories/ai-tool-call
 import { PrismaAiToolCallLogsRepository } from './infrastructure/persistence/prisma/prisma-ai-tool-call-logs.repository.js';
 import { AI_MEMORY_REPOSITORY } from './domain/repositories/ai-memory.repository.interface.js';
 import { PrismaAiMemoryRepository } from './infrastructure/persistence/prisma/prisma-ai-memory.repository.js';
+import { AI_PROVIDER_CREDENTIALS_REPOSITORY } from './domain/repositories/ai-provider-credentials.repository.interface.js';
+import { PrismaAiProviderCredentialsRepository } from './infrastructure/persistence/prisma/prisma-ai-provider-credentials.repository.js';
 
 import { OpenAiProvider } from './providers/adapters/openai.provider.js';
 import { AnthropicProvider } from './providers/adapters/anthropic.provider.js';
@@ -86,6 +88,10 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
       useClass: PrismaAiToolCallLogsRepository,
     },
     { provide: AI_MEMORY_REPOSITORY, useClass: PrismaAiMemoryRepository },
+    {
+      provide: AI_PROVIDER_CREDENTIALS_REPOSITORY,
+      useClass: PrismaAiProviderCredentialsRepository,
+    },
 
     OpenAiProvider,
     AnthropicProvider,
@@ -128,6 +134,7 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     AI_MESSAGES_REPOSITORY,
     AI_TOOL_CALL_LOGS_REPOSITORY,
     AI_MEMORY_REPOSITORY,
+    AI_PROVIDER_CREDENTIALS_REPOSITORY,
     AiProviderRegistryService,
     AiSpeechProviderRegistryService,
     AiPromptBuilderService,

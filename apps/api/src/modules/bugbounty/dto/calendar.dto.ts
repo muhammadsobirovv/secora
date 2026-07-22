@@ -69,4 +69,5 @@ export class ListCalendarEventsQueryParamsDto implements ListShape {
   @IsIn(CALENDAR_EVENT_TYPES)
   type?: CalendarEventType;
 
-  @ApiPropertyOptional() @IsOptional() @
+  @ApiPropertyOptional() @IsOptional() @IsUUID() programId?: string;
+}

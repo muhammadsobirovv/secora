@@ -68,6 +68,7 @@ function matchesRule(value: string, rule: ScopeRule): boolean {
   const v = value.trim();
   switch (rule.type) {
     case 'DOMAIN':
+    case 'HOST':
       return v.toLowerCase() === rule.pattern.toLowerCase();
     case 'WILDCARD':
       return matchesWildcard(v, rule.pattern);
@@ -77,6 +78,9 @@ function matchesRule(value: string, rule: ScopeRule): boolean {
     case 'MOBILE_APP':
     case 'CLOUD_ASSET':
     case 'ASN':
+    case 'INTERNAL_ASSET':
+    case 'GITHUB_ORG':
+    case 'THIRD_PARTY':
       return (
         v.toLowerCase() === rule.pattern.toLowerCase() ||
         v.includes(rule.pattern)
@@ -137,4 +141,6 @@ export function classifyScopeValue(
   return {
     classification: 'UNKNOWN',
     matchedScopeItemId: unknownMatch?.id ?? null,
-    matchedPatt
+    matchedPattern: unknownMatch?.pattern ?? null,
+  };
+}

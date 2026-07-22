@@ -4,7 +4,7 @@ import type { EnvConfig } from '../../../config/env.validation.js';
 import { AiProviderRegistryService } from '../providers/ai-provider-registry.service.js';
 import { collectStreamedCompletion } from '../providers/collect-stream.util.js';
 import { AiPromptBuilderService } from '../prompts/ai-prompt-builder.service.js';
-import type { AiTool } from './ai-tool.interface.js';
+import type { AiTool, AiToolContext } from './ai-tool.interface.js';
 
 @Injectable()
 export class DraftReportTool implements AiTool {
@@ -20,32 +20,39 @@ export class DraftReportTool implements AiTool {
 
   async execute(
     input: Record<string, unknown>,
+    context: AiToolContext,
   ): Promise<Record<string, unknown>> {
     const topic = typeof input.topic === 'string' ? input.topic : '';
     if (!topic.trim()) return { error: 'topic is required' };
     const style =
       input.style === 'executive_summary' ? 'executive_summary' : 'full_report';
 
-    const provider = this.providerRegistry.resolveProvider();
-    const text = await collectStreamedCompletion(provider, {
-      model: provider.getDefaultModel(),
-      maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
-        infer: true,
-      }),
-      messages: [
-        {
-          role: 'system',
-          content: this.promptBuilder.buildModePrompt('report'),
-        },
-        {
-          role: 'user',
-          content:
-            style === 'executive_summary'
-              ? `Write a concise executive summary for: ${topic}`
-              : `Draft a full bug bounty style report for: ${topic}`,
-        },
-      ],
-    });
+    const { provider, credential } = await this.providerRegistry.resolveProvider(
+      context.workspaceId,
+    );
+    const text = await collectStreamedCompletion(
+      provider,
+      {
+        model: provider.getDefaultModel(credential),
+        maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
+          infer: true,
+        }),
+        messages: [
+          {
+            role: 'system',
+            content: this.promptBuilder.buildModePrompt('report'),
+          },
+          {
+            role: 'user',
+            content:
+              style === 'executive_summary'
+                ? `Write a concise executive summary for: ${topic}`
+                : `Draft a full bug bounty style report for: ${topic}`,
+          },
+        ],
+      },
+      credential,
+    );
 
     return { report: text, style };
   }

@@ -1,0 +1,74 @@
+name: Docker Publish
+
+# Module 10 — CI/CD. Builds and pushes the three deployable container
+# images (api, worker, web) to GitHub Container Registry. Runs only
+# after `main` has an image-worthy change, and on version tags for
+# release builds — this is deliberately separate from ci.yml so a
+# docs-only PR never triggers a multi-gigabyte image build/push.
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false # never cancel a half-pushed release image
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}/pentesthub-ai
+
+jobs:
+  build-and-push:
+    name: Build & push ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - component: api
+            dockerfile: apps/api/Dockerfile
+          - component: worker
+            dockerfile: apps/api/Dockerfile.worker
+          - component: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}-${{ matrix.component }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions' own layer cache backend — no extra
+          # infrastructure (a self-hosted registry cache, S3 bucket,
+          # etc.) required, at the cost of the cache being scoped to
+          # this repo's Actions runs rather than shared across a fleet.
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          build-args: |
+            ${{ matrix.component == 'web' && format('NEXT_PUBLIC_API_URL={0}', vars.NEXT_PUBLIC_API_URL || 'https://api.your-company.com') || '' }}

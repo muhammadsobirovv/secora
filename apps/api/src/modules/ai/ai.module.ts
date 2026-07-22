@@ -18,10 +18,13 @@ import { BookmarkAiMessageHandler } from './commands/bookmark-ai-message.command
 import { PinAiMessageHandler } from './commands/pin-ai-message.command.js';
 import { DeleteAiMessageHandler } from './commands/delete-ai-message.command.js';
 import { ReindexAiMemoryHandler } from './commands/reindex-ai-memory.command.js';
+import { UpsertAiProviderCredentialHandler } from './commands/upsert-ai-provider-credential.command.js';
+import { DeleteAiProviderCredentialHandler } from './commands/delete-ai-provider-credential.command.js';
 
 import { ListAiConversationsHandler } from './queries/list-ai-conversations.query.js';
 import { GetAiConversationHandler } from './queries/get-ai-conversation.query.js';
 import { ListAiProvidersHandler } from './queries/list-ai-providers.query.js';
+import { ListAiProviderCredentialsHandler } from './queries/list-ai-provider-credentials.query.js';
 import { ListAiSpeechProvidersHandler } from './queries/list-ai-speech-providers.query.js';
 import { GetAiContextSummaryHandler } from './queries/get-ai-context-summary.query.js';
 import { GetAiSuggestedQuestionsHandler } from './queries/get-ai-suggested-questions.query.js';
@@ -30,6 +33,7 @@ import { SearchAiMemoryHandler } from './queries/search-ai-memory.query.js';
 import { AiConversationsController } from './controllers/ai-conversations.controller.js';
 import { AiMessagesController } from './controllers/ai-messages.controller.js';
 import { AiProvidersController } from './controllers/ai-providers.controller.js';
+import { AiProviderCredentialsController } from './controllers/ai-provider-credentials.controller.js';
 import { AiSpeechController } from './controllers/ai-speech.controller.js';
 import { AiContextController } from './controllers/ai-context.controller.js';
 import { AiMemoryController } from './controllers/ai-memory.controller.js';
@@ -58,6 +62,7 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     AiConversationsController,
     AiMessagesController,
     AiProvidersController,
+    AiProviderCredentialsController,
     AiSpeechController,
     AiContextController,
     AiMemoryController,
@@ -75,10 +80,13 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     PinAiMessageHandler,
     DeleteAiMessageHandler,
     ReindexAiMemoryHandler,
+    UpsertAiProviderCredentialHandler,
+    DeleteAiProviderCredentialHandler,
 
     ListAiConversationsHandler,
     GetAiConversationHandler,
     ListAiProvidersHandler,
+    ListAiProviderCredentialsHandler,
     ListAiSpeechProvidersHandler,
     GetAiContextSummaryHandler,
     GetAiSuggestedQuestionsHandler,

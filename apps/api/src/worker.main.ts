@@ -4,6 +4,7 @@ import { WorkerModule } from './worker.module.js';
 import { ReconJobPollerService } from './modules/recon/execution/recon-job-poller.service.js';
 import { VulnScanJobPollerService } from './modules/vuln/execution/vuln-scan-job-poller.service.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
+import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
 
 /// The background worker's own entry point, run as a separate OS process
 /// from the HTTP API (`pnpm worker:dev` / `node dist/src/worker.main.js`)
@@ -25,12 +26,14 @@ async function bootstrap(): Promise<void> {
   const reconPoller = app.get(ReconJobPollerService);
   const vulnPoller = app.get(VulnScanJobPollerService);
   const bugBountyDeadlineNotifier = app.get(BugBountyDeadlineNotifierService);
+  const workerReaper = app.get(WorkerReaperService);
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.log(`${signal} received, stopping worker`);
     reconPoller.stop();
     vulnPoller.stop();
     bugBountyDeadlineNotifier.stop();
+    workerReaper.stop();
     await app.close();
     process.exit(0);
   };
@@ -40,10 +43,13 @@ async function bootstrap(): Promise<void> {
   // BugBountyDeadlineNotifierService.start() is deliberately synchronous
   // (fire-and-forget `void this.tick()`, same shape as its own internal
   // scheduling loop) — it doesn't return a Promise, so it can't join the
-  // other two in Promise.all() and is simply invoked on its own.
+  // other three in Promise.all() and is simply invoked on its own.
+  // WorkerReaperService.start() is `async` like the Recon/Vuln pollers
+  // (resolves after its first tick, which schedules the next one via
+  // setTimeout), so it joins them in Promise.all() instead.
   bugBountyDeadlineNotifier.start();
 
-  await Promise.all([reconPoller.start(), vulnPoller.start()]);
+  await Promise.all([reconPoller.start(), vulnPoller.start(), workerReaper.start()]);
 }
 
 void bootstrap();

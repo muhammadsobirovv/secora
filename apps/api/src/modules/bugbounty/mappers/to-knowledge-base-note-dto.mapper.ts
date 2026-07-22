@@ -32,4 +32,11 @@ export function toKnowledgeBaseNoteDto(
     checklist: isChecklist(note.checklist) ? note.checklist : null,
     authorId: note.authorId,
     createdAt: note.createdAt.toISOString(),
-    updatedAt: note.updatedAt.toISOString(
+    updatedAt: note.updatedAt.toISOString(),
+    // --- Module 9 additions ---
+    kind: note.kind,
+    tags: note.tags,
+    cveId: note.cveId,
+    sourceConversationId: note.sourceConversationId,
+  };
+}

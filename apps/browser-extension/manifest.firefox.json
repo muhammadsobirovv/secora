@@ -1,0 +1,79 @@
+{
+  "manifest_version": 3,
+  "name": "PentestHub AI",
+  "short_name": "PentestHub AI",
+  "version": "1.0.0",
+  "description": "Offensive security workflow companion for PentestHub AI — capture, recon shortcuts, AI analysis, and Burp/Desktop Agent sync, without leaving the page you're on.",
+  "icons": {
+    "16": "public/icons/16.png",
+    "32": "public/icons/32.png",
+    "48": "public/icons/48.png",
+    "128": "public/icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "public/icons/16.png",
+      "32": "public/icons/32.png"
+    }
+  },
+  "background": {
+    "scripts": ["background/index.js"],
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/index.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_ui": {
+    "page": "options/index.html",
+    "open_in_tab": true
+  },
+  "sidebar_action": {
+    "default_title": "PentestHub AI",
+    "default_panel": "sidepanel/index.html",
+    "default_icon": "public/icons/32.png"
+  },
+  "devtools_page": "devtools/devtools.html",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "contextMenus",
+    "storage",
+    "scripting",
+    "webRequest",
+    "downloads",
+    "cookies",
+    "notifications",
+    "clipboardWrite"
+  ],
+  "host_permissions": ["<all_urls>", "http://127.0.0.1/*", "https://127.0.0.1/*"],
+  "commands": {
+    "open-side-panel": {
+      "suggested_key": { "default": "Ctrl+Shift+P", "mac": "Command+Shift+P" },
+      "description": "Open the PentestHub AI sidebar"
+    },
+    "capture-url": {
+      "suggested_key": { "default": "Ctrl+Shift+U", "mac": "Command+Shift+U" },
+      "description": "Save current URL to PentestHub"
+    },
+    "capture-screenshot": {
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
+      "description": "Capture screenshot to PentestHub"
+    },
+    "toggle-voice": {
+      "suggested_key": { "default": "Ctrl+Shift+V", "mac": "Command+Shift+V" },
+      "description": "Toggle voice assistant"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "browser-extension@pentesthub.ai",
+      "strict_min_version": "115.0"
+    }
+  }
+}

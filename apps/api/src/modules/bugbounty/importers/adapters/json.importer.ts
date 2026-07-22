@@ -31,11 +31,19 @@ const VALID_TYPES: ScopeItemType[] = [
   'IP_RANGE',
   'ASN',
   'CLOUD_ASSET',
+  // Module 9 additions
+  'HOST',
+  'INTERNAL_ASSET',
+  'GITHUB_ORG',
+  'THIRD_PARTY',
 ];
 const VALID_CLASSIFICATIONS: ScopeClassification[] = [
   'IN_SCOPE',
   'OUT_OF_SCOPE',
   'UNKNOWN',
+  // Module 9 additions
+  'REVIEW_NEEDED',
+  'DEPRECATED',
 ];
 
 interface JsonScopeItemShape {
@@ -132,4 +140,10 @@ export class JsonImporter implements ProgramImporter {
       organization: parsed.organization,
       url: parsed.url,
       rulesMarkdown: parsed.rulesMarkdown,
-      disclosurePolicy: pars
+      disclosurePolicy: parsed.disclosurePolicy,
+      tags: parsed.tags,
+      scopeItems,
+      warnings,
+    };
+  }
+}

@@ -1,0 +1,52 @@
+# PentestHub AI — background worker process (Module 10: Production
+# Deployment). Runs `dist/src/worker.main.js` — the Recon/Vuln
+# ToolRunner execution loop (Modules 3/4), a separate OS process from
+# the main HTTP API server (`apps/api/Dockerfile`) so a long-running or
+# CPU-heavy tool execution never competes with the API's own event loop
+# for request-handling latency. Same multi-stage shape as the API
+# Dockerfile — see that file's comments for the reasoning behind each
+# stage; only the final CMD differs.
+#
+# Build from the monorepo root:
+#   docker build -f apps/api/Dockerfile.worker -t pentesthub-worker .
+FROM node:20-bookworm-slim AS base
+RUN corepack enable && corepack prepare pnpm@9 --activate
+WORKDIR /workspace
+
+FROM base AS deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY apps/desktop/package.json apps/desktop/package.json
+COPY apps/browser-extension/package.json apps/browser-extension/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/eslint-config/package.json packages/eslint-config/package.json
+COPY packages/typescript-config/package.json packages/typescript-config/package.json
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
+RUN pnpm --filter api exec prisma generate
+RUN pnpm --filter api build
+
+FROM base AS prod-deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN pnpm install --prod --frozen-lockfile --filter api...
+
+FROM node:20-bookworm-slim AS runtime
+ENV NODE_ENV=production
+RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shell /bin/bash --create-home pentesthub
+WORKDIR /workspace
+COPY --from=prod-deps /workspace/node_modules ./node_modules
+COPY --from=prod-deps /workspace/apps/api/node_modules ./apps/api/node_modules
+COPY --from=prod-deps /workspace/packages/shared ./packages/shared
+COPY --from=build /workspace/apps/api/dist ./apps/api/dist
+COPY --from=build /workspace/apps/api/generated ./apps/api/generated
+COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
+COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
+USER pentesthub
+WORKDIR /workspace/apps/api
+CMD ["node", "dist/src/worker.main.js"]

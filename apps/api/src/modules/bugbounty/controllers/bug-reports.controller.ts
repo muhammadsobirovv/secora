@@ -15,20 +15,33 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Throttle } from '@nestjs/throttler';
 import type {
   BugReportDto,
+  CorrectGrammarResultDto,
   ExportBugReportResultDto,
+  ExportBugReportV2ResultDto,
   GenerateBugReportDraftResultDto,
   RenderedBugReportDto,
+  ReportCustomTemplateDto,
+  ReviewReportQualityResultDto,
 } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import {
   CreateBugReportDto,
   ExportBugReportDto,
+  ExportBugReportV2Dto,
   GenerateBugReportDraftDto,
   ListBugReportsQueryParamsDto,
   SubmitBugReportDto,
   UpdateBugReportDto,
 } from '../dto/bug-report.dto.js';
+import {
+  CorrectGrammarDto,
+  ReviewReportQualityDto,
+} from '../dto/report-ai-assist.dto.js';
+import {
+  CreateReportCustomTemplateDto,
+  UpdateReportCustomTemplateDto,
+} from '../dto/report-custom-template.dto.js';
 import {
   CreateBugReportCommand,
   DeleteBugReportCommand,
@@ -37,11 +50,22 @@ import {
 } from '../commands/bug-report-lifecycle.commands.js';
 import { GenerateBugReportDraftCommand } from '../commands/generate-bug-report-draft.command.js';
 import {
+  CorrectGrammarCommand,
+  ReviewReportQualityCommand,
+} from '../commands/report-ai-assist.commands.js';
+import {
+  CreateReportCustomTemplateCommand,
+  DeleteReportCustomTemplateCommand,
+  UpdateReportCustomTemplateCommand,
+} from '../commands/report-custom-templates.commands.js';
+import {
   GetBugReportQuery,
   ListBugReportsQuery,
   RenderBugReportQuery,
 } from '../queries/bug-report.queries.js';
 import { ExportBugReportQuery } from '../queries/export-bug-report.query.js';
+import { ExportBugReportV2Query } from '../queries/export-bug-report-v2.query.js';
+import { ListReportCustomTemplatesQuery } from '../queries/list-report-custom-templates.query.js';
 
 @ApiTags('bugbounty')
 @ApiBearerAuth()
@@ -51,6 +75,49 @@ export class BugReportsController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  @Get('templates')
+  @ApiOperation({ summary: 'List this workspace’s custom report templates' })
+  listCustomTemplates(
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReportCustomTemplateDto[]> {
+    return this.queryBus.execute(new ListReportCustomTemplatesQuery(user.id));
+  }
+
+  @Post('templates')
+  @ApiOperation({ summary: 'Create a custom report template' })
+  createCustomTemplate(
+    @Body() dto: CreateReportCustomTemplateDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReportCustomTemplateDto> {
+    return this.commandBus.execute(
+      new CreateReportCustomTemplateCommand(user.id, dto),
+    );
+  }
+
+  @Patch('templates/:templateId')
+  @ApiOperation({ summary: 'Update a custom report template' })
+  updateCustomTemplate(
+    @Param('templateId') templateId: string,
+    @Body() dto: UpdateReportCustomTemplateDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReportCustomTemplateDto> {
+    return this.commandBus.execute(
+      new UpdateReportCustomTemplateCommand(user.id, templateId, dto),
+    );
+  }
+
+  @Delete('templates/:templateId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a custom report template' })
+  async removeCustomTemplate(
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new DeleteReportCustomTemplateCommand(user.id, templateId),
+    );
+  }
 
   @Get()
   @ApiOperation({ summary: 'List bug reports' })
@@ -150,4 +217,43 @@ export class BugReportsController {
     @Param('id') id: string,
     @Body() dto: ExportBugReportDto,
     @CurrentUser() user: RequestUser,
-  ): Promise<ExportBugReportResult
+  ): Promise<ExportBugReportResultDto> {
+    return this.queryBus.execute(new ExportBugReportQuery(user.id, id, dto));
+  }
+
+  @Post(':id/export-v2')
+  @ApiOperation({
+    summary: 'Export this report (Module 9 format set: Markdown/PDF/DOCX/HTML/JSON/TXT)',
+  })
+  exportV2(
+    @Param('id') id: string,
+    @Body() dto: ExportBugReportV2Dto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ExportBugReportV2ResultDto> {
+    return this.queryBus.execute(new ExportBugReportV2Query(user.id, id, dto));
+  }
+
+  @Post(':id/ai/correct-grammar')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'AI grammar/clarity correction for one report field' })
+  correctGrammar(
+    @Param('id') id: string,
+    @Body() dto: CorrectGrammarDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<CorrectGrammarResultDto> {
+    return this.commandBus.execute(new CorrectGrammarCommand(user.id, id, dto));
+  }
+
+  @Post(':id/ai/review-quality')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'AI technical review pass over the whole report' })
+  reviewQuality(
+    @Param('id') id: string,
+    @Body() dto: ReviewReportQualityDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReviewReportQualityResultDto> {
+    return this.commandBus.execute(
+      new ReviewReportQualityCommand(user.id, id, dto),
+    );
+  }
+}

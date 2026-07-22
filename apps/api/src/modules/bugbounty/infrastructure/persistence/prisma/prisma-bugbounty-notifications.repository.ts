@@ -52,4 +52,6 @@ export class PrismaBugBountyNotificationsRepository implements BugBountyNotifica
       where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
-    return result.coun
+    return result.count;
+  }
+}

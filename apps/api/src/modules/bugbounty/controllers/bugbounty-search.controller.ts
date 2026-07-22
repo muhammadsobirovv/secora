@@ -22,4 +22,6 @@ export class BugBountySearchController {
     @Query() query: SearchBugBountyQueryParamsDto,
     @CurrentUser() user: RequestUser,
   ): Promise<BugBountySearchResultDto[]> {
-    return this.queryBus.execute(new SearchBugBountyQuery(user.id, quer
+    return this.queryBus.execute(new SearchBugBountyQuery(user.id, query.q));
+  }
+}

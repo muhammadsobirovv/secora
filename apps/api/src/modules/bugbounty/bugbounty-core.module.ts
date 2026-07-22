@@ -70,4 +70,8 @@ import { ProgramImporterRegistryService } from './importers/program-importer-reg
     KNOWLEDGE_BASE_REPOSITORY,
     BOOKMARKS_REPOSITORY,
     BUGBOUNTY_CALENDAR_REPOSITORY,
-    BUGBOUNTY_NOTI
+    BUGBOUNTY_NOTIFICATIONS_REPOSITORY,
+    ProgramImporterRegistryService,
+  ],
+})
+export class BugBountyCoreModule {}

@@ -9,6 +9,7 @@ import {
   BUGBOUNTY_NOTIFICATIONS_REPOSITORY,
   type BugBountyNotificationsRepository,
 } from '../domain/repositories/bugbounty-notifications.repository.interface.js';
+import { NotificationDispatcherService } from '../../notifications-channels/services/notification-dispatcher.service.js';
 
 /// Self-scheduling background poller — same shape as
 /// VulnScanJobPollerService/ReconJobPollerService (a setTimeout loop
@@ -31,6 +32,13 @@ export class BugBountyDeadlineNotifierService {
     @Inject(BUGBOUNTY_NOTIFICATIONS_REPOSITORY)
     private readonly notificationsRepository: BugBountyNotificationsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
+    // Module 9's one integration point into Module 6's notification path
+    // (see NotificationDispatcherService's doc comment) — fans each
+    // deadline notification out to the recipient's configured channels
+    // after it's persisted. NotificationsChannelsModule exports this
+    // service specifically so it can be injected here without either
+    // module reaching into the other's internals.
+    private readonly dispatcher: NotificationDispatcherService,
   ) {}
 
   start(): void {
@@ -69,16 +77,40 @@ export class BugBountyDeadlineNotifierService {
 
     for (const event of dueEvents) {
       const isOverdue = event.dueAt.getTime() < Date.now();
-      await this.notificationsRepository.create({
+      const title = isOverdue
+        ? `Overdue: ${event.title}`
+        : `Upcoming: ${event.title}`;
+      const body = `Due ${event.dueAt.toISOString()}${event.notes ? ` — ${event.notes}` : ''}`;
+      const notification = await this.notificationsRepository.create({
         workspaceId: event.workspaceId,
         userId: event.createdBy,
         type:
           event.type === 'SUBMISSION_DEADLINE' ? 'REPORT_DEADLINE' : 'REMINDER',
-        title: isOverdue
-          ? `Overdue: ${event.title}`
-          : `Upcoming: ${event.title}`,
-        body: `Due ${event.dueAt.toISOString()}${event.notes ? ` — ${event.notes}` : ''}`,
+        title,
+        body,
         relatedEntityType: 'BugBountyCalendarEvent',
         relatedEntityId: event.id,
       });
-      await this.calendarRepository.markNotified(event.i
+      await this.calendarRepository.markNotified(event.id);
+
+      // Fan out to configured channels — failures here must never block
+      // marking the event notified (already done above) or the loop over
+      // remaining due events; a channel-delivery problem is not a reason
+      // to re-notify the same deadline every poll tick.
+      try {
+        await this.dispatcher.dispatch(
+          notification.id,
+          event.workspaceId,
+          event.createdBy,
+          title,
+          body,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Notification channel fan-out failed for event ${event.id}`,
+          error,
+        );
+      }
+    }
+  }
+}

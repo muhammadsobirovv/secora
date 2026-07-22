@@ -126,6 +126,12 @@ export class CreateBugBountyFindingHandler implements ICommandHandler<
       tags: command.data.tags,
       evidenceIds: command.data.evidenceIds,
       createdBy: command.userId,
+      capec: command.data.capec,
+      owaspCategory: command.data.owaspCategory,
+      mitreAttack: command.data.mitreAttack,
+      cvssBreakdown: command.data.cvssBreakdown as
+        | Record<string, unknown>
+        | undefined,
     });
 
     this.eventBus.publish(
@@ -204,6 +210,12 @@ export class UpdateBugBountyFindingHandler implements ICommandHandler<
       endpoint: command.data.endpoint,
       payload: command.data.payload,
       tags: command.data.tags,
+      capec: command.data.capec,
+      owaspCategory: command.data.owaspCategory,
+      mitreAttack: command.data.mitreAttack,
+      cvssBreakdown: command.data.cvssBreakdown as
+        | Record<string, unknown>
+        | undefined,
     });
 
     if (command.data.evidenceIds) {
@@ -369,4 +381,9 @@ export class DeleteBugBountyFindingHandler implements ICommandHandler<
     // Removes the finding's Duplicate Detection embedding chunks — without
     // this, a deleted finding could keep surfacing as a semantic-search
     // duplicate match indefinitely (see check-duplicate-finding.query.ts).
-    await this.mem
+    await this.memoryRepository.deleteBySource(
+      'BUGBOUNTY_FINDING',
+      command.findingId,
+    );
+  }
+}

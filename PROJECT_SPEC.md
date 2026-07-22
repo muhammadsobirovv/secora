@@ -766,4 +766,207 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
    `docs/adr/0003-recon-engine-module.md`).
 4. Vulnerability Engine (Module 4) — **done**. Redefined from this
    document's original "Vulnerability Tools" placeholder (a client-side
-   enco
+   encoder/payload-generator toolbox) into a full scanner-orchestration
+   engine per explicit direction from the project owner: Recon Assets →
+   Scan Jobs → external scanners (Nuclei, ffuf, dirsearch, feroxbuster,
+   Nikto behind one `ScannerRunner`/`Normalizer` abstraction, extension
+   points reserved for SQLMap/XSStrike/Dalfox/Wapiti/OWASP ZAP) →
+   normalized `VulnFinding`s (severity/CVSS/CWE/OWASP category, dedup-key
+   + unique-constraint deduplication, auto-attached text Evidence) → Scan
+   Queue with Pause/Resume/Cancel/Retry/Priority/Worker Heartbeat/Dead
+   Worker Recovery → Activity Timeline → events reserved for a future AI
+   hook. The original "Vulnerability Tools" payload/encoder toolbox this
+   section used to describe is not built and isn't currently on the
+   roadmap under that name; the encoder/JWT/hash-utility items listed
+   above this section remain unimplemented client-side utilities, not
+   part of Module 4. See `docs/adr/0004-vulnerability-engine-module.md`.
+5. Bug Bounty Workspace (Module 6) — **done**. Merges this document's
+   original "Bug Bounty Workspace" and "Report Generator" placeholders into
+   one module, the same way Module 4 absorbed "Vulnerability Tools":
+   Programs (platform/status/rules/severity-matrix/disclosure policy) with
+   a Scope Manager (9 scope-item types, IPv4 CIDR/range auto-classification,
+   OUT_OF_SCOPE-wins-over-IN_SCOPE), a Program Importer (HackerOne/Bugcrowd/
+   Intigriti/Markdown/JSON), a read-through Asset Inventory over Targets +
+   Recon/Vuln findings + Notes/Evidence (no new storage), a Finding
+   Lifecycle stage machine (New → Triaged → Verified → Reported → Resolved
+   → Closed → Archived, plus Duplicate/Need More Info side-branches), a Bug
+   Report Generator (one persisted report rendered into 5 platform
+   templates, PDF/Markdown/HTML/JSON/CSV export) with an AI Report Draft
+   Assistant and lexical+semantic Duplicate Detection (both reusing Module
+   5's AI seam), a Payload Library (16 categories, seed + custom entries,
+   AI explain), a Personal Knowledge Base, Bookmarks, a Dashboard +
+   Statistics view, a Calendar with a self-scheduling deadline-notifier
+   poller, Notifications, and Global Search — plus this codebase's first
+   use of optimistic locking (on `BugReport.version`). Frontend: 11 pages
+   under `/bugbounty`. See `docs/adr/0006-bug-bounty-workspace-module.md`
+   and `docs/releases/module-6-release-notes.md`.
+6. AI Assistant integration (Module 5) — **Phase 1 and Phase 2 done**.
+   Built as the "AI Security Copilot": workspace/project-aware AI Chat
+   with automatic context gathering (no manual pasting), a RAG layer over
+   pgvector (per-workspace/per-project isolated memory), a 5-provider
+   abstraction (OpenAI/Anthropic/Gemini/Ollama/OpenRouter — switchable by
+   config, no keys wired yet per explicit direction), an editable
+   prompt-module architecture (system/security/recon/finding-analysis/
+   report/coding, never hardcoded in controllers), a provider-agnostic
+   tool-calling framework (search findings/recon/evidence/notes/projects/
+   targets/templates, create note, draft report, generate PoC, generate
+   payloads) built to be extended by future modules without touching the
+   chat engine, SSE token streaming with cancel/regenerate/continue,
+   prompt-injection guardrails, and workspace/project isolation enforced
+   on every command/query. Frontend: `/ai` dashboard (conversation
+   history, context indicator, suggested questions, streaming chat,
+   Markdown rendering). **Phase 2** adds the "UX layer": Voice Interaction
+   (Web Speech API mic input + speak-aloud replies, backed by a
+   `SpeechProvider` abstraction with 4 unconfigured cloud adapters), a
+   Smart Code Block toolbar (language badge, download, wrap, expand/
+   collapse, fullscreen), One-Click Code/Conversation Export, Terminal
+   Mode, Artifact Mode (a dedicated side panel for substantial generated
+   content), and Interactive Canvas (pannable/zoomable Mermaid diagrams).
+   See `docs/adr/0005-ai-security-copilot-module.md`.
+7. CVE Center
+8. Knowledge Base (workspace-wide/cross-project — distinct from Module 6's
+   per-user Personal Knowledge Base, which is done)
+9. Admin Panel
+10. Integrations, Voice Assistant, Mobile/Desktop (Flutter), Marketplace/Plugin SDK
+
+> **Local-first migration status** (2026-07-16): per the Local-First Core
+> Principle above, Modules 3-6 as described in this list still execute
+> server-side today. Module 3's 14 tool runners and Module 4's 5 scanner
+> runners are slated to move entirely into the new Desktop Agent (backend
+> keeps only job/result metadata, history, activity, and stats). Module
+> 5's provider execution currently uses server-configured keys (a
+> violation, fixed first in the migration's Phase 1), and its RAG
+> (pgvector) and voice (cloud speech adapters) are slated to move to a
+> local vector store and Whisper.cpp/Piper respectively. Module 6's Bug
+> Report template rendering is slated to move client-side (Markdown/HTML/
+> PDF/DOCX generated locally, only report metadata synced); its AI Draft
+> Assistant and semantic Duplicate Detection inherit Module 5's move. Item
+> 10's "Mobile/Desktop (Flutter)" placeholder is superseded by the Tauri
+> Desktop Agent decision in ADR 0007 for the desktop portion specifically
+> (mobile remains open). Full detail: `docs/migration/local-first-architecture-migration.md`,
+> `docs/adr/0007-local-first-desktop-agent-architecture.md`,
+> `docs/migration/desktop-agent-roadmap.md`.
+>
+> **Module 7 — Desktop Agent** (2026-07-19): source-complete. The Tauri
+> desktop app at `apps/desktop` now has its own Local Tool Runner (16
+> tools), Background Job Queue, local SQLite database, Sync Engine
+> (Off/Metadata-Only/Everything, conflict resolution, retry queue,
+> multi-workspace), Local AI (9 providers, streaming, tool calling), Local
+> RAG (FTS5 + embeddings, fully offline), Voice (Web Speech API +
+> whisper.cpp/Piper fallback), File Manager/Evidence Library (SHA-256
+> dedup, Folder Watch), Report Generator (PDF/MD/HTML/DOCX/TXT/JSON/ZIP,
+> all local), a full Desktop AI Chat, a Plugin Manager (Nmap/Burp/ZAP/
+> Metasploit/Custom Script), and Settings/Auto-Update/Security. This
+> fulfills the "Modules 3/4/6 move client-side" migration items described
+> above. Not yet compiled/runtime-verified — see
+> `docs/modules/07-desktop-agent.md`'s "Verification handoff" section.
+>
+> **Module 8 — Browser Extension + Burp Suite Integration** (2026-07-20):
+> source-complete. A new Local Bridge Server
+> (`apps/desktop/src-tauri/src/bridge/`) gives the Module 7 Desktop
+> Agent a real `127.0.0.1`-only, bearer-token-authenticated,
+> AES-256-GCM-encrypted HTTP+WebSocket API, since Tauri's `invoke()` IPC
+> is unreachable from outside its own webview. A Manifest V3 Browser
+> Extension (`apps/browser-extension`, Chrome/Edge/Brave/Opera + a
+> Firefox build) talks to it for Target Capture (19 one-click actions),
+> Recon Shortcuts (7), an AI Side Panel (11 quick actions, streaming
+> Markdown/Mermaid/voice), a DevTools panel (8 tabs), a 12-category/
+> 35-entry Payload Library, 6-format Export, and Bug Bounty scope import
+> (HackerOne/Bugcrowd/Intigriti/YesWeHack/Synack). A Burp Suite extension
+> (`extensions/burp`, Jython/legacy Extender API — Community + Pro
+> compatible) adds the same capture/finding/AI-context actions from
+> Burp's context menu. Sensitive-data capture (cookies, storage,
+> tokens) requires explicit confirmation, enforced both client-side and
+> server-side. Live Sync keeps the current Project/Target/Conversation
+> in sync across the desktop app, browser, and Burp via a WS ping + REST
+> snapshot protocol. Not yet compiled/runtime-verified (no browser, Burp
+> Suite, or completed `npm install` in the build environment) — the
+> pure-logic TypeScript modules and the cross-language AES-256-GCM/HKDF
+> crypto *were* independently verified via direct Node execution; see
+> `docs/modules/08-browser-extension.md`'s "Verification handoff"
+> section and `docs/adr/0008-browser-extension-burp-integration.md`.
+>
+> **Module 9 — Bug Bounty Platform + Collaboration + Reporting Suite**
+> (2026-07-20): source-complete.
+> Extends Module 6's per-hunter workflow into a full team platform: a
+> multi-platform Program Manager (favorite/safe-harbor/rate-limits) with
+> an update-detecting Program Importer (SHA-256 fingerprint + human-
+> readable diff, never destructively reclassifies existing scope on
+> reimport), Scope Manager asset-type/status extensions, a Finding
+> Manager with a real CVSS 3.1 calculator plus CWE/CAPEC/OWASP/MITRE
+> ATT&CK mapping, a Report Builder with custom templates, AI grammar
+> correction and technical review, and a TXT export (DOCX disclosed as
+> unimplemented — no document-generation dependency installed); a new
+> Collaboration layer (workspace invites, 3 new roles slotting between
+> ADMIN and MEMBER, comments with @mentions, assignments, task lists, a
+> read-through activity feed); 7 new Bug Bounty Dashboard widgets; an AI
+> Bug Bounty Assistant (9 capabilities — review/payloads/PoC/repro/
+> impact/remediation/severity/attack-paths/engagement-summary, all
+> "propose, don't auto-apply"); Knowledge Base entry kinds (playbooks,
+> CVE references, tool references, AI conversation snapshots) plus
+> tagging; scheduled Automation jobs; multi-channel Notifications
+> (Discord/Slack/Telegram/custom API/webhook/email — email disclosed as
+> unimplemented, no provider configured) with AES-256-GCM-encrypted
+> channel secrets; a filterable Analytics rollup distinct from Module 6's
+> Statistics; Global Search extended to AI chats/tags/tasks; a Public
+> REST API (personal/workspace API keys, HMAC-signed webhooks, rate
+> limiting, OpenAPI); and a security-hardening pass that closed a
+> plaintext-secret gap on `WebhookToken`/`NotificationChannelConfig`,
+> fixed two pre-existing `AuditEventType` import bugs, added the missing
+> `WORKSPACE_MEMBER_*` audit-trail writes, and documented the full
+> Permission Matrix. Frontend and a full `apps/api` typecheck/test run
+> were not independently re-verified in the sandbox this module was built
+> in (the same environment constraint noted for Modules 7-8); all changes
+> were reviewed by hand against the exact repository-interface signatures
+> they call, and `packages/shared`'s typecheck was re-run clean after
+> every shared-type change. See `docs/adr/0009-bug-bounty-operating-system.md`,
+> `docs/modules/09-bug-bounty-operating-system.md`, and
+> `docs/security/permission-matrix.md`.
+>
+> **Module 10 — Enterprise Platform + SaaS + Global Infrastructure**
+> (2026-07-22): source-complete. The largest module by scope to date —
+> fourteen subsystems: real multi-tenant `Organization`/`Team` above the
+> existing `Workspace` boundary (additive, doesn't replace it); a
+> Postgres-native claim-based Distributed Job System (no new message
+> broker); a Plugin Marketplace with a permission-acceptance model
+> (sandboxing is contractual today, not a separate execution runtime —
+> disclosed follow-up before accepting untrusted third-party plugins); an
+> Integrations framework routing every provider action through one
+> generic executor; Team Workspaces; Enterprise Reporting/Analytics
+> reusing Module 6/9's rendering patterns; a full API Platform (GraphQL,
+> an expanded real webhook delivery pipeline with retry/backoff/dead-
+> letter, and TypeScript/Python/Go SDKs — a cross-reference audit mid-
+> module caught and fixed several drifted fields in the Go SDK); a
+> Workflow Automation Engine (nine step kinds, real integration with
+> Reporting/Notifications/AI/Integrations, not stubs); Compliance
+> (retention enforcement, backup snapshots, a GDPR export pipeline — a
+> mid-implementation privacy bug that would have leaked cross-user audit
+> data was caught and fixed before shipping); Observability (Prometheus
+> metrics, OpenTelemetry tracing, structured logging, health checks); High
+> Availability (every Module 9/10 background poller — seven services — is
+> now safe at any replica count via a new Postgres-row-based distributed
+> lease, closing a previously-documented single-replica limitation);
+> Security Hardening (a Content-Security-Policy fix that would otherwise
+> have broken Swagger UI in any deployment that enabled it, plus HSTS/
+> clickjacking headers); CI/CD (GitHub Actions — lint/typecheck/test/build,
+> Docker image publishing, CodeQL + dependency audit — the first
+> environment in this project's history with an actual Go toolchain,
+> finally compiling the Go SDK for real); and four Production Deployment
+> paths (Docker Compose, Kubernetes with autoscaling, Linux systemd,
+> Windows Services) documented with an explicit accounting of what's
+> genuinely production-hardened by the application itself versus what
+> remains a deployment-specific responsibility (Postgres itself has no
+> built-in HA in any of these paths — call it out before treating this as
+> a solved problem). `packages/shared` was re-verified clean
+> (`tsc --noEmit`) after every shared-type change; a full `apps/api`
+> typecheck could not complete within this sandbox's command timeout, and
+> the newly-added `@opentelemetry/*` tracing dependencies were never
+> `pnpm install`'d here (no registry network access) — both disclosed,
+> consistent with the same environment constraint noted for Modules 7-9.
+> Every file was manually re-verified after editing, including a direct
+> cross-check of Prisma field names against `schema.prisma` rather than
+> assumed. `ci.yml` is the first real, automated verification pass this
+> code will receive — treat it as authoritative. See
+> `docs/adr/0010-enterprise-platform.md`,
+> `docs/modules/10-enterprise-platform.md`,
+> `docs/releases/module-10-release-notes.md`, and `deploy/README.md`.

@@ -214,10 +214,14 @@ export class AiChatService {
         });
       }
 
-      const provider = this.providerRegistry.resolveProvider(
+      // Local-First Migration Phase 1 (BYOK) — resolves this workspace's
+      // own credential (if any) for the chosen/default provider before
+      // resolving to a fallback; see AiProviderRegistryService.
+      const { provider, credential } = await this.providerRegistry.resolveProvider(
+        conversation.workspaceId,
         conversation.provider,
       );
-      const model = conversation.model ?? provider.getDefaultModel();
+      const model = conversation.model ?? provider.getDefaultModel(credential);
       const maxTokens = this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
         infer: true,
       });
@@ -233,12 +237,15 @@ export class AiChatService {
         let emittedLength = 0;
         let toolCallDetected = false;
 
-        for await (const chunk of provider.streamChatCompletion({
-          model,
-          messages: history,
-          maxTokens,
-          signal: controller.signal,
-        })) {
+        for await (const chunk of provider.streamChatCompletion(
+          {
+            model,
+            messages: history,
+            maxTokens,
+            signal: controller.signal,
+          },
+          credential,
+        )) {
           if (chunk.delta) buffer += chunk.delta;
           if (chunk.promptTokens !== undefined)
             promptTokens = chunk.promptTokens;

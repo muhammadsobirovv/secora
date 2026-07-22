@@ -61,6 +61,25 @@ Turborepo + pnpm workspaces:
    Finding Lifecycle, Bug Report Generator, AI Report Draft Assistant,
    Duplicate Detection, Payload Library, Knowledge Base, Calendar,
    Notifications, Search. `docs/adr/0006-bug-bounty-workspace-module.md`
+7. **Desktop Agent** (`apps/desktop`, Tauri) — local tool runner, job
+   queue, SQLite storage, Sync Engine, local AI + RAG, voice, file
+   manager, local report generator, plugin manager.
+   `docs/adr/0007-local-first-desktop-agent-architecture.md`
+8. **Browser Extension + Burp Suite Integration** — a Local Bridge Server
+   on the Desktop Agent plus a Manifest V3 browser extension and a Burp
+   Suite extension for target capture, recon shortcuts, an AI side panel,
+   and Live Sync across desktop/browser/Burp.
+   `docs/adr/0008-browser-extension-burp-integration.md`
+9. **Bug Bounty Platform + Collaboration + Reporting Suite** — extends
+   Module 6 into a team platform: multi-platform Program Importer with
+   update detection, a CVSS 3.1 calculator + CWE/CAPEC/OWASP/MITRE
+   mapping, custom report templates + AI grammar/technical review,
+   Collaboration (roles, comments, mentions, assignments, tasks, activity
+   feed), an AI Bug Bounty Assistant, Knowledge Base entry kinds +
+   tagging, scheduled Automation, multi-channel Notifications, filterable
+   Analytics, extended Global Search, a Public REST API (keys/webhooks),
+   and encrypted-at-rest secrets. `docs/adr/0009-bug-bounty-operating-system.md`,
+   `docs/security/permission-matrix.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs
