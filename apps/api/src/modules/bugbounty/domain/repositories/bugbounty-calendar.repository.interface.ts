@@ -57,4 +57,6 @@ export interface BugBountyCalendarRepository {
   markNotified(id: string): Promise<void>;
 }
 
-export const BUGBOUNTY_CALENDAR_REPOSITORY =
+export const BUGBOUNTY_CALENDAR_REPOSITORY = Symbol(
+  'BUGBOUNTY_CALENDAR_REPOSITORY',
+);

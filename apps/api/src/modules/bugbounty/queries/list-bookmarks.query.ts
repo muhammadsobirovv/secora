@@ -34,4 +34,5 @@ export class ListBookmarksHandler implements IQueryHandler<
       query.filter.entityType,
     );
     return bookmarks.map(toBookmarkDto);
-  
+  }
+}

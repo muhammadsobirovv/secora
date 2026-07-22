@@ -3,16 +3,19 @@ import type {
   AiConversationDto,
   AiContextSummaryDto,
   AiMessageDto,
+  AiProviderCredentialDto,
   AiProviderStatusDto,
   AiSpeechProviderStatusDto,
   AiSuggestedQuestionDto,
   CreateAiConversationRequestDto,
   ListAiConversationsQueryDto,
+  UpsertAiProviderCredentialRequestDto,
 } from "@pentesthub/shared";
 import {
   AI_CONTEXT_ENDPOINTS,
   AI_CONVERSATION_ENDPOINTS,
   AI_MESSAGE_ENDPOINTS,
+  AI_PROVIDER_CREDENTIAL_ENDPOINTS,
   AI_PROVIDER_ENDPOINTS,
   AI_SPEECH_ENDPOINTS,
 } from "@pentesthub/shared";
@@ -90,6 +93,23 @@ export function deleteAiMessage(messageId: string) {
 
 export function listAiProviders() {
   return apiFetch<AiProviderStatusDto[]>(AI_PROVIDER_ENDPOINTS.list);
+}
+
+/// Local-First Migration Phase 1 (BYOK) — this workspace's own stored
+/// provider credentials (AI Providers settings page).
+export function listAiProviderCredentials() {
+  return apiFetch<AiProviderCredentialDto[]>(AI_PROVIDER_CREDENTIAL_ENDPOINTS.list);
+}
+
+export function upsertAiProviderCredential(provider: string, body: UpsertAiProviderCredentialRequestDto) {
+  return apiFetch<AiProviderCredentialDto>(AI_PROVIDER_CREDENTIAL_ENDPOINTS.upsert(provider), {
+    method: "PUT",
+    body,
+  });
+}
+
+export function deleteAiProviderCredential(provider: string) {
+  return apiFetch<void>(AI_PROVIDER_CREDENTIAL_ENDPOINTS.delete(provider), { method: "DELETE" });
 }
 
 export function listAiSpeechProviders() {

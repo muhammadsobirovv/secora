@@ -1,6 +1,7 @@
 import type {
   BugBountyFinding,
   BugBountyFindingStage,
+  OwaspCategory,
   VulnFindingSeverity,
 } from '../../../../prisma-types.js';
 
@@ -33,6 +34,11 @@ export interface CreateBugBountyFindingInput {
   tags?: string[];
   createdBy: string;
   evidenceIds?: string[];
+  // --- Module 9 additions: standardized vulnerability classification ---
+  capec?: string | null;
+  owaspCategory?: OwaspCategory | null;
+  mitreAttack?: { id: string; name: string }[] | null;
+  cvssBreakdown?: Record<string, unknown> | null;
 }
 
 export type UpdateBugBountyFindingInput = Partial<
@@ -98,4 +104,6 @@ export interface BugBountyFindingsRepository {
   ): Promise<Record<BugBountyFindingStage, number>>;
 }
 
-export const BUGBOUNTY_FINDINGS_REPOSI
+export const BUGBOUNTY_FINDINGS_REPOSITORY = Symbol(
+  'BUGBOUNTY_FINDINGS_REPOSITORY',
+);

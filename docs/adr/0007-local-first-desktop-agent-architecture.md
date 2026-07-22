@@ -1,6 +1,10 @@
 # ADR 0007 — Local-first architecture and the Desktop Agent
 
-Status: accepted, not yet implemented.
+Status: accepted, Module 7 (Desktop Agent) source-complete as of
+2026-07-19 — see `docs/modules/07-desktop-agent.md`'s "Implementation
+status" table and "Verification handoff" section (written without a
+Rust/npm toolchain available; needs `cargo build`/`pnpm build` and manual
+smoke-testing on a real machine before shipping).
 Context: architecture-refactor directive covering Modules 1-6; audit at
 `docs/migration/local-first-architecture-migration.md`; build plan at
 `docs/migration/desktop-agent-roadmap.md`.

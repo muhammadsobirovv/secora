@@ -6,6 +6,7 @@ import type {
   AiChatStreamChunk,
   AiEmbeddingResult,
   AiProvider,
+  ResolvedAiCredential,
 } from '../ai-provider.interface.js';
 import {
   AiProviderNotConfiguredError,
@@ -14,30 +15,42 @@ import {
 
 /// Ollama's /api/chat streams newline-delimited JSON (NDJSON), not SSE —
 /// no `data:`/`event:` framing at all, just one JSON object per line. No
-/// API key: "configured" means an operator explicitly set
-/// AI_OLLAMA_BASE_URL (see env.validation.ts comment on that key).
+/// API key: "configured" means either the operator explicitly set
+/// AI_OLLAMA_BASE_URL (see env.validation.ts comment on that key), or a
+/// workspace has pointed its own BYOK credential's `baseUrl` at a
+/// reachable Ollama/LM Studio-compatible server (Local-First Migration
+/// Phase 1 — this is the no-key default path: a workspace with no cloud
+/// key configured falls back to Ollama, per the spec's "default to Ollama
+/// if no key" rule).
 @Injectable()
 export class OllamaProvider implements AiProvider {
   readonly name = 'OLLAMA' as const;
 
   constructor(private readonly configService: ConfigService<EnvConfig, true>) {}
 
-  private getBaseUrl(): string | undefined {
-    return this.configService.get('AI_OLLAMA_BASE_URL', { infer: true });
+  private getBaseUrl(credential?: ResolvedAiCredential): string | undefined {
+    return (
+      credential?.baseUrl ??
+      this.configService.get('AI_OLLAMA_BASE_URL', { infer: true })
+    );
   }
 
-  isConfigured(): boolean {
-    return Boolean(this.getBaseUrl());
+  isConfigured(credential?: ResolvedAiCredential): boolean {
+    return Boolean(this.getBaseUrl(credential));
   }
 
-  getDefaultModel(): string {
-    return this.configService.get('AI_OLLAMA_MODEL', { infer: true });
+  getDefaultModel(credential?: ResolvedAiCredential): string {
+    return (
+      credential?.model ??
+      this.configService.get('AI_OLLAMA_MODEL', { infer: true })
+    );
   }
 
   async *streamChatCompletion(
     options: AiChatCompletionOptions,
+    credential?: ResolvedAiCredential,
   ): AsyncIterable<AiChatStreamChunk> {
-    const baseUrl = this.getBaseUrl();
+    const baseUrl = this.getBaseUrl(credential);
     if (!baseUrl) throw new AiProviderNotConfiguredError(this.name);
 
     const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/chat`, {
@@ -109,8 +122,11 @@ export class OllamaProvider implements AiProvider {
     }
   }
 
-  async embed(text: string): Promise<AiEmbeddingResult> {
-    const baseUrl = this.getBaseUrl();
+  async embed(
+    text: string,
+    credential?: ResolvedAiCredential,
+  ): Promise<AiEmbeddingResult> {
+    const baseUrl = this.getBaseUrl(credential);
     if (!baseUrl) throw new AiProviderNotConfiguredError(this.name);
 
     const response = await fetch(
@@ -118,7 +134,10 @@ export class OllamaProvider implements AiProvider {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: this.getDefaultModel(), prompt: text }),
+        body: JSON.stringify({
+          model: this.getDefaultModel(credential),
+          prompt: text,
+        }),
       },
     );
 

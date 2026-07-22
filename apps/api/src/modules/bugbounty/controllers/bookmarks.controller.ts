@@ -58,4 +58,6 @@ export class BookmarksController {
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
-    await this.commandBus.execute(new D
+    await this.commandBus.execute(new DeleteBookmarkCommand(user.id, id));
+  }
+}

@@ -73,6 +73,40 @@ model User {
   bookmarks                    Bookmark[]
   bugBountyCalendarEventsCreated BugBountyCalendarEvent[]
   bugBountyNotifications       BugBountyNotification[]
+  // Module 9 — additive back-relations.
+  reportCustomTemplatesCreated ReportCustomTemplate[]
+  workspaceInvitesSent         WorkspaceInvite[]        @relation("WorkspaceInviteInviter")
+  workspaceInvitesAccepted     WorkspaceInvite[]        @relation("WorkspaceInviteAcceptedBy")
+  commentsAuthored             Comment[]
+  mentionsReceived             Mention[]
+  assignmentsAssigned          Assignment[]             @relation("AssignmentAssignee")
+  assignmentsGiven             Assignment[]             @relation("AssignmentAssigner")
+  taskItemsAssigned            TaskItem[]               @relation("TaskItemAssignee")
+  taskItemsCreated             TaskItem[]               @relation("TaskItemCreator")
+  scheduledJobsCreated         ScheduledJob[]
+  notificationChannelConfigs   NotificationChannelConfig[]
+  webhookTokensCreated         WebhookToken[]
+  // Module 10 — additive back-relations.
+  organizationsCreated          Organization[]              @relation("OrganizationCreator")
+  organizationMemberships       OrganizationMember[]
+  departmentsManaged            Department[]                @relation("DepartmentManager")
+  teamsLed                      Team[]                      @relation("TeamLead")
+  organizationInvitesSent       OrganizationInvite[]         @relation("OrganizationInviteInviter")
+  temporaryPermissionsReceived  TemporaryPermission[]        @relation("TemporaryPermissionUser")
+  temporaryPermissionsGranted   TemporaryPermission[]        @relation("TemporaryPermissionGrantor")
+  approvalRequestsMade          ApprovalRequest[]            @relation("ApprovalRequestRequester")
+  approvalRequestsDecided       ApprovalRequest[]            @relation("ApprovalRequestDecider")
+  pluginsAuthored                Plugin[]                     @relation("PluginAuthor")
+  pluginInstallations            PluginInstallation[]         @relation("PluginInstaller")
+  pluginRatings                  PluginRating[]                @relation("PluginRater")
+  integrationConnectionsCreated  IntegrationConnection[]      @relation("IntegrationConnector")
+  wikiPagesAuthored               WikiPage[]                   @relation("WikiPageAuthor")
+  reviewQueueItemsSubmitted       ReviewQueueItem[]            @relation("ReviewQueueSubmitter")
+  reviewQueueItemsAssigned        ReviewQueueItem[]            @relation("ReviewQueueAssignee")
+  chatChannelsCreated              InternalChatChannel[]        @relation("ChatChannelCreator")
+  chatMessagesAuthored             InternalChatMessage[]        @relation("ChatMessageAuthor")
+  enterpriseReportsGenerated       EnterpriseReport[]           @relation("EnterpriseReportGenerator")
+  complianceExportsRequested       ComplianceExportRequest[]    @relation("ComplianceExportRequester")
 
   @@map("users")
 }
@@ -329,8 +363,18 @@ model Workspace {
   avatarUrl   String?
   description String?
   plan        String?
+  /// Module 10 — nullable tenant/team pointers. A Workspace created before
+  /// Module 10 (or any personal workspace after it) has both `null`, and
+  /// behaves exactly as it always has; setting them opts the workspace into
+  /// the Organization -> Team hierarchy without changing anything about how
+  /// Modules 1-9 read/write the workspace itself.
+  organizationId String?
+  teamId         String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   members        WorkspaceMember[]
   settings       WorkspaceSettings?
@@ -345,6 +389,7 @@ model Workspace {
   vulnScanTemplates VulnScanTemplate[]
   aiConversations   AiConversation[]
   aiMemoryChunks    AiMemoryChunk[]
+  aiProviderCredentials AiProviderCredential[]
   // Module 6 (Bug Bounty Workspace) — additive back-relations, same
   // treatment every prior module received (see reconJobs/vulnFindings/
   // aiConversations above). No existing column or behavior changes.
@@ -356,7 +401,23 @@ model Workspace {
   bookmarks              Bookmark[]
   bugBountyCalendarEvents BugBountyCalendarEvent[]
   bugBountyNotifications BugBountyNotification[]
+  // Module 9 — additive back-relations.
+  reportCustomTemplates      ReportCustomTemplate[]
+  workspaceInvites           WorkspaceInvite[]
+  comments                   Comment[]
+  assignments                Assignment[]
+  taskItems                  TaskItem[]
+  scheduledJobs              ScheduledJob[]
+  notificationChannelConfigs NotificationChannelConfig[]
+  webhookTokens              WebhookToken[]
+  apiKeys                    ApiKey[]
+  // Module 10 — additive back-relations.
+  integrationConnections IntegrationConnection[]
+  wikiPages              WikiPage[]
+  reviewQueueItems       ReviewQueueItem[]
+  chatChannels           InternalChatChannel[]
 
+  @@index([organizationId])
   @@map("workspaces")
 }
 
@@ -387,9 +448,22 @@ model WorkspaceMember {
   @@map("workspace_members")
 }
 
+/// REVIEWER/TRIAGER/MANAGER added in Module 9 (Bug Bounty Platform +
+/// Collaboration + Reporting Suite) — additive values on top of Module 1's
+/// OWNER/ADMIN/MEMBER foundation, not a replacement. MEMBER is kept as the
+/// generic fallback role for workspaces that don't need the finer-grained
+/// bug-bounty-specific roles; existing rows keep working unchanged.
+/// Suggested permission shape (enforced in `collaboration/permissions.util.ts`,
+/// not by the enum itself): OWNER > ADMIN > MANAGER > TRIAGER > REVIEWER >
+/// MEMBER, where MANAGER can manage Programs/Automation/Collaboration,
+/// TRIAGER can transition Finding/Report lifecycle stages, and REVIEWER has
+/// read + comment access only.
 enum WorkspaceMemberRole {
   OWNER
   ADMIN
+  MANAGER
+  TRIAGER
+  REVIEWER
   MEMBER
 }
 
@@ -448,6 +522,9 @@ model Project {
   bugBountyFindings  BugBountyFinding[]
   bugReports         BugReport[]
   knowledgeBaseNotes KnowledgeBaseNote[]
+  // Module 9 — additive back-relations.
+  scheduledJobs ScheduledJob[]
+  taskItems     TaskItem[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -593,6 +670,8 @@ model Target {
   bugBountyProgramLinks BugBountyProgramTarget[]
   bugBountyFindings     BugBountyFinding[]
   knowledgeBaseNotes    KnowledgeBaseNote[]
+  // Module 9 — additive back-relation.
+  scheduledJobs         ScheduledJob[]
 
   @@index([projectId])
   @@index([type])
@@ -1229,10 +1308,20 @@ model ActivityEvent {
 
 /// Schema + repository only this sprint — no issuing/listing/revoking
 /// endpoints and no API-key auth strategy yet.
+/// Module 9 activates this model (schema-only since Module 1): adds
+/// issuing/listing/revoking endpoints and an API-key Nest auth guard
+/// (`public-api/api-key.strategy.ts`), plus rate limiting keyed off
+/// `id`. `workspaceId` is new and nullable — null means a *personal* key
+/// (scoped to whatever the user themselves can access, matching the
+/// original Module 1 design intent), non-null means a *workspace* key
+/// (the spec's "Workspace API Keys" — scoped to that workspace
+/// regardless of which member's `userId` created it, so it keeps working
+/// if that member later leaves the workspace).
 model ApiKey {
-  id         String    @id @default(uuid())
-  userId     String
-  name       String
+  id          String    @id @default(uuid())
+  userId      String
+  workspaceId String?
+  name        String
   /// Hashed like refresh tokens — the raw key is shown once at creation
   /// and never stored.
   keyHash    String    @unique
@@ -1245,9 +1334,11 @@ model ApiKey {
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([workspaceId])
   @@map("api_keys")
 }
 
@@ -1318,6 +1409,29 @@ enum AuditEventType {
   OAUTH_LINKED
   OAUTH_LOGIN
   SESSION_REVOKED
+  // Module 9 additions — additive only, existing values/behavior unchanged.
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  WEBHOOK_TOKEN_CREATED
+  WEBHOOK_TOKEN_REVOKED
+  WEBHOOK_DELIVERY_REDELIVERED
+  WORKSPACE_MEMBER_INVITED
+  WORKSPACE_MEMBER_ROLE_CHANGED
+  WORKSPACE_MEMBER_REMOVED
+  // Module 10 additions — additive only, existing values/behavior unchanged.
+  ORGANIZATION_CREATED
+  ORGANIZATION_MEMBER_INVITED
+  ORGANIZATION_MEMBER_ROLE_CHANGED
+  ORGANIZATION_MEMBER_REMOVED
+  TEMPORARY_PERMISSION_GRANTED
+  TEMPORARY_PERMISSION_REVOKED
+  APPROVAL_REQUEST_DECIDED
+  PLUGIN_INSTALLED
+  PLUGIN_REMOVED
+  INTEGRATION_CONNECTED
+  INTEGRATION_DISCONNECTED
+  WORKER_NODE_REGISTERED
+  SECRET_ROTATED
 }
 
 // ---------------------------------------------------------------------------
@@ -1338,6 +1452,52 @@ enum AiProviderName {
   GEMINI
   OLLAMA
   OPENROUTER
+}
+
+/// Local-First Migration Phase 1 (BYOK — "Bring Your Own Key"): a
+/// workspace's own credential for one AI provider, so the backend never
+/// has to fall back to the operator's server-configured keys for that
+/// workspace. See docs/migration/local-first-architecture-migration.md
+/// and docs/adr/0007-local-first-desktop-agent-architecture.md.
+///
+/// The AI call itself still executes backend-side (this is a deliberate,
+/// lower-risk Phase 1 scope decision — see the roadmap doc's Phase 1
+/// entry): only the *credential source* changes from "operator env var"
+/// to "this workspace's own encrypted key", so RAG/tool-calling/prompt-
+/// injection-guard machinery in Module 5 keeps working unmodified for
+/// BYOK workspaces. `encryptedApiKey` is AES-256-GCM ciphertext (see
+/// common/crypto/credential-encryption.util.ts), decrypted only
+/// in-memory per request inside AiProviderRegistryService — never logged,
+/// never returned to any client (AiProviderCredentialDto exposes only
+/// `keyPreview`).
+model AiProviderCredential {
+  id              String         @id @default(uuid())
+  workspaceId     String
+  provider        AiProviderName
+  /// Null for providers that don't need a key at all (a local Ollama/LM
+  /// Studio server reached purely via `baseUrl`).
+  encryptedApiKey String?
+  /// Last 4 characters of the raw key, so a user can tell keys apart in
+  /// the settings UI without the secret ever being re-displayed — same
+  /// intent as ApiKey.prefix, but from the tail: most provider key
+  /// formats vary their prefix length/shape, the tail is a steadier
+  /// "is this the key I think it is" check.
+  keyPreview      String?
+  /// Local/self-hosted providers (Ollama, LM Studio) or an alternate
+  /// endpoint (Azure OpenAI's per-resource URL) override the adapter's
+  /// hardcoded default host when set.
+  baseUrl         String?
+  /// Per-workspace default model for this provider, overriding the
+  /// adapter's env-configured default when set.
+  model           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+  @@map("ai_provider_credentials")
 }
 
 enum AiMessageRole {
@@ -1533,12 +1693,26 @@ enum ScopeItemType {
   IP_RANGE
   ASN
   CLOUD_ASSET
+  // Module 9 additions — additive only.
+  HOST
+  INTERNAL_ASSET
+  GITHUB_ORG
+  THIRD_PARTY
 }
 
+/// REVIEW_NEEDED/DEPRECATED added in Module 9. UNKNOWN is kept as the
+/// importer's default for a pattern that hasn't been classified yet;
+/// REVIEW_NEEDED is a deliberate manual flag ("a human should look at
+/// this") distinct from UNKNOWN ("nobody has looked at this yet"), and
+/// DEPRECATED marks a once-valid scope entry a program has since removed
+/// (kept for history rather than deleted, matching Target's soft-delete
+/// convention elsewhere in the schema).
 enum ScopeClassification {
   IN_SCOPE
   OUT_OF_SCOPE
   UNKNOWN
+  REVIEW_NEEDED
+  DEPRECATED
 }
 
 /// A program the hunter is engaged on. `projectId` is nullable — a program
@@ -1564,6 +1738,28 @@ model BugBountyProgram {
   deletedAt         DateTime?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
+  // --- Module 9 additions (additive columns only) ---
+  /// "Favorite" star, distinct from Bookmark (which is a generic
+  /// cross-entity favorites list) — kept as a direct column since every
+  /// program list view needs it and a join against Bookmark for every row
+  /// would be needless overhead for something this cheap to store inline.
+  favorite          Boolean                @default(false)
+  /// Safe Harbor language, kept separate from `rulesMarkdown` (general
+  /// policy) since Safe Harbor is a distinct, often-quoted legal clause
+  /// hunters look up specifically before testing.
+  safeHarbor        String?
+  /// Structured rate-limit rules, e.g. `{ "requestsPerSecond": 5,
+  /// "concurrentScans": 1, "notes": "no automated scanning 22:00-06:00 UTC" }`
+  /// — kept as Json (not fixed columns) since programs express this
+  /// wildly differently and the Recon/Scanner job schedulers only need to
+  /// read it as advisory metadata, not enforce it mechanically yet.
+  rateLimits        Json?
+  /// Set by the Program Importer on every successful (re-)import — powers
+  /// "detect updates automatically" (see importers/program-update-detector.ts):
+  /// a re-import computes a fresh fingerprint of the normalized payload and
+  /// compares it against this column to decide whether anything changed.
+  lastImportedAt    DateTime?
+  importFingerprint String?
 
   workspace     Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project       Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -1573,9 +1769,11 @@ model BugBountyProgram {
   findings      BugBountyFinding[]
   reports       BugReport[]
   calendarEvents BugBountyCalendarEvent[]
+  scheduledJobs ScheduledJob[]
 
   @@index([workspaceId, status])
   @@index([projectId])
+  @@index([workspaceId, favorite])
   @@map("bugbounty_programs")
 }
 
@@ -1617,13 +1815,26 @@ model BugBountyProgramTarget {
   @@map("bugbounty_program_targets")
 }
 
+/// Module 9 adds DRAFT/INFORMATIVE/ACCEPTED/REJECTED, additive to Module
+/// 6's original 9-value lifecycle — mapping onto the spec's requested
+/// Draft/Validated/Confirmed/Reported/Duplicate/Informative/Accepted/
+/// Resolved/Closed/Rejected list as: DRAFT->Draft, NEW/TRIAGED->Validated,
+/// VERIFIED->Confirmed, REPORTED->Reported, DUPLICATE->Duplicate,
+/// INFORMATIVE->Informative, ACCEPTED->Accepted, RESOLVED->Resolved,
+/// CLOSED/ARCHIVED->Closed, REJECTED->Rejected. Existing rows and code
+/// referencing NEW/TRIAGED/VERIFIED/... are unaffected; DRAFT is the new
+/// default entry point for findings created before they're validated.
 enum BugBountyFindingStage {
+  DRAFT
   NEW
   TRIAGED
   VERIFIED
   REPORTED
   DUPLICATE
+  INFORMATIVE
+  ACCEPTED
   NEED_MORE_INFO
+  REJECTED
   RESOLVED
   CLOSED
   ARCHIVED
@@ -1664,6 +1875,34 @@ model BugBountyFinding {
   deletedAt     DateTime?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
+  // --- Module 9 additions: standardized vulnerability classification, on
+  // top of the existing free-text `cwe` field (kept for backward compat —
+  // pre-Module-9 findings already have a `cwe` string; this doesn't touch
+  // that data, it adds three more classification axes alongside it). ---
+  /// CAPEC (Common Attack Pattern Enumeration and Classification) id,
+  /// e.g. "CAPEC-66" for SQL Injection — one per finding, since CAPEC
+  /// patterns are attack-technique-level and a finding is normally one
+  /// technique; free text (not an enum) because CAPEC's ~600 entries
+  /// change independently of this schema.
+  capec         String?
+  /// Reuses Module 4's OwaspCategory enum (OWASP Top 10 mapping) rather
+  /// than introducing a second one — the categories are the same list
+  /// regardless of whether the finding originated from a Vuln Scan or was
+  /// entered manually as a bug-bounty finding.
+  owaspCategory OwaspCategory?
+  /// MITRE ATT&CK technique references, e.g.
+  /// `[{"id":"T1190","name":"Exploit Public-Facing Application"}]` — kept
+  /// as Json array (not a join table) since a finding can map to more
+  /// than one technique and this is descriptive metadata, not something
+  /// queried/filtered on at scale yet.
+  mitreAttack   Json?
+  /// The individual CVSS 3.1 vector components the calculator UI was
+  /// last run with (see cvss/cvss-calculator.util.ts), e.g.
+  /// `{"AV":"N","AC":"L","PR":"N","UI":"N","S":"U","C":"H","I":"H","A":"H"}`
+  /// — stored alongside the derived `cvssScore`/`cvssVector` strings so
+  /// the calculator can be re-opened pre-filled instead of having to
+  /// re-parse the vector string every time.
+  cvssBreakdown Json?
 
   workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -1719,6 +1958,62 @@ enum BugReportStatus {
   CLOSED
 }
 
+/// Module 9 — the report's *audience/purpose* template, orthogonal to
+/// `BugReportTemplate` above (which is really an export/platform-format
+/// choice: HackerOne-shaped Markdown vs. plain Markdown vs. HTML). A
+/// report can be, say, a CLIENT-kind report exported in HTML format, or a
+/// BUG_BOUNTY-kind report exported HackerOne-shaped. Kept as a second
+/// field rather than folding into `BugReportTemplate` to avoid a breaking
+/// rename of that enum (see the file-level "Do NOT rewrite previous
+/// modules" constraint).
+enum ReportTemplateKind {
+  EXECUTIVE
+  TECHNICAL
+  BUG_BOUNTY
+  CLIENT
+  COMPLIANCE
+  CUSTOM
+}
+
+/// Export format, used by the report export endpoint alongside the
+/// existing `BugReportExportFormat` shared-package union — DOCX/TXT are
+/// new in Module 9 (Module 6 only had PDF/Markdown/HTML/JSON/CSV, and CSV
+/// was never really a "report" format so much as a findings-list export).
+enum ReportExportFormat {
+  MARKDOWN
+  PDF
+  DOCX
+  HTML
+  JSON
+  TXT
+}
+
+/// A workspace-defined custom report template — an ordered list of named
+/// Markdown sections (with `{{placeholders}}` resolved from the
+/// BugReport/Finding/Program at render time by
+/// `reports/custom-template-renderer.ts`), for when none of the five
+/// built-in ReportTemplateKind values fit (e.g. a specific client's own
+/// required report structure).
+model ReportCustomTemplate {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  /// `[{"heading": "Executive Summary", "bodyTemplate": "..."}]`
+  sections    Json
+  createdBy   String
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation(fields: [createdBy], references: [id])
+  reports   BugReport[]
+
+  @@index([workspaceId])
+  @@map("report_custom_templates")
+}
+
 /// `version` is optimistic locking on the draft — the one genuinely new
 /// concurrency-control pattern this module introduces (grepped: no
 /// existing model in this schema uses a version column; see ADR 0006 for
@@ -1754,6 +2049,19 @@ model BugReport {
   currency           String?           @default("USD")
   platformReportUrl  String?
   platformReportId   String?
+  // --- Module 9 additions ---
+  templateKind       ReportTemplateKind @default(BUG_BOUNTY)
+  customTemplateId   String?
+  /// Set on the last AI grammar-correction pass (Report Builder's
+  /// "Grammar correction" feature) — distinct from `aiGeneratedAt`
+  /// (which marks a full draft generation) so the UI can show "grammar
+  /// checked 2 hours ago" without implying the whole report was
+  /// regenerated.
+  grammarCheckedAt   DateTime?
+  /// Set on the last AI technical-review pass ("Technical review" —
+  /// checks CVSS/CWE consistency, missing repro steps, vague impact
+  /// language) — stores the reviewer's findings, not just a timestamp.
+  technicalReview    Json?
   submittedAt        DateTime?
   /// Set when status first transitions to TRIAGED — feeds Statistics'
   /// averageTimeToTriagedHours (submittedAt -> triagedAt).
@@ -1771,6 +2079,7 @@ model BugReport {
   program        BugBountyProgram    @relation(fields: [programId], references: [id], onDelete: Cascade)
   finding        BugBountyFinding?   @relation(fields: [findingId], references: [id], onDelete: SetNull)
   creator        User                @relation(fields: [createdBy], references: [id])
+  customTemplate ReportCustomTemplate? @relation(fields: [customTemplateId], references: [id], onDelete: SetNull)
   evidenceLinks  BugReportEvidence[]
   calendarEvents BugBountyCalendarEvent[]
   knowledgeBaseNotes KnowledgeBaseNote[]
@@ -1849,6 +2158,25 @@ model PayloadLibraryEntry {
 /// direct FKs (matches Note.targetId in Module 2) rather than a polymorphic
 /// reference, since there are only three link targets and all three are
 /// well-known types.
+/// Module 9 — distinguishes the Knowledge Base's original free-form NOTE
+/// kind from the more structured reference material the spec asks for
+/// (Cheat Sheets, Methodologies, Playbooks, CVE references, Tool
+/// references, saved AI conversation snapshots). Deliberately not
+/// separate tables per kind: every one of these is fundamentally
+/// "a title + Markdown body + optional checklist + tags + optional
+/// entity links", so one table with a discriminator column avoids seven
+/// near-identical models and seven near-identical repositories/CRUD
+/// surfaces for what the UI can render with one form + a kind picker.
+enum KnowledgeBaseEntryKind {
+  NOTE
+  CHEAT_SHEET
+  METHODOLOGY
+  PLAYBOOK
+  CVE_REFERENCE
+  TOOL_REFERENCE
+  AI_CONVERSATION_SNAPSHOT
+}
+
 model KnowledgeBaseNote {
   id               String    @id @default(uuid())
   workspaceId      String
@@ -1863,6 +2191,24 @@ model KnowledgeBaseNote {
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  // --- Module 9 additions ---
+  kind             KnowledgeBaseEntryKind @default(NOTE)
+  /// Tagging support (spec: "Support tagging"). A plain array, matching
+  /// every other tags column in this schema (BugBountyProgram.tags,
+  /// PayloadLibraryEntry.tags, ...) rather than routing through the
+  /// generic Tag/ProjectTag/TargetTag join-table system (Module 2), since
+  /// that system is Project/Target-scoped specifically and KB entries are
+  /// workspace-wide.
+  tags             String[] @default([])
+  /// For kind=CVE_REFERENCE: the CVE identifier, e.g. "CVE-2024-12345" —
+  /// nullable/unused for every other kind. A dedicated column (not just a
+  /// tag) because CVE lookups need to be exact-match indexed.
+  cveId            String?
+  /// For kind=AI_CONVERSATION_SNAPSHOT: the source AiConversation this
+  /// snapshot was saved from (see knowledge-base.commands.ts's
+  /// `saveConversationSnapshot` — a point-in-time copy, not a live link,
+  /// so the KB entry survives the original conversation being deleted).
+  sourceConversationId String?
 
   workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -1874,6 +2220,7 @@ model KnowledgeBaseNote {
   @@index([workspaceId])
   @@index([projectId])
   @@index([targetId])
+  @@index([workspaceId, kind])
   @@map("knowledge_base_notes")
 }
 
@@ -1883,6 +2230,7 @@ enum BookmarkEntityType {
   REPORT
   PAYLOAD
   NOTE
+  PROGRAM
 }
 
 /// Loose reference (entityType/entityId, no DB-level FK) — same pattern as
@@ -1945,6 +2293,9 @@ enum BugBountyNotificationType {
   REMINDER
   PROGRAM_UPDATE
   AI_RECOMMENDATION
+  // Module 10 — Automation Engine: raised by a Workflow's `notify` step
+  // (see automation-engine/workflow-executor.service.ts).
+  WORKFLOW_ALERT
 }
 
 /// `relatedEntityType`/`relatedEntityId` is a loose reference, same
@@ -1967,4 +2318,1484 @@ model BugBountyNotification {
   @@index([userId, readAt])
   @@index([workspaceId, createdAt])
   @@map("bugbounty_notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Module 9 — Bug Bounty Platform + Collaboration + Reporting Suite
+// See docs/adr/0009-bug-bounty-operating-system.md. Everything below this
+// line is additive: new models/enums only, plus the additive column/enum
+// edits made earlier in this file (grep "Module 9" throughout for every
+// touch point). No Module 1-8 model was renamed, dropped, or had a
+// required column added to an existing row set without a default.
+// ---------------------------------------------------------------------------
+
+// --- Collaboration -----------------------------------------------------
+
+enum WorkspaceInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+/// An outstanding invite to join a Workspace at a given role. Distinct
+/// from WorkspaceMember (which is the accepted, active membership row) —
+/// mirrors the EmailVerificationToken/PasswordResetToken pattern already
+/// in this schema (a bearer token, an expiry, a status) rather than
+/// inventing a new one.
+model WorkspaceInvite {
+  id               String                @id @default(uuid())
+  workspaceId      String
+  email            String
+  role             WorkspaceMemberRole   @default(MEMBER)
+  token            String                @unique
+  status           WorkspaceInviteStatus @default(PENDING)
+  invitedBy        String
+  acceptedByUserId String?
+  expiresAt        DateTime
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter    User      @relation("WorkspaceInviteInviter", fields: [invitedBy], references: [id])
+  acceptedBy User?     @relation("WorkspaceInviteAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([email])
+  @@map("workspace_invites")
+}
+
+/// Polymorphic (loose-reference, no DB FK) entity comment thread — same
+/// established pattern as Bookmark/ActivityEvent for "must be able to
+/// point at several different tables". `parentCommentId` makes this a
+/// one-level-deep reply thread (a reply's own replies are flattened under
+/// the same parent in the UI) rather than unbounded nesting, which is
+/// enough for the spec's "Comments" + "Mentions" requirement without the
+/// query complexity of a real tree.
+enum CommentEntityType {
+  PROGRAM
+  FINDING
+  REPORT
+  TARGET
+  NOTE
+  TASK
+}
+
+model Comment {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  entityType     CommentEntityType
+  entityId       String
+  authorId       String
+  bodyMarkdown   String
+  parentCommentId String?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id])
+  parent    Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  mentions  Mention[]
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([parentCommentId])
+  @@map("comments")
+}
+
+/// One row per @mentioned user in a Comment — lets the mentioned user's
+/// notification feed and "unread mentions" badge query directly by
+/// `mentionedUserId` instead of parsing `bodyMarkdown` for `@handles` on
+/// every read.
+model Mention {
+  id              String    @id @default(uuid())
+  commentId       String
+  mentionedUserId String
+  createdAt       DateTime  @default(now())
+  readAt          DateTime?
+
+  comment       Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUser User    @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId, readAt])
+  @@map("mentions")
+}
+
+enum AssignableEntityType {
+  PROGRAM
+  FINDING
+  REPORT
+  TARGET
+  TASK
+}
+
+enum AssignmentStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+/// "Assign this Finding/Report/Target/Task to a teammate" — separate from
+/// Comment/Mention since an assignment is a stateful piece of work
+/// tracking (has its own OPEN/IN_PROGRESS/DONE lifecycle and a due date),
+/// not a message. One active assignment per entity is not enforced at the
+/// DB level (a Program could reasonably have more than one active
+/// assignee, e.g. co-triagers) — the API layer decides whether to allow
+/// multiples per entityId.
+model Assignment {
+  id         String               @id @default(uuid())
+  workspaceId String
+  entityType AssignableEntityType
+  entityId   String
+  assigneeId String
+  assignedBy String
+  status     AssignmentStatus     @default(OPEN)
+  dueAt      DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee  User      @relation("AssignmentAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  assigner  User      @relation("AssignmentAssigner", fields: [assignedBy], references: [id])
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([assigneeId, status])
+  @@map("assignments")
+}
+
+/// A lightweight to-do item — the spec's "Task Lists", distinct from
+/// Assignment (which attaches to an *existing* domain entity like a
+/// Finding) in that a Task can exist standalone ("write the monthly
+/// report", "rotate the pairing token") with only an optional loose link
+/// back to whatever it's about.
+model TaskItem {
+  id          String    @id @default(uuid())
+  workspaceId String
+  projectId   String?
+  entityType  String?
+  entityId    String?
+  title       String
+  description String?
+  done        Boolean   @default(false)
+  assigneeId  String?
+  dueAt       DateTime?
+  createdBy   String
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee  User?     @relation("TaskItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator   User      @relation("TaskItemCreator", fields: [createdBy], references: [id])
+
+  @@index([workspaceId, done])
+  @@index([assigneeId, done])
+  @@map("task_items")
+}
+
+// --- Automation (scheduled jobs) ---------------------------------------
+
+enum ScheduledJobKind {
+  DAILY_RECON
+  WEEKLY_NUCLEI
+  MONTHLY_ASSET_DISCOVERY
+  SCOPE_REFRESH
+  SCREENSHOT_UPDATE
+  REPORT_BACKUP
+  CUSTOM
+}
+
+enum ScheduledJobRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// A recurring job definition. `cronExpression` is standard 5-field cron
+/// (evaluated by the same lightweight in-process scheduler described in
+/// automation/scheduled-job-runner.service.ts — no external job queue
+/// infra added for this). `kind` selects which handler runs; `config` is
+/// kind-specific (e.g. DAILY_RECON's config picks which recon tools to
+/// run). This is a *server-side* schedule for workspace-linked
+/// automation; the Desktop Agent (Module 7) has its own local job
+/// scheduling for fully offline recon and is unaffected by this table.
+model ScheduledJob {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  projectId      String?
+  programId      String?
+  targetId       String?
+  name           String
+  kind           ScheduledJobKind
+  cronExpression String
+  config         Json?
+  enabled        Boolean           @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  lastRunStatus  ScheduledJobRunStatus?
+  createdBy      String
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  program   BugBountyProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  target    Target?           @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  creator   User              @relation(fields: [createdBy], references: [id])
+  runs      ScheduledJobRun[]
+
+  @@index([workspaceId, enabled])
+  @@index([nextRunAt])
+  @@map("scheduled_jobs")
+}
+
+model ScheduledJobRun {
+  id             String                @id @default(uuid())
+  scheduledJobId String
+  status         ScheduledJobRunStatus @default(PENDING)
+  startedAt      DateTime              @default(now())
+  finishedAt     DateTime?
+  log            String?
+  resultSummary  Json?
+
+  scheduledJob ScheduledJob @relation(fields: [scheduledJobId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledJobId, startedAt])
+  @@map("scheduled_job_runs")
+}
+
+// --- Notifications: multi-channel delivery ------------------------------
+
+enum NotificationChannel {
+  DESKTOP
+  BROWSER
+  EMAIL
+  WEBHOOK
+  DISCORD
+  SLACK
+  TELEGRAM
+  CUSTOM_API
+}
+
+/// Per-user (or workspace-default, when `userId` is null) delivery
+/// configuration for one channel. `config` is channel-shaped Json, e.g.
+/// `{"webhookUrl": "..."}` for DISCORD/SLACK, `{"botToken": "...",
+/// "chatId": "..."}` for TELEGRAM, `{"endpoint": "...", "headers": {...}}`
+/// for CUSTOM_API — any secret inside it (webhook URLs count, since they're
+/// bearer-capability URLs; bot tokens definitely) is encrypted at rest
+/// with the same AES-256-GCM envelope `security/encryption.service.ts`
+/// already uses for AiProviderCredential (Module 5 Phase 1 BYOK), reused
+/// here rather than re-implemented.
+model NotificationChannelConfig {
+  id          String              @id @default(uuid())
+  workspaceId String
+  userId      String?
+  channel     NotificationChannel
+  config      Json
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, channel])
+  @@index([userId, channel])
+  @@map("notification_channel_configs")
+}
+
+/// One row per (notification, channel) delivery attempt — lets the
+/// Notification Center show "delivered to Slack, failed on Telegram"
+/// instead of a single opaque status, and gives the multi-channel
+/// dispatcher (notifications-channels/notification-dispatcher.service.ts)
+/// something to retry against.
+model NotificationDelivery {
+  id             String              @id @default(uuid())
+  notificationId String
+  channel        NotificationChannel
+  status         String
+  error          String?
+  deliveredAt    DateTime?
+  createdAt      DateTime            @default(now())
+
+  notification BugBountyNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("notification_deliveries")
+}
+
+// --- Public API: webhook tokens -----------------------------------------
+
+/// Outbound webhook registration — distinct from ApiKey (which
+/// authenticates *inbound* requests to PentestHub's API). `secret` signs
+/// the outbound payload (HMAC-SHA256, header `X-PentestHub-Signature`) so
+/// the receiving endpoint can verify authenticity; encrypted at rest the
+/// same way NotificationChannelConfig's secrets are.
+model WebhookToken {
+  id              String    @id @default(uuid())
+  workspaceId     String
+  name            String
+  url             String
+  secret          String
+  events          String[]
+  enabled         Boolean   @default(true)
+  lastTriggeredAt DateTime?
+  createdBy       String
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation(fields: [createdBy], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId, enabled])
+  @@map("webhook_tokens")
+}
+
+/// One row per delivery attempt of a real domain event to a
+/// WebhookToken's URL. Module 10 addition — the Module 9 WebhookToken
+/// model only supported manual registration + an on-demand `test`
+/// delivery; this is what turns it into an actual event-driven webhook
+/// system: WebhookDispatchHandler (in
+/// apps/api/src/modules/public-api/webhooks/) listens on the same
+/// EventBus every ActivityDomainEvent already flows through, matches
+/// `event.verb` against each enabled WebhookToken's `events` array (or a
+/// `"*"` wildcard subscription), and inserts one PENDING row per match.
+/// WebhookDeliveryQueueService (a minute-tick poller, same hand-rolled
+/// `setInterval` pattern as ScheduledJobRunnerService/
+/// ReportScheduleRunnerService — see those files' doc comments for why
+/// no `@nestjs/schedule` dependency is used) then delivers PENDING rows
+/// with exponential backoff up to `maxAttempts`, moving anything still
+/// failing after that to DEAD_LETTER for manual redelivery via the
+/// `POST .../deliveries/:id/redeliver` route.
+model WebhookDelivery {
+  id            String                @id @default(uuid())
+  webhookTokenId String
+  event         String
+  payload       Json
+  status        WebhookDeliveryStatus @default(PENDING)
+  attempt       Int                   @default(0)
+  maxAttempts   Int                   @default(6)
+  statusCode    Int?
+  error         String?
+  nextAttemptAt DateTime              @default(now())
+  deliveredAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  webhookToken WebhookToken @relation(fields: [webhookTokenId], references: [id], onDelete: Cascade)
+
+  @@index([webhookTokenId, status])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+// =============================================================================
+// Module 10 — Enterprise Platform + SaaS + Global Infrastructure
+//
+// Everything below is additive, per the project's standing schema-evolution
+// rule (see docs/adr/0010-enterprise-platform.md). `Workspace` keeps its
+// Module 1-9 meaning unchanged (a single-team working area); `Organization`
+// is a new, optional tenant layer *above* it — a Workspace's `organizationId`
+// is nullable specifically so every personal/small-team workspace created by
+// Modules 1-9 keeps working with zero migration. Enterprise customers get
+// Organization -> Department/Team -> Workspace; everyone else never needs to
+// know Organization exists.
+// =============================================================================
+
+// --- Multi-tenant architecture ----------------------------------------------
+
+enum OrganizationStatus {
+  ACTIVE
+  TRIAL
+  SUSPENDED
+  ARCHIVED
+}
+
+/// The tenant. A Workspace optionally belongs to one Organization; an
+/// Organization has many Workspaces, Departments, and Teams. Tenant
+/// isolation is enforced the same way workspace isolation always has been
+/// in this codebase — every query scopes by `organizationId`, enumeration-
+/// safe 404s on cross-tenant access (see `enterprise/tenant-scope.util.ts`).
+model Organization {
+  id        String             @id @default(uuid())
+  name      String
+  slug      String             @unique
+  domain    String?
+  logoUrl   String?
+  plan      String             @default("free")
+  status    OrganizationStatus @default(ACTIVE)
+  createdBy String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  creator User @relation("OrganizationCreator", fields: [createdBy], references: [id])
+
+  members                OrganizationMember[]
+  departments            Department[]
+  teams                  Team[]
+  workspaces             Workspace[]
+  invites                OrganizationInvite[]
+  quota                  ResourceQuota?
+  settings               OrganizationSettings?
+  customRoles            CustomRole[]
+  permissionGroups       PermissionGroup[]
+  resourcePermissions    ResourcePermission[]
+  temporaryPermissions   TemporaryPermission[]
+  approvalWorkflows      ApprovalWorkflow[]
+  approvalRequests       ApprovalRequest[]
+  workerNodes            WorkerNode[]
+  distributedJobs        DistributedJob[]
+  installedPlugins       PluginInstallation[]
+  publishedPlugins       Plugin[]
+  integrationConnections IntegrationConnection[]
+  wikiPages              WikiPage[]
+  reviewQueueItems       ReviewQueueItem[]
+  chatChannels           InternalChatChannel[]
+  enterpriseReports      EnterpriseReport[]
+  reportSchedules        ReportSchedule[]
+  slaPolicies            SlaPolicy[]
+  dataRetentionPolicies  DataRetentionPolicy[]
+  backupPolicies         BackupPolicy[]
+  complianceExports      ComplianceExportRequest[]
+  apiRequestLogs         ApiRequestLog[]
+  workflows              Workflow[]
+
+  @@map("organizations")
+}
+
+/// Ten-level enterprise role hierarchy (Module 10 spec). Deliberately kept
+/// separate from `WorkspaceMemberRole` (Module 1) and the bug-bounty
+/// Collaboration roles (Module 9) rather than merging: those two answer
+/// "what can you do inside one workspace," this answers "what can you do
+/// across a whole tenant." `enterprise/enterprise-permissions.util.ts`
+/// defines the total order and the action->minimum-role matrix, mirroring
+/// the pattern `collaboration/permissions.util.ts` established in Module 9.
+enum EnterpriseRole {
+  SUPER_ADMIN
+  ORG_OWNER
+  ADMIN
+  SECURITY_MANAGER
+  TEAM_LEAD
+  PENTESTER
+  BUG_HUNTER
+  DEVELOPER
+  VIEWER
+  GUEST
+}
+
+enum OrganizationMemberStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model OrganizationMember {
+  id             String                    @id @default(uuid())
+  organizationId String
+  userId         String
+  role           EnterpriseRole            @default(VIEWER)
+  departmentId   String?
+  status         OrganizationMemberStatus  @default(ACTIVE)
+  joinedAt       DateTime                  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teamMemberships TeamMember[]
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+/// Self-referencing hierarchy (`parentDepartmentId`) — "Department support"
+/// in the spec. A department groups Teams and OrganizationMembers under one
+/// manager; nesting depth is unbounded, walked at read time
+/// (`enterprise/department-hierarchy.util.ts`), not materialized.
+model Department {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  name               String
+  parentDepartmentId String?
+  managerUserId      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentDepartment Department?   @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: SetNull)
+  childDepartments Department[]  @relation("DepartmentHierarchy")
+  manager          User?         @relation("DepartmentManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  members          OrganizationMember[]
+  teams            Team[]
+
+  @@index([organizationId])
+  @@map("departments")
+}
+
+/// "Team hierarchy" — nested via `parentTeamId`, distinct from Department
+/// (a department is an org unit; a team is a working group that may span,
+/// or sit inside, a department, and owns zero or more Workspaces where the
+/// actual pentest/bug-bounty work happens).
+model Team {
+  id             String   @id @default(uuid())
+  organizationId String
+  departmentId   String?
+  parentTeamId   String?
+  name           String
+  leadUserId     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  parentTeam   Team?        @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
+  childTeams   Team[]       @relation("TeamHierarchy")
+  lead         User?        @relation("TeamLead", fields: [leadUserId], references: [id], onDelete: SetNull)
+  members      TeamMember[]
+  workspaces   Workspace[]
+
+  @@index([organizationId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id                   String   @id @default(uuid())
+  teamId               String
+  organizationMemberId String
+  joinedAt             DateTime @default(now())
+
+  team               Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organizationMember OrganizationMember @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, organizationMemberId])
+  @@map("team_members")
+}
+
+enum OrganizationInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model OrganizationInvite {
+  id             String                    @id @default(uuid())
+  organizationId String
+  email          String
+  role           EnterpriseRole
+  departmentId   String?
+  teamId         String?
+  invitedBy      String
+  token          String                    @unique
+  status         OrganizationInviteStatus  @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime                  @default(now())
+  acceptedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation("OrganizationInviteInviter", fields: [invitedBy], references: [id])
+
+  @@index([organizationId, status])
+  @@index([email])
+  @@map("organization_invites")
+}
+
+/// "Resource quotas" — soft limits checked at write time
+/// (`enterprise/quota-enforcement.util.ts`); exceeding one raises a normal
+/// 403 `QUOTA_EXCEEDED`, never a hard outage. `null` on any field means
+/// unlimited (paid/custom plans).
+model ResourceQuota {
+  id                    String   @id @default(uuid())
+  organizationId        String   @unique
+  maxWorkspaces         Int?
+  maxMembers            Int?
+  maxTeams              Int?
+  maxStorageMb          Int?
+  maxScansPerMonth      Int?
+  maxAiTokensPerMonth   Int?
+  maxApiKeysPerMember   Int?
+  maxWebhooksPerWorkspace Int?
+  updatedAt             DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("resource_quotas")
+}
+
+model OrganizationSettings {
+  id                    String   @id @default(uuid())
+  organizationId        String   @unique
+  enforceMfa            Boolean  @default(false)
+  allowedEmailDomains   String[]
+  defaultMemberRole     EnterpriseRole @default(VIEWER)
+  sessionTimeoutMinutes Int?
+  dataResidency         String?
+  updatedAt             DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}
+
+// --- RBAC & ABAC expansion ---------------------------------------------------
+
+/// "Custom roles" — an organization can define a role beyond the fixed
+/// `EnterpriseRole` ladder. `basedOnRole` anchors it at a rank in the total
+/// order (for `requireRole()`-style comparisons) while
+/// `CustomRolePermission` rows add specific permission keys on top.
+model CustomRole {
+  id             String          @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  basedOnRole    EnterpriseRole  @default(VIEWER)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  CustomRolePermission[]
+
+  @@unique([organizationId, name])
+  @@map("custom_roles")
+}
+
+model CustomRolePermission {
+  id            String @id @default(uuid())
+  customRoleId  String
+  permissionKey String
+
+  customRole CustomRole @relation(fields: [customRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([customRoleId, permissionKey])
+  @@map("custom_role_permissions")
+}
+
+/// A named, reusable bundle of permission keys ("Read-only auditor",
+/// "Report reviewer") an org admin can hand out without minting a whole
+/// CustomRole.
+model PermissionGroup {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  permissionKeys String[]
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@map("permission_groups")
+}
+
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
+enum PermissionSubjectType {
+  USER
+  TEAM
+  ROLE
+}
+
+/// ABAC: an explicit rule grants or denies an action on a specific resource
+/// (or resource type) to a subject, optionally gated by JSON-encoded
+/// attribute conditions (e.g. `{"resourceOwnerId": "$self"}` or
+/// `{"tag": "production"}`), evaluated by
+/// `enterprise/abac-evaluator.util.ts`. DENY always wins over ALLOW when
+/// both match — same "most restrictive wins" rule Module 6's scope
+/// classifier already uses for OUT_OF_SCOPE vs IN_SCOPE.
+model ResourcePermission {
+  id             String                 @id @default(uuid())
+  organizationId String
+  subjectType    PermissionSubjectType
+  subjectId      String
+  resourceType   String
+  resourceId     String?
+  action         String
+  effect         PermissionEffect       @default(ALLOW)
+  conditions     Json?
+  createdAt      DateTime               @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, resourceType, resourceId])
+  @@index([subjectType, subjectId])
+  @@map("resource_permissions")
+}
+
+/// Time-boxed permission grant ("break glass" access, temporary elevated
+/// review rights). Expired rows are simply ignored by the evaluator rather
+/// than deleted, preserving an audit trail of what was granted and when.
+model TemporaryPermission {
+  id             String    @id @default(uuid())
+  organizationId String
+  userId         String
+  permissionKey  String
+  resourceType   String?
+  resourceId     String?
+  grantedBy      String
+  reason         String?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("TemporaryPermissionUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantor      User         @relation("TemporaryPermissionGrantor", fields: [grantedBy], references: [id])
+
+  @@index([organizationId, userId])
+  @@map("temporary_permissions")
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// Defines what needs sign-off (e.g. "publishing a plugin", "exporting
+/// compliance data") and who can approve it; `ApprovalRequest` is one
+/// instance of that workflow being triggered.
+model ApprovalWorkflow {
+  id               String          @id @default(uuid())
+  organizationId   String
+  name             String
+  resourceType     String
+  requiredApprovals Int            @default(1)
+  approverRole     EnterpriseRole  @default(ADMIN)
+  enabled          Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requests     ApprovalRequest[]
+
+  @@map("approval_workflows")
+}
+
+model ApprovalRequest {
+  id             String                 @id @default(uuid())
+  workflowId     String
+  organizationId String
+  requestedBy    String
+  resourceType   String
+  resourceId     String
+  reason         String?
+  status         ApprovalRequestStatus  @default(PENDING)
+  decidedBy      String?
+  decisionNote   String?
+  createdAt      DateTime               @default(now())
+  decidedAt      DateTime?
+
+  workflow     ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester    User             @relation("ApprovalRequestRequester", fields: [requestedBy], references: [id])
+  decider      User?            @relation("ApprovalRequestDecider", fields: [decidedBy], references: [id])
+
+  @@index([organizationId, status])
+  @@map("approval_requests")
+}
+
+// --- Distributed job system --------------------------------------------------
+
+enum WorkerNodeStatus {
+  ONLINE
+  DRAINING
+  OFFLINE
+  UNHEALTHY
+}
+
+/// A single worker process (the existing `worker.main.ts` binary, or a
+/// future dedicated machine) registers itself here and renews
+/// `lastHeartbeatAt` on an interval; `enterprise/worker-health.util.ts`
+/// marks a node UNHEALTHY once its heartbeat is older than a threshold, and
+/// the scheduler stops assigning it new jobs. This is additive
+/// infrastructure alongside the existing single-process
+/// `ReconJobPollerService`/`VulnScanJobPollerService` pollers (Modules 3-4)
+/// — see ADR 0010 §3 for why those were not rewritten to use it yet.
+model WorkerNode {
+  id               String           @id @default(uuid())
+  organizationId   String?
+  name             String
+  hostname         String
+  status           WorkerNodeStatus @default(ONLINE)
+  capabilities     String[]
+  maxConcurrency   Int              @default(4)
+  currentLoad      Int              @default(0)
+  registeredAt     DateTime         @default(now())
+  lastHeartbeatAt  DateTime         @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobs         DistributedJob[]
+  jobEvents    JobEvent[]
+
+  @@index([status])
+  @@map("worker_nodes")
+}
+
+enum DistributedJobPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum DistributedJobStatus {
+  QUEUED
+  ASSIGNED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+/// The generic distributed-queue row: `type` + `payload` describe the unit
+/// of work (recon scan, report render, workflow step, ...), not a fixed
+/// enum of job kinds — new job types need zero schema change, matching the
+/// Desktop Agent's `offline_queue` design philosophy (Module 7).
+model DistributedJob {
+  id             String                  @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  type           String
+  payload        Json
+  priority       DistributedJobPriority  @default(NORMAL)
+  status         DistributedJobStatus    @default(QUEUED)
+  workerId       String?
+  attempts       Int                     @default(0)
+  maxAttempts    Int                     @default(3)
+  lastError      String?
+  scheduledFor   DateTime?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdBy      String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  worker       WorkerNode?   @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  events       JobEvent[]
+
+  @@index([status, priority, scheduledFor])
+  @@index([workerId])
+  @@map("distributed_jobs")
+}
+
+enum JobEventType {
+  QUEUED
+  ASSIGNED
+  STARTED
+  RETRIED
+  MIGRATED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model JobEvent {
+  id        String       @id @default(uuid())
+  jobId     String
+  workerId  String?
+  type      JobEventType
+  message   String?
+  createdAt DateTime     @default(now())
+
+  job    DistributedJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  worker WorkerNode?    @relation(fields: [workerId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@map("job_events")
+}
+
+// --- Plugin marketplace -------------------------------------------------------
+
+enum PluginCategory {
+  RECON
+  SCANNERS
+  AI_TOOLS
+  REPORTING
+  INTEGRATIONS
+  DASHBOARDS
+  UTILITIES
+}
+
+enum PluginStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+  SUSPENDED
+}
+
+model Plugin {
+  id             String         @id @default(uuid())
+  organizationId String?
+  slug           String         @unique
+  name           String
+  category       PluginCategory
+  description    String
+  authorUserId   String
+  status         PluginStatus   @default(DRAFT)
+  iconUrl        String?
+  homepageUrl    String?
+  repoUrl        String?
+  /// Rendered on the marketplace's plugin detail page — the "Documentation"
+  /// spec line item. Free-form Markdown, author-supplied, separate from
+  /// `description` (a short one-liner for list views).
+  documentationMarkdown String?
+  verified       Boolean        @default(false)
+  downloadCount  Int            @default(0)
+  ratingAverage  Float          @default(0)
+  ratingCount    Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  author       User                 @relation("PluginAuthor", fields: [authorUserId], references: [id])
+  versions     PluginVersion[]
+  installs     PluginInstallation[]
+  ratings      PluginRating[]
+
+  @@index([category, status])
+  @@map("plugins")
+}
+
+/// `manifestJson` is the plugin's declared entry points, required
+/// capabilities, and config schema. `permissions` is the flat list of
+/// scopes the plugin asked for (e.g. `["recon:read", "findings:write"]`),
+/// surfaced to an org admin at install time for consent — the same
+/// disclose-before-grant pattern OAuth app installs use.
+/// `signature` is a detached signature over the packaged plugin bundle,
+/// verified before install; an unsigned/invalid-signature version can be
+/// stored (for local dev) but is flagged `verified: false` on its parent
+/// Plugin and blocked from marketplace listing.
+model PluginVersion {
+  id           String   @id @default(uuid())
+  pluginId     String
+  version      String
+  manifestJson Json
+  permissions  String[]
+  dependencies Json?
+  signature    String?
+  /// The submitted source bundle, base64-decoded to plain text at write
+  /// time — what `PluginSandboxService` actually runs. Stored as-is (not
+  /// re-encoded) so `hashPluginBundle()` can be recomputed identically at
+  /// any later point for re-verification.
+  sourceCode   String?
+  changelog    String?
+  deprecated   Boolean  @default(false)
+  publishedAt  DateTime @default(now())
+
+  plugin       Plugin               @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  installations PluginInstallation[]
+
+  @@unique([pluginId, version])
+  @@map("plugin_versions")
+}
+
+model PluginInstallation {
+  id             String   @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  pluginId       String
+  versionId      String
+  installedBy    String
+  enabled        Boolean  @default(true)
+  config         Json?
+  installedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plugin       Plugin        @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  version      PluginVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  installer    User          @relation("PluginInstaller", fields: [installedBy], references: [id])
+
+  @@unique([organizationId, workspaceId, pluginId])
+  @@map("plugin_installations")
+}
+
+model PluginRating {
+  id        String   @id @default(uuid())
+  pluginId  String
+  userId    String
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now())
+
+  plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  user   User   @relation("PluginRater", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, userId])
+  @@map("plugin_ratings")
+}
+
+// --- Integrations -------------------------------------------------------------
+
+enum IntegrationProvider {
+  GITHUB
+  GITLAB
+  JIRA
+  LINEAR
+  SLACK
+  DISCORD
+  MS_TEAMS
+  TELEGRAM
+  NOTION
+  OBSIDIAN
+  GOOGLE_DRIVE
+  DROPBOX
+  AWS
+  AZURE
+  GCP
+}
+
+enum IntegrationConnectionStatus {
+  CONNECTED
+  ERROR
+  DISCONNECTED
+}
+
+/// One connected external account per (organization|workspace, provider).
+/// `credentials` is the encrypted token/secret blob (AES-256-GCM via
+/// `credential-encryption.util.ts`, same service as every other secret in
+/// this codebase); `config` is non-secret adapter settings (default
+/// repo/channel/board id, sync direction). Every integration is optional —
+/// nothing in Modules 1-9 requires a row here to exist.
+model IntegrationConnection {
+  id             String                       @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  provider       IntegrationProvider
+  displayName    String?
+  credentials    String?
+  config         Json?
+  status         IntegrationConnectionStatus  @default(CONNECTED)
+  connectedBy    String
+  lastSyncedAt   DateTime?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connector    User                @relation("IntegrationConnector", fields: [connectedBy], references: [id])
+  syncLogs     IntegrationSyncLog[]
+
+  @@unique([workspaceId, provider])
+  @@index([organizationId, provider])
+  @@map("integration_connections")
+}
+
+enum IntegrationSyncStatus {
+  SUCCESS
+  ERROR
+}
+
+model IntegrationSyncLog {
+  id           String                 @id @default(uuid())
+  connectionId String
+  direction    String
+  status       IntegrationSyncStatus
+  message      String?
+  createdAt    DateTime               @default(now())
+
+  connection IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@map("integration_sync_logs")
+}
+
+// --- Team workspaces (enterprise collaboration) ------------------------------
+
+/// Internal wiki. Self-referencing for nested pages, workspace-scoped (a
+/// wiki belongs to one team's working area) with an optional org-level
+/// pointer for cross-team pages.
+model WikiPage {
+  id              String   @id @default(uuid())
+  organizationId  String?
+  workspaceId     String
+  parentPageId    String?
+  title           String
+  contentMarkdown String
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parentPage   WikiPage?     @relation("WikiPageHierarchy", fields: [parentPageId], references: [id], onDelete: SetNull)
+  childPages   WikiPage[]    @relation("WikiPageHierarchy")
+  author       User          @relation("WikiPageAuthor", fields: [createdBy], references: [id])
+
+  @@index([workspaceId])
+  @@map("wiki_pages")
+}
+
+enum ReviewQueueItemStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A lightweight review/approval queue for team content (a report ready to
+/// submit, a finding ready to publish) — distinct from the heavier,
+/// configurable `ApprovalWorkflow` above: this is the always-on "someone on
+/// the team should eyeball this before it goes out" queue, no workflow
+/// configuration required.
+model ReviewQueueItem {
+  id             String                 @id @default(uuid())
+  organizationId String?
+  workspaceId    String
+  resourceType   String
+  resourceId     String
+  submittedBy    String
+  assignedTo     String?
+  status         ReviewQueueItemStatus  @default(PENDING)
+  note           String?
+  createdAt      DateTime               @default(now())
+  decidedAt      DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  submitter    User          @relation("ReviewQueueSubmitter", fields: [submittedBy], references: [id])
+  assignee     User?         @relation("ReviewQueueAssignee", fields: [assignedTo], references: [id])
+
+  @@index([workspaceId, status])
+  @@map("review_queue_items")
+}
+
+/// Internal team chat — a deliberately simple, REST-polled channel/message
+/// model (not a real-time websocket/presence system; see ADR 0010 §7 for
+/// the scope boundary). Good enough for async team coordination without
+/// building a second messaging product inside this one.
+model InternalChatChannel {
+  id             String   @id @default(uuid())
+  organizationId String?
+  workspaceId    String
+  name           String
+  isPrivate      Boolean  @default(false)
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator      User          @relation("ChatChannelCreator", fields: [createdBy], references: [id])
+  messages     InternalChatMessage[]
+
+  @@unique([workspaceId, name])
+  @@map("internal_chat_channels")
+}
+
+model InternalChatMessage {
+  id        String   @id @default(uuid())
+  channelId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  channel InternalChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author  User                @relation("ChatMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([channelId, createdAt])
+  @@map("internal_chat_messages")
+}
+
+// --- Advanced reporting -------------------------------------------------------
+
+enum EnterpriseReportType {
+  EXECUTIVE
+  TECHNICAL
+  COMPLIANCE
+  AUDIT
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  CUSTOM
+}
+
+/// Organization/workspace-wide report (distinct from Module 6/9's
+/// per-finding `BugReport`) — a rollup document over a time period, with
+/// `contentJson` holding the rendered sections (charts/graphs/timelines/AI
+/// summary/risk matrix/asset inventory/trend analysis data) so the
+/// frontend can render it without recomputing, and export it the same way
+/// Module 6's report exporter already does (HTML/Markdown/JSON/CSV).
+model EnterpriseReport {
+  id             String               @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  type           EnterpriseReportType
+  title          String
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  contentJson    Json
+  generatedBy    String?
+  generatedByAi  Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  generator    User?         @relation("EnterpriseReportGenerator", fields: [generatedBy], references: [id])
+
+  @@index([organizationId, type, createdAt])
+  @@map("enterprise_reports")
+}
+
+/// Recurring report generation (weekly/monthly/quarterly), driven by the
+/// same `ScheduledJob` execution path Module 9 built for program-reimport
+/// automation — this row just describes *what* to generate and to whom.
+model ReportSchedule {
+  id             String               @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  type           EnterpriseReportType
+  cronExpression String
+  recipients     String[]
+  active         Boolean              @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("report_schedules")
+}
+
+// --- Advanced analytics -------------------------------------------------------
+
+/// Target remediation time per severity, feeding the Analytics "SLA
+/// tracking" metric (`% findings resolved within target` /
+/// `avg overage`), computed at read time against `BugBountyFinding`
+/// timestamps — no new finding-level storage needed.
+model SlaPolicy {
+  id             String               @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  severity       VulnFindingSeverity
+  targetHours    Int
+  createdAt      DateTime             @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, workspaceId, severity])
+  @@map("sla_policies")
+}
+
+// --- Compliance ----------------------------------------------------------------
+
+model DataRetentionPolicy {
+  id             String   @id @default(uuid())
+  organizationId String
+  resourceType   String
+  retentionDays  Int
+  autoDelete     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, resourceType])
+  @@map("data_retention_policies")
+}
+
+model BackupPolicy {
+  id             String    @id @default(uuid())
+  organizationId String
+  frequency      String
+  retentionCount Int       @default(7)
+  lastBackupAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId])
+  @@map("backup_policies")
+}
+
+enum ComplianceExportStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+/// GDPR/SOC2/ISO27001-readiness data export (a documented "right to
+/// export/erasure" flow) — `scope` records what was requested (resource
+/// types, date range, subject user), `downloadUrl` is populated once the
+/// export completes.
+model ComplianceExportRequest {
+  id             String                  @id @default(uuid())
+  organizationId String
+  requestedBy    String
+  scope          Json
+  status         ComplianceExportStatus  @default(PENDING)
+  downloadUrl    String?
+  createdAt      DateTime                @default(now())
+  completedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester    User         @relation("ComplianceExportRequester", fields: [requestedBy], references: [id])
+
+  @@index([organizationId, status])
+  @@map("compliance_export_requests")
+}
+
+// --- API platform ----------------------------------------------------------------
+
+/// One row per public-API request, feeding "API analytics" — sampled/
+/// capped in practice (see the query handler), not a permanent full
+/// request log.
+model ApiRequestLog {
+  id             String   @id @default(uuid())
+  organizationId String?
+  apiKeyId       String?
+  method         String
+  path           String
+  statusCode     Int
+  latencyMs      Int
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([apiKeyId, createdAt])
+  @@map("api_request_logs")
+}
+
+// --- Automation engine (visual workflow builder) --------------------------------
+
+enum WorkflowTriggerType {
+  MANUAL
+  SCHEDULE
+  EVENT
+  WEBHOOK
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// `definitionJson` is the serialized step graph a visual builder would
+/// produce: an ordered/branching list of steps, each with a `kind`
+/// (recon/scan/report/notify/ai-analysis/create-ticket/sync-data/condition/
+/// loop/delay), `params`, and `next` pointers — interpreted by
+/// `automation-engine/workflow-executor.service.ts`. Kept as one JSON
+/// column rather than a normalized step table so the schema never needs a
+/// migration when a new step kind is added; validity is enforced in code
+/// (`workflow-definition.schema.ts`, a Zod/class-validator shape), not the
+/// database.
+model Workflow {
+  id             String              @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  name           String
+  description    String?
+  definitionJson Json
+  triggerType    WorkflowTriggerType @default(MANUAL)
+  cronExpression String?
+  // Module 10 addition — only meaningful when triggerType is SCHEDULE;
+  // computed the same way ScheduledJob.nextRunAt is (via
+  // automation/scheduled-job-cron.util.ts's computeNextRunAt), and
+  // polled by WorkflowRunnerService the same way
+  // ScheduledJobRunnerService polls ScheduledJob.nextRunAt.
+  nextRunAt      DateTime?
+  enabled        Boolean             @default(true)
+  createdBy      String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         WorkflowRun[]
+
+  @@index([organizationId, enabled])
+  @@index([triggerType, enabled, nextRunAt])
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id          String            @id @default(uuid())
+  workflowId  String
+  status      WorkflowRunStatus @default(PENDING)
+  triggeredBy String?
+  input       Json?
+  output      Json?
+  error       String?
+  // Module 10 additions — support pausing mid-execution at a `delay`
+  // step and resuming on a later WorkflowRunnerService tick, rather than
+  // blocking a request thread on an in-process sleep. `contextJson`
+  // accumulates each step's output (keyed by stepKey) as the run
+  // progresses, so a step can reference an earlier step's result (see
+  // workflow-executor.service.ts's `resolveTemplate`), and survives a
+  // pause/resume cycle since it's persisted between ticks.
+  contextJson     Json?
+  pausedAtStepKey String?
+  resumeAt        DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  steps    WorkflowStepLog[]
+
+  @@index([workflowId, status])
+  @@index([status, resumeAt])
+  @@map("workflow_runs")
+}
+
+model WorkflowStepLog {
+  id            String    @id @default(uuid())
+  workflowRunId String
+  stepKey       String
+  status        String
+  message       String?
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@index([workflowRunId])
+  @@map("workflow_step_logs")
+}
+
+// Module 10 — High Availability. A row-level distributed lease used by
+// every setInterval-based poller service (WebhookDeliveryQueueService,
+// WorkflowRunnerService, ScheduledJobRunnerService,
+// ReportScheduleRunnerService, DataRetentionEnforcerService,
+// BackupPolicyRunnerService, ComplianceExportProcessorService) so that
+// running N replicas of the API process no longer risks double-running
+// a single tick (previously each of those services' doc comments
+// flagged this as an unimplemented "pin to a single replica" caveat —
+// PollerLeaseService/this table resolves it). `id` is the lease name
+// (e.g. "webhook-delivery-queue"); a replica only proceeds with its
+// tick if a conditional `UPDATE ... WHERE id = ? AND (expiresAt < now()
+// OR holderId = ?)` affects a row — see
+// apps/api/src/common/concurrency/poller-lease.service.ts for the full
+// compare-and-swap implementation and why this table-based lease was
+// chosen over a Postgres advisory lock (avoids holding a long-lived
+// transaction/connection open for the full duration of a tick that may
+// itself make outbound HTTP/AI calls).
+model PollerLease {
+  id         String   @id
+  holderId   String
+  acquiredAt DateTime @default(now())
+  expiresAt  DateTime
+  updatedAt  DateTime @updatedAt
+
+  @@map("poller_leases")
 }

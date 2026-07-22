@@ -26,6 +26,7 @@ import {
   ProgramImportParseError,
   type ParsedProgramImport,
 } from '../importers/program-importer.interface.js';
+import { computeImportFingerprint } from '../importers/program-update-detector.js';
 
 export class ImportBugBountyProgramCommand implements ICommand {
   constructor(
@@ -99,6 +100,15 @@ export class ImportBugBountyProgramHandler implements ICommandHandler<
       });
     }
 
+    // Module 9: record the fingerprint of what was just imported so a
+    // later reimport of the same program can tell whether the upstream
+    // platform export has actually changed — see program-update-
+    // detector.ts.
+    const imported = await this.programsRepository.recordImport(program.id, {
+      lastImportedAt: new Date(),
+      importFingerprint: computeImportFingerprint(parsed),
+    });
+
     this.eventBus.publish(
       new BugBountyProgramCreatedEvent(
         workspace.id,
@@ -110,7 +120,7 @@ export class ImportBugBountyProgramHandler implements ICommandHandler<
     );
 
     return {
-      program: toBugBountyProgramDto(program, {
+      program: toBugBountyProgramDto(imported, {
         scopeItemCount: parsed.scopeItems.length,
         targetCount: 0,
         findingCount: 0,

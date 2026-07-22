@@ -18,12 +18,20 @@ export const SCOPE_ITEM_TYPES: ScopeItemType[] = [
   'IP_RANGE',
   'ASN',
   'CLOUD_ASSET',
+  // Module 9 additions
+  'HOST',
+  'INTERNAL_ASSET',
+  'GITHUB_ORG',
+  'THIRD_PARTY',
 ];
 
 export const SCOPE_CLASSIFICATIONS: ScopeClassification[] = [
   'IN_SCOPE',
   'OUT_OF_SCOPE',
   'UNKNOWN',
+  // Module 9 additions
+  'REVIEW_NEEDED',
+  'DEPRECATED',
 ];
 
 export class CreateScopeItemDto implements CreateShape {
@@ -61,4 +69,5 @@ export class ClassifyScopeDto implements ClassifyShape {
 }
 
 export class LinkProgramTargetDto {
-  @ApiProperty() @IsUUID() targetId!
+  @ApiProperty() @IsUUID() targetId!: string;
+}

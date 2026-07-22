@@ -1,0 +1,14 @@
+pub mod ai_commands;
+pub mod bridge_commands;
+pub mod evidence_commands;
+pub mod findings_commands;
+pub mod jobs_commands;
+pub mod notes_commands;
+pub mod plugin_commands;
+pub mod projects_commands;
+pub mod rag_commands;
+pub mod reports_commands;
+pub mod security_commands;
+pub mod sync_commands;
+pub mod tools_commands;
+pub mod voice_commands;

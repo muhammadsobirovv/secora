@@ -6,6 +6,7 @@ import type {
   AiChatStreamChunk,
   AiEmbeddingResult,
   AiProvider,
+  ResolvedAiCredential,
 } from '../ai-provider.interface.js';
 import {
   AiProviderNotConfiguredError,
@@ -25,22 +26,29 @@ export class OpenRouterProvider implements AiProvider {
 
   constructor(private readonly configService: ConfigService<EnvConfig, true>) {}
 
-  private getApiKey(): string | undefined {
-    return this.configService.get('AI_OPENROUTER_API_KEY', { infer: true });
+  private getApiKey(credential?: ResolvedAiCredential): string | undefined {
+    return (
+      credential?.apiKey ??
+      this.configService.get('AI_OPENROUTER_API_KEY', { infer: true })
+    );
   }
 
-  isConfigured(): boolean {
-    return Boolean(this.getApiKey());
+  isConfigured(credential?: ResolvedAiCredential): boolean {
+    return Boolean(this.getApiKey(credential));
   }
 
-  getDefaultModel(): string {
-    return this.configService.get('AI_OPENROUTER_MODEL', { infer: true });
+  getDefaultModel(credential?: ResolvedAiCredential): string {
+    return (
+      credential?.model ??
+      this.configService.get('AI_OPENROUTER_MODEL', { infer: true })
+    );
   }
 
   async *streamChatCompletion(
     options: AiChatCompletionOptions,
+    credential?: ResolvedAiCredential,
   ): AsyncIterable<AiChatStreamChunk> {
-    const apiKey = this.getApiKey();
+    const apiKey = this.getApiKey(credential);
     if (!apiKey) throw new AiProviderNotConfiguredError(this.name);
 
     const response = await fetch(CHAT_COMPLETIONS_URL, {

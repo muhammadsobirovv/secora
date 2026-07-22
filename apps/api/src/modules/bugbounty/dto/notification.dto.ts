@@ -8,4 +8,5 @@ export class ListNotificationsQueryParamsDto implements Shape {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  unreadOnly?: boo
+  unreadOnly?: boolean;
+}

@@ -95,4 +95,6 @@ export class GetBugBountyFindingHandler implements IQueryHandler<
     const evidenceIds = await this.findingsRepository.listEvidenceIds(
       finding.id,
     );
-    return toBugBoun
+    return toBugBountyFindingDto(finding, evidenceIds);
+  }
+}

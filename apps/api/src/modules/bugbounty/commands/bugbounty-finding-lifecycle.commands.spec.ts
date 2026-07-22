@@ -179,4 +179,10 @@ describe('TransitionBugBountyFindingStageHandler', () => {
 
     await expect(
       handler.execute(
-        new TransitionBugBountyFindingStageComma
+        new TransitionBugBountyFindingStageCommand('user-1', 'missing', {
+          stage: 'VERIFIED',
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'BUGBOUNTY_FINDING_NOT_FOUND' });
+  });
+});

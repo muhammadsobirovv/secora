@@ -6,6 +6,7 @@ import type {
   AiChatStreamChunk,
   AiEmbeddingResult,
   AiProvider,
+  ResolvedAiCredential,
 } from '../ai-provider.interface.js';
 import {
   AiProviderNotConfiguredError,
@@ -25,22 +26,29 @@ export class GeminiProvider implements AiProvider {
 
   constructor(private readonly configService: ConfigService<EnvConfig, true>) {}
 
-  private getApiKey(): string | undefined {
-    return this.configService.get('AI_GEMINI_API_KEY', { infer: true });
+  private getApiKey(credential?: ResolvedAiCredential): string | undefined {
+    return (
+      credential?.apiKey ??
+      this.configService.get('AI_GEMINI_API_KEY', { infer: true })
+    );
   }
 
-  isConfigured(): boolean {
-    return Boolean(this.getApiKey());
+  isConfigured(credential?: ResolvedAiCredential): boolean {
+    return Boolean(this.getApiKey(credential));
   }
 
-  getDefaultModel(): string {
-    return this.configService.get('AI_GEMINI_MODEL', { infer: true });
+  getDefaultModel(credential?: ResolvedAiCredential): string {
+    return (
+      credential?.model ??
+      this.configService.get('AI_GEMINI_MODEL', { infer: true })
+    );
   }
 
   async *streamChatCompletion(
     options: AiChatCompletionOptions,
+    credential?: ResolvedAiCredential,
   ): AsyncIterable<AiChatStreamChunk> {
-    const apiKey = this.getApiKey();
+    const apiKey = this.getApiKey(credential);
     if (!apiKey) throw new AiProviderNotConfiguredError(this.name);
 
     const systemInstruction = options.messages
@@ -112,8 +120,11 @@ export class GeminiProvider implements AiProvider {
     yield { delta: '', done: true };
   }
 
-  async embed(text: string): Promise<AiEmbeddingResult> {
-    const apiKey = this.getApiKey();
+  async embed(
+    text: string,
+    credential?: ResolvedAiCredential,
+  ): Promise<AiEmbeddingResult> {
+    const apiKey = this.getApiKey(credential);
     if (!apiKey) throw new AiProviderNotConfiguredError(this.name);
 
     // text-embedding-004 was retired by Google (404s on v1beta as of 2026);

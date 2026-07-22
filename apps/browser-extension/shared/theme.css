@@ -1,0 +1,75 @@
+/* Shared visual theme across popup/options/sidepanel/devtools panel —
+   same CSS-variable approach as the Desktop Agent's
+   `apps/desktop/src/styles/theme.css`, kept independent (not literally
+   shared/imported across the two apps, since they're separate build
+   targets) but intentionally matching token names/values so the two
+   products feel like one family. */
+
+:root {
+  color-scheme: light dark;
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f5f5f7;
+  --color-surface-2: #f0f0f3;
+  --color-border: #e2e2e6;
+  --color-text: #16161a;
+  --color-text-muted: #6b6b76;
+  --color-primary: #6d5efc;
+  --color-primary-hover: #5c4de0;
+  --color-primary-fg: #ffffff;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #17171b;
+    --color-bg-elevated: #1e1e23;
+    --color-bg-subtle: #26262c;
+    --color-surface-2: #2a2a31;
+    --color-border: #333339;
+    --color-text: #f2f2f5;
+    --color-text-muted: #9a9aa5;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 13px;
+}
+
+@keyframes phai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.phai-skeleton {
+  background: linear-gradient(90deg, var(--color-bg-subtle) 25%, var(--color-surface-2) 37%, var(--color-bg-subtle) 63%);
+  background-size: 400% 100%;
+  animation: phai-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes phai-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}

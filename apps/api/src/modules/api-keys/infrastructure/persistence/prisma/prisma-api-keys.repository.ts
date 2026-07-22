@@ -25,10 +25,25 @@ export class PrismaApiKeysRepository implements ApiKeysRepository {
     return this.txHost.tx.apiKey.findMany({ where: { userId } });
   }
 
+  findByWorkspace(workspaceId: string): Promise<ApiKey[]> {
+    return this.txHost.tx.apiKey.findMany({ where: { workspaceId } });
+  }
+
+  findById(id: string): Promise<ApiKey | null> {
+    return this.txHost.tx.apiKey.findUnique({ where: { id } });
+  }
+
   async revoke(id: string): Promise<void> {
     await this.txHost.tx.apiKey.update({
       where: { id },
       data: { revokedAt: new Date() },
+    });
+  }
+
+  async touchLastUsed(id: string): Promise<void> {
+    await this.txHost.tx.apiKey.update({
+      where: { id },
+      data: { lastUsedAt: new Date() },
     });
   }
 }

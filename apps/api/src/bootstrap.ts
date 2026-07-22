@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import type { Express } from 'express';
 import type { EnvConfig } from './config/env.validation.js';
+import { requestIdMiddleware } from './observability/request-id.middleware.js';
 
 /// Shared between main.ts and the e2e test bootstrap so tests exercise the
 /// exact same global pipes/CORS/Swagger config as production, not a
@@ -11,7 +12,53 @@ import type { EnvConfig } from './config/env.validation.js';
 export function configureApp(app: INestApplication): void {
   const configService = app.get<ConfigService<EnvConfig, true>>(ConfigService);
 
-  app.use(helmet());
+  // Module 10 — Security Hardening: a bare `helmet()` (Module 1's
+  // original config) applies helmet's default Content-Security-Policy,
+  // which is strict enough to break `SwaggerModule.setup()`'s
+  // self-hosted Swagger UI page (its bundled JS sets inline `<style>`
+  // tags and, depending on the swagger-ui-express version, executes an
+  // inline bootstrap `<script>` — both disallowed by the default
+  // `script-src 'self'`/`style-src 'self'` directives). Since this is a
+  // JSON API, the CSP header is inert on every route except the Swagger
+  // UI's own HTML page — browsers only enforce CSP while rendering HTML,
+  // and this app returns none anywhere else — so relaxing exactly the
+  // two directives Swagger UI needs (`'unsafe-inline'` for style/script)
+  // costs nothing on the JSON surface while fixing the one HTML page
+  // that exists. `object-src 'none'` and a `frame-ancestors 'none'`
+  // clickjacking guard are added explicitly since they have no reason
+  // to differ from the strictest possible setting. Deployments that want
+  // an even stricter posture should not expose `/api/docs` publicly at
+  // all (see docs/deployment's reverse-proxy guidance) rather than
+  // relying on CSP alone to protect it.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+        },
+      },
+      // 180 days, applies to subdomains, no `preload` — preload requires
+      // submitting the domain to browser vendors' hardcoded HSTS list,
+      // which is a one-way door (very slow/impossible to reverse) that
+      // this application shouldn't opt a deployment into implicitly.
+      hsts: { maxAge: 15_552_000, includeSubDomains: true, preload: false },
+      // Explicit `deny` (helmet's own default is the equivalent, but
+      // pinning it here documents the decision) — this API serves no
+      // content that should ever be framed by another origin.
+      frameguard: { action: 'deny' },
+    }),
+  );
+  // Module 10 — Observability: assigns/propagates X-Request-Id before
+  // anything else runs, so it's available to every guard/interceptor/
+  // handler/logger downstream.
+  app.use(requestIdMiddleware);
 
   // See TRUST_PROXY_HOPS in env.validation.ts — sets Express's exact
   // proxy-hop count so req.ip resolves correctly (or is left alone in
@@ -46,6 +93,13 @@ export function setupSwagger(app: INestApplication): void {
     .setDescription('Module 1 — Auth. See docs/modules/01-auth.md')
     .setVersion('1.0')
     .addBearerAuth()
+    // Module 9/10 — the Public API's machine-to-machine auth
+    // (ApiKeyAuthGuard, `X-API-Key` header), used by webhook/API-key
+    // consumers and, since Module 10, worker-node register/heartbeat/
+    // claim/complete/fail routes. Registering it here just makes Swagger
+    // UI's "Authorize" dialog offer it — `@ApiSecurity('apiKey')` on those
+    // controllers references this scheme name.
+    .addApiKey({ type: 'apiKey', name: 'X-API-Key', in: 'header' }, 'apiKey')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

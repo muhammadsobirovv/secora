@@ -2,7 +2,17 @@ import type {
   BugReport,
   BugReportStatus,
   BugReportTemplate,
+  ReportTemplateKind,
 } from '../../../../prisma-types.js';
+
+/// Module 9's AI "technical review" result — see ReportTechnicalReviewDto
+/// in @pentesthub/shared for the exact shape stored on
+/// `BugReport.technicalReview`.
+export interface ReportTechnicalReviewValue {
+  issues: { field: string; severity: 'INFO' | 'WARNING' | 'ERROR'; message: string }[];
+  reviewedAt: string;
+  aiModel: string | null;
+}
 
 export interface ListBugReportsFilter {
   workspaceId: string;
@@ -20,6 +30,8 @@ export interface CreateBugReportInput {
   findingId?: string | null;
   title: string;
   template?: BugReportTemplate;
+  templateKind?: ReportTemplateKind;
+  customTemplateId?: string | null;
   summary?: string | null;
   impact?: string | null;
   stepsToReproduce?: string | null;
@@ -41,6 +53,8 @@ export interface UpdateBugReportInput {
   expectedVersion: number;
   title?: string;
   template?: BugReportTemplate;
+  templateKind?: ReportTemplateKind;
+  customTemplateId?: string | null;
   status?: BugReportStatus;
   summary?: string | null;
   impact?: string | null;
@@ -63,6 +77,8 @@ export interface UpdateBugReportInput {
   aiModel?: string | null;
   aiGeneratedAt?: Date | null;
   evidenceIds?: string[];
+  grammarCheckedAt?: Date | null;
+  technicalReview?: ReportTechnicalReviewValue | null;
 }
 
 /// Thrown by the Prisma implementation's update() when `expectedVersion`
@@ -96,4 +112,4 @@ export interface BugReportsRepository {
   ): Promise<number>;
 }
 
-export const BUG_REPORTS_REPOSITORY = Symbol('
+export const BUG_REPORTS_REPOSITORY = Symbol('BUG_REPORTS_REPOSITORY');

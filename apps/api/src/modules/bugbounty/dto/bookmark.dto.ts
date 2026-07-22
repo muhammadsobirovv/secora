@@ -26,4 +26,5 @@ export class ListBookmarksQueryParamsDto implements ListShape {
   @ApiPropertyOptional({ enum: BOOKMARK_ENTITY_TYPES })
   @IsOptional()
   @IsIn(BOOKMARK_ENTITY_TYPES)
-  entityType?: BookmarkEntityType
+  entityType?: BookmarkEntityType;
+}

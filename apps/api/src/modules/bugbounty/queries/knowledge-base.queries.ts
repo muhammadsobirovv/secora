@@ -50,6 +50,8 @@ export class ListKnowledgeBaseNotesHandler implements IQueryHandler<
       findingId: query.filter.findingId,
       reportId: query.filter.reportId,
       search: query.filter.search,
+      kind: query.filter.kind,
+      tag: query.filter.tag,
     });
 
     return notes.map(toKnowledgeBaseNoteDto);
@@ -92,4 +94,7 @@ export class GetKnowledgeBaseNoteHandler implements IQueryHandler<
         'Knowledge base note not found.',
         HttpStatus.NOT_FOUND,
       );
-   
+    }
+    return toKnowledgeBaseNoteDto(note);
+  }
+}

@@ -211,4 +211,8 @@ export class AssetInventoryService {
       evidenceCount: evidence.length,
       screenshotCount,
       lastScanAt: lastScanAt?.toISOString() ?? null,
-      ris
+      riskScore,
+      scopeClassification: scopeMatch?.classification ?? null,
+    };
+  }
+}

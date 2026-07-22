@@ -12,17 +12,20 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { Throttle } from '@nestjs/throttler';
 import type { KnowledgeBaseNoteDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import {
   CreateKnowledgeBaseNoteDto,
   ListKnowledgeBaseNotesQueryParamsDto,
+  SaveConversationSnapshotDto,
   UpdateKnowledgeBaseNoteDto,
 } from '../dto/knowledge-base.dto.js';
 import {
   CreateKnowledgeBaseNoteCommand,
   DeleteKnowledgeBaseNoteCommand,
+  SaveConversationSnapshotCommand,
   UpdateKnowledgeBaseNoteCommand,
 } from '../commands/knowledge-base.commands.js';
 import {
@@ -61,6 +64,21 @@ export class KnowledgeBaseController {
     );
   }
 
+  @Post('save-conversation-snapshot')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Save a point-in-time Markdown snapshot of an AI conversation into the knowledge base',
+  })
+  saveConversationSnapshot(
+    @Body() dto: SaveConversationSnapshotDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<KnowledgeBaseNoteDto> {
+    return this.commandBus.execute(
+      new SaveConversationSnapshotCommand(user.id, dto),
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a knowledge base note' })
   get(
@@ -89,4 +107,8 @@ export class KnowledgeBaseController {
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
-    await this.commandBus.execute
+    await this.commandBus.execute(
+      new DeleteKnowledgeBaseNoteCommand(user.id, id),
+    );
+  }
+}

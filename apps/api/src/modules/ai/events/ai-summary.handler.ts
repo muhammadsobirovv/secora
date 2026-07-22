@@ -105,21 +105,27 @@ export class AiSummaryHandler implements IEventHandler<SummaryTriggerEvent> {
     event: ReconJobCompletedEvent,
   ): Promise<void> {
     if (!event.actorUserId) return;
-    const provider = this.providerRegistry.resolveProvider();
-    const summary = await collectStreamedCompletion(provider, {
-      model: provider.getDefaultModel(),
-      maxTokens: 800,
-      messages: [
-        {
-          role: 'system',
-          content: this.promptBuilder.buildModePrompt('recon'),
-        },
-        {
-          role: 'user',
-          content: `A reconnaissance job (id: ${event.jobId}) just completed for this project. Briefly summarize what's most worth the analyst's attention and suggest one concrete next step.`,
-        },
-      ],
-    });
+    const { provider, credential } = await this.providerRegistry.resolveProvider(
+      event.workspaceId,
+    );
+    const summary = await collectStreamedCompletion(
+      provider,
+      {
+        model: provider.getDefaultModel(credential),
+        maxTokens: 800,
+        messages: [
+          {
+            role: 'system',
+            content: this.promptBuilder.buildModePrompt('recon'),
+          },
+          {
+            role: 'user',
+            content: `A reconnaissance job (id: ${event.jobId}) just completed for this project. Briefly summarize what's most worth the analyst's attention and suggest one concrete next step.`,
+          },
+        ],
+      },
+      credential,
+    );
     await this.postSummary(
       event.workspaceId,
       event.projectId,
@@ -135,21 +141,27 @@ export class AiSummaryHandler implements IEventHandler<SummaryTriggerEvent> {
     const finding = await this.vulnFindingsRepository.findById(event.findingId);
     if (!finding || !SUMMARIZE_SEVERITIES.has(finding.severity)) return;
 
-    const provider = this.providerRegistry.resolveProvider();
-    const summary = await collectStreamedCompletion(provider, {
-      model: provider.getDefaultModel(),
-      maxTokens: 600,
-      messages: [
-        {
-          role: 'system',
-          content: this.promptBuilder.buildModePrompt('finding'),
-        },
-        {
-          role: 'user',
-          content: `A new ${finding.severity} severity finding was just discovered: "${finding.title}". ${finding.description}\n\nBriefly explain the risk and suggest an immediate next step.`,
-        },
-      ],
-    });
+    const { provider, credential } = await this.providerRegistry.resolveProvider(
+      event.workspaceId,
+    );
+    const summary = await collectStreamedCompletion(
+      provider,
+      {
+        model: provider.getDefaultModel(credential),
+        maxTokens: 600,
+        messages: [
+          {
+            role: 'system',
+            content: this.promptBuilder.buildModePrompt('finding'),
+          },
+          {
+            role: 'user',
+            content: `A new ${finding.severity} severity finding was just discovered: "${finding.title}". ${finding.description}\n\nBriefly explain the risk and suggest an immediate next step.`,
+          },
+        ],
+      },
+      credential,
+    );
     await this.postSummary(
       event.workspaceId,
       event.projectId,

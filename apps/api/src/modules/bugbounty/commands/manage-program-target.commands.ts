@@ -108,4 +108,6 @@ export class UnlinkProgramTargetHandler implements ICommandHandler<
     await this.programsRepository.unlinkTarget(
       command.programId,
       command.targetId,
-    )
+    );
+  }
+}

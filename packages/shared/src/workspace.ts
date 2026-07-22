@@ -1,6 +1,16 @@
 import type { ProjectStatus } from "./projects.js";
 
-export type WorkspaceMemberRole = "OWNER" | "ADMIN" | "MEMBER";
+// Module 9 adds MANAGER/TRIAGER/REVIEWER, additive to Module 1's
+// OWNER/ADMIN/MEMBER — see docs/adr/0009-bug-bounty-operating-system.md
+// and prisma/schema.prisma's WorkspaceMemberRole doc comment for the
+// suggested permission ordering.
+export type WorkspaceMemberRole =
+  | "OWNER"
+  | "ADMIN"
+  | "MANAGER"
+  | "TRIAGER"
+  | "REVIEWER"
+  | "MEMBER";
 
 export interface WorkspaceDto {
   id: string;

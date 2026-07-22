@@ -83,4 +83,6 @@ export class ListAssetInventoryHandler implements IQueryHandler<
       }
     }
 
-    return this.assetInventoryService.list(workspaceId
+    return this.assetInventoryService.list(workspaceId, query.filter);
+  }
+}

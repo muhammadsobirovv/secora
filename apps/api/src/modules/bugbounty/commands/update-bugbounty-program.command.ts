@@ -65,6 +65,9 @@ export class UpdateBugBountyProgramHandler implements ICommandHandler<
       disclosurePolicy: command.data.disclosurePolicy,
       notesMarkdown: command.data.notesMarkdown,
       tags: command.data.tags,
+      favorite: command.data.favorite,
+      safeHarbor: command.data.safeHarbor,
+      rateLimits: command.data.rateLimits,
     });
 
     this.eventBus.publish(
@@ -86,4 +89,5 @@ export class UpdateBugBountyProgramHandler implements ICommandHandler<
       targetCount,
       findingCount: 0,
     });
-  
+  }
+}

@@ -121,4 +121,24 @@ describe('classifyScopeValue', () => {
       }),
     ]);
     expect(result).toEqual({
-  
+      classification: 'UNKNOWN',
+      matchedScopeItemId: null,
+      matchedPattern: null,
+    });
+  });
+
+  it('treats an invalid CIDR prefix as a non-match rather than throwing', () => {
+    const rules = [
+      rule({
+        id: 'r1',
+        type: 'CIDR',
+        pattern: '10.0.0.0/99',
+        classification: 'IN_SCOPE',
+      }),
+    ];
+    expect(() => classifyScopeValue('10.0.0.5', rules)).not.toThrow();
+    expect(classifyScopeValue('10.0.0.5', rules).classification).toBe(
+      'UNKNOWN',
+    );
+  });
+});

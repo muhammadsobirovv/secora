@@ -94,4 +94,6 @@ export class GetPayloadLibraryEntryHandler implements IQueryHandler<
         HttpStatus.NOT_FOUND,
       );
     }
- 
+    return toPayloadLibraryEntryDto(entry);
+  }
+}

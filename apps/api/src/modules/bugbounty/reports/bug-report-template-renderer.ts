@@ -172,4 +172,11 @@ export function renderBugReportTemplate(
       return renderBugcrowd(input);
     case 'INTIGRITI':
       return renderIntigriti(input);
-    
+    case 'HTML':
+      return renderHtml(input);
+    case 'PDF':
+    case 'MARKDOWN':
+    default:
+      return renderMarkdown(input);
+  }
+}

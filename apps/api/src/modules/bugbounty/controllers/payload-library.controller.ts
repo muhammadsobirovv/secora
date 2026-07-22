@@ -105,4 +105,6 @@ export class PayloadLibraryController {
     @Body() dto: ExplainPayloadDto,
     @CurrentUser() user: RequestUser,
   ): Promise<PayloadLibraryEntryDto> {
-    return this.command
+    return this.commandBus.execute(new ExplainPayloadCommand(user.id, id, dto));
+  }
+}

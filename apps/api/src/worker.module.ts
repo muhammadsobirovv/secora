@@ -15,6 +15,7 @@ import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 import { AiCoreModule } from './modules/ai/ai-core.module.js';
 import { BugBountyCoreModule } from './modules/bugbounty/bugbounty-core.module.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
+import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
@@ -82,7 +83,11 @@ import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notificati
     AiCoreModule,
     BugBountyCoreModule,
   ],
-  providers: [BugBountyDeadlineNotifierService],
-  exports: [BugBountyDeadlineNotifierService],
+  // Module 10 adds WorkerReaperService — dead-worker recovery + job
+  // migration for the Distributed Job System, a fourth self-scheduling
+  // poller alongside Recon/Vuln/BugBounty-deadlines, following the exact
+  // same start()/stop() lifecycle as the other three.
+  providers: [BugBountyDeadlineNotifierService, WorkerReaperService],
+  exports: [BugBountyDeadlineNotifierService, WorkerReaperService],
 })
 export class WorkerModule {}

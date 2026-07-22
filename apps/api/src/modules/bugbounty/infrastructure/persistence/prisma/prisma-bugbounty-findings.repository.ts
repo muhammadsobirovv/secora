@@ -12,15 +12,20 @@ import type {
 import type {
   BugBountyFinding,
   BugBountyFindingStage,
+  Prisma,
 } from '../../../../../prisma-types.js';
 
 const ALL_STAGES: BugBountyFindingStage[] = [
+  'DRAFT',
   'NEW',
   'TRIAGED',
   'VERIFIED',
   'REPORTED',
   'DUPLICATE',
+  'INFORMATIVE',
+  'ACCEPTED',
   'NEED_MORE_INFO',
+  'REJECTED',
   'RESOLVED',
   'CLOSED',
   'ARCHIVED',
@@ -51,6 +56,16 @@ export class PrismaBugBountyFindingsRepository implements BugBountyFindingsRepos
         payload: input.payload ?? null,
         tags: input.tags ?? [],
         createdBy: input.createdBy,
+        capec: input.capec ?? null,
+        ...(input.owaspCategory !== undefined
+          ? { owaspCategory: input.owaspCategory }
+          : {}),
+        ...(input.mitreAttack !== undefined
+          ? { mitreAttack: input.mitreAttack as Prisma.InputJsonValue }
+          : {}),
+        ...(input.cvssBreakdown !== undefined
+          ? { cvssBreakdown: input.cvssBreakdown as Prisma.InputJsonValue }
+          : {}),
       },
     });
     if (input.evidenceIds?.length) {
@@ -125,6 +140,16 @@ export class PrismaBugBountyFindingsRepository implements BugBountyFindingsRepos
         ...(input.endpoint !== undefined ? { endpoint: input.endpoint } : {}),
         ...(input.payload !== undefined ? { payload: input.payload } : {}),
         ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.capec !== undefined ? { capec: input.capec } : {}),
+        ...(input.owaspCategory !== undefined
+          ? { owaspCategory: input.owaspCategory }
+          : {}),
+        ...(input.mitreAttack !== undefined
+          ? { mitreAttack: input.mitreAttack as Prisma.InputJsonValue }
+          : {}),
+        ...(input.cvssBreakdown !== undefined
+          ? { cvssBreakdown: input.cvssBreakdown as Prisma.InputJsonValue }
+          : {}),
       },
     });
   }
@@ -217,4 +242,8 @@ export class PrismaBugBountyFindingsRepository implements BugBountyFindingsRepos
       number
     >;
     for (const row of grouped) {
-      result[row.s
+      result[row.stage] = row._count._all;
+    }
+    return result;
+  }
+}

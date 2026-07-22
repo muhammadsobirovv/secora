@@ -77,4 +77,5 @@ export class GetBugBountyProgramHandler implements IQueryHandler<
       })),
       targetIds,
     };
-  
+  }
+}

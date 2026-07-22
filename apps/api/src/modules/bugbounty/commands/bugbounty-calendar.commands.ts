@@ -169,4 +169,6 @@ export class DeleteCalendarEventHandler implements ICommandHandler<
       command.userId,
       command.eventId,
     );
-    await this.calendarReposi
+    await this.calendarRepository.delete(command.eventId);
+  }
+}

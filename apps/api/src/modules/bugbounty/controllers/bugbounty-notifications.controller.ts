@@ -46,4 +46,7 @@ export class BugBountyNotificationsController {
     @CurrentUser() user: RequestUser,
   ): Promise<BugBountyNotificationDto> {
     return this.commandBus.execute(
-      new MarkNotificationReadCommand(u
+      new MarkNotificationReadCommand(user.id, id),
+    );
+  }
+}

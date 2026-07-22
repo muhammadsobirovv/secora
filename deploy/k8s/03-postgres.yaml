@@ -1,0 +1,91 @@
+# Self-managed Postgres for clusters without a managed database service
+# available (RDS, Cloud SQL, etc.). A real production deployment should
+# strongly prefer a managed Postgres offering instead — this StatefulSet
+# is a single replica with no automated failover, which is the one piece
+# of this manifest set that ISN'T highly-available; see this file's
+# bottom comment. Uses the same `pgvector/pgvector` image as ci.yml and
+# docker-compose.yml for Module 5's `vector` extension.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: pentesthub
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: pentesthub
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pentesthub-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: pentesthub
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "pentesthub"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: pentesthub
+spec:
+  clusterIP: None # headless — StatefulSet pods are addressed individually, not load-balanced (a single-replica Postgres has only one to address anyway)
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+# --- Real high availability for Postgres ---
+# This StatefulSet is intentionally NOT a replicated/failover-capable
+# Postgres cluster — building one correctly (streaming replication,
+# automated failover via Patroni/Stolon, PgBouncer connection pooling in
+# front) is a substantial operational undertaking with its own failure
+# modes, and duplicating that here as YAML nobody has run against a real
+# failover drill would be worse than being explicit about the gap. For
+# an actually-HA Postgres tier, either use a managed offering (RDS
+# Multi-AZ, Cloud SQL HA, Azure Database for PostgreSQL Flexible Server
+# zone-redundant HA) or deploy the CloudNativePG or Zalando
+# postgres-operator Kubernetes operators instead of this file. Every
+# other tier in this manifest set (api, worker, web) IS genuinely
+# horizontally scaled and safe to run at N replicas — see their own
+# Deployments' `replicas` and PollerLeaseService's doc comment
+# (apps/api/src/common/concurrency/poller-lease.service.ts) for why the
+# API/worker layer specifically doesn't have this same single-point-of-
+# failure problem.

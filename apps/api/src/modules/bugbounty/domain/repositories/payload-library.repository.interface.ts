@@ -43,4 +43,4 @@ export interface PayloadLibraryRepository {
   softDelete(id: string): Promise<void>;
 }
 
-export const PAYLOAD_LIBRARY_REPOSITORY = Symbol('PAYLOAD_LIBR
+export const PAYLOAD_LIBRARY_REPOSITORY = Symbol('PAYLOAD_LIBRARY_REPOSITORY');

@@ -32,4 +32,6 @@ export class BugBountyDashboardController {
   statistics(
     @CurrentUser() user: RequestUser,
   ): Promise<BugBountyStatisticsDto> {
-    return this.queryBus.execute(new GetBugBountyS
+    return this.queryBus.execute(new GetBugBountyStatisticsQuery(user.id));
+  }
+}

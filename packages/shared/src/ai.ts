@@ -159,6 +159,10 @@ export interface AiProviderStatusDto {
   provider: AiProviderName;
   configured: boolean;
   defaultModel: string | null;
+  /// Local-First Migration Phase 1 (BYOK) — true when this workspace has
+  /// its own stored credential for this provider, false when it's falling
+  /// back to the operator's server-configured key (or unconfigured).
+  byok: boolean;
 }
 
 /// A single speech provider's availability (Voice Interaction), mirroring
@@ -198,4 +202,30 @@ export interface AiContextSummaryDto {
   evidenceCount: number;
   openCriticalOrHighFindings: number;
   lastActivityAt: string | null;
+}
+
+/// Local-First Migration Phase 1 (BYOK) — a workspace's own stored AI
+/// provider credential. Never carries the raw or encrypted API key itself,
+/// only `keyPreview` (last 4 characters, e.g. "••••ab12") so the settings
+/// UI can show "a key is saved" and let the user tell which key is which
+/// without the secret ever round-tripping back to the browser.
+export interface AiProviderCredentialDto {
+  id: string;
+  provider: AiProviderName;
+  keyPreview: string | null;
+  baseUrl: string | null;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/// Body for PUT /ai/provider-credentials/:provider. All fields optional —
+/// a caller can update just `baseUrl`/`model` (e.g. pointing at a local
+/// Ollama instance) without supplying `apiKey`, since Ollama needs none.
+/// Sending an empty string for a field clears it; omitting a field leaves
+/// the existing stored value untouched (upsert semantics, not full replace).
+export interface UpsertAiProviderCredentialRequestDto {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
 }

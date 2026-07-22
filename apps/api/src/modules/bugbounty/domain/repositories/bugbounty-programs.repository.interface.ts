@@ -14,6 +14,7 @@ export interface ListBugBountyProgramsFilter {
   platform?: BugBountyPlatform;
   status?: BugBountyProgramStatus;
   search?: string;
+  favorite?: boolean;
 }
 
 export interface CreateBugBountyProgramInput {
@@ -31,11 +32,23 @@ export interface CreateBugBountyProgramInput {
   notesMarkdown?: string | null;
   tags?: string[];
   createdBy: string;
+  // --- Module 9 additions ---
+  favorite?: boolean;
+  safeHarbor?: string | null;
+  rateLimits?: Record<string, unknown> | null;
 }
 
 export type UpdateBugBountyProgramInput = Partial<
   Omit<CreateBugBountyProgramInput, 'workspaceId' | 'createdBy'>
 >;
+
+/// Set only by the Program Importer after a successful (re-)import — not
+/// exposed on Create/Update DTOs, since a client shouldn't be able to
+/// forge "this was just imported" state by hand.
+export interface RecordProgramImportInput {
+  lastImportedAt: Date;
+  importFingerprint: string;
+}
 
 export interface CreateScopeItemInput {
   programId: string;
@@ -67,6 +80,10 @@ export interface BugBountyProgramsRepository {
     input: UpdateBugBountyProgramInput,
   ): Promise<BugBountyProgram>;
   softDelete(id: string): Promise<void>;
+  recordImport(
+    id: string,
+    input: RecordProgramImportInput,
+  ): Promise<BugBountyProgram>;
 
   // Scope items
   addScopeItem(input: CreateScopeItemInput): Promise<BugBountyProgramScopeItem>;
@@ -91,4 +108,6 @@ export interface BugBountyProgramsRepository {
   countLinkedTargets(programId: string): Promise<number>;
 }
 
-export const BUGBOUNTY_PROGRAMS_RE
+export const BUGBOUNTY_PROGRAMS_REPOSITORY = Symbol(
+  'BUGBOUNTY_PROGRAMS_REPOSITORY',
+);

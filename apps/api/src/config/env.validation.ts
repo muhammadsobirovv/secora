@@ -9,6 +9,20 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Module 10 — High Availability / Performance: the `pg` connection
+  // pool's max size per API process (see PrismaService, which passes
+  // this to `PrismaPg`'s underlying `node-postgres` Pool). The right
+  // value scales with (a) the number of API replicas — every replica
+  // opens its own pool, so total connections = replicas * this value,
+  // which must stay under Postgres's own `max_connections` — and (b)
+  // how much of this process's workload is DB-bound vs. CPU/network-
+  // bound. 10 (node-postgres's own library default) is a conservative
+  // starting point for a single replica in front of a modest Postgres
+  // instance; a production deployment running N replicas should size
+  // this as roughly `max_connections / N`, leaving headroom for
+  // migrations/admin connections, and set it explicitly rather than
+  // relying on the default once replica count is known.
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
   JWT_ACCESS_SECRET: z
     .string()
@@ -16,6 +30,16 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
   JWT_REFRESH_TTL_REMEMBER_ME: z.string().default('30d'),
+
+  // Local-First Migration Phase 1 (BYOK) — encrypts each workspace's own
+  // AI provider API key (AiProviderCredential.encryptedApiKey) at rest via
+  // AES-256-GCM (common/crypto/credential-encryption.util.ts). Same
+  // "required, fails fast at boot" posture as JWT_ACCESS_SECRET, since a
+  // missing/weak key here would mean user-supplied secrets are either
+  // unrecoverable or under-protected.
+  CREDENTIAL_ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'CREDENTIAL_ENCRYPTION_KEY must be at least 32 characters'),
 
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
   MAIL_FROM: z.string().default('PentestHub AI <no-reply@pentesthub.local>'),
@@ -242,6 +266,63 @@ const envSchema = z.object({
     .number()
     .positive()
     .default(300_000),
+
+  // Module 10 — Distributed Job System. WorkerReaperService (worker
+  // process) sweeps every WORKER_REAPER_POLL_INTERVAL_MS; a WorkerNode
+  // whose lastHeartbeatAt is older than WORKER_HEARTBEAT_STALE_MS is
+  // marked UNHEALTHY and any DistributedJob still RUNNING on it is
+  // migrated back to QUEUED (job migration / dead-worker recovery).
+  WORKER_HEARTBEAT_STALE_MS: z.coerce.number().int().positive().default(90_000),
+  WORKER_REAPER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+
+  // Module 10 — GraphQL API. Disabled by default (REST remains the
+  // primary, documented surface); set to enable GET /graphql (Apollo
+  // Sandbox) and POST /graphql in non-production, or explicitly opt in.
+  GRAPHQL_PLAYGROUND_ENABLED: z.coerce.boolean().default(false),
+
+  // Module 10 — native integrations. Every provider is optional (BYOK-style
+  // — same posture as Module 5's AI provider credentials): a workspace/org
+  // connects its own OAuth app or personal access token via
+  // IntegrationConnection; these are only the *platform's own* OAuth app
+  // credentials (client id/secret) used for the "Connect with GitHub" style
+  // authorization-code flow. Unset = that provider's OAuth flow is
+  // unavailable, but token-based connection (PAT) still works for any
+  // provider that supports it (GitHub/GitLab/Jira/Linear/Notion/...).
+  INTEGRATION_GITHUB_CLIENT_ID: z.string().optional(),
+  INTEGRATION_GITHUB_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_GITLAB_CLIENT_ID: z.string().optional(),
+  INTEGRATION_GITLAB_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_SLACK_CLIENT_ID: z.string().optional(),
+  INTEGRATION_SLACK_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_DISCORD_CLIENT_ID: z.string().optional(),
+  INTEGRATION_DISCORD_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_MS_TEAMS_CLIENT_ID: z.string().optional(),
+  INTEGRATION_MS_TEAMS_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_GOOGLE_CLIENT_ID: z.string().optional(),
+  INTEGRATION_GOOGLE_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_DROPBOX_CLIENT_ID: z.string().optional(),
+  INTEGRATION_DROPBOX_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_NOTION_CLIENT_ID: z.string().optional(),
+  INTEGRATION_NOTION_CLIENT_SECRET: z.string().optional(),
+  INTEGRATION_CALLBACK_BASE_URL: z.string().url().optional(),
+
+  // Module 10 — Observability. OTLP collector endpoint for distributed
+  // tracing (see observability/tracing.ts) — unset means tracing
+  // initializes with a no-op exporter (spans are created but not shipped
+  // anywhere), which is intentional for local dev/sandbox environments
+  // that have no collector running.
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .default('info'),
+
+  // Module 10 — Plugin Marketplace. PEM-encoded Ed25519 SPKI public key the
+  // marketplace verifies plugin-version signatures against (see
+  // plugins/plugin-signature.util.ts). Unset = signature verification is
+  // "attempted but always reported as unverifiable" rather than skipped —
+  // a plugin can still be published/installed unsigned, but never carries
+  // a `verified: true` badge in that environment.
+  PLUGIN_MARKETPLACE_PUBLIC_KEY: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -252,4 +333,7 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
     const issues = result.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
-    throw new Error(`Invalid environment configuration:\n${issu
+    throw new Error(`Invalid environment configuration:\n${issues}`);
+  }
+  return result.data;
+}

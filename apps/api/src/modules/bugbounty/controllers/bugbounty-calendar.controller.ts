@@ -92,4 +92,6 @@ export class BugBountyCalendarController {
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
-    await this.command
+    await this.commandBus.execute(new DeleteCalendarEventCommand(user.id, id));
+  }
+}

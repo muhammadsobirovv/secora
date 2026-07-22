@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AiChatMessageStreamEvent } from "@pentesthub/shared";
+import type { AiChatMessageStreamEvent, UpsertAiProviderCredentialRequestDto } from "@pentesthub/shared";
 import { AI_CONVERSATION_ENDPOINTS } from "@pentesthub/shared";
 import { API_BASE_URL } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -13,6 +13,7 @@ export const aiKeys = {
   conversations: (projectId?: string) => ["ai", "conversations", projectId ?? "all"] as const,
   conversation: (id: string) => ["ai", "conversations", "detail", id] as const,
   providers: ["ai", "providers"] as const,
+  providerCredentials: ["ai", "provider-credentials"] as const,
   speechProviders: ["ai", "speech-providers"] as const,
   context: (projectId: string) => ["ai", "context", projectId] as const,
   suggestedQuestions: (projectId: string) => ["ai", "suggested-questions", projectId] as const,
@@ -40,6 +41,42 @@ export function useAiConversation(id: string | null) {
 
 export function useAiProviders() {
   return useQuery({ queryKey: aiKeys.providers, queryFn: aiApi.listAiProviders });
+}
+
+/// Local-First Migration Phase 1 (BYOK) — this workspace's own stored
+/// credentials (AI Providers settings page). Mutations invalidate both
+/// this list and `providers` (useAiProviders) since saving/removing a
+/// credential flips that provider's `byok`/`configured` status too.
+export function useAiProviderCredentials() {
+  return useQuery({
+    queryKey: aiKeys.providerCredentials,
+    queryFn: aiApi.listAiProviderCredentials,
+  });
+}
+
+function useInvalidateAiProviderCredentials() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: aiKeys.providerCredentials });
+    void queryClient.invalidateQueries({ queryKey: aiKeys.providers });
+  };
+}
+
+export function useUpsertAiProviderCredential() {
+  const invalidate = useInvalidateAiProviderCredentials();
+  return useMutation({
+    mutationFn: ({ provider, fields }: { provider: string; fields: UpsertAiProviderCredentialRequestDto }) =>
+      aiApi.upsertAiProviderCredential(provider, fields),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteAiProviderCredential() {
+  const invalidate = useInvalidateAiProviderCredentials();
+  return useMutation({
+    mutationFn: (provider: string) => aiApi.deleteAiProviderCredential(provider),
+    onSuccess: invalidate,
+  });
 }
 
 /// Voice Interaction (Phase 2) — surfaces which speech backends are

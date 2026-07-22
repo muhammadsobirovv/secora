@@ -18,7 +18,9 @@ import type {
   BugBountyProgramDto,
   BugBountyProgramScopeItemDto,
   BugBountyProgramTargetDto,
+  DetectProgramUpdateResultDto,
   ImportProgramResultDto,
+  ReimportProgramResultDto,
   ScopeClassificationResultDto,
 } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
@@ -34,11 +36,15 @@ import {
   LinkProgramTargetDto,
   UpdateScopeItemDto,
 } from '../dto/scope.dto.js';
-import { ImportProgramDto } from '../dto/import-program.dto.js';
+import {
+  DetectProgramUpdateDto,
+  ImportProgramDto,
+} from '../dto/import-program.dto.js';
 import { CreateBugBountyProgramCommand } from '../commands/create-bugbounty-program.command.js';
 import { UpdateBugBountyProgramCommand } from '../commands/update-bugbounty-program.command.js';
 import { DeleteBugBountyProgramCommand } from '../commands/delete-bugbounty-program.command.js';
 import { ImportBugBountyProgramCommand } from '../commands/import-bugbounty-program.command.js';
+import { ReimportBugBountyProgramCommand } from '../commands/reimport-bugbounty-program.command.js';
 import {
   AddScopeItemCommand,
   RemoveScopeItemCommand,
@@ -51,6 +57,7 @@ import {
 import { ListBugBountyProgramsQuery } from '../queries/list-bugbounty-programs.query.js';
 import { GetBugBountyProgramQuery } from '../queries/get-bugbounty-program.query.js';
 import { ClassifyScopeValueQuery } from '../queries/classify-scope-value.query.js';
+import { DetectProgramImportUpdateQuery } from '../queries/detect-program-import-update.query.js';
 
 /// Programs + Scope Manager + Program-Target links + Program Import —
 /// one controller since they all live under `/bugbounty/programs`
@@ -99,6 +106,38 @@ export class BugBountyProgramsController {
   ): Promise<ImportProgramResultDto> {
     return this.commandBus.execute(
       new ImportBugBountyProgramCommand(user.id, dto),
+    );
+  }
+
+  @Post(':id/import/detect-update')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Preview what a reimport of the same source would change, without applying it',
+  })
+  detectUpdate(
+    @Param('id') id: string,
+    @Body() dto: DetectProgramUpdateDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<DetectProgramUpdateResultDto> {
+    return this.queryBus.execute(
+      new DetectProgramImportUpdateQuery(user.id, id, dto),
+    );
+  }
+
+  @Post(':id/import/reimport')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Re-import a program from its source, applying any upstream changes and adding new scope items',
+  })
+  reimport(
+    @Param('id') id: string,
+    @Body() dto: DetectProgramUpdateDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReimportProgramResultDto> {
+    return this.commandBus.execute(
+      new ReimportBugBountyProgramCommand(user.id, id, dto),
     );
   }
 
@@ -202,4 +241,11 @@ export class BugBountyProgramsController {
   @ApiOperation({ summary: 'Unlink a Target from a program' })
   async unlinkTarget(
     @Param('id') id: string,
-    @Param('targetId') targetI
+    @Param('targetId') targetId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new UnlinkProgramTargetCommand(user.id, id, targetId),
+    );
+  }
+}

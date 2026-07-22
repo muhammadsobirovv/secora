@@ -54,6 +54,7 @@ export class ListBugBountyProgramsHandler implements IQueryHandler<
       platform: query.filter.platform,
       status: query.filter.status,
       search: query.filter.search,
+      favorite: query.filter.favorite,
     });
 
     return Promise.all(
@@ -74,4 +75,5 @@ export class ListBugBountyProgramsHandler implements IQueryHandler<
         });
       }),
     );
-  
+  }
+}

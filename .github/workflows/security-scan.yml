@@ -1,0 +1,64 @@
+name: Security Scan
+
+# Module 10 — CI/CD + Security Hardening. Two independent checks that
+# don't belong in ci.yml's fast feedback loop: static analysis (CodeQL)
+# and dependency vulnerability auditing (`pnpm audit`). Both run on a
+# schedule in addition to push/PR so a newly-disclosed CVE in an
+# existing dependency surfaces even without a code change triggering it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        language: ["javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Extended query pack over CodeQL's default — catches more
+          # (at the cost of more noise) than the built-in "security" set
+          # alone; appropriate for a pentesting-adjacent codebase that
+          # should hold itself to at least the standard it expects of
+          # the applications it's used to test.
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  dependency-audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `pnpm audit` exits non-zero on any finding at or above
+      # `--audit-level`; `high` is the threshold so a pre-existing low/
+      # moderate advisory in a transitive dependency (common, and often
+      # not realistically exploitable in this app's usage of the
+      # package) doesn't block every single PR — high/critical findings
+      # should always be triaged promptly.
+      - run: pnpm audit --audit-level high
+        continue-on-error: true # informational for now — see docs/deployment's Security Review for the recommendation to make this blocking once a triage process is in place.

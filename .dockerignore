@@ -1,0 +1,20 @@
+# Module 10 — Production Deployment. Keeps the Docker build context (sent
+# to the daemon before any layer caching kicks in) small — without this,
+# every `docker build` from the repo root would ship the entire installed
+# node_modules tree, .git history, and every app's local build output.
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/generated
+.git
+.github
+**/*.log
+.env
+.env.*
+!.env.example
+target
+**/target
+apps/desktop/src-tauri/target

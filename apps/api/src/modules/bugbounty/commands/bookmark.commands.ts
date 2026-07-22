@@ -101,4 +101,6 @@ export class DeleteBookmarkHandler implements ICommandHandler<
         HttpStatus.NOT_FOUND,
       );
     }
-    await this.bookmarksRepository.delete(command.bookm
+    await this.bookmarksRepository.delete(command.bookmarkId);
+  }
+}

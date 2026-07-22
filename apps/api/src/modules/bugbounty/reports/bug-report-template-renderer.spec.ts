@@ -103,4 +103,7 @@ describe('renderBugReportTemplate', () => {
 
   it('falls back to the Markdown renderer for the PDF template (no dedicated PDF layout)', () => {
     const markdown = renderBugReportTemplate('MARKDOWN', input());
-    const pdf = renderBugReportTemplate('PDF', inp
+    const pdf = renderBugReportTemplate('PDF', input());
+    expect(pdf).toBe(markdown);
+  });
+});

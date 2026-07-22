@@ -80,29 +80,41 @@ export class ExplainPayloadHandler implements ICommandHandler<
     const preferred = isValidProviderName(command.data.provider)
       ? command.data.provider
       : null;
-    const provider = this.providerRegistry.resolveProvider(preferred);
-    const model = command.data.model ?? provider.getDefaultModel();
+    const { provider, credential } = await this.providerRegistry.resolveProvider(
+      workspace.id,
+      preferred,
+    );
+    const model = command.data.model ?? provider.getDefaultModel(credential);
 
-    const text = await collectStreamedCompletion(provider, {
-      model,
-      maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
-        infer: true,
-      }),
-      temperature: 0.3,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a security research assistant explaining offensive payloads to a bug bounty hunter. Be concise, technical, and precise. Explain: what the payload does, why it triggers the vulnerability class it targets, and any preconditions or caveats for it to work.',
-        },
-        {
-          role: 'user',
-          content: `Category: ${entry.category}\nTitle: ${entry.title}\nDescription: ${entry.description}\nPayload:\n${entry.example}\n\nExplain this payload.`,
-        },
-      ],
-    });
+    const text = await collectStreamedCompletion(
+      provider,
+      {
+        model,
+        maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
+          infer: true,
+        }),
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a security research assistant explaining offensive payloads to a bug bounty hunter. Be concise, technical, and precise. Explain: what the payload does, why it triggers the vulnerability class it targets, and any preconditions or caveats for it to work.',
+          },
+          {
+            role: 'user',
+            content: `Category: ${entry.category}\nTitle: ${entry.title}\nDescription: ${entry.description}\nPayload:\n${entry.example}\n\nExplain this payload.`,
+          },
+        ],
+      },
+      credential,
+    );
 
     const updated = await this.payloadLibraryRepository.update(
       command.entryId,
       {
-        aiExplanat
+        aiExplanation: text.trim(),
+      },
+    );
+    return toPayloadLibraryEntryDto(updated);
+  }
+}

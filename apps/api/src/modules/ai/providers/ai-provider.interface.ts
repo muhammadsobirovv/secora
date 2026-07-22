@@ -31,6 +31,21 @@ export interface AiEmbeddingResult {
   dimensions: number;
 }
 
+/// Local-First Migration Phase 1 (BYOK — "Bring Your Own Key"): an
+/// optional per-call override resolved from a workspace's own
+/// AiProviderCredential (see AiProviderRegistryService.resolveCredential),
+/// threaded into every AiProvider method below. When omitted, every
+/// adapter falls back to its existing server-env-configured behavior
+/// unchanged — this is purely additive, no existing call site breaks by
+/// not passing one. `apiKey`/`model` override the env-configured values;
+/// `baseUrl` matters for local/self-hosted providers (Ollama today; LM
+/// Studio/Azure OpenAI in a later phase) or an alternate endpoint.
+export interface ResolvedAiCredential {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+}
+
 /// Thrown when a provider is asked to do work (chat/embed) while
 /// unconfigured (no API key / no reachable local server) — always caught
 /// at the AiChatService boundary and turned into a clear, user-facing
@@ -65,13 +80,15 @@ export class AiProviderRequestError extends Error {
 /// embeddings API) may throw AiProviderRequestError — AiMemoryService
 /// always calls the embedding provider (AI_EMBEDDING_PROVIDER-selected,
 /// defaults to OpenAI) rather than assuming the chat provider doubles as
-/// the embedding provider.
+/// one. Every method's final `credential` parameter is the Phase 1 BYOK
+/// override — see ResolvedAiCredential above.
 export interface AiProvider {
   readonly name: AiProviderName;
-  isConfigured(): boolean;
-  getDefaultModel(): string;
+  isConfigured(credential?: ResolvedAiCredential): boolean;
+  getDefaultModel(credential?: ResolvedAiCredential): string;
   streamChatCompletion(
     options: AiChatCompletionOptions,
+    credential?: ResolvedAiCredential,
   ): AsyncIterable<AiChatStreamChunk>;
-  embed(text: string): Promise<AiEmbeddingResult>;
+  embed(text: string, credential?: ResolvedAiCredential): Promise<AiEmbeddingResult>;
 }

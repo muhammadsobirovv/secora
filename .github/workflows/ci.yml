@@ -1,0 +1,183 @@
+name: CI
+
+# Module 10 — CI/CD. Runs on every push/PR against the monorepo:
+# install once, then let Turborepo fan out lint/check-types/test/build
+# across every workspace package (apps/*, packages/*) using its own
+# task graph and remote-cache-free local caching (actions/cache keyed on
+# the pnpm store — Turborepo's own cache is left as a local optimization
+# here rather than wired to a remote cache service, which would need a
+# TURBO_TOKEN/TURBO_TEAM secret this repo doesn't have configured).
+# `apps/api`'s Jest suite needs a real Postgres instance (Modules 1-10
+# all read/write through Prisma — no repository in this codebase is
+# unit-tested against a mock DB) with the `vector` extension enabled
+# (Module 5's AI/RAG layer, pgvector-backed embeddings), hence the
+# `pgvector/pgvector` service image rather than plain `postgres`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+  # Test-only values — 32+ chars to satisfy env.validation.ts's zod
+  # schema (JWT_ACCESS_SECRET/CREDENTIAL_ENCRYPTION_KEY have a minimum
+  # length check that fails fast at boot if too short). Not secrets in
+  # any real sense; nothing this pipeline does with them is exposed
+  # outside the ephemeral runner.
+  JWT_ACCESS_SECRET: "ci-test-jwt-access-secret-please-change-32chars"
+  CREDENTIAL_ENCRYPTION_KEY: "ci-test-credential-encryption-key-32ch"
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pentesthub_test"
+  FRONTEND_URL: "http://localhost:3001"
+
+jobs:
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  check-types:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `apps/api`'s Prisma client is generated code (apps/api/generated/
+      # prisma/) — check-types fails without it since half the codebase
+      # imports from prisma-types.ts, which re-exports the generated
+      # client.
+      - run: pnpm --filter api exec prisma generate
+      - run: pnpm check-types
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pentesthub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
+      - name: Apply schema to the test database
+        # `migrate deploy` requires an unbroken migration history, which
+        # this repo doesn't have past Module 5 (see prisma/migrations'
+        # own README/ADR note — Modules 6-10's schema changes were
+        # authored directly in schema.prisma, not captured as migration
+        # files, since sandboxed development had no live DB to run
+        # `migrate dev` against). `db push` applies the current schema
+        # state directly and is the correct tool for exactly this
+        # situation (ephemeral CI database, no migration history to
+        # preserve) — production deployments should instead run
+        # `prisma migrate deploy` against a real migration history once
+        # one is generated from this schema (see docs/deployment).
+        run: pnpm --filter api exec prisma db push --skip-generate
+      - run: pnpm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, check-types, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
+      - run: pnpm build
+
+  python-sdk:
+    name: Python SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: pytest -v
+
+  go-sdk:
+    name: Go SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      # This is the first environment in this project's history with a
+      # real Go toolchain available — see sdks/go/README.md's
+      # "Verification status" section, written when the SDK was authored
+      # in a sandbox with no `go` binary at all. If this job goes red,
+      # start there.
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -v

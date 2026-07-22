@@ -1,0 +1,30 @@
+# Non-secret configuration, shared by the api/worker Deployments via
+# `envFrom`. Secret values (JWT_ACCESS_SECRET, CREDENTIAL_ENCRYPTION_KEY,
+# DATABASE_URL, OAuth client secrets) live in 02-secret.yaml instead —
+# never in this file, since ConfigMaps are neither encrypted at rest by
+# default nor access-restricted the way Secrets are (RBAC can, and
+# should, restrict `get`/`list` on Secrets more tightly than on
+# ConfigMaps in a real cluster policy).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pentesthub-config
+  namespace: pentesthub
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  FRONTEND_URL: "https://app.your-company.com"
+  # One hop — this manifest set assumes an Ingress controller (nginx,
+  # Traefik, cloud LB) sits directly in front of the api Service. Adjust
+  # if there's an additional proxy layer (a CDN in front of the
+  # Ingress, etc.) — see TRUST_PROXY_HOPS's doc comment in
+  # apps/api/src/config/env.validation.ts.
+  TRUST_PROXY_HOPS: "1"
+  LOG_LEVEL: "info"
+  # Sized for `replicas: 3` (see api-deployment.yaml) against a Postgres
+  # instance with max_connections comfortably above 3 * 15 = 45 once the
+  # worker Deployment's own pool and admin connections are accounted
+  # for — see DATABASE_POOL_MAX's doc comment in env.validation.ts for
+  # how to resize this if replica count changes.
+  DATABASE_POOL_MAX: "15"
+  WORKER_DATABASE_POOL_MAX: "5"

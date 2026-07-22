@@ -1,0 +1,102 @@
+# PentestHub AI — self-hosted Docker Compose deployment (Module 10:
+# Production Deployment). Brings up the full server-side stack: Postgres
+# (with the `vector` extension for Module 5's AI/RAG layer), the API
+# server, the background worker process (Modules 3/4's Recon/Vuln
+# ToolRunner execution loop), and the Next.js web frontend. The Desktop
+# Agent (Module 7) and Browser Extension (Module 9) are client-side
+# artifacts users install locally, not services — they aren't part of
+# this stack.
+#
+# Quick start:
+#   cp .env.example .env   # fill in real secrets — see that file's comments
+#   docker compose up -d --build
+#   docker compose exec api pnpm exec prisma db push   # first-run schema setup
+#
+# This file is the reference "single-machine" deployment. For a
+# multi-replica/HA deployment, see deploy/k8s/ instead — the API and
+# worker images here are the same ones that manifest set builds from.
+name: pentesthub-ai
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pentesthub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-pentesthub}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432" # bound to localhost only — the API/worker reach it over the compose network, not the host's public interface
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pentesthub}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pentesthub}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-pentesthub}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET must be set (32+ chars)}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY must be set (32+ chars)}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OBSERVABILITY_METRICS_TOKEN: ${OBSERVABILITY_METRICS_TOKEN:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - api-storage:/workspace/apps/api/.storage # LocalDiskStorageService's on-disk backing store (evidence/attachments/exports) — see STORAGE_SERVICE's dev-local binding in providers.module.ts
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pentesthub}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-pentesthub}
+      DATABASE_POOL_MAX: ${WORKER_DATABASE_POOL_MAX:-5}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET must be set (32+ chars)}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY must be set (32+ chars)}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - api-storage:/workspace/apps/api/storage
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3001:3001"
+
+volumes:
+  postgres-data:
+  api-storage:

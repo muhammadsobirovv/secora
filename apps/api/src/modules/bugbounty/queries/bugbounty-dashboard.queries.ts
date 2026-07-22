@@ -28,8 +28,31 @@ import {
   ACTIVITY_REPOSITORY,
   type ActivityRepository,
 } from '../../activity/domain/repositories/activity.repository.interface.js';
+import {
+  RECON_JOBS_REPOSITORY,
+  type ReconJobsRepository,
+} from '../../recon/domain/repositories/recon-jobs.repository.interface.js';
+import {
+  RECON_FINDINGS_REPOSITORY,
+  type ReconFindingsRepository,
+} from '../../recon/domain/repositories/recon-findings.repository.interface.js';
+import {
+  VULN_SCAN_JOBS_REPOSITORY,
+  type VulnScanJobsRepository,
+} from '../../vuln/domain/repositories/vuln-scan-jobs.repository.interface.js';
+import {
+  USERS_REPOSITORY,
+  type UsersRepository,
+} from '../../auth/domain/repositories/users.repository.interface.js';
 import { resolveWorkspaceForCaller } from '../authorization.util.js';
 import { toBugBountyFindingDto } from '../mappers/to-bugbounty-finding-dto.mapper.js';
+
+const ACTIVE_JOB_STATUSES = new Set(['PENDING', 'RUNNING', 'RETRYING']);
+/// Mirrors bugbounty-finding-lifecycle.commands.ts's TERMINAL_STAGES — a
+/// finding is "open" for dashboard purposes until it reaches one of the
+/// two stages that command treats as terminal (a finding can't transition
+/// out of CLOSED/ARCHIVED).
+const CLOSED_FINDING_STAGES = new Set(['CLOSED', 'ARCHIVED']);
 
 const SEVERITY_SCALE: Record<string, number> = {
   INFO: 0,
@@ -63,6 +86,14 @@ export class GetBugBountyDashboardHandler implements IQueryHandler<
     private readonly reportsRepository: BugReportsRepository,
     @Inject(ACTIVITY_REPOSITORY)
     private readonly activityRepository: ActivityRepository,
+    @Inject(RECON_JOBS_REPOSITORY)
+    private readonly reconJobsRepository: ReconJobsRepository,
+    @Inject(RECON_FINDINGS_REPOSITORY)
+    private readonly reconFindingsRepository: ReconFindingsRepository,
+    @Inject(VULN_SCAN_JOBS_REPOSITORY)
+    private readonly vulnScanJobsRepository: VulnScanJobsRepository,
+    @Inject(USERS_REPOSITORY)
+    private readonly usersRepository: UsersRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -74,22 +105,39 @@ export class GetBugBountyDashboardHandler implements IQueryHandler<
       query.userId,
     );
 
-    const [programs, recentFindings, reportStatusCounts, activity] =
-      await Promise.all([
-        this.programsRepository.list({ workspaceId: workspace.id }),
-        this.findingsRepository.list({ workspaceId: workspace.id, limit: 5 }),
-        this.reportsRepository.countByStatus(workspace.id),
-        this.activityRepository.list({ workspaceId: workspace.id, limit: 10 }),
-      ]);
+    const [
+      programs,
+      recentFindings,
+      reportStatusCounts,
+      activity,
+      findingStageCounts,
+      allReports,
+      reconJobs,
+      vulnJobs,
+      reconFindings,
+    ] = await Promise.all([
+      this.programsRepository.list({ workspaceId: workspace.id }),
+      this.findingsRepository.list({ workspaceId: workspace.id, limit: 5 }),
+      this.reportsRepository.countByStatus(workspace.id),
+      this.activityRepository.list({ workspaceId: workspace.id, limit: 10 }),
+      this.findingsRepository.countByStage(workspace.id),
+      this.reportsRepository.list({ workspaceId: workspace.id }),
+      this.reconJobsRepository.list({ workspaceId: workspace.id, limit: 500 }),
+      this.vulnScanJobsRepository.list({ workspaceId: workspace.id, limit: 500 }),
+      this.reconFindingsRepository.list({ workspaceId: workspace.id }),
+    ]);
 
     const activePrograms = programs.filter((p) => p.status === 'ACTIVE');
-    const inScopeAssetsCount = (
-      await Promise.all(
-        activePrograms.map((p) =>
-          this.programsRepository.countLinkedTargets(p.id),
-        ),
-      )
-    ).reduce((sum, n) => sum + n, 0);
+    const linkedTargetCounts = await Promise.all(
+      programs.map((p) => this.programsRepository.countLinkedTargets(p.id)),
+    );
+    const inScopeAssetsCount = programs
+      .map((p, i) => (p.status === 'ACTIVE' ? linkedTargetCounts[i] : 0))
+      .reduce((sum, n) => sum + (n ?? 0), 0);
+    const targetsCount = linkedTargetCounts.reduce(
+      (sum, n) => sum + (n ?? 0),
+      0,
+    );
 
     const earnedStatuses: BugReportStatus[] = [
       'ACCEPTED',
@@ -103,6 +151,23 @@ export class GetBugBountyDashboardHandler implements IQueryHandler<
     );
     const totalBountyEarned = earnedAmounts.reduce((sum, n) => sum + n, 0);
 
+    const pipelineStatuses: BugReportStatus[] = [
+      'SUBMITTED',
+      'TRIAGED',
+      'ACCEPTED',
+    ];
+    const pipelineAmounts = await Promise.all(
+      pipelineStatuses.map((status) =>
+        this.reportsRepository.sumBountyAmount(workspace.id, status),
+      ),
+    );
+    // "Estimated earnings" = bounty value of reports still moving through
+    // the pipeline (submitted/triaged/already-accepted-but-not-yet-paid-
+    // out) — distinct from totalBountyEarned above, which only counts
+    // reports that reached a final RESOLVED/CLOSED state. Both draw from
+    // the same BugReport.bountyAmount column, just different status sets.
+    const estimatedEarnings = pipelineAmounts.reduce((sum, n) => sum + n, 0);
+
     const recentFindingDtos = await Promise.all(
       recentFindings.map(async (finding) => {
         const evidenceIds = await this.findingsRepository.listEvidenceIds(
@@ -111,6 +176,105 @@ export class GetBugBountyDashboardHandler implements IQueryHandler<
         return toBugBountyFindingDto(finding, evidenceIds);
       }),
     );
+
+    const openFindingsCount = Object.entries(findingStageCounts)
+      .filter(([stage]) => !CLOSED_FINDING_STAGES.has(stage))
+      .reduce((sum, [, count]) => sum + count, 0);
+
+    const activeJobsCount =
+      reconJobs.filter((j) => ACTIVE_JOB_STATUSES.has(j.status)).length +
+      vulnJobs.filter((j) => ACTIVE_JOB_STATUSES.has(j.status)).length;
+
+    const scannedTargetIds = new Set(reconFindings.map((f) => f.targetId));
+    const reconProgress = await Promise.all(
+      activePrograms.map(async (program) => {
+        const targetIds = await this.programsRepository.listLinkedTargetIds(
+          program.id,
+        );
+        return {
+          programId: program.id,
+          programName: program.name,
+          targetsInScope: targetIds.length,
+          targetsScanned: targetIds.filter((id) => scannedTargetIds.has(id))
+            .length,
+        };
+      }),
+    );
+
+    // Leaderboard — accepted-report count + lifetime earnings per hunter,
+    // computed in-memory from the already-fetched report list (no
+    // dedicated aggregate query) since a personal workspace's report
+    // volume is small; a multi-thousand-report workspace would want a SQL
+    // GROUP BY instead, same caveat as GetBugBountyStatisticsHandler above.
+    const byUser = new Map<string, { acceptedReports: number; totalEarnings: number }>();
+    for (const report of allReports) {
+      const entry = byUser.get(report.createdBy) ?? {
+        acceptedReports: 0,
+        totalEarnings: 0,
+      };
+      if (
+        report.status === 'ACCEPTED' ||
+        report.status === 'RESOLVED' ||
+        report.status === 'CLOSED'
+      ) {
+        entry.acceptedReports += 1;
+      }
+      entry.totalEarnings += report.bountyAmount ?? 0;
+      byUser.set(report.createdBy, entry);
+    }
+    const topUserIds = [...byUser.entries()]
+      .sort((a, b) => b[1].totalEarnings - a[1].totalEarnings)
+      .slice(0, 5);
+    const leaderboard = await Promise.all(
+      topUserIds.map(async ([userId, stats]) => {
+        const user = await this.usersRepository.findById(userId);
+        return {
+          userId,
+          displayName: user?.displayName ?? 'Unknown',
+          acceptedReports: stats.acceptedReports,
+          totalEarnings: stats.totalEarnings,
+        };
+      }),
+    );
+
+    // Heuristic (not a live AI call) — computed from data already fetched
+    // above, so the dashboard stays fast; a "real" AI-generated version
+    // would hit an AiProvider on every dashboard load, which is the kind
+    // of latency/cost a dashboard widget shouldn't impose. Kept
+    // deliberately simple: surfaces the two conditions most likely to be
+    // actionable (unscoped active programs, stale triaged findings).
+    const aiSuggestions: BugBountyDashboardDto['aiSuggestions'] = [];
+    for (const program of activePrograms) {
+      const scopeItemCount = await this.programsRepository.countScopeItems(
+        program.id,
+      );
+      if (scopeItemCount === 0) {
+        aiSuggestions.push({
+          title: `Define scope for "${program.name}"`,
+          detail:
+            'This active program has no scope items yet — recon and classification can’t run against it until you add some.',
+          relatedEntityType: 'BugBountyProgram',
+          relatedEntityId: program.id,
+        });
+      }
+    }
+    const staleCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const staleTriagedCount = (
+      await this.findingsRepository.list({
+        workspaceId: workspace.id,
+        stage: 'TRIAGED',
+        limit: 200,
+      })
+    ).filter((f) => f.updatedAt.getTime() < staleCutoff).length;
+    if (staleTriagedCount > 0) {
+      aiSuggestions.push({
+        title: `${staleTriagedCount} finding${staleTriagedCount === 1 ? '' : 's'} stuck in TRIAGED`,
+        detail:
+          'These findings have not moved in over 7 days — consider reporting, closing, or requesting more info.',
+        relatedEntityType: null,
+        relatedEntityId: null,
+      });
+    }
 
     return {
       activeProgramsCount: activePrograms.length,
@@ -132,6 +296,13 @@ export class GetBugBountyDashboardHandler implements IQueryHandler<
         entityId: event.entityId,
         createdAt: event.createdAt.toISOString(),
       })),
+      targetsCount,
+      reconProgress,
+      activeJobsCount,
+      openFindingsCount,
+      estimatedEarnings,
+      leaderboard,
+      aiSuggestions,
     };
   }
 }
@@ -299,4 +470,15 @@ function buildPlatformComparison(
     if (
       report.status === 'ACCEPTED' ||
       report.status === 'RESOLVED' ||
-      report.status === 'CLO
+      report.status === 'CLOSED'
+    ) {
+      entry.accepted += 1;
+    }
+    entry.earnings += report.bountyAmount ?? 0;
+    byPlatform.set(platform, entry);
+  }
+  return [...byPlatform.entries()].map(([platform, stats]) => ({
+    platform,
+    ...stats,
+  }));
+}

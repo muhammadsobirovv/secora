@@ -83,4 +83,5 @@ export class ClassifyScopeValueHandler implements IQueryHandler<
       query.programId,
     );
     return classifyScopeValue(value, scopeItems);
-  
+  }
+}

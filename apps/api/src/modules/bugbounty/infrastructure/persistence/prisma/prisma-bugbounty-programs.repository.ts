@@ -6,6 +6,7 @@ import type {
   CreateBugBountyProgramInput,
   CreateScopeItemInput,
   ListBugBountyProgramsFilter,
+  RecordProgramImportInput,
   UpdateBugBountyProgramInput,
   UpdateScopeItemInput,
 } from '../../../domain/repositories/bugbounty-programs.repository.interface.js';
@@ -43,6 +44,11 @@ export class PrismaBugBountyProgramsRepository implements BugBountyProgramsRepos
         notesMarkdown: input.notesMarkdown ?? null,
         tags: input.tags ?? [],
         createdBy: input.createdBy,
+        ...(input.favorite !== undefined ? { favorite: input.favorite } : {}),
+        safeHarbor: input.safeHarbor ?? null,
+        ...(input.rateLimits !== undefined
+          ? { rateLimits: input.rateLimits as Prisma.InputJsonValue }
+          : {}),
       },
     });
   }
@@ -73,6 +79,7 @@ export class PrismaBugBountyProgramsRepository implements BugBountyProgramsRepos
         ...(filter.search
           ? { name: { contains: filter.search, mode: 'insensitive' } }
           : {}),
+        ...(filter.favorite !== undefined ? { favorite: filter.favorite } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -111,6 +118,13 @@ export class PrismaBugBountyProgramsRepository implements BugBountyProgramsRepos
           ? { notesMarkdown: input.notesMarkdown }
           : {}),
         ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.favorite !== undefined ? { favorite: input.favorite } : {}),
+        ...(input.safeHarbor !== undefined
+          ? { safeHarbor: input.safeHarbor }
+          : {}),
+        ...(input.rateLimits !== undefined
+          ? { rateLimits: input.rateLimits as Prisma.InputJsonValue }
+          : {}),
       },
     });
   }
@@ -119,6 +133,19 @@ export class PrismaBugBountyProgramsRepository implements BugBountyProgramsRepos
     await this.txHost.tx.bugBountyProgram.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  recordImport(
+    id: string,
+    input: RecordProgramImportInput,
+  ): Promise<BugBountyProgram> {
+    return this.txHost.tx.bugBountyProgram.update({
+      where: { id },
+      data: {
+        lastImportedAt: input.lastImportedAt,
+        importFingerprint: input.importFingerprint,
+      },
     });
   }
 
@@ -208,4 +235,8 @@ export class PrismaBugBountyProgramsRepository implements BugBountyProgramsRepos
   }
 
   countLinkedTargets(programId: string): Promise<number> {
-    return this.txHost.tx.bugBountyProgramTarg
+    return this.txHost.tx.bugBountyProgramTarget.count({
+      where: { programId },
+    });
+  }
+}

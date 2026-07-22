@@ -54,6 +54,8 @@ import {
   VulnFindingResolvedEvent,
   VulnFindingUpdatedEvent,
 } from '../../vuln/events/vuln-finding-events.js';
+import { PluginInstalledEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
+import { ScheduledJobRunCompletedEvent, ScheduledJobRunFailedEvent } from '../../automation/events/scheduled-job-events.js';
 
 /// The single listener that turns every domain event into an ActivityEvent
 /// row. This is what "generic enough for future modules" means in
@@ -103,6 +105,14 @@ import {
   VulnFindingUpdatedEvent,
   VulnFindingConfirmedEvent,
   VulnFindingResolvedEvent,
+  // Module 10 — Plugin Marketplace. See plugin-events.ts's doc comment for
+  // why these two (of Module 10's many new event types) are the ones that
+  // fit the Activity Timeline's workspace-scoped shape.
+  PluginInstalledEvent,
+  PluginUninstalledEvent,
+  // Module 10 — Automation/webhooks expansion. See scheduled-job-events.ts.
+  ScheduledJobRunCompletedEvent,
+  ScheduledJobRunFailedEvent,
 )
 export class ActivityRecordingHandler implements IEventHandler<ActivityDomainEvent> {
   constructor(

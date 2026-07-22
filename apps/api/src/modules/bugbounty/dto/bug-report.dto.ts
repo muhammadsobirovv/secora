@@ -16,11 +16,24 @@ import type {
   BugReportTemplate,
   CreateBugReportRequestDto as CreateShape,
   ExportBugReportRequestDto as ExportShape,
+  ExportBugReportV2RequestDto as ExportV2Shape,
   GenerateBugReportDraftRequestDto as DraftShape,
   ListBugReportsQueryDto as ListShape,
+  ReportExportFormatV2,
+  ReportTemplateKind,
   SubmitBugReportRequestDto as SubmitShape,
   UpdateBugReportRequestDto as UpdateShape,
 } from '@pentesthub/shared';
+import { REPORT_TEMPLATE_KINDS } from '@pentesthub/shared';
+
+export const REPORT_EXPORT_FORMATS_V2: ReportExportFormatV2[] = [
+  'MARKDOWN',
+  'PDF',
+  'DOCX',
+  'HTML',
+  'JSON',
+  'TXT',
+];
 
 export const BUG_REPORT_TEMPLATES: BugReportTemplate[] = [
   'HACKERONE',
@@ -61,6 +74,13 @@ export class CreateBugReportDto implements CreateShape {
   @IsOptional()
   @IsIn(BUG_REPORT_TEMPLATES)
   template?: BugReportTemplate;
+
+  @ApiPropertyOptional({ enum: REPORT_TEMPLATE_KINDS })
+  @IsOptional()
+  @IsIn(REPORT_TEMPLATE_KINDS)
+  templateKind?: ReportTemplateKind;
+
+  @ApiPropertyOptional() @IsOptional() @IsUUID() customTemplateId?: string;
 
   @ApiPropertyOptional() @IsOptional() @IsString() summary?: string;
 
@@ -104,6 +124,13 @@ export class UpdateBugReportDto implements UpdateShape {
   @IsOptional()
   @IsIn(BUG_REPORT_TEMPLATES)
   template?: BugReportTemplate;
+
+  @ApiPropertyOptional({ enum: REPORT_TEMPLATE_KINDS })
+  @IsOptional()
+  @IsIn(REPORT_TEMPLATE_KINDS)
+  templateKind?: ReportTemplateKind;
+
+  @ApiPropertyOptional() @IsOptional() @IsUUID() customTemplateId?: string;
 
   @ApiPropertyOptional({ enum: BUG_REPORT_STATUSES })
   @IsOptional()
@@ -190,4 +217,12 @@ export class GenerateBugReportDraftDto implements DraftShape {
 
 export class ExportBugReportDto implements ExportShape {
   @ApiProperty({ enum: BUG_REPORT_EXPORT_FORMATS })
-  @IsIn(BUG_REPORT_
+  @IsIn(BUG_REPORT_EXPORT_FORMATS)
+  format!: BugReportExportFormat;
+}
+
+export class ExportBugReportV2Dto implements ExportV2Shape {
+  @ApiProperty({ enum: REPORT_EXPORT_FORMATS_V2 })
+  @IsIn(REPORT_EXPORT_FORMATS_V2)
+  format!: ReportExportFormatV2;
+}

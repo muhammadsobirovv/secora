@@ -29,6 +29,10 @@ export class PrismaKnowledgeBaseRepository implements KnowledgeBaseRepository {
           ? { checklist: input.checklist as Prisma.InputJsonValue }
           : {}),
         authorId: input.authorId,
+        ...(input.kind !== undefined ? { kind: input.kind } : {}),
+        ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        cveId: input.cveId ?? null,
+        sourceConversationId: input.sourceConversationId ?? null,
       },
     });
   }
@@ -57,6 +61,8 @@ export class PrismaKnowledgeBaseRepository implements KnowledgeBaseRepository {
         ...(filter.targetId ? { targetId: filter.targetId } : {}),
         ...(filter.findingId ? { findingId: filter.findingId } : {}),
         ...(filter.reportId ? { reportId: filter.reportId } : {}),
+        ...(filter.kind ? { kind: filter.kind } : {}),
+        ...(filter.tag ? { tags: { has: filter.tag } } : {}),
         ...(filter.search
           ? {
               OR: [
@@ -94,6 +100,12 @@ export class PrismaKnowledgeBaseRepository implements KnowledgeBaseRepository {
         ...(input.checklist !== undefined
           ? { checklist: input.checklist as Prisma.InputJsonValue }
           : {}),
+        ...(input.kind !== undefined ? { kind: input.kind } : {}),
+        ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.cveId !== undefined ? { cveId: input.cveId } : {}),
+        ...(input.sourceConversationId !== undefined
+          ? { sourceConversationId: input.sourceConversationId }
+          : {}),
       },
     });
   }
@@ -101,4 +113,7 @@ export class PrismaKnowledgeBaseRepository implements KnowledgeBaseRepository {
   async softDelete(id: string): Promise<void> {
     await this.txHost.tx.knowledgeBaseNote.update({
       where: { id },
-      data: { deletedAt: new Date
+      data: { deletedAt: new Date() },
+    });
+  }
+}

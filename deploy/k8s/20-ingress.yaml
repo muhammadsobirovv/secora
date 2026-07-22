@@ -1,0 +1,42 @@
+# Routes app.your-company.com to the web tier and api.your-company.com
+# to the API tier, both TLS-terminated. Written against the nginx
+# ingress controller (the most common default) — adjust the
+# `ingressClassName`/annotations for a different controller (Traefik,
+# AWS ALB Ingress Controller, GKE Ingress, etc.), the routing rules
+# themselves don't need to change.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pentesthub
+  namespace: pentesthub
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod  # uncomment if cert-manager is installed
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.your-company.com
+        - api.your-company.com
+      secretName: pentesthub-tls
+  rules:
+    - host: app.your-company.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 3001
+    - host: api.your-company.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000

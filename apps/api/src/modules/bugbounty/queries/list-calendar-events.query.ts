@@ -83,4 +83,6 @@ export class GetCalendarEventHandler implements IQueryHandler<
       query.userId,
       query.eventId,
     );
-    return to
+    return toCalendarEventDto(event);
+  }
+}

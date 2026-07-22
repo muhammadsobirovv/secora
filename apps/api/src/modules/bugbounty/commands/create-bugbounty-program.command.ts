@@ -64,6 +64,9 @@ export class CreateBugBountyProgramHandler implements ICommandHandler<
       notesMarkdown: command.data.notesMarkdown,
       tags: command.data.tags,
       createdBy: command.userId,
+      favorite: command.data.favorite,
+      safeHarbor: command.data.safeHarbor,
+      rateLimits: command.data.rateLimits,
     });
 
     this.eventBus.publish(
@@ -81,4 +84,5 @@ export class CreateBugBountyProgramHandler implements ICommandHandler<
       targetCount: 0,
       findingCount: 0,
     });
-  
+  }
+}

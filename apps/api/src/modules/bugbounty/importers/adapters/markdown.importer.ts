@@ -119,4 +119,6 @@ export class MarkdownImporter implements ProgramImporter {
         : undefined,
       scopeItems,
       warnings,
-  
+    };
+  }
+}

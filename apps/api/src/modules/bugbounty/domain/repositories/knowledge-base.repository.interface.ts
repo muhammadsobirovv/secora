@@ -1,4 +1,8 @@
-import type { KnowledgeBaseNote, Prisma } from '../../../../prisma-types.js';
+import type {
+  KnowledgeBaseEntryKind,
+  KnowledgeBaseNote,
+  Prisma,
+} from '../../../../prisma-types.js';
 
 export interface ListKnowledgeBaseNotesFilter {
   workspaceId: string;
@@ -7,6 +11,9 @@ export interface ListKnowledgeBaseNotesFilter {
   findingId?: string;
   reportId?: string;
   search?: string;
+  // --- Module 9 additions ---
+  kind?: KnowledgeBaseEntryKind;
+  tag?: string;
 }
 
 export interface CreateKnowledgeBaseNoteInput {
@@ -19,6 +26,11 @@ export interface CreateKnowledgeBaseNoteInput {
   contentMarkdown: string;
   checklist?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   authorId: string;
+  // --- Module 9 additions ---
+  kind?: KnowledgeBaseEntryKind;
+  tags?: string[];
+  cveId?: string | null;
+  sourceConversationId?: string | null;
 }
 
 export type UpdateKnowledgeBaseNoteInput = Partial<
@@ -40,4 +52,4 @@ export interface KnowledgeBaseRepository {
   softDelete(id: string): Promise<void>;
 }
 
-export const KNOWLEDGE_BASE_REPOSITORY = Symbol('KNO
+export const KNOWLEDGE_BASE_REPOSITORY = Symbol('KNOWLEDGE_BASE_REPOSITORY');

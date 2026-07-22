@@ -33,6 +33,21 @@ import { ReconModule } from './modules/recon/recon.module.js';
 import { VulnModule } from './modules/vuln/vuln.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { BugBountyModule } from './modules/bugbounty/bugbounty.module.js';
+import { CollaborationModule } from './modules/collaboration/collaboration.module.js';
+import { AutomationModule } from './modules/automation/automation.module.js';
+import { NotificationsChannelsModule } from './modules/notifications-channels/notifications-channels.module.js';
+import { PublicApiModule } from './modules/public-api/public-api.module.js';
+import { EnterpriseModule } from './modules/enterprise/enterprise.module.js';
+import { DistributedJobsModule } from './modules/distributed-jobs/distributed-jobs.module.js';
+import { PluginsModule } from './modules/plugins/plugins.module.js';
+import { IntegrationsModule } from './modules/integrations/integrations.module.js';
+import { TeamWorkspaceModule } from './modules/team-workspace/team-workspace.module.js';
+import { EnterpriseReportingModule } from './modules/enterprise-reporting/enterprise-reporting.module.js';
+import { EnterpriseAnalyticsModule } from './modules/enterprise-analytics/enterprise-analytics.module.js';
+import { GraphqlApiModule } from './modules/graphql-api/graphql-api.module.js';
+import { AutomationEngineModule } from './modules/automation-engine/automation-engine.module.js';
+import { ComplianceModule } from './modules/compliance/compliance.module.js';
+import { ObservabilityModule } from './modules/observability/observability.module.js';
 
 @Module({
   imports: [
@@ -92,6 +107,26 @@ import { BugBountyModule } from './modules/bugbounty/bugbounty.module.js';
     VulnModule,
     AiModule,
     BugBountyModule,
+    // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
+    // Notifications-channels/Public API. Additive-only; nothing above this
+    // line was touched to make room for them.
+    CollaborationModule,
+    AutomationModule,
+    NotificationsChannelsModule,
+    PublicApiModule,
+    // Module 10 — Enterprise Platform + SaaS + Global Infrastructure.
+    // Additive-only; nothing above this line was touched to make room.
+    EnterpriseModule,
+    DistributedJobsModule,
+    PluginsModule,
+    IntegrationsModule,
+    TeamWorkspaceModule,
+    EnterpriseReportingModule,
+    EnterpriseAnalyticsModule,
+    GraphqlApiModule,
+    AutomationEngineModule,
+    ComplianceModule,
+    ObservabilityModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

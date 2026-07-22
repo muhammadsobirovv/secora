@@ -1,0 +1,122 @@
+# The API server tier. `replicas: 3` is the reference HA topology this
+# whole manifest set (and PollerLeaseService — see
+# apps/api/src/common/concurrency/poller-lease.service.ts) is designed
+# around; every `setInterval`-based poller in this codebase is safe to
+# run at any replica count because of that service, and readiness/
+# liveness below use Module 10's Observability health endpoints so a
+# replica that can't reach Postgres is pulled out of rotation without
+# being killed (see health.controller.ts's doc comment for the
+# liveness-vs-readiness distinction this relies on).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: pentesthub
+  labels:
+    app: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0 # never drop below full capacity mid-rollout
+      maxSurge: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      # Spreads replicas across nodes so a single node failure can't take
+      # out more than one replica — `ScheduleAnyway` (not `DoNotSchedule`)
+      # so this remains a soft preference on small clusters that don't
+      # have 3+ schedulable nodes rather than a hard scheduling failure.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: api
+      containers:
+        - name: api
+          image: ghcr.io/pentesthub-ai/pentesthub-ai-api:latest # replace with the image the docker-publish.yml workflow pushed, pinned to a tag/digest — not `latest` — for any real deployment
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: pentesthub-config
+            - secretRef:
+                name: pentesthub-secrets
+          readinessProbe:
+            httpGet:
+              path: /observability/health/ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /observability/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              memory: "768Mi"
+          # SIGTERM triggers Nest's shutdown hooks (see main.ts's
+          # `app.enableShutdownHooks()`), which runs every service's
+          # `onModuleDestroy` (clearing poller intervals, releasing this
+          # replica's PollerLeaseService holds early, closing the Prisma
+          # connection pool) before the process exits — the default grace
+          # period below gives that an honest chance to finish an
+          # in-flight webhook delivery/workflow step rather than being
+          # SIGKILLed mid-request.
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: pentesthub
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api
+  namespace: pentesthub
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    # Scale up fast (a traffic spike shouldn't wait), scale down slowly
+    # (avoids flapping replica count on noisy/bursty load) — standard HPA
+    # tuning, not specific to this app.
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 0

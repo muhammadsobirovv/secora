@@ -98,4 +98,16 @@ export class PrismaPayloadLibraryRepository implements PayloadLibraryRepository 
           : {}),
         ...(input.tags !== undefined ? { tags: input.tags } : {}),
         ...(input.aiExplanation !== undefined
-          ? { aiExplanation: input.aiE
+          ? { aiExplanation: input.aiExplanation }
+          : {}),
+      },
+    });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.txHost.tx.payloadLibraryEntry.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+}
