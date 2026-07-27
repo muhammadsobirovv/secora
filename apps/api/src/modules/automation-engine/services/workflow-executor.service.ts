@@ -8,6 +8,7 @@ import { AiProviderRegistryService } from '../../ai/providers/ai-provider-regist
 import { collectStreamedCompletion } from '../../ai/providers/collect-stream.util.js';
 import { NotificationDispatcherService } from '../../notifications-channels/services/notification-dispatcher.service.js';
 import { ReportContentBuilderService } from '../../enterprise-reporting/report-content-builder.service.js';
+import { AgentOrchestratorService } from '../../agent/orchestrator/agent-orchestrator.service.js';
 import { getByPath, evaluateCondition } from '../workflow-context.util.js';
 import { withSpan } from '../../../observability/tracing.js';
 import { MetricsRegistryService } from '../../observability/metrics-registry.service.js';
@@ -53,6 +54,7 @@ export class WorkflowExecutorService {
     private readonly notificationDispatcher: NotificationDispatcherService,
     private readonly reportContentBuilder: ReportContentBuilderService,
     private readonly metrics: MetricsRegistryService,
+    private readonly agentOrchestrator: AgentOrchestratorService,
   ) {}
 
   async start(runId: string): Promise<void> {
@@ -240,6 +242,38 @@ export class WorkflowExecutorService {
           credential,
         );
         return { output: { text } };
+      }
+
+      case 'ai_agent_run': {
+        // Module 11 — AI Workflow Automation. Unlike every other kind in
+        // this switch, the underlying work (AgentOrchestratorService.
+        // startRun) is itself fire-and-forget/background — it returns as
+        // soon as the OrchestrationRun row + AgentTask plan exist, not
+        // when the agents finish running. This step therefore records
+        // "the run was started" as its output, the same shape recon/scan
+        // use for "recorded, not awaited" — a workflow author who needs
+        // to react to the *result* should follow up with a `condition`/
+        // `delay` step polling the run, since AgentOrchestratorService
+        // has no CQRS command surface yet (task #236) to await here even
+        // if this step wanted to block.
+        const goal = step.params.goal as string | undefined;
+        if (!goal) throw new Error('ai_agent_run step requires params.goal.');
+        if (!workflow.workspaceId) {
+          throw new Error('ai_agent_run step requires the workflow to have a workspaceId.');
+        }
+
+        const run = await this.agentOrchestrator.startRun({
+          workspaceId: workflow.workspaceId,
+          projectId: (step.params.projectId as string | undefined) ?? null,
+          userId: workflow.createdBy,
+          goal,
+          provider: step.params.provider as string | undefined,
+          model: step.params.model as string | undefined,
+        });
+        return {
+          output: { orchestrationRunId: run.id, status: run.status },
+          message: `Started AI agent orchestration run ${run.id}.`,
+        };
       }
 
       case 'create_ticket':

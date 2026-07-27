@@ -14,6 +14,8 @@ import {
   FileBarChart,
   ShieldAlert,
   ShieldCheck,
+  BookOpen,
+  Sparkles,
 } from "lucide-react";
 
 export interface NavItem {
@@ -34,6 +36,13 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert },
   { label: "Bug Bounty", href: "/bugbounty", icon: Bug },
   { label: "AI Assistant", href: "/ai", icon: Bot },
+  // Module 11 — AI Security Copilot + Autonomous Multi-Agent System
+  // (task #237): Master AI Orchestrator run list/detail + system-wide
+  // reference catalog. Distinct from "AI Assistant" above (Module 5's
+  // per-project chat) — the Copilot delegates multi-step goals to
+  // specialist agents rather than answering one message at a time.
+  { label: "Agent Copilot", href: "/agent", icon: Sparkles },
+  { label: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
   { label: "Activity", href: "/activity", icon: Activity },
 ];
 

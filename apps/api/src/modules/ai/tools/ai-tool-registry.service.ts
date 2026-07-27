@@ -12,6 +12,9 @@ import { CreateNoteTool } from './create-note.tool.js';
 import { DraftReportTool } from './draft-report.tool.js';
 import { GeneratePocTool } from './generate-poc.tool.js';
 import { GeneratePayloadsTool } from './generate-payloads.tool.js';
+import { StartReconScanTool } from './start-recon-scan.tool.js';
+import { StartVulnerabilityScanTool } from './start-vulnerability-scan.tool.js';
+import { AppendReportSectionTool } from './append-report-section.tool.js';
 
 /// Resolves a tool name (as emitted by the model inside a
 /// `<tool_call name="...">` tag) to its implementation. Same "explicit
@@ -35,6 +38,9 @@ export class AiToolRegistryService {
     draftReport: DraftReportTool,
     generatePoc: GeneratePocTool,
     generatePayloads: GeneratePayloadsTool,
+    startReconScan: StartReconScanTool,
+    startVulnerabilityScan: StartVulnerabilityScanTool,
+    appendReportSection: AppendReportSectionTool,
   ) {
     const all: AiTool[] = [
       searchFindings,
@@ -48,6 +54,9 @@ export class AiToolRegistryService {
       draftReport,
       generatePoc,
       generatePayloads,
+      startReconScan,
+      startVulnerabilityScan,
+      appendReportSection,
     ];
     this.tools = new Map(all.map((tool) => [tool.name, tool]));
   }

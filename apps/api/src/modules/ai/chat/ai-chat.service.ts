@@ -10,6 +10,7 @@ import {
 } from '../domain/repositories/ai-conversations.repository.interface.js';
 import {
   AI_MESSAGES_REPOSITORY,
+  type AiMessageRecord,
   type AiMessagesRepository,
 } from '../domain/repositories/ai-messages.repository.interface.js';
 import {
@@ -21,6 +22,7 @@ import { AiMemoryService } from '../memory/ai-memory.service.js';
 import { AiPromptBuilderService } from '../prompts/ai-prompt-builder.service.js';
 import { AiProviderRegistryService } from '../providers/ai-provider-registry.service.js';
 import {
+  AiPrivacyModeViolationError,
   AiProviderNotConfiguredError,
   AiProviderRequestError,
 } from '../providers/ai-provider.interface.js';
@@ -147,8 +149,89 @@ export class AiChatService {
     return toAiMessageDto(message);
   }
 
+  /// Module 11 — AI Chat conversation branching (Support Branching
+  /// Conversations). Forks off `parentMessageId` (an earlier message in
+  /// the same conversation) rather than appending to the trunk: the new
+  /// user message and its assistant reply both carry `parentMessageId`
+  /// set to the message being forked from (not chained to each other),
+  /// so `AiMessagesRepository.listBranches(parentMessageId)` returns them
+  /// together as one branch attempt — a second "edit and resend" off the
+  /// same fork point produces a second such pair, and the frontend can
+  /// render every attempt alongside the original trunk message. Same
+  /// fire-and-forget "create rows, kick off generation, return
+  /// immediately" shape as startTurn.
+  async branchTurn(
+    conversationId: string,
+    parentMessageId: string,
+    userId: string,
+    content: string,
+  ): Promise<StartTurnResult> {
+    const conversation = await this.getConversationOrThrow(conversationId);
+    const sanitizedContent = this.injectionGuard.sanitizeUserMessage(content);
+
+    const userMessage = await this.messagesRepository.create({
+      conversationId,
+      role: 'USER',
+      content: sanitizedContent,
+      parentMessageId,
+    });
+    const assistantMessage = await this.messagesRepository.create({
+      conversationId,
+      role: 'ASSISTANT',
+      content: '',
+      status: 'PENDING',
+      provider: conversation.provider,
+      model: conversation.model,
+      parentMessageId,
+    });
+    await this.conversationsRepository.touch(conversationId);
+
+    const trunkHistory = await this.resolveBranchHistory(
+      conversationId,
+      parentMessageId,
+    );
+
+    this.streamHub.start(assistantMessage.id);
+    void this.runGeneration(conversation, assistantMessage.id, userId, {
+      mode: 'branch',
+      historyMessages: [...trunkHistory, userMessage],
+    });
+
+    return {
+      userMessage: toAiMessageDto(userMessage),
+      assistantMessage: toAiMessageDto(assistantMessage),
+    };
+  }
+
   cancel(assistantMessageId: string): boolean {
     return this.streamHub.cancel(assistantMessageId);
+  }
+
+  /// Resolves the trunk history a branch's generation should see: every
+  /// non-branched (`parentMessageId === null`) message up to and
+  /// including the fork point's own position in the trunk. If the fork
+  /// point itself is already a branch reply (its own `parentMessageId`
+  /// is set), this flattens one level by anchoring on *its* parent
+  /// instead — deliberately not full recursive ancestor resolution
+  /// (branch-off-a-branch-off-a-branch), which is out of scope for this
+  /// task; a single level covers "edit and resend" and "regenerate this
+  /// point," the two flows the spec actually calls for.
+  private async resolveBranchHistory(
+    conversationId: string,
+    forkPointId: string,
+  ): Promise<AiMessageRecord[]> {
+    const all = await this.messagesRepository.listForConversation(conversationId);
+    const forkPoint = all.find((m) => m.id === forkPointId);
+    if (!forkPoint) return all;
+
+    const anchorId = forkPoint.parentMessageId ?? forkPoint.id;
+    const anchor = all.find((m) => m.id === anchorId) ?? forkPoint;
+
+    return all.filter(
+      (m) =>
+        m.parentMessageId === null &&
+        m.createdAt.getTime() <= anchor.createdAt.getTime(),
+    );
   }
 
   private async getConversationOrThrow(
@@ -164,16 +247,27 @@ export class AiChatService {
     conversation: AiConversationRecord,
     assistantMessageId: string,
     userId: string,
-    options?: { mode?: 'regenerate' | 'continue'; existingContent?: string },
+    options?: {
+      mode?: 'regenerate' | 'continue' | 'branch';
+      existingContent?: string;
+      /// Module 11 — branching: when set (branchTurn's call), this exact
+      /// list is used as conversation history instead of the trunk's
+      /// full listForConversation() — see resolveBranchHistory's doc
+      /// comment for why a branch's context isn't just "everything in
+      /// the conversation so far."
+      historyMessages?: AiMessageRecord[];
+    },
   ): Promise<void> {
     const stream = this.streamHub.get(assistantMessageId);
     if (!stream) return;
     const { subject, controller } = stream;
 
     try {
-      const priorMessages = (
-        await this.messagesRepository.listForConversation(conversation.id)
-      ).filter((m) => m.id !== assistantMessageId);
+      const priorMessages = options?.historyMessages
+        ? options.historyMessages
+        : (
+            await this.messagesRepository.listForConversation(conversation.id)
+          ).filter((m) => m.id !== assistantMessageId);
       const latestUserMessage = [...priorMessages]
         .reverse()
         .find((m) => m.role === 'USER');
@@ -412,6 +506,7 @@ export class AiChatService {
 }
 
 function formatProviderError(error: unknown): string {
+  if (error instanceof AiPrivacyModeViolationError) return error.message;
   if (error instanceof AiProviderNotConfiguredError) return error.message;
   if (error instanceof AiProviderRequestError) return error.message;
   if (error instanceof Error) return error.message;

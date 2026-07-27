@@ -13,6 +13,10 @@ export const AI_CONVERSATION_ENDPOINTS = {
   regenerate: (id: string) => `/ai/conversations/${id}/messages/regenerate`,
   cancel: (id: string) => `/ai/conversations/${id}/messages/cancel`,
   continue: (id: string) => `/ai/conversations/${id}/messages/continue`,
+  /// Module 11 — AI Chat conversation branching.
+  branch: (id: string) => `/ai/conversations/${id}/messages/branch`,
+  listBranches: (conversationId: string, messageId: string) =>
+    `/ai/conversations/${conversationId}/messages/${messageId}/branches`,
 } as const;
 
 export const AI_MESSAGE_ENDPOINTS = {
@@ -36,6 +40,9 @@ export const AI_PROVIDER_CREDENTIAL_ENDPOINTS = {
 
 export const AI_SPEECH_ENDPOINTS = {
   list: "/ai/speech/providers",
+  /// Module 11 — Voice Copilot enhancements.
+  transcribe: "/ai/speech/transcribe",
+  synthesize: "/ai/speech/synthesize",
 } as const;
 
 export const AI_CONTEXT_ENDPOINTS = {
@@ -46,4 +53,10 @@ export const AI_CONTEXT_ENDPOINTS = {
 export const AI_MEMORY_ENDPOINTS = {
   search: "/ai/memory/search",
   reindex: (projectId: string) => `/ai/memory/${projectId}/reindex`,
+} as const;
+
+/// Module 11 — Privacy controls (task #234): per-workspace AI privacy mode.
+export const AI_PRIVACY_ENDPOINTS = {
+  get: "/ai/privacy-mode",
+  update: "/ai/privacy-mode",
 } as const;

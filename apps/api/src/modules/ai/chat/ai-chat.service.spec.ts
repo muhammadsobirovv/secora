@@ -65,6 +65,7 @@ function messageRecord(
     bookmarked: false,
     pinned: false,
     errorMessage: null,
+    parentMessageId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

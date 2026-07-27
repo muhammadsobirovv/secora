@@ -16,8 +16,12 @@ import { AI_TOOL_CALL_LOGS_REPOSITORY } from './domain/repositories/ai-tool-call
 import { PrismaAiToolCallLogsRepository } from './infrastructure/persistence/prisma/prisma-ai-tool-call-logs.repository.js';
 import { AI_MEMORY_REPOSITORY } from './domain/repositories/ai-memory.repository.interface.js';
 import { PrismaAiMemoryRepository } from './infrastructure/persistence/prisma/prisma-ai-memory.repository.js';
+import { PROMPT_TEMPLATE_REPOSITORY } from './domain/repositories/prompt-template.repository.interface.js';
+import { PrismaPromptTemplateRepository } from './infrastructure/persistence/prisma/prisma-prompt-template.repository.js';
 import { AI_PROVIDER_CREDENTIALS_REPOSITORY } from './domain/repositories/ai-provider-credentials.repository.interface.js';
 import { PrismaAiProviderCredentialsRepository } from './infrastructure/persistence/prisma/prisma-ai-provider-credentials.repository.js';
+import { WORKSPACE_AI_PRIVACY_REPOSITORY } from './domain/repositories/workspace-ai-privacy.repository.interface.js';
+import { PrismaWorkspaceAiPrivacyRepository } from './infrastructure/persistence/prisma/prisma-workspace-ai-privacy.repository.js';
 
 import { OpenAiProvider } from './providers/adapters/openai.provider.js';
 import { AnthropicProvider } from './providers/adapters/anthropic.provider.js';
@@ -25,6 +29,7 @@ import { GeminiProvider } from './providers/adapters/gemini.provider.js';
 import { OllamaProvider } from './providers/adapters/ollama.provider.js';
 import { OpenRouterProvider } from './providers/adapters/openrouter.provider.js';
 import { AiProviderRegistryService } from './providers/ai-provider-registry.service.js';
+import { AiPrivacyModeService } from './providers/ai-privacy-mode.service.js';
 
 import { WebSpeechProvider } from './speech/adapters/web-speech.provider.js';
 import { OpenAiSpeechProvider } from './speech/adapters/openai-speech.provider.js';
@@ -49,6 +54,9 @@ import { CreateNoteTool } from './tools/create-note.tool.js';
 import { DraftReportTool } from './tools/draft-report.tool.js';
 import { GeneratePocTool } from './tools/generate-poc.tool.js';
 import { GeneratePayloadsTool } from './tools/generate-payloads.tool.js';
+import { StartReconScanTool } from './tools/start-recon-scan.tool.js';
+import { StartVulnerabilityScanTool } from './tools/start-vulnerability-scan.tool.js';
+import { AppendReportSectionTool } from './tools/append-report-section.tool.js';
 import { AiToolRegistryService } from './tools/ai-tool-registry.service.js';
 
 import { AiChatStreamHubService } from './chat/ai-chat-stream-hub.service.js';
@@ -89,8 +97,16 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     },
     { provide: AI_MEMORY_REPOSITORY, useClass: PrismaAiMemoryRepository },
     {
+      provide: PROMPT_TEMPLATE_REPOSITORY,
+      useClass: PrismaPromptTemplateRepository,
+    },
+    {
       provide: AI_PROVIDER_CREDENTIALS_REPOSITORY,
       useClass: PrismaAiProviderCredentialsRepository,
+    },
+    {
+      provide: WORKSPACE_AI_PRIVACY_REPOSITORY,
+      useClass: PrismaWorkspaceAiPrivacyRepository,
     },
 
     OpenAiProvider,
@@ -98,6 +114,7 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     GeminiProvider,
     OllamaProvider,
     OpenRouterProvider,
+    AiPrivacyModeService,
     AiProviderRegistryService,
 
     WebSpeechProvider,
@@ -123,6 +140,9 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     DraftReportTool,
     GeneratePocTool,
     GeneratePayloadsTool,
+    StartReconScanTool,
+    StartVulnerabilityScanTool,
+    AppendReportSectionTool,
     AiToolRegistryService,
 
     AiChatStreamHubService,
@@ -134,13 +154,17 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     AI_MESSAGES_REPOSITORY,
     AI_TOOL_CALL_LOGS_REPOSITORY,
     AI_MEMORY_REPOSITORY,
+    PROMPT_TEMPLATE_REPOSITORY,
     AI_PROVIDER_CREDENTIALS_REPOSITORY,
+    WORKSPACE_AI_PRIVACY_REPOSITORY,
+    AiPrivacyModeService,
     AiProviderRegistryService,
     AiSpeechProviderRegistryService,
     AiPromptBuilderService,
     AiContextService,
     AiMemoryService,
     AiToolRegistryService,
+    PromptInjectionGuardService,
     AiChatStreamHubService,
     AiChatService,
   ],

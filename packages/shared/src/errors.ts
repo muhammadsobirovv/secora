@@ -56,6 +56,11 @@ export type AppErrorCode =
   // Module 5 — AI Security Copilot
   | "AI_CONVERSATION_NOT_FOUND"
   | "AI_MESSAGE_NOT_FOUND"
+  // Module 11 — AI Security Copilot + Autonomous Multi-Agent System
+  | "PROMPT_TEMPLATE_NOT_FOUND"
+  | "SPEECH_PROVIDER_ERROR"
+  | "ORCHESTRATION_RUN_NOT_FOUND"
+  | "KNOWLEDGE_BASE_REFERENCE_NOT_FOUND"
   // Module 6 — Bug Bounty Workspace
   | "BUGBOUNTY_PROGRAM_NOT_FOUND"
   | "BUGBOUNTY_SCOPE_ITEM_NOT_FOUND"

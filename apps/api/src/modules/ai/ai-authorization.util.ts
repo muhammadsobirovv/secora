@@ -82,4 +82,35 @@ export async function resolveAiMessageForCaller(
   return { message, conversation };
 }
 
+/// Module 11 — AI Chat Prompt Library. Same enumeration-safe-404 pattern
+/// as resolveAiConversationForCaller: a prompt template that doesn't
+/// exist and one that belongs to another workspace both resolve to the
+/// same NOT_FOUND.
+export async function resolvePromptTemplateForCaller(
+  promptTemplatesRepository: import('./domain/repositories/prompt-template.repository.interface.js').PromptTemplateRepository,
+  workspacesRepository: WorkspacesRepository,
+  userId: string,
+  templateId: string,
+): Promise<
+  import('./domain/repositories/prompt-template.repository.interface.js').PromptTemplateRecord
+> {
+  const workspace = await workspacesRepository.findPersonalWorkspaceForUser(userId);
+  if (!workspace) {
+    throw new AppException(
+      'WORKSPACE_NOT_FOUND',
+      'Workspace not found.',
+      HttpStatus.NOT_FOUND,
+    );
+  }
+  const template = await promptTemplatesRepository.findById(templateId);
+  if (!template || template.workspaceId !== workspace.id) {
+    throw new AppException(
+      'PROMPT_TEMPLATE_NOT_FOUND',
+      'Prompt template not found.',
+      HttpStatus.NOT_FOUND,
+    );
+  }
+  return template;
+}
+
 export { WORKSPACES_REPOSITORY, type WorkspacesRepository };

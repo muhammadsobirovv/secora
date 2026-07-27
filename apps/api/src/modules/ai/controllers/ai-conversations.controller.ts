@@ -27,12 +27,14 @@ import { ListAiConversationsQueryParamsDto } from '../dto/list-ai-conversations-
 import { SendAiMessageDto } from '../dto/send-ai-message.dto.js';
 import { RegenerateAiMessageDto } from '../dto/regenerate-ai-message.dto.js';
 import { MessageIdDto } from '../dto/message-id.dto.js';
+import { BranchAiMessageDto } from '../dto/branch-ai-message.dto.js';
 import { SetFlagDto } from '../dto/set-flag.dto.js';
 import { CreateAiConversationCommand } from '../commands/create-ai-conversation.command.js';
 import { DeleteAiConversationCommand } from '../commands/delete-ai-conversation.command.js';
 import { PinAiConversationCommand } from '../commands/pin-ai-conversation.command.js';
 import { ArchiveAiConversationCommand } from '../commands/archive-ai-conversation.command.js';
 import { SendAiMessageCommand } from '../commands/send-ai-message.command.js';
+import { BranchAiMessageCommand } from '../commands/branch-ai-message.command.js';
 import { RegenerateAiMessageCommand } from '../commands/regenerate-ai-message.command.js';
 import { ContinueAiMessageCommand } from '../commands/continue-ai-message.command.js';
 import { CancelAiGenerationCommand } from '../commands/cancel-ai-generation.command.js';
@@ -157,6 +159,38 @@ export class AiConversationsController {
     return this.commandBus.execute(
       new SendAiMessageCommand(user.id, conversationId, dto.content),
     );
+  }
+
+  /// Module 11 — AI Chat conversation branching. See
+  /// AiChatService.branchTurn's doc comment for the branching model.
+  @Post(':conversationId/messages/branch')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Fork a new message off an earlier one — creates a user + placeholder assistant message sharing parentMessageId and starts generation',
+  })
+  branchMessage(
+    @Param('conversationId') conversationId: string,
+    @Body() dto: BranchAiMessageDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<{ userMessage: AiMessageDto; assistantMessage: AiMessageDto }> {
+    return this.commandBus.execute(
+      new BranchAiMessageCommand(
+        user.id,
+        conversationId,
+        dto.parentMessageId,
+        dto.content,
+      ),
+    );
+  }
+
+  @Get(':conversationId/messages/:messageId/branches')
+  @ApiOperation({ summary: 'List every message branched off a given message' })
+  async listBranches(
+    @Param('messageId') messageId: string,
+  ): Promise<AiMessageDto[]> {
+    const branches = await this.messagesRepository.listBranches(messageId);
+    return branches.map((m) => toAiMessageDto(m));
   }
 
   @Post(':conversationId/messages/regenerate')

@@ -46,6 +46,7 @@ function message(overrides: Partial<AiMessageRecord> = {}): AiMessageRecord {
     bookmarked: false,
     pinned: false,
     errorMessage: null,
+    parentMessageId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

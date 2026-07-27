@@ -48,6 +48,7 @@ import { GraphqlApiModule } from './modules/graphql-api/graphql-api.module.js';
 import { AutomationEngineModule } from './modules/automation-engine/automation-engine.module.js';
 import { ComplianceModule } from './modules/compliance/compliance.module.js';
 import { ObservabilityModule } from './modules/observability/observability.module.js';
+import { AgentModule } from './modules/agent/agent.module.js';
 
 @Module({
   imports: [
@@ -127,6 +128,12 @@ import { ObservabilityModule } from './modules/observability/observability.modul
     AutomationEngineModule,
     ComplianceModule,
     ObservabilityModule,
+    // Module 11 — AI Security Copilot + Autonomous Multi-Agent System:
+    // controllers + Swagger + module wiring + events (task #236). The
+    // Master AI Orchestrator and AI Knowledge Base's HTTP surface —
+    // previously only reachable via AutomationEngineModule's direct
+    // injection of AgentCoreModule (see agent.module.ts's doc comment).
+    AgentModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

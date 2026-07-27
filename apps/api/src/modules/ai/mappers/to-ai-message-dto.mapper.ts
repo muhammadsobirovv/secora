@@ -19,6 +19,7 @@ export function toAiMessageDto(
     bookmarked: message.bookmarked,
     pinned: message.pinned,
     errorMessage: message.errorMessage,
+    parentMessageId: message.parentMessageId,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
     toolCalls: toolCalls.map((t) => ({

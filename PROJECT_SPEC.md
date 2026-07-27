@@ -970,3 +970,50 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/adr/0010-enterprise-platform.md`,
 > `docs/modules/10-enterprise-platform.md`,
 > `docs/releases/module-10-release-notes.md`, and `deploy/README.md`.
+>
+> **Module 11 — AI Security Copilot + Autonomous Multi-Agent System**
+> (2026-07-26): source-complete. Adds a **Master AI Orchestrator**
+> (`AgentOrchestratorService`) on top of Module 5's existing single-turn AI
+> chat: a free-text goal is decomposed into a tree of `AgentTask`s,
+> delegated across twelve specialist agents (Recon, Web, API, Mobile,
+> Cloud, Active Directory, AI Research, Exploit Analysis, Report Writer,
+> Code Review, Risk Assessment, Workflow Coordinator — the last able to
+> delegate further sub-tasks), executed with dependency ordering, bounded
+> concurrency, automatic retry, and a self-evaluation critique pass before
+> completion — sharing Module 5's provider abstraction and tool-calling
+> framework rather than forking them. Alongside the orchestrator: a
+> searchable AI Knowledge Base (OWASP/CWE/CAPEC/MITRE ATT&CK/NIST/CVE, opt-
+> in semantic reindex into the existing RAG store); an Explainability layer
+> (pure aggregation of already-persisted reasoning/confidence/evidence into
+> one "why did the system conclude this" narrative — no new persisted
+> concept); per-workspace Privacy Mode (`CLOUD`/`LOCAL`/`HYBRID`) enforced
+> at the provider-resolution seam every AI/agent call passes through
+> (disclosed as narrower than ADR 0007's full local-first definition — it
+> restricts provider choice, not execution location); four performance
+> fixes from a dedicated review pass (an SSE fast path, a batched
+> tool-call-log query fixing two independent N+1s, an invalidate-on-write
+> Knowledge Base cache, a batched memory-chunk insert); a new
+> `AgentRunsController`/`KnowledgeBaseReferencesController` HTTP surface
+> (list/create/get/cancel/retry/explain a run, plus a live `@Sse()`
+> progress stream mirroring Module 5's chat-stream pattern exactly) — the
+> first way for a human user or the frontend to reach the orchestrator at
+> all, previously only an internal Workflow Automation step could; and a
+> new `/agent` + `/knowledge-base` frontend surface, deliberately kept
+> separate from Module 5's existing `/ai` chat page since a multi-agent
+> orchestration run has a fundamentally different shape than a chat turn.
+> `packages/shared` and a full `apps/api` project-wide `tsc --noEmit` +
+> `eslint` pass both completed and stayed clean this module — the first
+> module since 6 where that full backend verification loop actually ran to
+> completion in this sandbox (via a detached-background-process technique
+> that works around the environment's foreground command timeout). The
+> identical technique did not reproduce for `apps/web` or for Jest later in
+> the same session; both were instead verified by direct manual
+> cross-reference against the real shared DTOs and call signatures, which
+> caught and fixed one real type error (a tuple-inference bug in the new
+> Knowledge Base page). Five new Jest spec files were added to the `agent`
+> module (previously zero) and a pre-existing, since-stale
+> `ai-provider-registry.service.spec.ts` was found and rewritten to match
+> this module's async, privacy-mode-aware provider resolution. See
+> `docs/adr/0011-ai-security-copilot-multi-agent-system.md`,
+> `docs/modules/11-ai-security-copilot-multi-agent-system.md`, and
+> `docs/releases/module-11-release-notes.md`.

@@ -1,20 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiProviderName } from '@pentesthub/shared';
-import { AI_PROVIDER_NAMES } from '@pentesthub/shared';
+import type { AiPrivacyMode, AiProviderName } from '@pentesthub/shared';
+import { AI_PROVIDER_NAMES, LOCAL_AI_PROVIDER_NAMES } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import { decryptCredential } from '../../../common/utils/credential-encryption.util.js';
 import {
   AI_PROVIDER_CREDENTIALS_REPOSITORY,
   type AiProviderCredentialsRepository,
 } from '../domain/repositories/ai-provider-credentials.repository.interface.js';
-import { AiProviderNotConfiguredError } from './ai-provider.interface.js';
+import { AiPrivacyModeViolationError, AiProviderNotConfiguredError } from './ai-provider.interface.js';
 import type { AiProvider, ResolvedAiCredential } from './ai-provider.interface.js';
 import { OpenAiProvider } from './adapters/openai.provider.js';
 import { AnthropicProvider } from './adapters/anthropic.provider.js';
 import { GeminiProvider } from './adapters/gemini.provider.js';
 import { OllamaProvider } from './adapters/ollama.provider.js';
 import { OpenRouterProvider } from './adapters/openrouter.provider.js';
+import { AiPrivacyModeService } from './ai-privacy-mode.service.js';
 
 export interface AiProviderStatus {
   provider: AiProviderName;
@@ -26,6 +27,9 @@ export interface AiProviderStatus {
   /// entirely). Lets the frontend show "using your key" vs "using the
   /// shared server key" vs "not configured".
   byok: boolean;
+  /// Module 11 — Privacy controls (task #234). See AiProviderStatusDto's
+  /// matching field in packages/shared/src/ai.ts.
+  allowedByPrivacyMode: boolean;
 }
 
 export interface ResolvedProvider {
@@ -54,6 +58,7 @@ export class AiProviderRegistryService {
     private readonly configService: ConfigService<EnvConfig, true>,
     @Inject(AI_PROVIDER_CREDENTIALS_REPOSITORY)
     private readonly credentialsRepository: AiProviderCredentialsRepository,
+    private readonly privacyModeService: AiPrivacyModeService,
     openAiProvider: OpenAiProvider,
     anthropicProvider: AnthropicProvider,
     geminiProvider: GeminiProvider,
@@ -120,38 +125,77 @@ export class AiProviderRegistryService {
     return this.configService.get('AI_DEFAULT_PROVIDER', { infer: true });
   }
 
+  /// Module 11 — Privacy controls (task #234). `true` unless this
+  /// workspace's AiPrivacyMode is LOCAL and `name` isn't one of
+  /// LOCAL_AI_PROVIDER_NAMES — CLOUD and HYBRID never exclude a candidate
+  /// here (HYBRID only *reorders* candidates to prefer local, via
+  /// privacyCandidateOrder below; it still allows cloud fallback).
+  private isProviderAllowed(name: AiProviderName, mode: AiPrivacyMode): boolean {
+    if (mode !== 'LOCAL') return true;
+    return (LOCAL_AI_PROVIDER_NAMES as readonly AiProviderName[]).includes(name);
+  }
+
+  /// HYBRID prefers local providers first, then falls back through the
+  /// rest of AI_PROVIDER_NAMES in its normal order; CLOUD and LOCAL both
+  /// just use the normal order (LOCAL's exclusion happens in
+  /// isProviderAllowed, not here).
+  private privacyCandidateOrder(mode: AiPrivacyMode): AiProviderName[] {
+    if (mode !== 'HYBRID') return AI_PROVIDER_NAMES;
+    const local = LOCAL_AI_PROVIDER_NAMES;
+    const rest = AI_PROVIDER_NAMES.filter((n) => !(local as readonly AiProviderName[]).includes(n));
+    return [...local, ...rest];
+  }
+
   /// Resolves the provider to use for a turn: an explicit per-conversation
   /// choice if one was made and is configured (BYOK or server env), else
   /// the configured default, else the first provider that happens to be
   /// configured (so a deployment/workspace that only ever set up e.g.
   /// Ollama still works without the caller having to know that) — always
   /// checking this workspace's own BYOK credential first at each step.
+  ///
+  /// Module 11 — Privacy controls (task #234): every candidate is first
+  /// filtered through this workspace's AiPrivacyMode (see
+  /// AiPrivacyModeService.resolveMode) — an explicit `preferred` choice
+  /// that isn't allowed under LOCAL mode throws AiPrivacyModeViolationError
+  /// immediately, rather than silently falling through to a cloud provider
+  /// the workspace opted out of.
   async resolveProvider(
     workspaceId: string,
     preferred?: AiProviderName | null,
   ): Promise<ResolvedProvider> {
+    const mode = await this.privacyModeService.resolveMode(workspaceId);
+
     if (preferred) {
+      if (!this.isProviderAllowed(preferred, mode)) {
+        throw new AiPrivacyModeViolationError(preferred, 'LOCAL');
+      }
       const provider = this.get(preferred);
       const credential = await this.resolveCredential(preferred, workspaceId);
       if (provider.isConfigured(credential)) return { provider, credential };
     }
 
     const defaultName = this.getDefaultProviderName();
-    const defaultProvider = this.get(defaultName);
-    const defaultCredential = await this.resolveCredential(
-      defaultName,
-      workspaceId,
-    );
-    if (defaultProvider.isConfigured(defaultCredential)) {
-      return { provider: defaultProvider, credential: defaultCredential };
+    if (this.isProviderAllowed(defaultName, mode)) {
+      const defaultProvider = this.get(defaultName);
+      const defaultCredential = await this.resolveCredential(
+        defaultName,
+        workspaceId,
+      );
+      if (defaultProvider.isConfigured(defaultCredential)) {
+        return { provider: defaultProvider, credential: defaultCredential };
+      }
     }
 
-    for (const name of AI_PROVIDER_NAMES) {
+    for (const name of this.privacyCandidateOrder(mode)) {
+      if (!this.isProviderAllowed(name, mode)) continue;
       const provider = this.get(name);
       const credential = await this.resolveCredential(name, workspaceId);
       if (provider.isConfigured(credential)) return { provider, credential };
     }
 
+    if (mode === 'LOCAL') {
+      throw new AiPrivacyModeViolationError(preferred ?? defaultName, 'LOCAL');
+    }
     throw new AiProviderNotConfiguredError(preferred ?? defaultName);
   }
 
@@ -162,17 +206,27 @@ export class AiProviderRegistryService {
   /// hard-codes — see env.validation.ts AI_EMBEDDING_DIMENSIONS comment),
   /// then Gemini, then a local Ollama embedding model — BYOK-aware at
   /// each step, same as resolveProvider.
+  ///
+  /// Module 11 — Privacy controls (task #234): under LOCAL mode this only
+  /// ever tries OLLAMA — a LOCAL workspace's memory embeddings must not
+  /// silently leave the workspace via a cloud embeddings API either.
   async resolveEmbeddingProvider(workspaceId: string): Promise<ResolvedProvider> {
-    const candidates: AiProviderName[] = ['OPENAI', 'GEMINI', 'OLLAMA'];
+    const mode = await this.privacyModeService.resolveMode(workspaceId);
+    const allCandidates: AiProviderName[] = ['OPENAI', 'GEMINI', 'OLLAMA'];
+    const candidates = allCandidates.filter((name) => this.isProviderAllowed(name, mode));
     for (const name of candidates) {
       const provider = this.get(name);
       const credential = await this.resolveCredential(name, workspaceId);
       if (provider.isConfigured(credential)) return { provider, credential };
     }
+    if (mode === 'LOCAL') {
+      throw new AiPrivacyModeViolationError('OLLAMA', 'LOCAL');
+    }
     throw new AiProviderNotConfiguredError('OPENAI');
   }
 
   async listStatuses(workspaceId: string): Promise<AiProviderStatus[]> {
+    const mode = await this.privacyModeService.resolveMode(workspaceId);
     const results: AiProviderStatus[] = [];
     for (const name of AI_PROVIDER_NAMES) {
       const provider = this.get(name);
@@ -183,6 +237,7 @@ export class AiProviderRegistryService {
         configured,
         defaultModel: configured ? provider.getDefaultModel(credential) : null,
         byok: Boolean(credential?.apiKey || credential?.baseUrl),
+        allowedByPrivacyMode: this.isProviderAllowed(name, mode),
       });
     }
     return results;

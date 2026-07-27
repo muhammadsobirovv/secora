@@ -323,6 +323,47 @@ const envSchema = z.object({
   // a plugin can still be published/installed unsigned, but never carries
   // a `verified: true` badge in that environment.
   PLUGIN_MARKETPLACE_PUBLIC_KEY: z.string().optional(),
+
+  // Module 11 — AI Security Copilot + Autonomous Multi-Agent System. See
+  // docs/adr/0011-ai-security-copilot-multi-agent-system.md. These are
+  // orchestrator-wide defaults; Privacy's "per-workspace provider
+  // selection" itself lives in data (Workspace settings / BYOK credential
+  // rows from Module 5 Phase 1), not env — this is only the *fallback*
+  // mode when a workspace hasn't chosen one.
+  AI_ORCHESTRATOR_MODE: z
+    .enum(['CLOUD', 'LOCAL', 'HYBRID'])
+    .default('CLOUD'),
+  // Bounds how many AgentTasks within one OrchestrationRun can be RUNNING
+  // concurrently — keeps one goal from fanning out into an unbounded number
+  // of simultaneous provider calls.
+  AI_ORCHESTRATOR_MAX_CONCURRENT_TASKS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3),
+  // Task Delegation depth guard — a WORKFLOW_COORDINATOR task delegating to
+  // sub-tasks that themselves delegate further stops being decomposition and
+  // starts being a runaway loop past this depth.
+  AI_ORCHESTRATOR_MAX_TASK_DEPTH: z.coerce.number().int().positive().default(4),
+  // Retry Failed Tasks — matches AgentTask.retryCount's purpose.
+  AI_ORCHESTRATOR_MAX_TASK_RETRIES: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(2),
+  // Per-AgentTask wall-clock budget before the orchestrator marks it FAILED
+  // and (depending on retry count) retries or gives up — prevents one stuck
+  // tool call (Timeouts, under AI Tool Calling) from hanging the whole run.
+  AI_ORCHESTRATOR_TASK_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(120_000),
+  // AI_MEMORY_* above already tunes the RAG store itself; this is Long-Term
+  // Memory's expiration-policy default — how long an AGENT_TASK_OUTPUT /
+  // ORCHESTRATION_RUN memory chunk stays searchable before a background
+  // sweep marks it expired. Null-equivalent (0) disables expiration.
+  AI_MEMORY_DEFAULT_TTL_DAYS: z.coerce.number().int().nonnegative().default(0),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -64,6 +64,9 @@ model User {
   vulnScanTemplatesCreated VulnScanTemplate[]
   vulnFindingsCreated VulnFinding[]
   aiConversations     AiConversation[]
+  // Module 11 — additive back-relations.
+  orchestrationRunsRequested OrchestrationRun[]
+  promptTemplatesCreated     PromptTemplate[]
   // Module 6 (Bug Bounty Workspace) additive back-relations.
   bugBountyProgramsCreated     BugBountyProgram[]
   bugBountyFindingsCreated     BugBountyFinding[]
@@ -390,6 +393,9 @@ model Workspace {
   aiConversations   AiConversation[]
   aiMemoryChunks    AiMemoryChunk[]
   aiProviderCredentials AiProviderCredential[]
+  // Module 11 — additive back-relations.
+  orchestrationRuns OrchestrationRun[]
+  promptTemplates   PromptTemplate[]
   // Module 6 (Bug Bounty Workspace) — additive back-relations, same
   // treatment every prior module received (see reconJobs/vulnFindings/
   // aiConversations above). No existing column or behavior changes.
@@ -517,6 +523,8 @@ model Project {
   vulnFindings   VulnFinding[]
   aiConversations AiConversation[]
   aiMemoryChunks  AiMemoryChunk[]
+  // Module 11 — additive back-relation.
+  orchestrationRuns OrchestrationRun[]
   // Module 6 (Bug Bounty Workspace) additive back-relations.
   bugBountyPrograms  BugBountyProgram[]
   bugBountyFindings  BugBountyFinding[]
@@ -1536,6 +1544,16 @@ enum AiMemorySourceType {
   BUGBOUNTY_FINDING
   BUG_REPORT
   PAYLOAD_LIBRARY_ENTRY
+  // Module 11 (AI Security Copilot) additions — same "feed the one RAG
+  // store, don't build a parallel index" reasoning as the Module 6
+  // additions above. KNOWLEDGE_BASE_REFERENCE backs the AI Knowledge Base
+  // (OWASP/CWE/CAPEC/MITRE/NIST/CVE semantic search over
+  // KnowledgeBaseReferenceEntry rows); AGENT_TASK_OUTPUT/
+  // ORCHESTRATION_RUN let the long-term memory layer recall what an agent
+  // concluded on a past run when planning a new one.
+  KNOWLEDGE_BASE_REFERENCE
+  AGENT_TASK_OUTPUT
+  ORCHESTRATION_RUN
 }
 
 /// One chat thread. `provider`/`model` are captured per-conversation (not
@@ -1585,13 +1603,27 @@ model AiMessage {
   bookmarked       Boolean         @default(false)
   pinned           Boolean         @default(false)
   errorMessage     String?
+  /// Module 11 — AI Chat conversation branching. Null for every message
+  /// created before this column existed (or any message that is simply
+  /// "the next turn" in a linear thread, which is still the common case).
+  /// Set when a user regenerates/edits a specific assistant turn and
+  /// wants to keep the original reply reachable instead of overwriting
+  /// it in place: the new message points `parentMessageId` at the
+  /// message it branches from, so a conversation becomes a tree instead
+  /// of a strict list. `regenerate()`/`continueGeneration()` in
+  /// AiChatService are unaffected for the common linear case — this is
+  /// purely additive.
+  parentMessageId  String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  conversation AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  toolCalls    AiToolCallLog[]
+  conversation  AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parentMessage AiMessage?      @relation("MessageBranch", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  branches      AiMessage[]     @relation("MessageBranch")
+  toolCalls     AiToolCallLog[]
 
   @@index([conversationId, createdAt])
+  @@index([parentMessageId])
   @@map("ai_messages")
 }
 
@@ -1637,6 +1669,15 @@ model AiMemoryChunk {
   content     String
   embedding   Unsupported("vector(1536)")?
   metadata    Json?
+  /// Module 11 — Long-Term Memory "expiration policies". Null (the
+  /// default, and the value for every chunk indexed before this column
+  /// existed) means "keep indefinitely", matching every prior module's
+  /// behavior. Agent-run-derived memory (AGENT_TASK_OUTPUT/
+  /// ORCHESTRATION_RUN) is indexed with a TTL instead, since a stale
+  /// recon/plan conclusion from months ago recalled as if current would
+  /// actively mislead a new orchestration run. AiMemoryExpiryService
+  /// deletes rows where `expiresAt < now()` on a schedule.
+  expiresAt   DateTime?
   createdAt   DateTime                     @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1644,6 +1685,7 @@ model AiMemoryChunk {
 
   @@index([workspaceId, projectId])
   @@index([sourceType, sourceId])
+  @@index([expiresAt])
   @@map("ai_memory_chunks")
 }
 
@@ -3798,4 +3840,240 @@ model PollerLease {
   updatedAt  DateTime @updatedAt
 
   @@map("poller_leases")
+}
+
+// ---------------------------------------------------------------------------
+// Module 11 — AI Security Copilot + Autonomous Multi-Agent System
+// see docs/adr/0011-ai-security-copilot-multi-agent-system.md
+//
+// Integrates with, never duplicates, Modules 1-10: agents call into the
+// existing Recon/Vuln/BugBounty domain services and the Module 5 AI
+// provider/tool-calling/RAG infrastructure rather than re-implementing any
+// of it. The only genuinely new state this module introduces is
+// orchestration bookkeeping (OrchestrationRun/AgentTask/
+// AgentToolCallLog — "what did the multi-agent system do and why"),
+// the structured knowledge-base index (KnowledgeBaseReferenceEntry — the
+// canonical OWASP/CWE/CAPEC/MITRE/NIST/CVE catalog, which is then ALSO fed
+// into the existing AiMemoryChunk RAG store as KNOWLEDGE_BASE_REFERENCE
+// chunks for semantic search, same one-index policy as Module 6), and
+// PromptTemplate (the AI Chat "prompt library"). Conversation branching and
+// memory expiration are additive columns on AiMessage/AiMemoryChunk above,
+// not new tables.
+// ---------------------------------------------------------------------------
+
+/// The 12 specialist agents the Master Orchestrator can delegate a subtask
+/// to. Each maps to one class implementing the `Agent` interface in
+/// `modules/agents/framework/agent.interface.ts` — this enum is the
+/// contract between the persisted AgentTask row and which in-process class
+/// picks it up (AgentRegistryService keys its Map by this enum, exactly
+/// like AiToolRegistryService keys by AiToolName).
+enum AgentType {
+  RECON
+  WEB
+  API
+  MOBILE
+  CLOUD
+  ACTIVE_DIRECTORY
+  AI_RESEARCH
+  EXPLOIT_ANALYSIS
+  REPORT_WRITER
+  CODE_REVIEW
+  RISK_ASSESSMENT
+  WORKFLOW_COORDINATOR
+}
+
+enum OrchestrationRunStatus {
+  PENDING
+  PLANNING
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AgentTaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+/// One user goal handed to the Master AI Orchestrator ("scan example.com
+/// for auth bypass issues and draft a report"). `planJson` is the
+/// decomposition the Reasoning Engine produced (an ordered/graph list of
+/// subtasks with the AgentType each is assigned to) — persisted so a
+/// paused/failed run can resume from its plan instead of re-planning, and
+/// so the frontend orchestration dashboard can render the plan before
+/// every task has executed. `resultSummary`/`confidenceScore` are the
+/// orchestrator's final merged-output explanation (Explainability).
+model OrchestrationRun {
+  id              String                 @id @default(uuid())
+  workspaceId     String
+  projectId       String?
+  userId          String
+  goal            String
+  status          OrchestrationRunStatus @default(PENDING)
+  planJson        Json?
+  resultSummary   String?
+  confidenceScore Float?
+  errorMessage    String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     AgentTask[]
+
+  @@index([workspaceId, projectId])
+  @@index([userId, createdAt])
+  @@map("orchestration_runs")
+}
+
+/// One subtask within an OrchestrationRun, assigned to one agent.
+/// `parentTaskId` models delegation (Multi-Agent Architecture: "Support
+/// delegation") — an agent that decides part of its work belongs to
+/// another specialist creates a child AgentTask rather than doing it
+/// itself; `subTasks` is the reverse of that self-relation. `status`
+/// RETRYING + `retryCount` back the orchestrator's "retry failed tasks"
+/// responsibility. `reasoningSummary`/`confidenceScore`/`sources`
+/// (Explainability: every AI decision includes reasoning, confidence,
+/// sources) are populated by the Reasoning Engine alongside `output`.
+model AgentTask {
+  id                 String          @id @default(uuid())
+  orchestrationRunId String
+  parentTaskId       String?
+  agentType          AgentType
+  title              String
+  input              Json?
+  output             Json?
+  status             AgentTaskStatus @default(QUEUED)
+  reasoningSummary   String?
+  confidenceScore    Float?
+  sources            Json?
+  errorMessage       String?
+  retryCount         Int             @default(0)
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  orchestrationRun OrchestrationRun   @relation(fields: [orchestrationRunId], references: [id], onDelete: Cascade)
+  parentTask       AgentTask?         @relation("AgentTaskDelegation", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subTasks         AgentTask[]        @relation("AgentTaskDelegation")
+  toolCalls        AgentToolCallLog[]
+
+  @@index([orchestrationRunId, status])
+  @@index([parentTaskId])
+  @@map("agent_tasks")
+}
+
+/// Same shape and purpose as AiToolCallLog (Module 5), scoped to an
+/// AgentTask instead of a chat AiMessage — kept as a separate model
+/// rather than making AiToolCallLog.conversationId nullable + adding an
+/// agentTaskId column, since that would touch an existing, already-shipped
+/// table's required-field contract for a Module 11-only need. Both tables
+/// feed the same "AI Tool Calling" audit-trail concept via the AiToolName
+/// values in packages/shared/src/ai.ts.
+model AgentToolCallLog {
+  id           String   @id @default(uuid())
+  agentTaskId  String
+  toolName     String
+  input        Json
+  output       Json?
+  errorMessage String?
+  durationMs   Int?
+  createdAt    DateTime @default(now())
+
+  agentTask AgentTask @relation(fields: [agentTaskId], references: [id], onDelete: Cascade)
+
+  @@index([agentTaskId, createdAt])
+  @@map("agent_tool_call_logs")
+}
+
+enum KnowledgeBaseReferenceFramework {
+  OWASP
+  CWE
+  CAPEC
+  MITRE_ATTACK
+  NIST
+  CVE
+}
+
+/// The canonical AI Knowledge Base catalog (OWASP Top 10 / CWE / CAPEC /
+/// MITRE ATT&CK / NIST controls / CVE records) — structured, exact-match
+/// lookups by `code` (e.g. "CWE-89", "T1190"), distinct from the
+/// workspace-authored `KnowledgeBaseNote` (Module 9: user notes/
+/// playbooks/cheat sheets). Every row is also indexed into AiMemoryChunk
+/// (sourceType=KNOWLEDGE_BASE_REFERENCE) by KnowledgeBaseIndexerService so
+/// semantic search ("what CWE covers this bug") and exact lookup ("show me
+/// CWE-89") both work off one source of truth. Workspace-independent
+/// (reference data is the same for every tenant), unlike KnowledgeBaseNote.
+model KnowledgeBaseReferenceEntry {
+  id        String                          @id @default(uuid())
+  framework KnowledgeBaseReferenceFramework
+  code      String
+  title     String
+  summary   String
+  url       String?
+  metadata  Json?
+  createdAt DateTime                        @default(now())
+  updatedAt DateTime                        @updatedAt
+
+  @@unique([framework, code])
+  @@index([framework])
+  @@map("knowledge_base_reference_entries")
+}
+
+/// AI Chat "prompt library" / conversation templates (AI Chat spec
+/// section). A saved, reusable prompt a user can insert into a new
+/// conversation — workspace-scoped (shared with teammates), not per-user,
+/// matching KnowledgeBaseNote's workspace-wide sharing model rather than
+/// AiConversation's per-user ownership.
+model PromptTemplate {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  promptText  String
+  category    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation(fields: [createdBy], references: [id])
+
+  @@index([workspaceId, category])
+  @@map("prompt_templates")
+}
+
+/// Module 11 — Privacy controls (task #234): per-workspace AI privacy mode,
+/// overriding the operator-level AI_ORCHESTRATOR_MODE env default. Kept as
+/// its own table rather than folded into WorkspaceSettings (Module 2) —
+/// that table already has full generated Prisma Client support in this
+/// sandbox, and this table, like every other Module 11 addition, is only
+/// reachable via the raw-SQL repository pattern (no `prisma generate`
+/// re-run is possible here). Deliberately has no `workspace Workspace
+/// @relation(...)` field / back-relation array on Workspace — raw-SQL-only
+/// access never needs Prisma relation loading, so skipping the relation
+/// avoids touching the already-shipped Workspace model at all.
+enum AiPrivacyMode {
+  CLOUD
+  LOCAL
+  HYBRID
+}
+
+model WorkspaceAiPrivacySetting {
+  workspaceId String        @id
+  mode        AiPrivacyMode @default(CLOUD)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("workspace_ai_privacy_settings")
 }
