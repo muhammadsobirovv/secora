@@ -56,6 +56,12 @@ import {
 } from '../../vuln/events/vuln-finding-events.js';
 import { PluginInstalledEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
 import { ScheduledJobRunCompletedEvent, ScheduledJobRunFailedEvent } from '../../automation/events/scheduled-job-events.js';
+import {
+  OrchestrationRunCancelledEvent,
+  OrchestrationRunCompletedEvent,
+  OrchestrationRunCreatedEvent,
+  OrchestrationRunFailedEvent,
+} from '../../agent/events/orchestration-run-events.js';
 
 /// The single listener that turns every domain event into an ActivityEvent
 /// row. This is what "generic enough for future modules" means in
@@ -113,6 +119,12 @@ import { ScheduledJobRunCompletedEvent, ScheduledJobRunFailedEvent } from '../..
   // Module 10 — Automation/webhooks expansion. See scheduled-job-events.ts.
   ScheduledJobRunCompletedEvent,
   ScheduledJobRunFailedEvent,
+  // Module 11 — AI Security Copilot + Autonomous Multi-Agent System (task
+  // #236). See orchestration-run-events.ts.
+  OrchestrationRunCreatedEvent,
+  OrchestrationRunCompletedEvent,
+  OrchestrationRunFailedEvent,
+  OrchestrationRunCancelledEvent,
 )
 export class ActivityRecordingHandler implements IEventHandler<ActivityDomainEvent> {
   constructor(

@@ -24,16 +24,24 @@ export class PrismaAiMemoryRepository implements AiMemoryRepository {
     private readonly txHost: TransactionHost<AppTransactionalAdapter>,
   ) {}
 
+  /// Module 11 — Performance optimizations (task #235): one multi-row
+  /// INSERT instead of one $executeRaw round-trip per chunk — indexContent
+  /// calls this with every chunk a piece of content was split into, which
+  /// for a long finding/report could previously mean dozens of sequential
+  /// round-trips for a single indexing call.
   async upsertChunks(chunks: AiMemoryChunkInput[]): Promise<void> {
-    for (const chunk of chunks) {
+    if (chunks.length === 0) return;
+
+    const rows = chunks.map((chunk) => {
       const vectorLiteral = toVectorLiteral(chunk.embedding);
-      await this.txHost.tx.$executeRaw`
-        INSERT INTO "ai_memory_chunks"
-          ("id", "workspaceId", "projectId", "sourceType", "sourceId", "chunkIndex", "content", "embedding", "metadata", "createdAt")
-        VALUES
-          (${randomUUID()}, ${chunk.workspaceId}, ${chunk.projectId}, ${chunk.sourceType}::"AiMemorySourceType", ${chunk.sourceId}, ${chunk.chunkIndex}, ${chunk.content}, ${vectorLiteral}::vector, ${chunk.metadata ? JSON.stringify(chunk.metadata) : null}::jsonb, now())
-      `;
-    }
+      return Prisma.sql`(${randomUUID()}, ${chunk.workspaceId}, ${chunk.projectId}, ${chunk.sourceType}::"AiMemorySourceType", ${chunk.sourceId}, ${chunk.chunkIndex}, ${chunk.content}, ${vectorLiteral}::vector, ${chunk.metadata ? JSON.stringify(chunk.metadata) : null}::jsonb, ${chunk.expiresAt ?? null}, now())`;
+    });
+
+    await this.txHost.tx.$executeRaw`
+      INSERT INTO "ai_memory_chunks"
+        ("id", "workspaceId", "projectId", "sourceType", "sourceId", "chunkIndex", "content", "embedding", "metadata", "expiresAt", "createdAt")
+      VALUES ${Prisma.join(rows)}
+    `;
   }
 
   async search(
@@ -54,6 +62,7 @@ export class PrismaAiMemoryRepository implements AiMemoryRepository {
       FROM "ai_memory_chunks"
       WHERE "workspaceId" = ${filter.workspaceId}
         AND "embedding" IS NOT NULL
+        AND ("expiresAt" IS NULL OR "expiresAt" > now())
         ${filter.projectId ? Prisma.sql`AND ("projectId" = ${filter.projectId} OR "projectId" IS NULL)` : Prisma.empty}
         ${filter.sourceType ? Prisma.sql`AND "sourceType" = ${filter.sourceType}::"AiMemorySourceType"` : Prisma.empty}
       ORDER BY distance ASC
@@ -81,6 +90,12 @@ export class PrismaAiMemoryRepository implements AiMemoryRepository {
   async deleteByProject(projectId: string): Promise<void> {
     await this.txHost.tx.$executeRaw`
       DELETE FROM "ai_memory_chunks" WHERE "projectId" = ${projectId}
+    `;
+  }
+
+  deleteExpired(): Promise<number> {
+    return this.txHost.tx.$executeRaw`
+      DELETE FROM "ai_memory_chunks" WHERE "expiresAt" IS NOT NULL AND "expiresAt" <= now()
     `;
   }
 }

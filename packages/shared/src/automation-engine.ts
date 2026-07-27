@@ -15,6 +15,13 @@ export const WORKFLOW_STEP_KINDS = [
   "condition",
   "loop",
   "delay",
+  // Module 11 — AI Workflow Automation (task #232): starts a Master AI
+  // Orchestrator run (agent decomposition + multi-agent execution),
+  // distinct from `ai_analysis` — that kind is one single-shot AI text
+  // completion, this kind is a whole autonomous, potentially long-running
+  // multi-step agent operation. params: { goal: string; projectId?:
+  // string; provider?: string; model?: string }.
+  "ai_agent_run",
 ] as const;
 export type WorkflowStepKind = (typeof WORKFLOW_STEP_KINDS)[number];
 

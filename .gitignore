@@ -43,6 +43,12 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+__pycache__/
+*.pyc
+
+# Module 11 — pnpm's local package store, created by this sandbox's
+# `pnpm install`; never source, never something to commit.
+.pnpm-store/
 
 # Module 10 — Production Deployment: real Kubernetes Secret manifests
 # (as opposed to the committed 02-secret.yaml.example template) must

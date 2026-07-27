@@ -9,6 +9,10 @@ export interface AiMemoryChunkInput {
   content: string;
   embedding: number[];
   metadata?: Record<string, unknown>;
+  /// Module 11 — Long-Term Memory expiration policies. Null (the default)
+  /// means "never expires", matching every pre-Module-11 caller's existing
+  /// behavior unchanged.
+  expiresAt?: Date | null;
 }
 
 export interface AiMemorySearchResult {
@@ -38,6 +42,9 @@ export interface AiMemorySearchFilter {
 /// need to know pgvector's wire format.
 export interface AiMemoryRepository {
   upsertChunks(chunks: AiMemoryChunkInput[]): Promise<void>;
+  /// `search`'s query already excludes any chunk whose `expiresAt` has
+  /// passed (Long-Term Memory expiration policies) — no caller needs to
+  /// filter that out itself.
   search(
     queryEmbedding: number[],
     filter: AiMemorySearchFilter,
@@ -47,6 +54,10 @@ export interface AiMemoryRepository {
     sourceId: string,
   ): Promise<void>;
   deleteByProject(projectId: string): Promise<void>;
+  /// Module 11 — the expiration-policy sweep: permanently removes every
+  /// chunk whose `expiresAt` has passed. Returns the count deleted, purely
+  /// for logging/observability at the call site.
+  deleteExpired(): Promise<number>;
 }
 
 export const AI_MEMORY_REPOSITORY = Symbol('AI_MEMORY_REPOSITORY');

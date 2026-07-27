@@ -80,6 +80,23 @@ Turborepo + pnpm workspaces:
    Analytics, extended Global Search, a Public REST API (keys/webhooks),
    and encrypted-at-rest secrets. `docs/adr/0009-bug-bounty-operating-system.md`,
    `docs/security/permission-matrix.md`
+10. **Enterprise Platform + SaaS + Global Infrastructure** — multi-tenant
+    `Organization`/`Team` above the existing Workspace boundary, a
+    Postgres-native Distributed Job System, a Plugin Marketplace, an
+    Integrations framework, Team Workspaces, Enterprise Reporting/
+    Analytics, a full API Platform (GraphQL, webhooks, TypeScript/Python/Go
+    SDKs), a Workflow Automation Engine, Compliance (retention/backup/GDPR
+    export), Observability, High Availability, Security Hardening, CI/CD,
+    and four production deployment paths.
+    `docs/adr/0010-enterprise-platform.md`
+11. **AI Security Copilot + Autonomous Multi-Agent System** — a Master AI
+    Orchestrator that decomposes a free-text goal into a task tree and
+    delegates it across twelve specialist agents, a searchable AI
+    Knowledge Base (OWASP/CWE/CAPEC/MITRE ATT&CK/NIST/CVE), an
+    Explainability layer, and per-workspace Privacy Mode
+    (cloud/local/hybrid) controls — a new `/agent` Agent Copilot surface
+    alongside Module 5's existing `/ai` chat.
+    `docs/adr/0011-ai-security-copilot-multi-agent-system.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs

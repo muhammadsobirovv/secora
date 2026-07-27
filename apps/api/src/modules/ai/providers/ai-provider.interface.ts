@@ -71,6 +71,24 @@ export class AiProviderRequestError extends Error {
   }
 }
 
+/// Module 11 — Privacy controls (task #234). Thrown when a workspace's
+/// AiPrivacyMode is LOCAL and either an explicitly-requested provider isn't
+/// in LOCAL_AI_PROVIDER_NAMES, or no local provider is configured at all —
+/// deliberately distinct from AiProviderNotConfiguredError so callers (and
+/// AiChatService's error mapping) can tell "nothing is set up" apart from
+/// "this workspace has opted out of cloud providers."
+export class AiPrivacyModeViolationError extends Error {
+  constructor(
+    public readonly provider: AiProviderName,
+    public readonly mode: 'LOCAL',
+  ) {
+    super(
+      `Workspace AI privacy mode is LOCAL — provider "${provider}" is not a local provider and cannot be used.`,
+    );
+    this.name = 'AiPrivacyModeViolationError';
+  }
+}
+
 /// One adapter per supported LLM backend. `streamChatCompletion` yields
 /// text deltas as they arrive — every adapter normalizes its own
 /// provider-specific SSE/NDJSON wire format down to this one shape, so

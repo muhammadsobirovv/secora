@@ -11,6 +11,7 @@ import { DeleteAiConversationHandler } from './commands/delete-ai-conversation.c
 import { PinAiConversationHandler } from './commands/pin-ai-conversation.command.js';
 import { ArchiveAiConversationHandler } from './commands/archive-ai-conversation.command.js';
 import { SendAiMessageHandler } from './commands/send-ai-message.command.js';
+import { BranchAiMessageHandler } from './commands/branch-ai-message.command.js';
 import { RegenerateAiMessageHandler } from './commands/regenerate-ai-message.command.js';
 import { ContinueAiMessageHandler } from './commands/continue-ai-message.command.js';
 import { CancelAiGenerationHandler } from './commands/cancel-ai-generation.command.js';
@@ -20,6 +21,12 @@ import { DeleteAiMessageHandler } from './commands/delete-ai-message.command.js'
 import { ReindexAiMemoryHandler } from './commands/reindex-ai-memory.command.js';
 import { UpsertAiProviderCredentialHandler } from './commands/upsert-ai-provider-credential.command.js';
 import { DeleteAiProviderCredentialHandler } from './commands/delete-ai-provider-credential.command.js';
+import { CreatePromptTemplateHandler } from './commands/create-prompt-template.command.js';
+import { UpdatePromptTemplateHandler } from './commands/update-prompt-template.command.js';
+import { DeletePromptTemplateHandler } from './commands/delete-prompt-template.command.js';
+import { TranscribeAiSpeechHandler } from './commands/transcribe-ai-speech.command.js';
+import { SynthesizeAiSpeechHandler } from './commands/synthesize-ai-speech.command.js';
+import { UpdateWorkspaceAiPrivacyModeHandler } from './commands/update-workspace-ai-privacy-mode.command.js';
 
 import { ListAiConversationsHandler } from './queries/list-ai-conversations.query.js';
 import { GetAiConversationHandler } from './queries/get-ai-conversation.query.js';
@@ -29,6 +36,8 @@ import { ListAiSpeechProvidersHandler } from './queries/list-ai-speech-providers
 import { GetAiContextSummaryHandler } from './queries/get-ai-context-summary.query.js';
 import { GetAiSuggestedQuestionsHandler } from './queries/get-ai-suggested-questions.query.js';
 import { SearchAiMemoryHandler } from './queries/search-ai-memory.query.js';
+import { ListPromptTemplatesHandler } from './queries/list-prompt-templates.query.js';
+import { GetWorkspaceAiPrivacyModeHandler } from './queries/get-workspace-ai-privacy-mode.query.js';
 
 import { AiConversationsController } from './controllers/ai-conversations.controller.js';
 import { AiMessagesController } from './controllers/ai-messages.controller.js';
@@ -37,6 +46,8 @@ import { AiProviderCredentialsController } from './controllers/ai-provider-crede
 import { AiSpeechController } from './controllers/ai-speech.controller.js';
 import { AiContextController } from './controllers/ai-context.controller.js';
 import { AiMemoryController } from './controllers/ai-memory.controller.js';
+import { PromptTemplatesController } from './controllers/prompt-templates.controller.js';
+import { AiPrivacyController } from './controllers/ai-privacy.controller.js';
 
 /// The HTTP-facing half of Module 5 — AiCoreModule's providers plus
 /// controllers and CQRS handlers. Same "core module + HTTP module" split
@@ -66,6 +77,8 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     AiSpeechController,
     AiContextController,
     AiMemoryController,
+    PromptTemplatesController,
+    AiPrivacyController,
   ],
   providers: [
     CreateAiConversationHandler,
@@ -73,6 +86,7 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     PinAiConversationHandler,
     ArchiveAiConversationHandler,
     SendAiMessageHandler,
+    BranchAiMessageHandler,
     RegenerateAiMessageHandler,
     ContinueAiMessageHandler,
     CancelAiGenerationHandler,
@@ -82,6 +96,12 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     ReindexAiMemoryHandler,
     UpsertAiProviderCredentialHandler,
     DeleteAiProviderCredentialHandler,
+    CreatePromptTemplateHandler,
+    UpdatePromptTemplateHandler,
+    DeletePromptTemplateHandler,
+    TranscribeAiSpeechHandler,
+    SynthesizeAiSpeechHandler,
+    UpdateWorkspaceAiPrivacyModeHandler,
 
     ListAiConversationsHandler,
     GetAiConversationHandler,
@@ -91,6 +111,8 @@ import { AiMemoryController } from './controllers/ai-memory.controller.js';
     GetAiContextSummaryHandler,
     GetAiSuggestedQuestionsHandler,
     SearchAiMemoryHandler,
+    ListPromptTemplatesHandler,
+    GetWorkspaceAiPrivacyModeHandler,
   ],
 })
 export class AiModule {}
