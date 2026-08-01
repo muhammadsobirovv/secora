@@ -1017,3 +1017,45 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/adr/0011-ai-security-copilot-multi-agent-system.md`,
 > `docs/modules/11-ai-security-copilot-multi-agent-system.md`, and
 > `docs/releases/module-11-release-notes.md`.
+>
+> **Module 12 — Cross-Platform Mobile Application (Flutter)** (2026-07-28):
+> source-complete. Adds `apps/mobile`, a Flutter app (Clean Architecture,
+> feature-first, Riverpod, GoRouter, Dio, Hive + sqflite) joining `apps/web`
+> and `apps/desktop` as a third first-class client of `apps/api`, covering
+> Auth (full Module 1 integration: email/Google/GitHub, MFA, refresh-token
+> rotation, biometrics/PIN device lock, secure token storage), Dashboard,
+> offline-first Projects/Targets/Findings (a shared `SyncEngine`/outbox
+> pattern — offline writes apply optimistically to a local sqflite row and
+> sync on reconnect via a per-entity `SyncPushHandler`), Reports, an AI
+> Security Copilot screen (Module 11 integration: streaming chat over a
+> hand-rolled SSE client since Flutter has no built-in `EventSource`,
+> Markdown/syntax-highlighted code/Mermaid rendering, voice push-to-talk,
+> Master Orchestrator run tracking, Knowledge Base search), Voice
+> (on-device STT/TTS), Notifications, Evidence Capture (camera/gallery/
+> file/video/mic/QR, on-device SHA-256 hashing, offline upload queue), File
+> Manager, Global Search (online + an offline FTS5 fallback), Settings
+> (incl. Module 11 Privacy Mode), Workspace, Analytics (`fl_chart`), and
+> security hardening (encrypted storage, certificate pinning, jailbreak/
+> root detection, clipboard auto-clear, session timeout, remote logout).
+> Deliberately avoids Freezed/riverpod_generator/json_serializable codegen
+> in favor of Dart 3 native `sealed class` state unions, since the
+> authoring sandbox had no reachable Flutter/Dart toolchain at all
+> (`storage.googleapis.com`, where the Flutter engine/Dart SDK are hosted,
+> is blocked by the network allowlist) — every file was hand-authored and
+> manually cross-referenced against real `packages/shared` contracts
+> instead of compiler-verified, a stricter constraint than any prior
+> module faced, and one disclosed in full in ADR 0012 §8. Manual review
+> still caught and fixed three self-authored bugs (a malformed color hex
+> literal, a `ProviderContainer` double-construction bug in `main.dart`'s
+> bootstrap, and a data-mapping typo in the Analytics bar chart). `android/`
+> and `ios/` contain only hand-authored `AndroidManifest.xml`/`Info.plist`
+> partials — the Gradle/Xcode native scaffold must be generated on a real
+> machine via `flutter create --platforms=android,ios .` before this module
+> builds at all, and `flutter analyze`/`flutter test`/`flutter build` have
+> not been run against this source. See
+> `docs/adr/0012-mobile-application.md`,
+> `docs/modules/12-mobile-application.md`,
+> `docs/releases/module-12-release-notes.md`,
+> `docs/mobile/mobile-architecture-guide.md`,
+> `docs/mobile/flutter-development-guide.md`, and
+> `docs/mobile/api-integration-guide.md`.

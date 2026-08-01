@@ -36,6 +36,11 @@ Turborepo + pnpm workspaces:
   PostgreSQL, a separate `worker.main.ts` process for background job
   pollers).
 - `apps/web` — Next.js 16 / React 19 frontend.
+- `apps/desktop` — Tauri desktop agent (Rust) — local-first tool runner,
+  job queue, sync engine, local AI/RAG, voice, file manager.
+- `apps/mobile` — Flutter cross-platform mobile app (Android/iOS) —
+  Clean Architecture, feature-first, Riverpod, GoRouter, offline-first
+  Projects/Targets/Findings with a sync-engine/outbox pattern.
 - `packages/shared` — `@pentesthub/shared`: DTOs, types, and endpoint
   constants shared between `apps/api` and `apps/web`.
 - `packages/ui` — shared UI primitives (shadcn/ui-based).
@@ -97,6 +102,18 @@ Turborepo + pnpm workspaces:
     (cloud/local/hybrid) controls — a new `/agent` Agent Copilot surface
     alongside Module 5's existing `/ai` chat.
     `docs/adr/0011-ai-security-copilot-multi-agent-system.md`
+12. **Cross-Platform Mobile Application (Flutter)** (`apps/mobile`) — a
+    Flutter app joining `apps/web` and `apps/desktop` as a third
+    first-class client of `apps/api`: full Module 1 auth (incl.
+    biometrics/PIN device lock), offline-first Projects/Targets/Findings
+    via a shared sync-engine/outbox pattern, Reports, an AI Security
+    Copilot screen (Module 11 integration — streaming chat, voice,
+    Orchestrator run tracking, Knowledge Base search), Evidence Capture,
+    File Manager, Global Search (with an offline FTS5 fallback),
+    Settings, Workspace, Analytics, and security hardening (encrypted
+    storage, certificate pinning, jailbreak/root detection).
+    `docs/adr/0012-mobile-application.md`,
+    `docs/mobile/mobile-architecture-guide.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs
