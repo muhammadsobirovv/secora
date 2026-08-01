@@ -1,0 +1,42 @@
+# Module 12 — iOS release lanes. Uses Fastlane `match` for signing-identity
+# management (a private git/S3 repo of certs+profiles, configured via
+# MATCH_GIT_URL/MATCH_PASSWORD secrets) rather than checking a signing
+# identity into this repo. Cannot be exercised in a source-only pass — no
+# Apple Developer account, no macOS/Xcode toolchain in this sandbox (see
+# docs/modules/12-mobile-application.md's Verification section: iOS IPA
+# builds are categorically impossible outside a real macOS+Xcode host,
+# independent of any sandbox limitation).
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run flutter analyze + test"
+  lane :verify do
+    Dir.chdir("../..") do
+      sh("flutter", "analyze", "--fatal-infos")
+      sh("flutter", "test")
+    end
+  end
+
+  desc "Fetch/refresh signing certificates and provisioning profiles via match"
+  lane :certificates do
+    match(type: "appstore", readonly: true)
+  end
+
+  desc "Build a release, code-signed IPA"
+  lane :build_ipa do
+    certificates
+    Dir.chdir("../..") do
+      sh("flutter", "build", "ipa", "--release")
+    end
+  end
+
+  desc "Upload the latest build to TestFlight"
+  lane :beta do
+    build_ipa
+    upload_to_testflight(
+      ipa: "../build/ios/ipa/pentesthub_mobile.ipa",
+      skip_waiting_for_build_processing: true,
+    )
+  end
+end

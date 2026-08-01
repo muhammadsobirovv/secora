@@ -1,0 +1,55 @@
+# Module 12 — Android release lanes. Mirrors the shape of a standard
+# Flutter + Fastlane Android setup; `internal`/`beta`/`release` map to
+# Google Play's testing tracks. Requires a Play Console service account
+# JSON (path via the PLAY_JSON_KEY_FILE env var / repo secret) that this
+# source-only pass cannot generate — set it up per
+# docs/mobile/flutter-development-guide.md "Releasing" before first use.
+
+default_platform(:android)
+
+platform :android do
+  desc "Run flutter analyze + test"
+  lane :verify do
+    Dir.chdir("../..") do
+      sh("flutter", "analyze", "--fatal-infos")
+      sh("flutter", "test")
+    end
+  end
+
+  desc "Build a release APK"
+  lane :build_apk do
+    Dir.chdir("../..") do
+      sh("flutter", "build", "apk", "--release")
+    end
+  end
+
+  desc "Build a release App Bundle"
+  lane :build_aab do
+    Dir.chdir("../..") do
+      sh("flutter", "build", "appbundle", "--release")
+    end
+  end
+
+  desc "Upload the latest App Bundle to Play Console's internal testing track"
+  lane :internal do
+    build_aab
+    upload_to_play_store(
+      track: "internal",
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      json_key: ENV["PLAY_JSON_KEY_FILE"],
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Promote internal -> beta"
+  lane :beta do
+    upload_to_play_store(
+      track: "beta",
+      track_promote_to: "beta",
+      json_key: ENV["PLAY_JSON_KEY_FILE"],
+      skip_upload_aab: true,
+    )
+  end
+end
