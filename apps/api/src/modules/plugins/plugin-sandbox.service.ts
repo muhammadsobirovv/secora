@@ -108,3 +108,57 @@ export class PluginSandboxService {
 export function validateHookDeclared(manifest: PluginManifest, hook: string): boolean {
   return manifest.hooks.includes(hook);
 }
+
+/// Module 13 — Plugin SDK (task #285). `PluginManifest.capabilities` is
+/// purely declarative (see its doc comment in @pentesthub/shared) but
+/// still needs a cheap integrity check at publish time: every
+/// capability's `hook` must be one of the plugin's own declared `hooks`
+/// (the same list `validateHookDeclared` checks against at execution
+/// time), so a capability can never reference a function the sandbox
+/// wouldn't actually be able to call. Returns a list of human-readable
+/// problems (empty = valid) rather than throwing directly — callers
+/// (`PublishPluginHandler`/`PublishPluginVersionHandler`) decide how to
+/// surface it (a single `AppException` joining all problems).
+export function validatePluginManifestCapabilities(manifest: PluginManifest): string[] {
+  const problems: string[] = [];
+  const capabilities = manifest.capabilities;
+  if (!capabilities) {
+    return problems;
+  }
+
+  const lists: Array<[string, Array<{ id: string; label: string; hook: string }> | undefined]> = [
+    ['commands', capabilities.commands],
+    ['tools', capabilities.tools],
+    ['resources', capabilities.resources],
+    ['prompts', capabilities.prompts],
+    ['workflows', capabilities.workflows],
+    ['pages', capabilities.pages],
+    ['widgets', capabilities.widgets],
+    ['sidebarItems', capabilities.sidebarItems],
+    ['dashboardWidgets', capabilities.dashboardWidgets],
+  ];
+
+  for (const [listName, items] of lists) {
+    if (!items || items.length === 0) continue;
+    const seenIds = new Set<string>();
+    for (const item of items) {
+      if (!item.id || !item.id.trim()) {
+        problems.push(`capabilities.${listName}: an item is missing a non-empty "id".`);
+      } else if (seenIds.has(item.id)) {
+        problems.push(`capabilities.${listName}: duplicate id "${item.id}".`);
+      } else {
+        seenIds.add(item.id);
+      }
+      if (!item.label || !item.label.trim()) {
+        problems.push(`capabilities.${listName}.${item.id || '?'}: missing a non-empty "label".`);
+      }
+      if (!item.hook || !manifest.hooks.includes(item.hook)) {
+        problems.push(
+          `capabilities.${listName}.${item.id || '?'}: hook "${item.hook}" is not declared in this version's "hooks" list.`,
+        );
+      }
+    }
+  }
+
+  return problems;
+}

@@ -49,6 +49,12 @@ import { AutomationEngineModule } from './modules/automation-engine/automation-e
 import { ComplianceModule } from './modules/compliance/compliance.module.js';
 import { ObservabilityModule } from './modules/observability/observability.module.js';
 import { AgentModule } from './modules/agent/agent.module.js';
+import { McpModule } from './modules/mcp/mcp.module.js';
+import { AgentSdkModule } from './modules/agent-sdk/agent-sdk.module.js';
+import { ScriptsModule } from './modules/scripts/scripts.module.js';
+import { RelayCommandsModule } from './modules/relay-commands/relay-commands.module.js';
+import { EvaluationModule } from './modules/evaluation/evaluation.module.js';
+import { DeveloperPortalModule } from './modules/developer-portal/developer-portal.module.js';
 
 @Module({
   imports: [
@@ -134,6 +140,17 @@ import { AgentModule } from './modules/agent/agent.module.js';
     // previously only reachable via AutomationEngineModule's direct
     // injection of AgentCoreModule (see agent.module.ts's doc comment).
     AgentModule,
+    // Module 13 — MCP Server core (task #276): the JSON-RPC 2.0 endpoint
+    // + Resource/Tool/Prompt registries + session observability.
+    McpModule,
+    // Module 13 — AI Agent SDK (tasks #281-282): registry + runner for
+    // the eleven built-in agents, on top of McpModule's tool/resource
+    // registries.
+    AgentSdkModule,
+    ScriptsModule,
+    RelayCommandsModule,
+    EvaluationModule,
+    DeveloperPortalModule,
   ],
   providers: [
     // Order matters: throttle first, then authenticate, then authorize.

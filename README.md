@@ -42,8 +42,17 @@ Turborepo + pnpm workspaces:
   Clean Architecture, feature-first, Riverpod, GoRouter, offline-first
   Projects/Targets/Findings with a sync-engine/outbox pattern.
 - `packages/shared` — `@pentesthub/shared`: DTOs, types, and endpoint
-  constants shared between `apps/api` and `apps/web`.
+  constants shared between `apps/api`, `apps/web`, `apps/desktop`,
+  `apps/mobile`, `packages/sdk-typescript`, `packages/agent-sdk`, and
+  `packages/cli`.
 - `packages/ui` — shared UI primitives (shadcn/ui-based).
+- `packages/sdk-typescript` — `@pentesthub/sdk`: a TypeScript client
+  (`PentestHubClient`, `HttpClient`, `McpClient`) for the REST API and
+  the MCP server.
+- `packages/agent-sdk` — `@pentesthub/agent-sdk`: the AI Agent SDK
+  runtime and eleven built-in specialist agents.
+- `packages/cli` — `@pentesthub/cli`: a dependency-free `pentesthub`
+  command-line tool built on `packages/sdk-typescript`.
 - `packages/eslint-config`, `packages/typescript-config` — shared tooling
   config.
 
@@ -114,6 +123,19 @@ Turborepo + pnpm workspaces:
     storage, certificate pinning, jailbreak/root detection).
     `docs/adr/0012-mobile-application.md`,
     `docs/mobile/mobile-architecture-guide.md`
+13. **AI Automation Platform + MCP Ecosystem + Security Agent SDK** — a
+    standards-compliant Model Context Protocol server/client (`/mcp/rpc`,
+    `packages/sdk-typescript`'s `McpClient`), an AI Agent SDK
+    (`packages/agent-sdk`) with eleven built-in specialist agents, a
+    Workflow Builder extension (parallel/approval steps, webhook/event
+    triggers), a Plugin SDK + sandboxed Script Engine sharing one
+    `node:vm` execution primitive, an Automation Marketplace, Local
+    Execution (Desktop Agent/Browser Extension relay), AI Evaluation,
+    an AI Platform Observability dashboard, a Developer Portal, and
+    `packages/cli` (`@pentesthub/cli`).
+    `docs/adr/0013-ai-automation-platform-mcp-ecosystem.md`,
+    `docs/modules/13-ai-automation-platform-mcp-ecosystem.md`,
+    `docs/mcp/mcp-guide.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs

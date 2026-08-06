@@ -1059,3 +1059,54 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/mobile/mobile-architecture-guide.md`,
 > `docs/mobile/flutter-development-guide.md`, and
 > `docs/mobile/api-integration-guide.md`.
+>
+> **Module 13 — AI Automation Platform + MCP Ecosystem + Security Agent
+> SDK** (2026-08-06): source-complete. Adopts the **Model Context Protocol**
+> (`2025-06-18`) as the platform's extensibility substrate: a standards-
+> compliant MCP server (`POST /mcp/rpc` — `initialize`/`tools/list`/
+> `tools/call`/`resources/list`/`resources/read`/`prompts/list`/
+> `prompts/get`, API-key + scope-scoped sessions) exposing 15 tools (every
+> one dispatching an existing `CommandBus`/`QueryBus` handler, no parallel
+> logic), 13 read-only resource types, and Module 11's Prompt Registry;
+> and a dependency-free `McpClient` (`@pentesthub/sdk`) making the
+> platform an MCP consumer too. On top of that: an **AI Agent SDK**
+> (`packages/agent-sdk`) with eleven built-in prompt-specialist agents
+> (Recon, Web Pentest, API Security, Cloud Security, AD Assessment, Code
+> Review, Threat Modeling, Bug Bounty Assistant, Report Writer, Knowledge
+> Curator, Workflow Agent — all instances of one shared factory, not
+> bespoke classes) plus a `CUSTOM` agent kind; **Workflow Builder**
+> extensions to Module 10's engine (`parallel`/`approval`/MCP-tool-call
+> steps, `WEBHOOK`/`EVENT` triggers) and a matching **Event Bus**
+> expansion; a **Plugin SDK** (`node:vm` hook sandboxing, confirmed-real
+> Ed25519 code signing) and **Script Engine** (sandboxed JavaScript with a
+> real wall-clock timeout race, a capability-gated `pentesthub.*` global,
+> PYTHON rejection) sharing one hardened untrusted-code execution
+> primitive; an **Automation Marketplace** (the existing Plugin
+> Marketplace, now also listing Agent SDK/Script/Workflow artifacts);
+> **Local Execution** (a relay queue letting the backend or an external
+> MCP client ask a user's Desktop Agent/Browser Extension to run something
+> locally); **AI Evaluation** (scores agent/tool/script output against a
+> metric catalog); six new **Observability** Prometheus series plus a
+> `GET /observability/ai-platform` dashboard aggregating every Module 13
+> automation surface; a **Developer Portal** (browsable catalog, a real
+> "try it" tool-call endpoint, a usage dashboard — regular JWT REST, not
+> an MCP session); and `packages/cli` (`@pentesthub/cli`), a
+> dependency-free CLI built entirely on the existing SDK/shared contracts.
+> A real, pre-existing bug was found and fixed during the Tests pass:
+> `MetricsRegistryService`'s `Histogram.render()` was double-cumulating
+> already-cumulative bucket counts, silently corrupting every Prometheus
+> histogram this codebase exposes (including the Module 10 HTTP-duration
+> series) — caught by hand-deriving expected values for a new histogram
+> test. `packages/shared` was re-verified clean (`tsc --noEmit`) after
+> every shared-type change, and `packages/cli` — small and freestanding —
+> was independently verified via a manual `node_modules` symlink to
+> sibling workspace packages plus a direct `tsc --noEmit`, a genuine clean
+> compile; `apps/api`'s ~970-file project remained too slow to fully
+> typecheck or Jest-test in this sandbox (the same constraint disclosed in
+> every module since Module 7 — no `pnpm` binary and no registry access
+> here either), so every `apps/api` edit was manually cross-checked
+> against already-verified sibling files instead, and three new Jest spec
+> files were written and reasoned through by hand rather than executed.
+> See `docs/adr/0013-ai-automation-platform-mcp-ecosystem.md`,
+> `docs/modules/13-ai-automation-platform-mcp-ecosystem.md`,
+> `docs/releases/module-13-release-notes.md`, and `docs/mcp/mcp-guide.md`.

@@ -6,6 +6,10 @@ export const PLUGIN_REGISTRY_ENDPOINTS = {
   publishVersion: (id: string) => `/plugins/${id}/versions`,
   rate: (id: string) => `/plugins/${id}/ratings`,
   listRatings: (id: string) => `/plugins/${id}/ratings`,
+  // Module 13 — Plugin SDK (task #285)
+  workspaceCapabilities: "/plugins/capabilities",
+  // Module 13 — Automation Marketplace (task #287)
+  marketplacePacks: "/plugins/marketplace/packs",
 } as const;
 
 export const PLUGIN_INSTALLATION_ENDPOINTS = {

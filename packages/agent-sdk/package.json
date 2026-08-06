@@ -1,0 +1,33 @@
+{
+  "name": "@pentesthub/agent-sdk",
+  "version": "0.1.0",
+  "description": "AI Agent SDK for PentestHub AI — write an autonomous security agent that runs against any MCP-compatible PentestHub workspace.",
+  "license": "UNLICENSED",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pentesthub/sdk": "workspace:*",
+    "@pentesthub/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@pentesthub/eslint-config": "workspace:*",
+    "@pentesthub/typescript-config": "workspace:*",
+    "eslint": "^9.39.1",
+    "typescript": "5.9.2"
+  }
+}

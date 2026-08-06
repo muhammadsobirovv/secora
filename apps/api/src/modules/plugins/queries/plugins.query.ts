@@ -1,10 +1,23 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IQuery, IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import type { ListPluginsQueryDto, PluginDto, PluginRatingDto, PluginVersionDto } from '@pentesthub/shared';
+import type {
+  ListMarketplacePacksQueryDto,
+  ListPluginsQueryDto,
+  PluginDto,
+  PluginManifest,
+  PluginRatingDto,
+  PluginVersionDto,
+  WorkspacePluginCapabilityDto,
+} from '@pentesthub/shared';
+import { PACK_CATEGORIES } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import {
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import { verifyPluginSignature } from '../plugin-signature.util.js';
 import { toPluginDto, toPluginRatingDto, toPluginVersionDto } from '../mappers/to-plugin-dto.mapper.js';
 
@@ -90,5 +103,93 @@ export class ListPluginRatingsHandler implements IQueryHandler<ListPluginRatings
       take: 200,
     });
     return ratings.map(toPluginRatingDto);
+  }
+}
+
+/// Module 13 — Plugin SDK (task #285). Aggregates every enabled
+/// `PluginInstallation` in the caller's personal workspace whose latest
+/// installed `PluginVersion.manifestJson.capabilities` declares
+/// something, into a single flat list a Developer Portal / plugin-aware
+/// frontend can render pages/widgets/sidebar items from without knowing
+/// which plugins exist ahead of time.
+export class ListWorkspacePluginCapabilitiesQuery implements IQuery {
+  constructor(public readonly userId: string) {}
+}
+
+@QueryHandler(ListWorkspacePluginCapabilitiesQuery)
+export class ListWorkspacePluginCapabilitiesHandler
+  implements IQueryHandler<ListWorkspacePluginCapabilitiesQuery, WorkspacePluginCapabilityDto[]>
+{
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(WORKSPACES_REPOSITORY) private readonly workspacesRepository: WorkspacesRepository,
+  ) {}
+
+  async execute(query: ListWorkspacePluginCapabilitiesQuery): Promise<WorkspacePluginCapabilityDto[]> {
+    const workspace = await this.workspacesRepository.findPersonalWorkspaceForUser(query.userId);
+    if (!workspace) {
+      throw new AppException('WORKSPACE_NOT_FOUND', 'Workspace not found.', HttpStatus.NOT_FOUND);
+    }
+
+    const installations = await this.prisma.pluginInstallation.findMany({
+      where: { workspaceId: workspace.id, enabled: true },
+      include: { plugin: true, version: true },
+    });
+
+    const result: WorkspacePluginCapabilityDto[] = [];
+    for (const installation of installations) {
+      const manifest = installation.version.manifestJson as unknown as PluginManifest;
+      if (!manifest.capabilities) continue;
+      result.push({
+        pluginId: installation.pluginId,
+        pluginSlug: installation.plugin.slug,
+        installationId: installation.id,
+        capabilities: manifest.capabilities,
+      });
+    }
+    return result;
+  }
+}
+
+/// Module 13 — Automation Marketplace (task #287). A dedicated
+/// "browse packs" surface distinct from the generic `/plugins` listing —
+/// always restricted to `PACK_CATEGORIES` (a `category` filter outside
+/// that set is treated as "no match" rather than silently falling back to
+/// every plugin), `PUBLISHED` only, sorted by `downloadCount`. Packs
+/// still publish/install/rate through the exact same `Plugin`/
+/// `PluginVersion`/`PluginInstallation` commands every other plugin
+/// uses — this query is purely a browsing convenience, not a parallel
+/// write path.
+export class ListMarketplacePacksQuery implements IQuery {
+  constructor(public readonly filter: ListMarketplacePacksQueryDto) {}
+}
+
+@QueryHandler(ListMarketplacePacksQuery)
+export class ListMarketplacePacksHandler implements IQueryHandler<ListMarketplacePacksQuery, PluginDto[]> {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(query: ListMarketplacePacksQuery): Promise<PluginDto[]> {
+    const categories = query.filter.category ? [query.filter.category] : PACK_CATEGORIES;
+    const restrictedCategories = categories.filter((c) => (PACK_CATEGORIES as readonly string[]).includes(c));
+    if (restrictedCategories.length === 0) return [];
+
+    const plugins = await this.prisma.plugin.findMany({
+      where: {
+        category: { in: restrictedCategories },
+        status: 'PUBLISHED',
+        ...(query.filter.search
+          ? {
+              OR: [
+                { name: { contains: query.filter.search, mode: 'insensitive' } },
+                { description: { contains: query.filter.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: { versions: { orderBy: { publishedAt: 'desc' }, take: 1 } },
+      orderBy: { downloadCount: 'desc' },
+      take: 200,
+    });
+    return plugins.map((p) => toPluginDto(p, p.versions[0]?.version ?? null));
   }
 }

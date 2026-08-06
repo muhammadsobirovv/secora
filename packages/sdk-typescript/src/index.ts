@@ -5,3 +5,11 @@ export { OrganizationsResource } from './resources/organizations.resource.js';
 export { DistributedJobsResource } from './resources/distributed-jobs.resource.js';
 export { PluginsResource } from './resources/plugins.resource.js';
 export { IntegrationsResource } from './resources/integrations.resource.js';
+export {
+  McpClient,
+  McpRpcCallError,
+  type McpClientOptions,
+  type McpResourceDescriptor,
+  type McpToolDescriptor,
+  type McpToolCallResult,
+} from './mcp-client.js';

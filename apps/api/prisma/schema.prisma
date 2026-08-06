@@ -3274,6 +3274,23 @@ enum PluginCategory {
   INTEGRATIONS
   DASHBOARDS
   UTILITIES
+  // Module 13 — Automation Marketplace (task #287) pack types. Reuses the
+  // entire Plugin/PluginVersion/PluginInstallation marketplace machinery
+  // (listing, install/uninstall, ratings, signature verification,
+  // dependency resolution) rather than a parallel "pack" system — a
+  // Prompt Pack's PluginVersion.manifestJson declares its prompts array,
+  // a Workflow Pack's declares its workflow definitions array, etc.; see
+  // docs/automation/marketplace-pack-manifests.md for each category's
+  // manifest shape.
+  PROMPT_PACK
+  WORKFLOW_PACK
+  RECON_PACK
+  SCANNER_PACK
+  REPORT_TEMPLATE
+  PLAYBOOK
+  AGENT_PACK
+  THEME_PACK
+  LANGUAGE_PACK
 }
 
 enum PluginStatus {
@@ -4076,4 +4093,395 @@ model WorkspaceAiPrivacySetting {
   updatedAt   DateTime      @updatedAt
 
   @@map("workspace_ai_privacy_settings")
+}
+
+// ============================================================
+// Module 13 — AI Automation Platform + MCP Ecosystem + Security Agent
+// SDK. Every model below follows Module 11's precedent: no `prisma
+// generate`/`migrate` re-run could complete in this authoring sandbox
+// (see docs/adr/0013-ai-automation-platform-mcp-ecosystem.md's
+// Toolchain section), so every repository touching these tables uses
+// the raw-SQL ($queryRaw/$executeRaw) pattern
+// apps/api/src/modules/agent/infrastructure/persistence/prisma already
+// established, and none of these models add a `@relation(...)`
+// back-reference on an existing model (Workspace/Organization/User) —
+// avoids touching any already-shipped model's generated Prisma Client
+// shape at all.
+// ============================================================
+
+enum McpSessionStatus {
+  ACTIVE
+  CLOSED
+  EXPIRED
+}
+
+/// One live MCP client connection (an external MCP-compatible AI
+/// application, or PentestHub's own CLI/frontend acting as a client of
+/// its own MCP server), created by `mcp/mcp-server.module.ts`'s
+/// `initialize` handler. `protocolVersion` is the negotiated MCP
+/// protocol date-version string; `capabilitiesJson` mirrors what the
+/// client declared (resources/tools/prompts/sampling support) so the
+/// server never offers a capability the client didn't ask for.
+/// Authenticated the same way the rest of the Public API is
+/// (`ApiKeyAuthGuard`, Module 9) for the HTTP+SSE transport —
+/// `apiKeyId`/`scopes` are null/empty only for the stdio transport,
+/// which authenticates via local process trust instead (see the MCP
+/// Guide's "Transports" section).
+model McpSession {
+  id               String           @id @default(uuid())
+  workspaceId      String
+  apiKeyId         String?
+  clientName       String
+  clientVersion    String?
+  protocolVersion  String
+  transport        String
+  status           McpSessionStatus @default(ACTIVE)
+  capabilitiesJson Json?
+  scopes           String[]
+  createdAt        DateTime         @default(now())
+  lastActiveAt     DateTime         @default(now())
+  closedAt         DateTime?
+
+  @@index([workspaceId, status])
+  @@index([apiKeyId])
+  @@map("mcp_sessions")
+}
+
+/// One MCP `tools/call` invocation — the Tool Usage half of the
+/// Observability spec section, and the raw material the AI Evaluation
+/// service's Tool Success Rate metric aggregates over.
+model McpToolInvocation {
+  id           String   @id @default(uuid())
+  sessionId    String
+  workspaceId  String
+  toolName     String
+  inputJson    Json?
+  outputJson   Json?
+  errorMessage String?
+  durationMs   Int
+  createdAt    DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([workspaceId, toolName, createdAt])
+  @@map("mcp_tool_invocations")
+}
+
+/// Prompt Registry versioning (task #280). `PromptTemplate` (Module 11)
+/// already holds the *current* prompt text/name/category; this table is
+/// its append-only edit history — one row per save — so a prompt can be
+/// rolled back and so `PromptTestRun` rows can pin exactly which version
+/// they exercised.
+model PromptTemplateVersion {
+  id                String   @id @default(uuid())
+  promptTemplateId  String
+  version           Int
+  promptText        String
+  variablesJson     Json?
+  changelog         String?
+  createdBy         String
+  createdAt         DateTime @default(now())
+
+  @@unique([promptTemplateId, version])
+  @@index([promptTemplateId])
+  @@map("prompt_template_versions")
+}
+
+enum PromptTestRunStatus {
+  SUCCEEDED
+  FAILED
+}
+
+/// Prompt Testing / Prompt History (task #280): one ad-hoc "run this
+/// prompt version against a real provider" trial, kept for the Prompt
+/// Registry's history view and as an AI Evaluation input (Prompt
+/// Effectiveness metric).
+model PromptTestRun {
+  id                    String              @id @default(uuid())
+  promptTemplateId      String
+  promptTemplateVersion Int?
+  workspaceId           String
+  inputVariablesJson    Json?
+  renderedPrompt        String
+  outputText            String?
+  provider              String?
+  model                 String?
+  status                PromptTestRunStatus @default(SUCCEEDED)
+  errorMessage          String?
+  durationMs            Int?
+  ratingScore           Int?
+  notes                 String?
+  createdBy             String
+  createdAt             DateTime            @default(now())
+
+  @@index([promptTemplateId, createdAt])
+  @@map("prompt_test_runs")
+}
+
+enum AgentSdkKind {
+  BUILTIN
+  CUSTOM
+}
+
+enum AgentSdkStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+}
+
+/// AI Agent SDK (task #281): one registered agent definition — either a
+/// `BUILTIN` reference implementation shipped with this module (task
+/// #282's eleven agents) or a `CUSTOM` agent a developer registered
+/// (directly, or via installing an `AGENT_PACK` Plugin — see
+/// `pluginId`). Distinct from Module 11's `AgentType`/`BaseAgent` (the
+/// internal Master Orchestrator's twelve specialists,
+/// `apps/api/src/modules/agent/agents/`): those are hardcoded classes
+/// the orchestrator composes into one multi-agent run; these are
+/// independently invocable, SDK-lifecycle agents
+/// (Initialize/LoadContext/ReceiveTask/CallTools/ReadResources/
+/// GenerateResult/PublishEvents/Shutdown — see `packages/agent-sdk`) a
+/// third party can author without touching this repository at all.
+/// `manifestJson` declares the agent's tool/resource permission
+/// requests, mirroring `PluginVersion.permissions`'s
+/// disclose-before-grant shape.
+model AgentSdkDefinition {
+  id             String         @id @default(uuid())
+  organizationId String?
+  workspaceId    String?
+  pluginId       String?
+  slug           String
+  name           String
+  description    String
+  kind           AgentSdkKind
+  status         AgentSdkStatus @default(ACTIVE)
+  manifestJson   Json
+  sourceCode     String?
+  permissions    String[]
+  createdBy      String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([workspaceId, slug])
+  @@index([organizationId])
+  @@map("agent_sdk_definitions")
+}
+
+enum AgentSdkRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// One execution of an `AgentSdkDefinition` — the Agent SDK's own run
+/// ledger, separate from Module 11's `AgentOrchestrationRun`/`AgentTask`
+/// (which only ever runs the twelve built-in orchestrator specialists
+/// as part of one decomposed goal). `eventsJson` is the ordered
+/// `PublishEvents` lifecycle log (Initialize → ... → Shutdown), surfaced
+/// on the run detail page and consumed by Observability's Agent
+/// Activity view.
+model AgentSdkRun {
+  id                   String            @id @default(uuid())
+  agentSdkDefinitionId String
+  workspaceId          String
+  projectId            String?
+  status               AgentSdkRunStatus @default(PENDING)
+  inputJson            Json?
+  outputJson           Json?
+  eventsJson           Json?
+  errorMessage         String?
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  createdBy            String?
+  createdAt            DateTime          @default(now())
+
+  @@index([agentSdkDefinitionId, createdAt])
+  @@index([workspaceId, status])
+  // Module 13 — Performance (task #294). `AiPlatformObservabilityRepository
+  // .agentSdkRunsSummary()` filters by (workspaceId, createdAt) with no
+  // status/definitionId predicate — neither existing index's leading
+  // columns cover that access path efficiently (a createdAt range scan
+  // under `workspaceId, status` still has to fan out across every status
+  // value). Added once the Observability dashboard (task #290) made this
+  // a real, recurring query shape rather than a hypothetical one.
+  @@index([workspaceId, createdAt])
+  @@map("agent_sdk_runs")
+}
+
+enum ScriptLanguage {
+  TYPESCRIPT
+  JAVASCRIPT
+  PYTHON
+}
+
+/// Script Engine (task #286): a saved, named script. TypeScript/
+/// JavaScript execute through the same `node:vm` sandbox
+/// `PluginSandboxService` (Module 10) established, generalized by
+/// `ScriptEngineService` rather than forked; Python is accepted and
+/// stored but disclosed as **not executable** in this deployment shape
+/// (no Python interpreter is bundled with `apps/api` — a real
+/// deployment would shell out to a policy-restricted subprocess, out of
+/// scope for this pass; see the Script Engine section of the Developer
+/// Guide).
+model ScriptDefinition {
+  id          String         @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  language    ScriptLanguage
+  sourceCode  String
+  permissions String[]
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([workspaceId])
+  @@map("script_definitions")
+}
+
+enum ScriptExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  TIMEOUT
+}
+
+model ScriptExecution {
+  id                 String                @id @default(uuid())
+  scriptDefinitionId String
+  workspaceId        String
+  status             ScriptExecutionStatus @default(PENDING)
+  inputJson          Json?
+  outputJson         Json?
+  logs               String[]
+  errorMessage       String?
+  durationMs         Int?
+  triggeredBy        String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime              @default(now())
+
+  @@index([scriptDefinitionId, createdAt])
+  // Module 13 — Performance (task #294). `ScriptExecution` previously had
+  // no `workspaceId`-leading index at all — `RunScriptHandler`'s own
+  // `findExecutionById`/`listExecutions` scope by scriptDefinitionId (the
+  // existing index), but `AiPlatformObservabilityRepository
+  // .scriptExecutionsSummary()` filters by (workspaceId, createdAt)
+  // directly, which would otherwise force a full sequential scan of this
+  // table.
+  @@index([workspaceId, createdAt])
+  @@map("script_executions")
+}
+
+enum EvaluationMetricType {
+  RESPONSE_QUALITY
+  HALLUCINATION_RATE
+  TOOL_SUCCESS_RATE
+  WORKFLOW_SUCCESS
+  EXECUTION_TIME
+  PROMPT_EFFECTIVENESS
+  PROVIDER_COMPARISON
+}
+
+enum EvaluationSubjectType {
+  PROMPT
+  AGENT
+  WORKFLOW
+  PROVIDER
+  MCP_TOOL
+}
+
+/// AI Evaluation (task #289): one computed metric sample. Deliberately a
+/// flat, generic "metric type + subject + score + detail" shape rather
+/// than one table per metric — `AiEvaluationService`'s seven metric
+/// computations (see the Developer Guide's "Evaluation" section) all
+/// write through this one model; a new metric type is a TypeScript enum
+/// value + a computation function, never a migration.
+model EvaluationRun {
+  id          String                @id @default(uuid())
+  workspaceId String
+  metricType  EvaluationMetricType
+  subjectType EvaluationSubjectType
+  subjectId   String?
+  provider    String?
+  model       String?
+  score       Float?
+  resultJson  Json?
+  createdBy   String?
+  createdAt   DateTime              @default(now())
+
+  @@index([workspaceId, metricType, createdAt])
+  @@index([subjectType, subjectId])
+  @@map("evaluation_runs")
+}
+
+/// Workflow Builder — inbound WEBHOOK trigger (task #283). Deliberately
+/// its own table (raw-SQL only, same Module 13 constraint as every
+/// model in this file) rather than a `Workflow` column, so the bearer
+/// `token` never round-trips through "fetch this workflow's definition
+/// to render the visual builder" — see
+/// `WorkflowWebhookTriggerDto`'s doc comment in `@pentesthub/shared`.
+/// `POST /public/workflow-triggers/:token` (no auth beyond the token
+/// itself — same trust model as an inbound provider webhook) starts a
+/// run with the request body as `WorkflowRun.input`.
+model WorkflowWebhookTrigger {
+  id         String   @id @default(uuid())
+  workflowId String
+  token      String   @unique
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@index([workflowId])
+  @@map("workflow_webhook_triggers")
+}
+
+enum RelayCommandTarget {
+  DESKTOP
+  BROWSER
+}
+
+enum RelayCommandStatus {
+  PENDING
+  DELIVERED
+  COMPLETED
+  FAILED
+}
+
+/// Local Execution (task #288). The real, working half of what
+/// `McpToolRegistryService`'s `desktop_agent_command`/
+/// `browser_extension_command` MCP tools enqueue into —
+/// `queueRelayCommand` used to only return a fake `{status: 'queued'}`
+/// with no persistence at all; it now inserts a real row here. A
+/// connected Desktop Agent or Browser Extension session is meant to
+/// poll `GET /relay-commands/pending?target=DESKTOP` (see
+/// `RelayCommandsController`) and `POST /relay-commands/:id/complete`
+/// once it's run the command locally (through the Desktop Agent's
+/// existing `JobQueue`/`ToolRunner`, or the extension's content-script
+/// bridge) — **the client-side poll loop itself is not wired in this
+/// pass** (see that controller's doc comment for exactly where it plugs
+/// into the Desktop Agent's Rust `SyncEngine`/`JobQueue`, discovered but
+/// deliberately not touched without a Rust toolchain available to verify
+/// the change compiles). This table intentionally does NOT reuse Module
+/// 7's `desktop-sync` push/pull protocol — that REST surface has no
+/// server-side implementation in this codebase at all (a pre-existing
+/// Module 7 gap discovered while researching this task, out of Module
+/// 13's scope to backfill) — so this is a standalone, independently
+/// working queue rather than one more consumer of an endpoint that
+/// doesn't exist yet.
+model RelayCommand {
+  id          String              @id @default(uuid())
+  workspaceId String
+  target      RelayCommandTarget
+  commandType String
+  payloadJson Json
+  status      RelayCommandStatus  @default(PENDING)
+  resultJson  Json?
+  createdBy   String?
+  createdAt   DateTime            @default(now())
+  deliveredAt DateTime?
+  completedAt DateTime?
+
+  @@index([workspaceId, target, status])
+  @@map("relay_commands")
 }

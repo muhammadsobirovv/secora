@@ -84,10 +84,17 @@ class Histogram {
   render(): string {
     const lines = [`# HELP ${this.name} ${this.help}`, `# TYPE ${this.name} histogram`];
     for (const series of this.series.values()) {
-      let cumulative = 0;
+      // Module 13 — Tests (task #295) bug fix: `series.counts[i]` is
+      // already the cumulative "how many observations are <= buckets[i]"
+      // value — `observe()` increments *every* qualifying bucket per
+      // sample, not just the smallest one. Summing across `i` again here
+      // (the previous code did `cumulative += series.counts[i]`) double-
+      // cumulates an already-cumulative series, producing values that
+      // grow past `series.count` and violate the exposition format's
+      // core invariant (`_bucket{le="+Inf"}` must be the maximum, equal
+      // to `_count`). Caught by `metrics-registry.service.spec.ts`.
       for (let i = 0; i < series.buckets.length; i++) {
-        cumulative += series.counts[i];
-        lines.push(`${this.name}_bucket${renderLabels({ ...series.labels, le: String(series.buckets[i]) })} ${cumulative}`);
+        lines.push(`${this.name}_bucket${renderLabels({ ...series.labels, le: String(series.buckets[i]) })} ${series.counts[i]}`);
       }
       lines.push(`${this.name}_bucket${renderLabels({ ...series.labels, le: '+Inf' })} ${series.count}`);
       lines.push(`${this.name}_sum${renderLabels(series.labels)} ${series.sum}`);
@@ -112,6 +119,41 @@ export class MetricsRegistryService {
     'Total webhook delivery attempts, by outcome.',
   );
   readonly workflowRunsTotal = new Counter('pentesthub_workflow_runs_total', 'Total workflow runs, by terminal status.');
+
+  /// Module 13 — AI Automation Platform Observability (task #290). One
+  /// counter/histogram pair per automation surface the platform added in
+  /// Module 13, instrumented at the real call site inside each surface's
+  /// command handler/dispatcher (not polled) — same "increment where the
+  /// outcome is actually known" posture as `workflowRunsTotal` above.
+  /// Labels are deliberately low-cardinality: `toolName`/`metricType` are
+  /// closed enums from `@pentesthub/shared` (`MCP_TOOL_NAMES`,
+  /// `EvaluationMetricType`), never a free-form id — the same "route
+  /// pattern, not raw URL" cardinality discipline `HttpMetricsInterceptor`
+  /// already follows.
+  readonly mcpToolInvocationsTotal = new Counter(
+    'pentesthub_mcp_tool_invocations_total',
+    'Total MCP tool calls, by tool name and outcome.',
+  );
+  readonly mcpToolInvocationDurationSeconds = new Histogram(
+    'pentesthub_mcp_tool_invocation_duration_seconds',
+    'MCP tool call duration in seconds, by tool name.',
+  );
+  readonly agentSdkRunsTotal = new Counter(
+    'pentesthub_agent_sdk_runs_total',
+    'Total AI Agent SDK runs, by agent kind (BUILTIN/CUSTOM) and terminal status.',
+  );
+  readonly scriptExecutionsTotal = new Counter(
+    'pentesthub_script_executions_total',
+    'Total Script Engine executions, by terminal status (SUCCEEDED/FAILED/TIMEOUT).',
+  );
+  readonly relayCommandsTotal = new Counter(
+    'pentesthub_relay_commands_total',
+    'Total Local Execution relay commands, by target and status transition.',
+  );
+  readonly evaluationRunsTotal = new Counter(
+    'pentesthub_evaluation_runs_total',
+    'Total AI Evaluation runs, by metric type.',
+  );
 
   /// Real process-level gauges, computed fresh on every scrape (not
   /// polled on an interval) — cheap enough (process.memoryUsage() and
@@ -143,6 +185,12 @@ export class MetricsRegistryService {
       this.httpRequestDurationSeconds.render(),
       this.webhookDeliveriesTotal.render(),
       this.workflowRunsTotal.render(),
+      this.mcpToolInvocationsTotal.render(),
+      this.mcpToolInvocationDurationSeconds.render(),
+      this.agentSdkRunsTotal.render(),
+      this.scriptExecutionsTotal.render(),
+      this.relayCommandsTotal.render(),
+      this.evaluationRunsTotal.render(),
     ].join('\n\n') + '\n';
   }
 }

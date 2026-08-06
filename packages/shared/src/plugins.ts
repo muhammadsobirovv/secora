@@ -13,9 +13,46 @@ export type PluginCategory =
   | "REPORTING"
   | "INTEGRATIONS"
   | "DASHBOARDS"
-  | "UTILITIES";
+  | "UTILITIES"
+  // Module 13 — Automation Marketplace (task #287) pack types. Reuse the
+  // whole Plugin/PluginVersion/PluginInstallation marketplace machinery
+  // (listing, install, ratings, signature verification) instead of a
+  // parallel "pack" system.
+  | "PROMPT_PACK"
+  | "WORKFLOW_PACK"
+  | "RECON_PACK"
+  | "SCANNER_PACK"
+  | "REPORT_TEMPLATE"
+  | "PLAYBOOK"
+  | "AGENT_PACK"
+  | "THEME_PACK"
+  | "LANGUAGE_PACK";
 
 export type PluginStatus = "DRAFT" | "PUBLISHED" | "DEPRECATED" | "SUSPENDED";
+
+/// Module 13 — Automation Marketplace (task #287). The subset of
+/// `PluginCategory` that represents a "pack" (a bundle of
+/// prompts/workflows/recon configs/etc, published and installed through
+/// the exact same `Plugin`/`PluginVersion`/`PluginInstallation` flow as
+/// any other plugin) rather than executable code. `isPackCategory` lets
+/// both the API's marketplace-browsing query and any future frontend
+/// "Packs" tab distinguish the two without hand-maintaining the list
+/// twice.
+export const PACK_CATEGORIES: PluginCategory[] = [
+  "PROMPT_PACK",
+  "WORKFLOW_PACK",
+  "RECON_PACK",
+  "SCANNER_PACK",
+  "REPORT_TEMPLATE",
+  "PLAYBOOK",
+  "AGENT_PACK",
+  "THEME_PACK",
+  "LANGUAGE_PACK",
+];
+
+export function isPackCategory(category: PluginCategory): boolean {
+  return (PACK_CATEGORIES as readonly PluginCategory[]).includes(category);
+}
 
 export interface PluginDto {
   id: string;
@@ -71,6 +108,93 @@ export interface PluginManifest {
   /// requested hook is in this list before running anything.
   hooks: string[];
   configSchema?: Record<string, unknown>;
+  /// Module 13 — Plugin SDK (task #285). Declarative registration: a
+  /// plugin *declares* what it contributes to the platform's UI/tool
+  /// surfaces here; each capability's `hook` must also appear in
+  /// `hooks` above — `validatePluginManifestCapabilities` (apps/api)
+  /// enforces this at publish time, so a capability can never reference
+  /// a function the sandbox wouldn't actually be able to call.
+  /// Deliberately declarative-only, not "arbitrary executable
+  /// registration" (a plugin can't inject a live React component or a
+  /// real CommandBus handler) — the same sandboxing posture
+  /// `PluginSandboxService` already applies to hook execution extends
+  /// naturally to "the platform decides how to render/wire each
+  /// declared capability, the plugin only supplies data + a hook to
+  /// call when it's activated."
+  capabilities?: PluginCapabilities;
+}
+
+export interface PluginCapabilities {
+  commands?: PluginCommandCapability[];
+  tools?: PluginToolCapability[];
+  resources?: PluginResourceCapability[];
+  prompts?: PluginPromptCapability[];
+  workflows?: PluginWorkflowCapability[];
+  pages?: PluginPageCapability[];
+  widgets?: PluginWidgetCapability[];
+  sidebarItems?: PluginSidebarItemCapability[];
+  dashboardWidgets?: PluginDashboardWidgetCapability[];
+}
+
+/// Shared base every capability item has — `id` unique within its own
+/// list (not globally), `hook` naming which of `PluginManifest.hooks`
+/// runs when the platform activates this capability (a command is
+/// invoked, a page is opened, a widget refreshes, etc).
+interface PluginCapabilityBase {
+  id: string;
+  label: string;
+  description?: string;
+  hook: string;
+}
+
+export interface PluginCommandCapability extends PluginCapabilityBase {
+  /// Optional keyboard shortcut hint (e.g. "mod+shift+p") — display-only,
+  /// the platform's command palette owns actual key binding.
+  shortcut?: string;
+}
+
+export interface PluginToolCapability extends PluginCapabilityBase {
+  /// JSON-Schema-shaped, same spirit as an MCP tool's `inputSchema` —
+  /// lets a future "install a plugin, its tools show up in MCP
+  /// tools/list too" bridge exist without a manifest format change.
+  inputSchema?: Record<string, unknown>;
+}
+
+export interface PluginResourceCapability extends PluginCapabilityBase {
+  /// The URI *prefix* this plugin's resource lives under, e.g.
+  /// `plugin://<slug>/widgets` — never a full `pentesthub://` URI
+  /// (those stay MCP-server-owned).
+  uriPrefix: string;
+}
+
+export interface PluginPromptCapability extends PluginCapabilityBase {
+  variables?: string[];
+}
+
+export interface PluginWorkflowCapability extends PluginCapabilityBase {
+  /// A ready-made `WorkflowDefinition` (see automation-engine.ts) this
+  /// plugin offers as a one-click-install starting point — not itself
+  /// executable until a user actually creates a `Workflow` from it.
+  definition?: Record<string, unknown>;
+}
+
+export interface PluginPageCapability extends PluginCapabilityBase {
+  /// Client-side route this page mounts at, e.g. `/plugins/<slug>/dashboard`.
+  route: string;
+}
+
+export interface PluginWidgetCapability extends PluginCapabilityBase {
+  size?: "small" | "medium" | "large";
+}
+
+export interface PluginSidebarItemCapability extends PluginCapabilityBase {
+  icon?: string;
+  route?: string;
+}
+
+export interface PluginDashboardWidgetCapability extends PluginCapabilityBase {
+  size?: "small" | "medium" | "large";
+  refreshIntervalSeconds?: number;
 }
 
 export interface PluginVersionDto {
@@ -167,5 +291,27 @@ export interface ExecutePluginHookResultDto {
 export interface ListPluginsQueryDto {
   category?: PluginCategory;
   status?: PluginStatus;
+  search?: string;
+}
+
+/// Module 13 — Plugin SDK (task #285). One entry per enabled
+/// `PluginInstallation` in a workspace whose manifest declares
+/// capabilities — the Developer Portal / a future plugin-aware
+/// frontend renders pages/widgets/sidebar items from this list rather
+/// than hard-coding which plugins exist.
+export interface WorkspacePluginCapabilityDto {
+  pluginId: string;
+  pluginSlug: string;
+  installationId: string;
+  capabilities: PluginCapabilities;
+}
+
+/// Module 13 — Automation Marketplace (task #287). Same shape as
+/// `ListPluginsQueryDto` but `category`, if given, must be one of
+/// `PACK_CATEGORIES` — the handler always restricts results to pack
+/// categories regardless, this just lets a caller narrow further (e.g.
+/// "only WORKFLOW_PACK").
+export interface ListMarketplacePacksQueryDto {
+  category?: PluginCategory;
   search?: string;
 }
