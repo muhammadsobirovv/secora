@@ -2,10 +2,11 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Throttle } from '@nestjs/throttler';
-import type { PluginDto, PluginRatingDto } from '@pentesthub/shared';
+import type { PluginDto, PluginRatingDto, WorkspacePluginCapabilityDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import {
+  ListMarketplacePacksQueryParamsDto,
   ListPluginsQueryParamsDto,
   PublishPluginDto,
   PublishPluginVersionDto,
@@ -17,8 +18,10 @@ import { RatePluginCommand } from '../commands/plugin-ratings.commands.js';
 import {
   GetPluginHandler,
   GetPluginQuery,
+  ListMarketplacePacksQuery,
   ListPluginRatingsQuery,
   ListPluginsQuery,
+  ListWorkspacePluginCapabilitiesQuery,
   type PluginDetailDto,
 } from '../queries/plugins.query.js';
 
@@ -48,6 +51,24 @@ export class PluginsController {
   @ApiOperation({ summary: 'Publish a new plugin with its first version' })
   publish(@Body() dto: PublishPluginDto, @CurrentUser() user: RequestUser): Promise<PluginDto> {
     return this.commandBus.execute(new PublishPluginCommand(user.id, dto));
+  }
+
+  @Get('capabilities')
+  @ApiOperation({
+    summary:
+      'Module 13 — Plugin SDK: list declared capabilities (commands/tools/pages/widgets/etc) across every enabled plugin installation in the caller\'s personal workspace',
+  })
+  listWorkspaceCapabilities(@CurrentUser() user: RequestUser): Promise<WorkspacePluginCapabilityDto[]> {
+    return this.queryBus.execute(new ListWorkspacePluginCapabilitiesQuery(user.id));
+  }
+
+  @Get('marketplace/packs')
+  @ApiOperation({
+    summary:
+      'Module 13 — Automation Marketplace: browse published packs (PROMPT_PACK/WORKFLOW_PACK/RECON_PACK/SCANNER_PACK/REPORT_TEMPLATE/PLAYBOOK/AGENT_PACK/THEME_PACK/LANGUAGE_PACK) — same publish/install/rate flow as any other plugin, just filtered to pack categories',
+  })
+  listMarketplacePacks(@Query() query: ListMarketplacePacksQueryParamsDto): Promise<PluginDto[]> {
+    return this.queryBus.execute(new ListMarketplacePacksQuery(query));
   }
 
   @Get(':id')

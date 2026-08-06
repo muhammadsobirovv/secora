@@ -13,7 +13,23 @@ import type { Prisma } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { verifyPluginSignature } from '../plugin-signature.util.js';
+import { validatePluginManifestCapabilities } from '../plugin-sandbox.service.js';
 import { toPluginDto } from '../mappers/to-plugin-dto.mapper.js';
+
+/// Module 13 (task #285): shared publish-time check reused by both
+/// `PublishPluginHandler` (first version) and `PublishPluginVersionHandler`
+/// (subsequent versions) — see `validatePluginManifestCapabilities`'s doc
+/// comment for what it enforces.
+function assertValidManifestCapabilities(manifest: PublishPluginVersionRequestDto['manifest']): void {
+  const problems = validatePluginManifestCapabilities(manifest);
+  if (problems.length > 0) {
+    throw new AppException(
+      'PLUGIN_MANIFEST_CAPABILITIES_INVALID',
+      `Invalid manifest capabilities: ${problems.join('; ')}`,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
 
 /// Plugin Registry: publish/update a `Plugin` catalog entry and its
 /// `PluginVersion`s. Anyone can publish (this is a marketplace, not an
@@ -39,6 +55,8 @@ export class PublishPluginHandler implements ICommandHandler<PublishPluginComman
     if (existing) {
       throw new AppException('PLUGIN_SLUG_ALREADY_EXISTS', 'A plugin with this slug already exists.', HttpStatus.CONFLICT);
     }
+
+    assertValidManifestCapabilities(command.data.version.manifest);
 
     const publicKey = this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
     const { attempted, valid } = verifyPluginSignature(
@@ -107,6 +125,8 @@ export class PublishPluginVersionHandler implements ICommandHandler<PublishPlugi
     if (existingVersion) {
       throw new AppException('PLUGIN_VERSION_ALREADY_EXISTS', 'This version already exists.', HttpStatus.CONFLICT);
     }
+
+    assertValidManifestCapabilities(command.data.manifest);
 
     const publicKey = this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
     const { attempted, valid } = verifyPluginSignature(

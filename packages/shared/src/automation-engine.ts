@@ -22,6 +22,33 @@ export const WORKFLOW_STEP_KINDS = [
   // multi-step agent operation. params: { goal: string; projectId?:
   // string; provider?: string; model?: string }.
   "ai_agent_run",
+  // Module 13 — Workflow Builder block set (task #283). params below.
+  // - parallel: { branches: WorkflowStepDefinition[][] } — each inner
+  //   array is one branch's own step chain, run concurrently
+  //   (Promise.all-style); the parallel step itself completes once every
+  //   branch's chain reaches a step with `next: null`.
+  "parallel",
+  // - approval: { approverUserId?: string; approverRole?: string; message?: string }
+  //   pauses the run (same pause/resume machinery `delay` already uses —
+  //   WorkflowRun.pausedAtStepKey/resumeAt is left null; a new
+  //   `pendingApproval` boolean marks it instead) until a human approves
+  //   or rejects via WorkflowRunsController's approve/reject endpoint.
+  "approval",
+  // - export: { format: "json" | "csv" | "markdown"; sourceField: string }
+  //   serializes an earlier step's output (via the same contextJson
+  //   template lookup `resolveTemplate` already does) into the run's
+  //   output, ready for download.
+  "export",
+  // - webhook_call: { url: string; method?: "GET"|"POST"|"PUT"; headers?: Record<string,string>; bodyField?: string }
+  //   an OUTBOUND HTTP call mid-workflow — distinct from the workflow's
+  //   own `triggerType: "WEBHOOK"` (an INBOUND trigger, see
+  //   `WorkflowWebhookTriggerDto` below).
+  "webhook_call",
+  // - set_variable: { name: string; valueField?: string; value?: unknown }
+  //   writes into WorkflowRun.contextJson under `variables.<name>` so
+  //   later steps can reference it via the same `{{steps.x.y}}`-style
+  //   template syntax, extended to `{{variables.name}}`.
+  "set_variable",
 ] as const;
 export type WorkflowStepKind = (typeof WORKFLOW_STEP_KINDS)[number];
 
@@ -64,6 +91,18 @@ export interface WorkflowStepDefinition {
 export interface WorkflowDefinition {
   startAt: string;
   steps: WorkflowStepDefinition[];
+  /// Module 13 (task #283): trigger metadata that isn't step-graph shaped,
+  /// kept alongside it in the same JSON column rather than a schema
+  /// migration on `Workflow` — `eventKey` is only meaningful when
+  /// `Workflow.triggerType === "EVENT"` (matched against the Event Bus's
+  /// event-key catalog, e.g. `"finding.created"` — see
+  /// `mcp/events/mcp-domain-events.ts`'s `toWebhookEventKey`-style keys);
+  /// a `WEBHOOK` trigger's inbound token lives in
+  /// `WorkflowWebhookTrigger` instead (a secret, so kept out of the
+  /// definition a user's browser fetches to render the visual builder).
+  trigger?: {
+    eventKey?: string;
+  };
 }
 
 export type WorkflowTriggerType = "MANUAL" | "SCHEDULE" | "EVENT" | "WEBHOOK";
@@ -132,4 +171,25 @@ export interface TriggerWorkflowRequestDto {
 export interface ListWorkflowRunsQueryDto {
   status?: WorkflowRunStatus;
   limit?: number;
+}
+
+// ---- Module 13 additions (task #283) ----
+
+/// The inbound counterpart of `triggerType: "WEBHOOK"` — a bearer token
+/// minted for one Workflow; `POST /public/workflow-triggers/{token}`
+/// starts a run with the request body as `input`. Deliberately its own
+/// small table (`workflow_webhook_triggers`, raw-SQL only — see
+/// docs/adr/0013-ai-automation-platform-mcp-ecosystem.md) rather than a
+/// `Workflow` column, so the secret token never round-trips through the
+/// visual builder's "fetch this workflow's definition to render it" call.
+export interface WorkflowWebhookTriggerDto {
+  workflowId: string;
+  token: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface ApproveWorkflowStepRequestDto {
+  approved: boolean;
+  note?: string;
 }

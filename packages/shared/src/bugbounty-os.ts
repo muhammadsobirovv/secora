@@ -459,6 +459,33 @@ export const WEBHOOK_EVENT_TYPES = [
   "plugin.uninstalled",
   "scheduled_job.completed",
   "scheduled_job.failed",
+  // Module 13 — Event Bus expansion (task #284). "project.created" and
+  // the four "orchestration_run.*" keys are real, already-published
+  // ActivityDomainEvents (Module 2/11) now added to
+  // WebhookDispatchHandler's subscriber list (deliverable as webhooks,
+  // same as everything above this line). "workflow_run.*" are real,
+  // newly-published events (WorkflowRunStartedEvent/FinishedEvent,
+  // task #283/284) that are NOT workspace-scoped the way
+  // ActivityDomainEvent requires (a Workflow can be organization-scoped
+  // with no workspaceId) — matchable as an EVENT-triggered Workflow's
+  // `trigger.eventKey` (see WorkflowEventTriggerHandler) but not
+  // currently deliverable as an outbound webhook. "desktop.sync"/
+  // "browser.capture" are reserved (accepted in this catalog, matchable
+  // the same way) but have no live NestJS publisher yet — Module 7/8's
+  // Desktop Agent/Browser Extension are local-first, client-side
+  // systems with no server-side command handler that would naturally
+  // `EventBus.publish()` one of these; wiring a real emitter is future
+  // work, same disclosed-gap posture as the MCP
+  // `desktop_agent_command`/`browser_extension_command` tools.
+  "project.created",
+  "orchestration_run.created",
+  "orchestration_run.completed",
+  "orchestration_run.failed",
+  "orchestration_run.cancelled",
+  "workflow_run.started",
+  "workflow_run.finished",
+  "desktop.sync",
+  "browser.capture",
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 
