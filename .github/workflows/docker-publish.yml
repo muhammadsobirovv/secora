@@ -1,10 +1,27 @@
 name: Docker Publish
 
-# Module 10 — CI/CD. Builds and pushes the three deployable container
+# Module 10 — CI/CD, extended by Module 14 (SBOM, container signing,
+# image scanning). Builds and pushes the three deployable container
 # images (api, worker, web) to GitHub Container Registry. Runs only
 # after `main` has an image-worthy change, and on version tags for
 # release builds — this is deliberately separate from ci.yml so a
 # docs-only PR never triggers a multi-gigabyte image build/push.
+#
+# Module 14 additions to each image, all using free/no-account-required
+# tooling (Community Edition guarantee — no mandatory paid service):
+#  - SBOM + build provenance attestations, generated natively by
+#    BuildKit (`sbom: true`/`provenance: true` on build-push-action) —
+#    no extra tool/service, just a BuildKit feature flag.
+#  - Trivy vulnerability scan (aquasecurity/trivy-action, a local binary
+#    scan against the just-built image, no external service/account) —
+#    results uploaded as a SARIF report to GitHub's own code-scanning UI
+#    (free on public repos; included in GHAS for private repos a
+#    deployment may already have, not a new paid dependency this
+#    pipeline introduces).
+#  - cosign keyless signing (sigstore/cosign-installer + `cosign sign`
+#    using GitHub's own OIDC token as the signing identity via Fulcio/
+#    Rekor's public-good instances) — no private key to generate,
+#    store, or rotate, and no paid signing service.
 on:
   push:
     branches: [main]
@@ -25,6 +42,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # cosign keyless signing — OIDC token to Fulcio
+      security-events: write # upload Trivy SARIF to code scanning
     strategy:
       matrix:
         include:
@@ -57,6 +76,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -72,3 +92,51 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
           build-args: |
             ${{ matrix.component == 'web' && format('NEXT_PUBLIC_API_URL={0}', vars.NEXT_PUBLIC_API_URL || 'https://api.your-company.com') || '' }}
+          # Module 14 — SBOM: a native BuildKit attestation, not a
+          # separate SBOM-generation tool run afterward — attached to
+          # the pushed image manifest so `docker buildx imagetools
+          # inspect --format '{{ json .SBOM }}' <image>` (or `cosign
+          # download sbom`) retrieves it directly from the registry.
+          sbom: true
+          provenance: true
+
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}-${{ matrix.component }}@${{ steps.build.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          # Informational for now, mirroring security-scan.yml's
+          # `pnpm audit --audit-level high`/`continue-on-error: true`
+          # posture — surfaces findings in the code-scanning UI without
+          # blocking a release on a base-image CVE that may not be
+          # realistically exploitable in this app's usage, until a
+          # triage process is in place (see docs/deployment's Security
+          # Review recommendation to make both blocking eventually).
+          exit-code: "0"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy results to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.component }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless, OIDC)
+        # Only on a genuine publish (push already gates this whole job,
+        # but cosign needs the exact digest just pushed, not a tag alias
+        # that could be re-pointed later) — signs the immutable
+        # digest reference `steps.build.outputs.digest` gives us.
+        run: |
+          cosign sign --yes \
+            "${REGISTRY}/${IMAGE_NAMESPACE}-${COMPONENT}@${DIGEST}"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          COMPONENT: ${{ matrix.component }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          COSIGN_EXPERIMENTAL: "1"

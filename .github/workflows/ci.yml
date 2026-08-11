@@ -24,7 +24,15 @@ concurrency:
 
 env:
   NODE_VERSION: "20"
-  PNPM_VERSION: "9"
+  # Module 14 — CI/CD hardening: was pinned to "9", which drifted from
+  # the root package.json's `packageManager: "pnpm@11.10.0"` (the
+  # version every contributor's local `corepack` actually resolves to).
+  # A mismatched CI pnpm version is a real risk (lockfile format
+  # differences, resolution differences) that had gone unnoticed simply
+  # because nothing so far exercised a path where the two diverged
+  # observably. Pinned to the exact declared version so CI and local dev
+  # always resolve identically.
+  PNPM_VERSION: "11.10.0"
   # Test-only values — 32+ chars to satisfy env.validation.ts's zod
   # schema (JWT_ACCESS_SECRET/CREDENTIAL_ENCRYPTION_KEY have a minimum
   # length check that fails fast at boot if too short). Not secrets in
@@ -64,6 +72,20 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Module 14 — CI/CD: Turborepo's own task-output cache (distinct
+      # from the pnpm store cache `setup-node` already handles above) —
+      # keyed on this job's own commit so a re-run of the same commit
+      # (e.g. a flaky-job re-run) is instant, with `restore-keys`
+      # falling back to the closest prior cache on a new commit so an
+      # unrelated-package change still skips every task Turborepo can
+      # prove is unaffected.
+      - name: Cache Turborepo task outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-
       - run: pnpm lint
 
   check-types:
@@ -85,6 +107,13 @@ jobs:
       # imports from prisma-types.ts, which re-exports the generated
       # client.
       - run: pnpm --filter api exec prisma generate
+      - name: Cache Turborepo task outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-check-types-${{ github.sha }}
+          restore-keys: |
+            turbo-check-types-
       - run: pnpm check-types
 
   test:
@@ -116,20 +145,75 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter api exec prisma generate
+      - name: Cache Turborepo task outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-${{ github.sha }}
+          restore-keys: |
+            turbo-test-
       - name: Apply schema to the test database
         # `migrate deploy` requires an unbroken migration history, which
-        # this repo doesn't have past Module 5 (see prisma/migrations'
-        # own README/ADR note — Modules 6-10's schema changes were
-        # authored directly in schema.prisma, not captured as migration
-        # files, since sandboxed development had no live DB to run
-        # `migrate dev` against). `db push` applies the current schema
-        # state directly and is the correct tool for exactly this
-        # situation (ephemeral CI database, no migration history to
-        # preserve) — production deployments should instead run
-        # `prisma migrate deploy` against a real migration history once
-        # one is generated from this schema (see docs/deployment).
+        # this repo doesn't reliably have (see prisma/migrations' own
+        # contents — several but not all modules' schema changes were
+        # authored directly in schema.prisma rather than captured as
+        # migration files, since sandboxed development had no live DB to
+        # run `migrate dev` against for every one). `db push` applies the
+        # current schema state directly and is the correct tool for
+        # exactly this situation (ephemeral CI database, no migration
+        # history to preserve) — production deployments should instead
+        # run `prisma migrate deploy` against a real migration history
+        # once one is generated from this schema. Run
+        # `pnpm --filter api run prisma:migrate:validate` (Module 14)
+        # against a real database to check current drift.
         run: pnpm --filter api exec prisma db push --skip-generate
       - run: pnpm test
+
+  # Module 14 — CI/CD: Database migration validation. Distinct from the
+  # `test` job's `prisma db push` (which applies the *current* schema
+  # state directly, ignoring migration history entirely) — this job
+  # checks the migration history *itself* is internally consistent
+  # (`prisma validate`) and, where a DATABASE_URL is available, whether
+  # `prisma/migrations` has drifted from `schema.prisma` (`prisma
+  # migrate diff --exit-code` via `scripts/validate-migrations.mjs`).
+  # Drift is reported but does not fail the job — see that script's own
+  # comments for why (this repo's migration history was hand-authored
+  # across several modules without a live dev database, so some drift
+  # is a known, disclosed, non-blocking condition until a real `prisma
+  # migrate dev` pass reconciles it).
+  migrate-validate:
+    name: Validate DB migrations
+    runs-on: ubuntu-latest
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pentesthub_migrate_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pentesthub_migrate_check"
+      SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pentesthub_migrate_check"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
+      - run: pnpm --filter api run prisma:migrate:validate
 
   build:
     name: Build
@@ -146,7 +230,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter api exec prisma generate
+      - name: Cache Turborepo task outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ github.sha }}
+          restore-keys: |
+            turbo-build-
       - run: pnpm build
+      # Module 14 — CI/CD: CLI smoke test. `pnpm build` compiles
+      # packages/cli's TS to dist/, but a clean compile doesn't prove the
+      # packaged bin entry point actually runs (wrong shebang, missing
+      # runtime import, etc.) — this is the cheapest real signal that it
+      # does, mirroring the "does the built artifact actually execute"
+      # gate every other deployable component in this pipeline gets
+      # (Docker images get a container start; the CLI gets this).
+      - name: CLI smoke test
+        run: node packages/cli/dist/bin/pentesthub.js --help
 
   python-sdk:
     name: Python SDK

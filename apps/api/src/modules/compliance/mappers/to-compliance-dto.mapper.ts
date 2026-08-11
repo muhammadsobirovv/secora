@@ -25,6 +25,9 @@ export function toBackupPolicyDto(policy: BackupPolicy): BackupPolicyDto {
     frequency: policy.frequency,
     retentionCount: policy.retentionCount,
     lastBackupAt: policy.lastBackupAt ? policy.lastBackupAt.toISOString() : null,
+    scope: policy.scope,
+    encrypt: policy.encrypt,
+    lastPrunedAt: policy.lastPrunedAt ? policy.lastPrunedAt.toISOString() : null,
     createdAt: policy.createdAt.toISOString(),
   };
 }

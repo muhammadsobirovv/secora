@@ -136,6 +136,20 @@ Turborepo + pnpm workspaces:
     `docs/adr/0013-ai-automation-platform-mcp-ecosystem.md`,
     `docs/modules/13-ai-automation-platform-mcp-ecosystem.md`,
     `docs/mcp/mcp-guide.md`
+14. **Cloud Platform, Enterprise SaaS & High Availability** — pluggable
+    queue/cache/storage provider abstractions (each defaulting to a
+    zero-dependency binding), a generalized distributed-lock/leader-
+    election primitive, a real encrypted backup system, an Admin Console
+    aggregating cluster/worker/queue/cache/storage/database/backup/
+    licensing state, Enterprise-only Tenant Management (billing/
+    branding/usage, edition-gated), an opt-in response-caching API
+    Gateway, cross-client Auto Update, and production-grade CI/CD
+    (SBOM, container signing, Trivy scanning, release automation) — all
+    holding the standing "no mandatory paid service" guarantee, verified
+    by a dedicated audit this module.
+    `docs/adr/0014-cloud-platform-enterprise-saas-ha.md`,
+    `docs/modules/14-cloud-platform-enterprise-saas-ha.md`,
+    `docs/architecture/{api-gateway,auto-update,ci-cd}.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs

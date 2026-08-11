@@ -41,6 +41,20 @@ export function toOrganizationDto(row: Organization): OrganizationDto {
     createdBy: row.createdBy,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    // Module 14 — Tenant Management. These 8 fields exist on the
+    // `Organization` row for every edition (a Community Edition
+    // organization just never has them set) — this mapper always
+    // includes them so `OrganizationDto`'s required (non-optional) shape
+    // is actually honest, regardless of which edition/route populated
+    // the row.
+    billingEmail: row.billingEmail,
+    billingProviderCustomerId: row.billingProviderCustomerId,
+    subscriptionStatus: row.subscriptionStatus,
+    subscriptionRenewsAt: row.subscriptionRenewsAt ? row.subscriptionRenewsAt.toISOString() : null,
+    customDomain: row.customDomain,
+    customDomainVerifiedAt: row.customDomainVerifiedAt ? row.customDomainVerifiedAt.toISOString() : null,
+    brandingPrimaryColor: row.brandingPrimaryColor,
+    brandingFaviconUrl: row.brandingFaviconUrl,
   };
 }
 

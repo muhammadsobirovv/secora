@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, EventBus } from '@nestjs/cqrs';
 import type { WorkflowConditionOperator, WorkflowDefinition, WorkflowStepDefinition } from '@pentesthub/shared';
 import type { Prisma } from '../../../prisma-types.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -12,12 +12,18 @@ import { AgentOrchestratorService } from '../../agent/orchestrator/agent-orchest
 import { getByPath, evaluateCondition } from '../workflow-context.util.js';
 import { withSpan } from '../../../observability/tracing.js';
 import { MetricsRegistryService } from '../../observability/metrics-registry.service.js';
+import { WorkflowRunFinishedEvent, WorkflowRunStartedEvent } from '../events/workflow-run-events.js';
 
 interface StepResult {
   output?: unknown;
   message?: string;
   pause?: boolean;
-  resumeAt?: Date;
+  /// `undefined` (delay's normal case) leaves the field untouched in
+  /// the Prisma update; `null` (approval's case, task #283) explicitly
+  /// clears it so WorkflowRunnerService's `resumeAt <= now()` poller
+  /// never picks this run back up — only an explicit `resumeApproval()`
+  /// call can.
+  resumeAt?: Date | null;
   /// Explicit override for which step runs next — used by `condition`
   /// (branches instead of following `step.next`). `undefined` means
   /// "fall through to step.next"; `null` means "end the run here".
@@ -50,6 +56,7 @@ export class WorkflowExecutorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly commandBus: CommandBus,
+    private readonly eventBus: EventBus,
     private readonly providerRegistry: AiProviderRegistryService,
     private readonly notificationDispatcher: NotificationDispatcherService,
     private readonly reportContentBuilder: ReportContentBuilderService,
@@ -64,6 +71,10 @@ export class WorkflowExecutorService {
       where: { id: runId },
       data: { status: 'RUNNING', startedAt: new Date(), contextJson: (run.input as Prisma.InputJsonValue) ?? {} },
     });
+    // Event Bus (task #284) — "Workflow Started".
+    this.eventBus.publish(
+      new WorkflowRunStartedEvent(run.id, run.workflowId, run.workflow.workspaceId, run.workflow.organizationId),
+    );
     await this.advance(runId, definition, definition.startAt);
   }
 
@@ -78,6 +89,41 @@ export class WorkflowExecutorService {
     const nextKey = pausedStep?.next ?? null;
     if (!nextKey) {
       await this.finish(runId, 'SUCCEEDED', null);
+      return;
+    }
+    await this.advance(runId, definition, nextKey);
+  }
+
+  /// Approval-specific counterpart to `resume()` (task #283) — called
+  /// from `POST /workflows/.../approve`, never from
+  /// `WorkflowRunnerService`'s poller (an `approval` step's
+  /// `resumeAt` is always `null`, see that case in `executeStep`).
+  /// Branches to `step.next` if approved, `step.onFailure` if rejected
+  /// — the same two-outcome shape `condition`'s `whenTrue`/`whenFalse`
+  /// uses, reusing the field every step already has instead of adding a
+  /// third pointer just for this one kind.
+  async resumeApproval(runId: string, approved: boolean, note: string | undefined): Promise<void> {
+    const run = await this.prisma.workflowRun.findUniqueOrThrow({ where: { id: runId }, include: { workflow: true } });
+    if (run.status !== 'RUNNING' || !run.pausedAtStepKey) {
+      throw new Error('This workflow run is not awaiting approval.');
+    }
+    const definition = run.workflow.definitionJson as unknown as WorkflowDefinition;
+    const pausedStep = definition.steps.find((s) => s.key === run.pausedAtStepKey);
+    if (!pausedStep || pausedStep.kind !== 'approval') {
+      throw new Error('This workflow run is not paused at an approval step.');
+    }
+
+    const context = ((run.contextJson as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+    context[pausedStep.key] = { ...(context[pausedStep.key] as Record<string, unknown> | null), approved, note: note ?? null };
+
+    await this.prisma.workflowRun.update({
+      where: { id: runId },
+      data: { pausedAtStepKey: null, resumeAt: null, contextJson: context as Prisma.InputJsonValue },
+    });
+
+    const nextKey = approved ? (pausedStep.next ?? null) : (pausedStep.onFailure ?? null);
+    if (!nextKey) {
+      await this.finish(runId, approved ? 'SUCCEEDED' : 'FAILED', approved ? null : `Approval rejected${note ? `: ${note}` : '.'}`);
       return;
     }
     await this.advance(runId, definition, nextKey);
@@ -164,6 +210,10 @@ export class WorkflowExecutorService {
       },
     });
     this.metrics.workflowRunsTotal.inc({ workflowId: run.workflowId, status: status.toLowerCase() });
+    // Event Bus (task #284) — "Workflow Finished".
+    this.eventBus.publish(
+      new WorkflowRunFinishedEvent(run.id, run.workflowId, run.workflow.workspaceId, run.workflow.organizationId, status),
+    );
   }
 
   private async executeStep(
@@ -326,8 +376,114 @@ export class WorkflowExecutorService {
         return { pause: true, resumeAt: new Date(Date.now() + minutes * 60_000), output: { delayedMinutes: minutes } };
       }
 
+      // ---- Module 13 additions (task #283) ----
+
+      case 'parallel': {
+        const branches = (step.params.branches as WorkflowStepDefinition[][] | undefined) ?? [];
+        const branchResults = await Promise.all(
+          branches.map(async (branch) => {
+            const branchContext: Record<string, unknown> = { ...context };
+            for (const nested of branch) {
+              const nestedResult = await this.executeStep(nested, branchContext, workflow);
+              branchContext[nested.key] = nestedResult.output ?? null;
+            }
+            return branchContext;
+          }),
+        );
+        return { output: { branches: branchResults.length, results: branchResults } };
+      }
+
+      case 'approval': {
+        // Same pause mechanism `delay` uses (`pausedAtStepKey`), but with
+        // `resumeAt: null` — WorkflowRunnerService's poller only resumes
+        // runs where `resumeAt <= now()`, so a null `resumeAt` never
+        // auto-resumes. Only `WorkflowExecutorService.resumeApproval()`
+        // (called from the `POST .../approve` route) advances the run
+        // past this step, choosing `step.next` (approved) or
+        // `step.onFailure` (rejected) — see that method.
+        return {
+          pause: true,
+          resumeAt: null,
+          output: {
+            awaitingApproval: true,
+            approverUserId: step.params.approverUserId ?? null,
+            approverRole: step.params.approverRole ?? null,
+            message: step.params.message ?? null,
+          },
+        };
+      }
+
+      case 'export': {
+        const format = (step.params.format as 'json' | 'csv' | 'markdown' | undefined) ?? 'json';
+        const sourceField = step.params.sourceField as string;
+        const data = getByPath(context, sourceField);
+        return { output: { format, content: formatExport(format, data) } };
+      }
+
+      case 'webhook_call': {
+        const url = step.params.url as string;
+        const method = (step.params.method as 'GET' | 'POST' | 'PUT' | undefined) ?? 'POST';
+        const headers = (step.params.headers as Record<string, string> | undefined) ?? {};
+        const bodyField = step.params.bodyField as string | undefined;
+        const body = bodyField ? getByPath(context, bodyField) : undefined;
+        if (!url) throw new Error('webhook_call step requires params.url.');
+
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
+        });
+        const responseText = await response.text().catch(() => '');
+        return {
+          output: { status: response.status, ok: response.ok, body: responseText.slice(0, 10_000) },
+          message: `${method} ${url} -> ${response.status}`,
+        };
+      }
+
+      case 'set_variable': {
+        const name = step.params.name as string;
+        if (!name) throw new Error('set_variable step requires params.name.');
+        const valueField = step.params.valueField as string | undefined;
+        const value = 'value' in step.params ? step.params.value : valueField ? getByPath(context, valueField) : undefined;
+        // Mutates the shared context object directly (not just this
+        // step's own `context[step.key]` slot) so a *later* step can
+        // reference it by the chosen variable name, not the step's key —
+        // the entire point of `set_variable` over an ordinary step.
+        context[name] = value ?? null;
+        return { output: { name, value: value ?? null } };
+      }
+
       default:
         throw new Error(`Unsupported step kind "${String(step.kind)}".`);
     }
   }
+}
+
+/// `export` step kind's formatter (task #283). Deliberately minimal —
+/// `csv` only handles an array of flat objects (the common case: a list
+/// of findings/results earlier in the run), falling back to a single
+/// "value" column for anything else rather than throwing, since this
+/// step is meant to produce something a downstream `notify`/
+/// `webhook_call` step can send onward, not to be a general-purpose
+/// data pipeline.
+function formatExport(format: 'json' | 'csv' | 'markdown', data: unknown): string {
+  if (format === 'json') return JSON.stringify(data, null, 2);
+
+  const rows: Record<string, unknown>[] = Array.isArray(data)
+    ? (data as unknown[]).map((item) => (item && typeof item === 'object' ? (item as Record<string, unknown>) : { value: item }))
+    : [{ value: data }];
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+
+  if (format === 'csv') {
+    const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = columns.map(escape).join(',');
+    const body = rows.map((row) => columns.map((c) => escape(row[c])).join(',')).join('\n');
+    return `${header}\n${body}`;
+  }
+
+  // markdown
+  const header = `| ${columns.join(' | ')} |`;
+  const divider = `| ${columns.map(() => '---').join(' | ')} |`;
+  const body = rows.map((row) => `| ${columns.map((c) => String(row[c] ?? '')).join(' | ')} |`).join('\n');
+  return `${header}\n${divider}\n${body}`;
 }

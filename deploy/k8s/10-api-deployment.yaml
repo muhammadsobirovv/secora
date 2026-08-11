@@ -50,18 +50,34 @@ spec:
                 name: pentesthub-config
             - secretRef:
                 name: pentesthub-secrets
+          # Module 14 — Startup Checks. Kubernetes' own model for
+          # "startup" is distinct from liveness in *timing*, not
+          # necessarily in *what* it checks: a startupProbe disables the
+          # liveness/readiness probes entirely until it succeeds once,
+          # giving a slow-starting process (Prisma client generation,
+          # Prisma engine warm-up, module initialization) as long as
+          # `failureThreshold * periodSeconds` to come up without a
+          # liveness probe prematurely killing it mid-boot. Reusing the
+          # liveness handler here (rather than inventing a separate
+          # endpoint with different logic) is the correct, idiomatic
+          # pattern — see the Kubernetes docs' own "protect slow starting
+          # containers" example, which does exactly this.
+          startupProbe:
+            httpGet:
+              path: /observability/health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 30 # up to 150s to come up before liveness takes over
           readinessProbe:
             httpGet:
               path: /observability/health/ready
               port: 3000
-            initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /observability/health
               port: 3000
-            initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
           resources:
@@ -85,6 +101,18 @@ kind: Service
 metadata:
   name: api
   namespace: pentesthub
+  annotations:
+    # Module 14 — Monitoring. Standard `prometheus.io/*` scrape
+    # annotations, auto-discovered by kube-prometheus-stack (or any
+    # Prometheus configured with the equally-standard
+    # `kubernetes_sd_configs` relabeling rules for them) without needing
+    # a bespoke ServiceMonitor CRD or a Prometheus this manifest set
+    # deploys itself — see deploy/prometheus/README.md for why a
+    # from-scratch Prometheus/Grafana/Alertmanager StatefulSet isn't
+    # included here the way postgres/redis/minio are.
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /observability/metrics
+    prometheus.io/port: "3000"
 spec:
   selector:
     app: api

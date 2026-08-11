@@ -1,0 +1,54 @@
+# PentestHub AI — cert-manager ClusterIssuer for automatic TLS on
+# 20-ingress.yaml (Module 14: Security / Certificate rotation).
+#
+# `.example` suffix, same convention as 02-secret.yaml.example: this
+# depends on the cert-manager CRDs already being installed in the
+# cluster (`kubectl apply -f
+# https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml`
+# or the Helm chart), which this repo does not install for you — bundling
+# a third-party operator's CRDs here would tie its version to this
+# repo's release cadence for no benefit. Rename to 21-certificate.yaml
+# and fill in the email address once cert-manager is installed.
+#
+# What this buys you over a manually-obtained certificate: cert-manager
+# watches the Ingress's `tls.secretName`, requests/renews the certificate
+# automatically well before the ~90-day Let's Encrypt expiry, and updates
+# the `pentesthub-tls` Secret in place — nginx Ingress controller picks
+# up the new cert with no restart needed. This *is* "certificate
+# rotation" for the Kubernetes path; there's no separate rotation step to
+# run.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: replace-with-your-ops-email@your-company.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+# Staging issuer — use this one (via the `cert-manager.io/cluster-issuer`
+# annotation on 20-ingress.yaml) while first setting things up. Let's
+# Encrypt's production issuer has a hard weekly rate limit per domain;
+# the staging issuer has none, but its certificates aren't trusted by
+# real browsers — expect a certificate-warning page until you switch the
+# Ingress annotation to `letsencrypt-prod`.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: replace-with-your-ops-email@your-company.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

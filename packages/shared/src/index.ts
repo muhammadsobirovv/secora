@@ -63,3 +63,5 @@ export * from "./ai-platform-observability.js";
 export * from "./ai-platform-observability-endpoints.js";
 export * from "./developer-portal.js";
 export * from "./developer-portal-endpoints.js";
+export * from "./infrastructure.js";
+export * from "./infrastructure-endpoints.js";

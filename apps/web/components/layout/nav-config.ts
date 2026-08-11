@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   BookOpen,
   Sparkles,
+  Server,
 } from "lucide-react";
 
 export interface NavItem {
@@ -44,6 +45,10 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Agent Copilot", href: "/agent", icon: Sparkles },
   { label: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
   { label: "Activity", href: "/activity", icon: Activity },
+  // Module 14 — Admin Console infrastructure dashboard (task #314). See
+  // ClusterOverviewService's doc comment for why this has no additional
+  // role gate beyond normal authentication yet.
+  { label: "Admin", href: "/admin", icon: Server },
 ];
 
 export const FUTURE_NAV: NavItem[] = [

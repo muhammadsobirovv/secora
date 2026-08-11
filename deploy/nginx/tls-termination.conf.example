@@ -1,0 +1,127 @@
+# PentestHub AI — example TLS-terminating reverse proxy for the
+# Linux/Windows/Docker-Compose deployment paths (Module 14: Security).
+#
+# This is the concrete "bring your own reverse proxy" referenced in
+# deploy/README.md's "What's genuinely production-hardened vs. what's a
+# starting point" section — none of this repo's Node.js processes load a
+# TLS certificate directly, by design (a Node process holding both the
+# app and the private key is a bigger blast radius than a dedicated,
+# battle-tested proxy doing TLS termination). Copy this file to
+# /etc/nginx/sites-available/pentesthub.conf (or your distro's
+# equivalent), fill in the two `your-domain.example` hostnames, and
+# symlink it into sites-enabled.
+#
+# Routes app.your-domain.example to the web tier and
+# api.your-domain.example to the API tier — the same two-subdomain shape
+# as deploy/k8s/20-ingress.yaml, so a deployment that later migrates from
+# Compose/Linux to Kubernetes doesn't have to restructure DNS. The API has
+# no path prefix of its own (routes like /auth/login, /projects, /backups
+# live at the API host's root — see apps/api/src/main.ts), which is why
+# this is host-based routing rather than a shared host with an /api/
+# path, matching the Ingress.
+#
+# This is unrelated to deploy/nginx/lb.conf, which load-balances across
+# already-scaled `api` replicas *behind* whatever terminates TLS (this
+# file, a cloud load balancer, or the Kubernetes Ingress) — the two are
+# meant to be composed, not swapped for each other, in a Docker Compose
+# Enterprise deployment that also wants public TLS.
+#
+# Certificates: the simplest path for a single-VM deployment is certbot's
+# nginx plugin (`certbot --nginx -d app.your-domain.example -d
+# api.your-domain.example`), which rewrites this file's
+# `listen`/`ssl_certificate` lines per server block and sets up automatic
+# renewal via a systemd timer or cron job — see "Certificate rotation" in
+# docs/security/tls-mtls-certificates.md for what "rotation" means here
+# and how to verify it's actually working.
+
+upstream pentesthub_api {
+    server 127.0.0.1:3000;
+}
+
+upstream pentesthub_web {
+    server 127.0.0.1:3001;
+}
+
+server {
+    listen 80;
+    server_name app.your-domain.example api.your-domain.example;
+    # Redirect everything to HTTPS — certbot's --nginx plugin adds this
+    # block automatically; written out here so a manual cert setup (e.g.
+    # a wildcard cert issued via DNS-01) has the same behavior.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name api.your-domain.example;
+
+    ssl_certificate     /etc/letsencrypt/live/api.your-domain.example/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.your-domain.example/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+
+    # Mutual TLS — only needed if MTLS_REQUIRED=true in the API's .env.
+    # Uncomment and point at a CA bundle of the client certificates you
+    # intend to trust (your own internal CA, not a public one), then the
+    # X-Client-Cert-Verify header below tells apps/api/src/common/guards/
+    # mtls.guard.ts the proxy already verified the client. Leave this
+    # entire block commented out (the default) for a normal deployment —
+    # MTLS_REQUIRED defaults to false and no client certificate is asked
+    # for.
+    # ssl_client_certificate /etc/nginx/ssl/client-ca-bundle.pem;
+    # ssl_verify_client optional;
+
+    location /observability/health {
+        proxy_pass http://pentesthub_api;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://pentesthub_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Only forwarded if the ssl_verify_client block above is enabled —
+        # $ssl_client_verify is "SUCCESS" for a verified cert, "NONE" if
+        # no cert was presented, or a failure reason otherwise. MtlsGuard
+        # treats any non-empty value as "present" and relies on
+        # ssl_verify_client (not this guard) to have already rejected an
+        # unverified/failed certificate before the request gets here —
+        # set this header only when verification actually succeeded so a
+        # "FAILED:..." value doesn't accidentally satisfy the guard.
+        # proxy_set_header X-Client-Cert-Verify $ssl_client_verify;
+
+        # SSE streaming (Module 5's chat/AI endpoints) needs buffering
+        # off and a long read timeout, same as deploy/nginx/lb.conf.
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name app.your-domain.example;
+
+    ssl_certificate     /etc/letsencrypt/live/app.your-domain.example/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.your-domain.example/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+
+    location / {
+        proxy_pass http://pentesthub_web;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

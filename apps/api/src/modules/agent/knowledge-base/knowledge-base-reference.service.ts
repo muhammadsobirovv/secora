@@ -12,6 +12,17 @@ import {
 import { AiMemoryService } from '../../ai/memory/ai-memory.service.js';
 import { toKnowledgeBaseReferenceEntryDto } from '../mappers/to-knowledge-base-reference-dto.mapper.js';
 import { KNOWLEDGE_BASE_REFERENCE_SEED_DATA } from './knowledge-base-reference-seed.data.js';
+import { CACHE_SERVICE } from '../../../common/providers/tokens.js';
+import type { CacheService } from '../../../common/providers/cache/cache-service.interface.js';
+
+const CACHE_KEY = 'agent:knowledge-base-reference:all-entries';
+// The catalog is curated (upserts happen rarely), not request-driven —
+// a generous TTL keeps Redis/Disk-backed deployments from re-querying
+// Postgres on every cache miss window, while the explicit
+// invalidate-on-write below (delete() after every upsert/delete) means
+// this TTL is really just a safety net for the rare case an
+// invalidation is somehow missed, not the primary consistency mechanism.
+const CACHE_TTL_SECONDS = 3_600;
 
 /// The AI Knowledge Base (task #227) — a searchable index over the
 /// canonical OWASP/CWE/CAPEC/MITRE ATT&CK/NIST/CVE catalog. Search is
@@ -37,21 +48,41 @@ export class KnowledgeBaseReferenceService implements OnModuleInit {
   /// deleteEntry (an admin/curation action, not a hot path) or the one-time
   /// boot seed — so search()/listEntries(), which ARE hot paths (an agent
   /// tool call per orchestration task), don't need a DB round-trip every
-  /// time. Invalidated (set back to null) on every write; repopulated
-  /// lazily on the next read.
-  private cachedEntries: KnowledgeBaseReferenceEntryRecord[] | null = null;
-
+  /// time. Invalidated on every write; repopulated lazily on the next read.
+  ///
+  /// Module 14 — migrated from a plain in-process field to the
+  /// `CacheService` abstraction (task: Cache abstraction) — the first
+  /// real consumer of `CACHE_SERVICE`, proving the abstraction against
+  /// an actual hot path rather than shipping unused. Works correctly
+  /// against all three providers: `MemoryCacheService` stores by
+  /// reference (Date objects survive untouched); `RedisCacheService`/
+  /// `DiskCacheService` JSON-serialize, so `createdAt`/`updatedAt` come
+  /// back as ISO strings — `reviveDates()` below normalizes both cases
+  /// back to real `Date` objects before returning, since
+  /// `toKnowledgeBaseReferenceEntryDto` calls `.toISOString()` on them.
   constructor(
     @Inject(KNOWLEDGE_BASE_REFERENCE_REPOSITORY)
     private readonly repository: KnowledgeBaseReferenceRepository,
     private readonly memoryService: AiMemoryService,
+    @Inject(CACHE_SERVICE) private readonly cache: CacheService,
   ) {}
 
+  private reviveDates(record: KnowledgeBaseReferenceEntryRecord): KnowledgeBaseReferenceEntryRecord {
+    return {
+      ...record,
+      createdAt: record.createdAt instanceof Date ? record.createdAt : new Date(record.createdAt),
+      updatedAt: record.updatedAt instanceof Date ? record.updatedAt : new Date(record.updatedAt),
+    };
+  }
+
   private async getAllEntries(): Promise<KnowledgeBaseReferenceEntryRecord[]> {
-    if (this.cachedEntries === null) {
-      this.cachedEntries = await this.repository.list({ limit: 1000 });
+    const cached = await this.cache.get<KnowledgeBaseReferenceEntryRecord[]>(CACHE_KEY);
+    if (cached !== null) {
+      return cached.map((record) => this.reviveDates(record));
     }
-    return this.cachedEntries;
+    const entries = await this.repository.list({ limit: 1000 });
+    await this.cache.set(CACHE_KEY, entries, CACHE_TTL_SECONDS);
+    return entries;
   }
 
   /// Seeds the baseline catalog on boot. Safe to run every startup: each
@@ -64,7 +95,7 @@ export class KnowledgeBaseReferenceService implements OnModuleInit {
       await Promise.all(
         KNOWLEDGE_BASE_REFERENCE_SEED_DATA.map((entry) => this.repository.upsert(entry)),
       );
-      this.cachedEntries = null;
+      await this.cache.delete(CACHE_KEY);
       const count = await this.repository.count();
       this.logger.log(`AI Knowledge Base catalog ready (${count} reference entries).`);
     } catch (error) {
@@ -84,7 +115,7 @@ export class KnowledgeBaseReferenceService implements OnModuleInit {
     metadata?: Record<string, unknown>;
   }): Promise<KnowledgeBaseReferenceEntryDto> {
     const record = await this.repository.upsert(input);
-    this.cachedEntries = null;
+    await this.cache.delete(CACHE_KEY);
     return toKnowledgeBaseReferenceEntryDto(record);
   }
 
@@ -107,7 +138,7 @@ export class KnowledgeBaseReferenceService implements OnModuleInit {
 
   async deleteEntry(id: string): Promise<void> {
     await this.repository.delete(id);
-    this.cachedEntries = null;
+    await this.cache.delete(CACHE_KEY);
   }
 
   /// Relevance-ranked search over the catalog. Exact code match (e.g.

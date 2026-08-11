@@ -52,6 +52,32 @@ const QUERY_HANDLERS = [
 /// `ApiKeyAuthGuard`, reused unmodified for the worker-facing register/
 /// heartbeat/claim/complete/fail routes (Requirement: integrate with the
 /// existing RBAC/auth surface rather than inventing a second one).
+///
+/// Module 14 review note (Distributed Workers task): this module already
+/// satisfies every item in Module 14's "Distributed Workers" checklist —
+/// Auto Registration (`RegisterWorkerNodeHandler`, self-service via API
+/// key, no manual provisioning step beyond issuing the key), Heartbeat
+/// (`HeartbeatWorkerNodeHandler`), Crash Recovery (`WorkerReaperService`),
+/// Retry (`DistributedJob.attempts`/`maxAttempts`), Priority
+/// (`job-scheduling.util.ts`), and Concurrency Limits
+/// (`WorkerNode.maxConcurrency`/`currentLoad`, enforced in
+/// `ClaimNextJobsHandler`). What Module 14 adds on top: the canonical
+/// job-type vocabulary (`DISTRIBUTED_JOB_TYPE_CATEGORIES` in
+/// `@pentesthub/shared`'s `distributed-jobs.ts`) for the specific
+/// category list that spec calls out (Recon, Scanning, AI Jobs, Reports,
+/// Automation, Notifications, Synchronization, Desktop Jobs, Plugin
+/// Tasks). Registration is deliberately per-organization (an operator
+/// provisions an API key scoped to their org, same as any other headless
+/// integration) — there is no unauthenticated/global auto-registration,
+/// which is intentional: an unauthenticated worker-registration endpoint
+/// would let anyone claim and execute arbitrary job payloads. The
+/// built-in Recon/Vuln/Bug Bounty pollers in `worker.main.ts` remain
+/// outside this queue (see this file's own architecture note above and
+/// `docs/adr/0010-enterprise-platform.md` §3) — they're a single
+/// per-replica system process supervised by the deployment platform
+/// itself (Kubernetes/Compose/systemd restart policies), not an elastic
+/// pool of externally-registered workers, so `WorkerNode`'s
+/// per-organization registration model doesn't fit them.
 @Module({
   imports: [PublicApiModule],
   controllers: [WorkerNodesController, DistributedJobsController, WorkerJobsController],

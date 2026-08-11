@@ -21,6 +21,18 @@ export interface OrganizationDto {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /// Module 14 — Tenant Management (Enterprise Edition only). Always
+  /// present in the DTO shape (never `undefined`) but only ever
+  /// non-default when `EditionService.isEnterprise()` — see
+  /// `docs/adr/0014-cloud-platform-enterprise-saas-ha.md`.
+  billingEmail: string | null;
+  billingProviderCustomerId: string | null;
+  subscriptionStatus: string | null;
+  subscriptionRenewsAt: string | null;
+  customDomain: string | null;
+  customDomainVerifiedAt: string | null;
+  brandingPrimaryColor: string | null;
+  brandingFaviconUrl: string | null;
 }
 
 export interface CreateOrganizationRequestDto {
@@ -36,6 +48,63 @@ export interface UpdateOrganizationRequestDto {
   logoUrl?: string;
   plan?: string;
   status?: OrganizationStatus;
+}
+
+/// Module 14 — Tenant Management. Split from `UpdateOrganizationRequestDto`
+/// (rather than folding these fields into it) because every field here
+/// is gated by `@RequiresEdition('enterprise')` at the controller layer
+/// — a Community Edition `PATCH /enterprise/organizations/:id` request
+/// never even has these in its allowed shape.
+export interface UpdateTenantBillingRequestDto {
+  billingEmail?: string;
+}
+
+export interface UpdateTenantBrandingRequestDto {
+  customDomain?: string;
+  brandingPrimaryColor?: string;
+  brandingFaviconUrl?: string;
+}
+
+/// A payment provider's webhook delivery, normalized to the minimum this
+/// platform actually acts on. `BillingWebhookController` accepts this
+/// shape from any provider-specific adapter (Stripe/Paddle/etc. — none
+/// shipped in this pass, see ADR 0014) rather than each provider having
+/// its own controller.
+export type BillingWebhookEventType =
+  | "SUBSCRIPTION_CREATED"
+  | "SUBSCRIPTION_UPDATED"
+  | "SUBSCRIPTION_CANCELLED"
+  | "PAYMENT_FAILED";
+
+export interface BillingWebhookEventDto {
+  type: BillingWebhookEventType;
+  billingProviderCustomerId: string;
+  subscriptionStatus?: string;
+  subscriptionRenewsAt?: string;
+}
+
+/// Module 14 — Tenant Management. Usage against `ResourceQuotaDto`'s
+/// limits, one field per quota field. `workspaces`/`members`/`teams` are
+/// live counts (organization-scoped rows, cheap to `count()`). The
+/// remaining four are `null` — not "zero usage" but "not tracked yet":
+/// storage-per-organization, monthly scan/AI-token consumption, and
+/// per-member/per-workspace resource counts would each need their own
+/// aggregation pass (summing attachment sizes, metering AI calls, etc.)
+/// that no existing service in this codebase currently performs. Kept
+/// `null` here rather than a fabricated `0` so a caller can tell "no
+/// usage" apart from "not measured" — see `ClusterOverviewDto`'s same
+/// null-means-not-computed convention for storage totals.
+export interface TenantUsageDto {
+  organizationId: string;
+  workspaces: number;
+  members: number;
+  teams: number;
+  storageMb: number | null;
+  scansThisMonth: number | null;
+  aiTokensThisMonth: number | null;
+  apiKeysPerMember: number | null;
+  webhooksPerWorkspace: number | null;
+  quota: ResourceQuotaDto | null;
 }
 
 // ---------------------------------------------------------------------------

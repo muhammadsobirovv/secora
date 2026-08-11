@@ -30,12 +30,24 @@ export interface UpsertDataRetentionPolicyRequestDto {
   autoDelete?: boolean;
 }
 
+/// Module 14 — Backup System / Disaster Recovery. `DATABASE` runs a real
+/// `pg_dump` via `BackupService` (BackupPolicyRunnerService's Module 10
+/// original only ever produced a JSON metadata snapshot — see
+/// `BackupRunDto`'s doc comment for the full story); `STORAGE` archives
+/// everything under the active `StorageService` provider's prefix for
+/// this organization; `CONFIGURATION` snapshots non-secret env/settings;
+/// `FULL` (default) does all three.
+export type BackupScope = "DATABASE" | "STORAGE" | "CONFIGURATION" | "FULL";
+
 export interface BackupPolicyDto {
   id: string;
   organizationId: string;
   frequency: string;
   retentionCount: number;
   lastBackupAt: string | null;
+  scope: BackupScope;
+  encrypt: boolean;
+  lastPrunedAt: string | null;
   createdAt: string;
 }
 
@@ -45,6 +57,53 @@ export type BackupFrequency = (typeof BACKUP_FREQUENCIES)[number];
 export interface UpsertBackupPolicyRequestDto {
   frequency: BackupFrequency;
   retentionCount?: number;
+  scope?: BackupScope;
+  encrypt?: boolean;
+}
+
+export type BackupRunStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type BackupTrigger = "SCHEDULED" | "MANUAL";
+
+/// One row per actual backup execution — `BackupPolicy` is the schedule,
+/// this is the history a restore wizard and `GET /backups/:id/verify`
+/// (Disaster Recovery: Backup Verification) both read. `organizationId`
+/// is nullable so a single-tenant Community Edition install (no
+/// `Organization` in play) can still trigger/list full-system backups.
+export interface BackupRunDto {
+  id: string;
+  organizationId: string | null;
+  backupPolicyId: string | null;
+  scope: BackupScope;
+  trigger: BackupTrigger;
+  status: BackupRunStatus;
+  storageKey: string | null;
+  sizeBytes: number | null;
+  checksumSha256: string | null;
+  encrypted: boolean;
+  errorMessage: string | null;
+  verifiedAt: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface TriggerBackupRequestDto {
+  scope?: BackupScope;
+  /// Overrides the org's `BackupPolicy.encrypt` for this one run — still
+  /// requires `BACKUP_ENCRYPTION_KEY` to be configured when true.
+  encrypt?: boolean;
+}
+
+/// `GET /backups/:id/restore-instructions` never performs the restore
+/// itself (Disaster Recovery is deliberately an operator-run procedure,
+/// not a self-service one-click "restore into production" button — see
+/// ADR 0014) — it returns the exact `pg_restore`/object-storage-sync
+/// commands an operator runs against a *target* environment, plus the
+/// decryption key reminder if the run was encrypted.
+export interface BackupRestoreInstructionsDto {
+  backupRunId: string;
+  scope: BackupScope;
+  encrypted: boolean;
+  steps: string[];
 }
 
 export type ComplianceExportStatus = "PENDING" | "PROCESSING" | "READY" | "FAILED";

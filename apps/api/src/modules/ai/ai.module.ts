@@ -27,6 +27,12 @@ import { DeletePromptTemplateHandler } from './commands/delete-prompt-template.c
 import { TranscribeAiSpeechHandler } from './commands/transcribe-ai-speech.command.js';
 import { SynthesizeAiSpeechHandler } from './commands/synthesize-ai-speech.command.js';
 import { UpdateWorkspaceAiPrivacyModeHandler } from './commands/update-workspace-ai-privacy-mode.command.js';
+import {
+  CreatePromptTemplateVersionHandler,
+  ImportPromptTemplatesHandler,
+  RatePromptTestRunHandler,
+  RunPromptTestHandler,
+} from './commands/prompt-registry.commands.js';
 
 import { ListAiConversationsHandler } from './queries/list-ai-conversations.query.js';
 import { GetAiConversationHandler } from './queries/get-ai-conversation.query.js';
@@ -38,6 +44,11 @@ import { GetAiSuggestedQuestionsHandler } from './queries/get-ai-suggested-quest
 import { SearchAiMemoryHandler } from './queries/search-ai-memory.query.js';
 import { ListPromptTemplatesHandler } from './queries/list-prompt-templates.query.js';
 import { GetWorkspaceAiPrivacyModeHandler } from './queries/get-workspace-ai-privacy-mode.query.js';
+import {
+  ExportPromptTemplatesHandler,
+  ListPromptTemplateVersionsHandler,
+  ListPromptTestRunsHandler,
+} from './queries/prompt-registry.queries.js';
 
 import { AiConversationsController } from './controllers/ai-conversations.controller.js';
 import { AiMessagesController } from './controllers/ai-messages.controller.js';
@@ -102,6 +113,11 @@ import { AiPrivacyController } from './controllers/ai-privacy.controller.js';
     TranscribeAiSpeechHandler,
     SynthesizeAiSpeechHandler,
     UpdateWorkspaceAiPrivacyModeHandler,
+    // Module 13 — Prompt Registry (task #280)
+    CreatePromptTemplateVersionHandler,
+    RunPromptTestHandler,
+    RatePromptTestRunHandler,
+    ImportPromptTemplatesHandler,
 
     ListAiConversationsHandler,
     GetAiConversationHandler,
@@ -113,6 +129,10 @@ import { AiPrivacyController } from './controllers/ai-privacy.controller.js';
     SearchAiMemoryHandler,
     ListPromptTemplatesHandler,
     GetWorkspaceAiPrivacyModeHandler,
+    // Module 13 — Prompt Registry (task #280)
+    ExportPromptTemplatesHandler,
+    ListPromptTemplateVersionsHandler,
+    ListPromptTestRunsHandler,
   ],
 })
 export class AiModule {}

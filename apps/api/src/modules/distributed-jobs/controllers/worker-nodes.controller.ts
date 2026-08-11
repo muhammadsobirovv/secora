@@ -59,7 +59,7 @@ export class WorkerNodesController {
     @Body() dto: HeartbeatWorkerNodeDto,
     @CurrentUser() user: RequestUser,
   ): Promise<WorkerNodeDto> {
-    return this.commandBus.execute(new HeartbeatWorkerNodeCommand(user.id, workerId, dto.currentLoad));
+    return this.commandBus.execute(new HeartbeatWorkerNodeCommand(user.id, workerId, dto.currentLoad, dto.version));
   }
 
   @Post(':workerId/drain')

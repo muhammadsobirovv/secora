@@ -62,3 +62,25 @@ jobs:
       # should always be triaged promptly.
       - run: pnpm audit --audit-level high
         continue-on-error: true # informational for now — see docs/deployment's Security Review for the recommendation to make this blocking once a triage process is in place.
+
+  # Module 14 — CI/CD: `pnpm audit` above only covers the npm/pnpm
+  # dependency graph — apps/desktop's Rust crate (`src-tauri`) had zero
+  # dependency-vulnerability scanning until this job, the same gap
+  # desktop-ci.yml closed for build/lint/test coverage. `cargo-audit`
+  # checks against the RustSec Advisory Database (rustsec.org), a free,
+  # community-maintained feed — no account or paid service required.
+  cargo-audit:
+    name: cargo audit (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - uses: taiki-e/install-action@cargo-audit
+      - name: cargo audit
+        working-directory: apps/desktop/src-tauri
+        # Same informational posture as `pnpm audit` above until a
+        # triage process exists — see that step's comment.
+        run: cargo audit || true

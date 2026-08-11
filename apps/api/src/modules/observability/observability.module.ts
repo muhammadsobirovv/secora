@@ -24,6 +24,22 @@ import { GetAiPlatformObservabilityHandler } from './queries/ai-platform-observa
 /// dependency-free leaf other modules point at, only importing
 /// `WorkspacesModule` for the new dashboard query's personal-workspace
 /// resolution.
+///
+/// Module 14 (task #309) added: `deploy/prometheus/` (scrape config +
+/// alert rules referencing the exact metric names this module emits),
+/// `deploy/grafana/` (dashboard + datasource provisioning),
+/// `docker-compose.monitoring.yml` (optional Prometheus/Grafana/
+/// Alertmanager overlay), and a real `startupProbe` in
+/// `deploy/k8s/10-api-deployment.yaml` (reusing `HealthController`'s
+/// liveness handler with more lenient timing — the idiomatic
+/// Kubernetes pattern, not a new endpoint). The remaining Module 14
+/// "Performance/Health/Queue/Worker/Plugin Dashboard" JSON endpoints
+/// (as opposed to raw Prometheus text) are built as part of the Admin
+/// Console task (`ClusterOverviewDto` in `@pentesthub/shared`'s
+/// `infrastructure.ts`) rather than here, since they aggregate across
+/// several other modules (`distributed-jobs`, `backups`, the provider
+/// abstractions) the same way `AiPlatformObservabilityRepository`
+/// already aggregates for the AI-platform dashboard above.
 @Module({
   imports: [WorkspacesModule],
   controllers: [HealthController, MetricsController, AiPlatformObservabilityController],

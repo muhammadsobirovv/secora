@@ -8,6 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import type {
+  ApproveWorkflowStepRequestDto,
   CreateWorkflowRequestDto,
   TriggerWorkflowRequestDto,
   UpdateWorkflowRequestDto,
@@ -45,4 +46,9 @@ export class UpdateWorkflowDto implements UpdateWorkflowRequestDto {
 
 export class TriggerWorkflowDto implements TriggerWorkflowRequestDto {
   @ApiPropertyOptional({ type: 'object' }) @IsOptional() @IsObject() input?: Record<string, unknown>;
+}
+
+export class ApproveWorkflowStepDto implements ApproveWorkflowStepRequestDto {
+  @ApiProperty() @IsBoolean() approved!: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) note?: string;
 }

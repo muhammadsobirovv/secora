@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type {
@@ -7,6 +17,8 @@ import type {
 } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
+import { CacheResponse } from '../../../common/decorators/cache-response.decorator.js';
+import { CacheResponseInterceptor } from '../../../common/interceptors/cache-response.interceptor.js';
 import { UpsertKnowledgeBaseReferenceDto } from '../dto/upsert-knowledge-base-reference.dto.js';
 import {
   ListKnowledgeBaseReferencesQueryParamsDto,
@@ -28,6 +40,19 @@ import { ReindexKnowledgeBaseReferencesCommand } from '../commands/reindex-knowl
 @ApiTags('agent')
 @ApiBearerAuth()
 @Controller('knowledge-base/references')
+// Module 14 — API Gateway: this catalog (OWASP/CWE/CAPEC/MITRE/NIST/CVE
+// reference data) is curated content, not per-user or per-workspace
+// state — it changes only via explicit `upsert`/`delete` calls, so
+// short-TTL caching on the read routes below is cheap and low-risk.
+// `CacheService` has no pattern-delete, only get/set/delete-by-exact-key,
+// so `upsert`/`delete` do not attempt to invalidate matching cache
+// entries — a curator's edit can take up to the 5-minute TTL to become
+// visible on `list`/`get`. Acceptable for a reference catalog; routes
+// with a lower staleness tolerance should use a shorter TTL rather than
+// rely on invalidation this interceptor doesn't provide. See
+// `CacheResponseInterceptor` for why this is opt-in per-route rather
+// than global.
+@UseInterceptors(CacheResponseInterceptor)
 export class KnowledgeBaseReferencesController {
   constructor(
     private readonly commandBus: CommandBus,
@@ -35,6 +60,7 @@ export class KnowledgeBaseReferencesController {
   ) {}
 
   @Get()
+  @CacheResponse(300)
   @ApiOperation({ summary: 'List the AI Knowledge Base reference catalog' })
   list(
     @Query() query: ListKnowledgeBaseReferencesQueryParamsDto,
@@ -51,6 +77,7 @@ export class KnowledgeBaseReferencesController {
   }
 
   @Get(':id')
+  @CacheResponse(300)
   @ApiOperation({ summary: 'Get one reference catalog entry' })
   get(@Param('id') id: string): Promise<KnowledgeBaseReferenceEntryDto> {
     return this.queryBus.execute(new GetKnowledgeBaseReferenceQuery(id));

@@ -1,0 +1,151 @@
+# PentestHub AI — Enterprise Cloud Edition overlay (Module 14: Cloud
+# Platform, Enterprise SaaS, High Availability & Global Infrastructure).
+#
+# This is an *overlay*, not a standalone file — it adds the pluggable
+# providers (Module 14's Queue/Storage/Cache abstractions, see
+# apps/api/src/common/providers/) that only make sense once you're
+# running more than one api/worker replica, plus an nginx load balancer
+# so `--scale api=N` actually does something useful. The base
+# docker-compose.yml (Postgres + api + worker + web, all Community
+# Edition defaults: in-memory queue, local-disk storage, in-memory
+# cache) is unchanged and still works standalone — this file is purely
+# additive.
+#
+# Usage:
+#   cp .env.example .env && cp .env.enterprise.example .env.enterprise
+#   docker compose -f docker-compose.yml -f docker-compose.enterprise.yml \
+#     --env-file .env --env-file .env.enterprise \
+#     up -d --build --scale api=3 --scale worker=3
+#
+# What this adds over the base file:
+#   - redis        — backing store for QUEUE_PROVIDER=redis and
+#                     CACHE_PROVIDER=redis (apps/api/src/common/providers)
+#   - minio        — S3-compatible object storage for
+#                     STORAGE_PROVIDER=s3 (MinIO is API-compatible with
+#                     @aws-sdk/client-s3, the same client used for real
+#                     S3/R2/Azure-via-S3-gateway in production)
+#   - lb            — nginx reverse proxy in front of the scaled `api`
+#                      service, giving Docker Compose's DNS round-robin
+#                      a fixed entry point on host port 3000 regardless
+#                      of how many `api` replicas are running (Compose
+#                      has no built-in load balancer the way Kubernetes
+#                      Services do — see deploy/k8s/10-api-deployment.yaml
+#                      for the "real" HA path this overlay is meant to
+#                      approximate on a single machine)
+#
+# What this deliberately does NOT add: a second Postgres node. Making
+# Postgres itself highly available is out of scope for a Compose
+# overlay — see deploy/k8s/03-postgres.yaml's closing comment and
+# deploy/README.md's "What's genuinely production-hardened" section for
+# the same caveat applied to the Kubernetes path. Use a managed Postgres
+# offering (RDS, Cloud SQL, etc.) for a real Enterprise deployment.
+#
+# This overlay is entirely optional. Nothing in the Community Edition
+# base file depends on it, and Enterprise Edition itself only gates
+# application-level features (see EditionService /
+# apps/api/src/modules/infrastructure/edition.service.ts) — it does not
+# require this specific infrastructure, it only benefits from it.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-pentesthub}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set (8+ chars)}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9001:9001" # console — admin-only, not part of the app's request path; left off the public interface deliberately
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot job that creates the app bucket on first boot, since MinIO
+  # doesn't auto-create buckets the way some managed S3-compatible
+  # services do. Exits after running — `restart: "no"` is intentional.
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-pentesthub} ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set} &&
+      mc mb --ignore-existing local/${STORAGE_S3_BUCKET:-pentesthub};
+      "
+
+  api:
+    environment:
+      QUEUE_PROVIDER: redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
+      CACHE_PROVIDER: redis
+      STORAGE_PROVIDER: s3
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-pentesthub}
+      STORAGE_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-pentesthub}
+      STORAGE_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+      STORAGE_S3_FORCE_PATH_STYLE: "true" # MinIO requires path-style addressing, unlike real AWS S3
+      PENTESTHUB_EDITION: enterprise
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # No host port publish here — the `lb` service is the public entry
+    # point once this overlay is active. Overriding `ports: []` avoids a
+    # host-port collision when `--scale api=N` with N > 1 (Compose can't
+    # bind the same host port from multiple replicas of one service).
+    ports: []
+
+  worker:
+    environment:
+      QUEUE_PROVIDER: redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
+      CACHE_PROVIDER: redis
+      STORAGE_PROVIDER: s3
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-pentesthub}
+      STORAGE_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-pentesthub}
+      STORAGE_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+      STORAGE_S3_FORCE_PATH_STYLE: "true"
+      PENTESTHUB_EDITION: enterprise
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  lb:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./deploy/nginx/lb.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  redis-data:
+  minio-data:

@@ -15,6 +15,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { EditionGuard } from './common/guards/edition.guard.js';
+import { IpAllowlistGuard } from './common/guards/ip-allowlist.guard.js';
+import { MtlsGuard } from './common/guards/mtls.guard.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module.js';
@@ -55,6 +58,8 @@ import { ScriptsModule } from './modules/scripts/scripts.module.js';
 import { RelayCommandsModule } from './modules/relay-commands/relay-commands.module.js';
 import { EvaluationModule } from './modules/evaluation/evaluation.module.js';
 import { DeveloperPortalModule } from './modules/developer-portal/developer-portal.module.js';
+import { InfrastructureModule } from './modules/infrastructure/infrastructure.module.js';
+import { BackupsModule } from './modules/backups/backups.module.js';
 
 @Module({
   imports: [
@@ -151,12 +156,27 @@ import { DeveloperPortalModule } from './modules/developer-portal/developer-port
     RelayCommandsModule,
     EvaluationModule,
     DeveloperPortalModule,
+    // Module 14 — Cloud Platform, Enterprise SaaS, High Availability &
+    // Global Infrastructure. `InfrastructureModule` is `@Global()` (see
+    // its own doc comment) — imported here once so `EditionGuard` below
+    // can resolve `EditionService` from the root injector.
+    InfrastructureModule,
+    BackupsModule,
   ],
   providers: [
-    // Order matters: throttle first, then authenticate, then authorize.
+    // Order matters: throttle first, then IP allowlist, then mTLS, then
+    // authenticate, then authorize (roles, then edition — edition is
+    // deliberately last since it's the coarsest, cheapest-to-evaluate
+    // check and should only run once identity/role checks already
+    // passed). IP allowlist and mTLS are both no-ops unless explicitly
+    // configured (IP_ALLOWLIST / MTLS_REQUIRED), so this ordering costs
+    // nothing extra for the common case.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: IpAllowlistGuard },
+    { provide: APP_GUARD, useClass: MtlsGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: EditionGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
   ],

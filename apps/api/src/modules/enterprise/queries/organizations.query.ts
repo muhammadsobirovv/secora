@@ -8,6 +8,7 @@ import type {
   OrganizationSettingsDto,
   ResourceQuotaDto,
   TeamDto,
+  TenantUsageDto,
 } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -97,6 +98,46 @@ export class GetResourceQuotaHandler implements IQueryHandler<GetResourceQuotaQu
     await resolveOrganizationMembership(this.prisma, query.userId, query.organizationId);
     const quota = await this.prisma.resourceQuota.findUnique({ where: { organizationId: query.organizationId } });
     return quota ? toResourceQuotaDto(quota) : null;
+  }
+}
+
+/// Module 14 — Tenant Management. See `TenantUsageDto`'s doc comment
+/// (`@pentesthub/shared`) for why four of the eight fields are `null`
+/// rather than computed — `workspaces`/`members`/`teams` are the only
+/// ones with an existing, cheap, accurate `count()` available.
+export class GetTenantUsageQuery implements IQuery {
+  constructor(
+    public readonly userId: string,
+    public readonly organizationId: string,
+  ) {}
+}
+
+@QueryHandler(GetTenantUsageQuery)
+export class GetTenantUsageHandler implements IQueryHandler<GetTenantUsageQuery, TenantUsageDto> {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(query: GetTenantUsageQuery): Promise<TenantUsageDto> {
+    await resolveOrganizationMembership(this.prisma, query.userId, query.organizationId);
+
+    const [workspaces, members, teams, quota] = await Promise.all([
+      this.prisma.workspace.count({ where: { organizationId: query.organizationId } }),
+      this.prisma.organizationMember.count({ where: { organizationId: query.organizationId } }),
+      this.prisma.team.count({ where: { organizationId: query.organizationId } }),
+      this.prisma.resourceQuota.findUnique({ where: { organizationId: query.organizationId } }),
+    ]);
+
+    return {
+      organizationId: query.organizationId,
+      workspaces,
+      members,
+      teams,
+      storageMb: null,
+      scansThisMonth: null,
+      aiTokensThisMonth: null,
+      apiKeysPerMember: null,
+      webhooksPerWorkspace: null,
+      quota: quota ? toResourceQuotaDto(quota) : null,
+    };
   }
 }
 

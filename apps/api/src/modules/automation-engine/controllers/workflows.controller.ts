@@ -1,12 +1,18 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import type { WorkflowDto, WorkflowRunDto, WorkflowRunStatus } from '@pentesthub/shared';
+import type { WorkflowDto, WorkflowRunDto, WorkflowRunStatus, WorkflowWebhookTriggerDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
-import { CreateWorkflowDto, TriggerWorkflowDto, UpdateWorkflowDto } from '../dto/automation-engine.dto.js';
+import { ApproveWorkflowStepDto, CreateWorkflowDto, TriggerWorkflowDto, UpdateWorkflowDto } from '../dto/automation-engine.dto.js';
 import { CreateWorkflowCommand, DeleteWorkflowCommand, UpdateWorkflowCommand } from '../commands/workflows.commands.js';
-import { CancelWorkflowRunCommand, TriggerWorkflowCommand } from '../commands/workflow-runs.commands.js';
+import {
+  ApproveWorkflowStepCommand,
+  CancelWorkflowRunCommand,
+  CreateWorkflowWebhookTriggerCommand,
+  TriggerWorkflowCommand,
+} from '../commands/workflow-runs.commands.js';
 import { GetWorkflowQuery, ListWorkflowsQuery } from '../queries/workflows.query.js';
 import { GetWorkflowRunQuery, ListWorkflowRunsQuery } from '../queries/workflow-runs.query.js';
 
@@ -22,6 +28,7 @@ export class WorkflowsController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly configService: ConfigService,
   ) {}
 
   @Get()
@@ -117,5 +124,30 @@ export class WorkflowsController {
     @CurrentUser() user: RequestUser,
   ): Promise<WorkflowRunDto> {
     return this.commandBus.execute(new CancelWorkflowRunCommand(user.id, organizationId, id, runId));
+  }
+
+  // ---- Module 13 additions (task #283) ----
+
+  @Post(':id/runs/:runId/approve')
+  @ApiOperation({ summary: 'Approve or reject a run paused at an approval step (Team Lead+)' })
+  approveStep(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() dto: ApproveWorkflowStepDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<WorkflowRunDto> {
+    return this.commandBus.execute(new ApproveWorkflowStepCommand(user.id, organizationId, id, runId, dto));
+  }
+
+  @Post(':id/webhook-trigger')
+  @ApiOperation({ summary: 'Create (or rotate) this workflow\'s inbound WEBHOOK trigger token (Team Lead+)' })
+  createWebhookTrigger(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<WorkflowWebhookTriggerDto> {
+    const publicBaseUrl = this.configService.get<string>('INTEGRATION_CALLBACK_BASE_URL', { infer: true }) ?? 'http://localhost:3000';
+    return this.commandBus.execute(new CreateWorkflowWebhookTriggerCommand(user.id, organizationId, id, publicBaseUrl));
   }
 }

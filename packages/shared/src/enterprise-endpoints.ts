@@ -9,6 +9,19 @@ export const ORGANIZATION_ENDPOINTS = {
   update: (id: string) => `/enterprise/organizations/${id}`,
   settings: (id: string) => `/enterprise/organizations/${id}/settings`,
   quota: (id: string) => `/enterprise/organizations/${id}/quota`,
+  /// Module 14 — Tenant Management (Enterprise Edition only).
+  billing: (id: string) => `/enterprise/organizations/${id}/billing`,
+  branding: (id: string) => `/enterprise/organizations/${id}/branding`,
+  usage: (id: string) => `/enterprise/organizations/${id}/usage`,
+} as const;
+
+/// Module 14 — Tenant Management. Standalone (not under
+/// `/enterprise/organizations/:id/...`) because the billing provider,
+/// not this platform's frontend, calls it — it identifies the
+/// organization from `BillingWebhookEventDto.billingProviderCustomerId`
+/// in the body, not from the URL.
+export const BILLING_WEBHOOK_ENDPOINTS = {
+  receive: "/enterprise/billing/webhook",
 } as const;
 
 export const ORGANIZATION_MEMBER_ENDPOINTS = {

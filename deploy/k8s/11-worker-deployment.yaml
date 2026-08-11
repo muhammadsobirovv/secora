@@ -35,3 +35,38 @@ spec:
             limits:
               memory: "1Gi"
       terminationGracePeriodSeconds: 60 # longer than the API's — an in-progress recon/vuln tool run should be allowed to reach a natural checkpoint rather than being killed mid-scan
+---
+# Module 14 — worker autoscaling. Disabled by default in spirit (this
+# manifest is opt-in: apply it once QUEUE_PROVIDER is something other
+# than the pod-local "in-memory" default, since scaling worker replicas
+# only helps throughput when jobs are dispatched through a shared
+# queue/DB — see Module 10's DistributedJob system and Module 14's
+# QueueService, both already safe at any replica count via
+# WorkerNode heartbeat/lease semantics). CPU-based, same shape as the
+# api Deployment's HPA in 10-api-deployment.yaml, just a wider ceiling
+# since scan tool execution is bursty by nature (a large recon job can
+# legitimately need many more workers than steady-state).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: pentesthub
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 0

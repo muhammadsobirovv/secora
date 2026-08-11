@@ -38,6 +38,7 @@ export class RegisterWorkerNodeHandler implements ICommandHandler<RegisterWorker
         hostname: command.data.hostname,
         capabilities: command.data.capabilities,
         maxConcurrency: command.data.maxConcurrency ?? 4,
+        version: command.data.version ?? null,
       },
     });
 
@@ -68,6 +69,11 @@ export class HeartbeatWorkerNodeCommand implements ICommand {
     public readonly userId: string,
     public readonly workerId: string,
     public readonly currentLoad?: number,
+    // Module 14 — Auto Update: `undefined` means "not reported this
+    // heartbeat", left untouched; a worker that upgrades mid-run (rolling
+    // restart onto a new image) can report the new version on its next
+    // heartbeat without a full re-register.
+    public readonly version?: string,
   ) {}
 }
 
@@ -86,6 +92,7 @@ export class HeartbeatWorkerNodeHandler implements ICommandHandler<HeartbeatWork
         lastHeartbeatAt: new Date(),
         currentLoad: command.currentLoad,
         status: existing.status === 'DRAINING' ? 'DRAINING' : 'ONLINE',
+        version: command.version,
       },
     });
     return toWorkerNodeDto(node);

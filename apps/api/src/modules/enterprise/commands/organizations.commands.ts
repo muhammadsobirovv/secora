@@ -3,6 +3,7 @@ import { HttpStatus } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type {
   AcceptOrganizationInviteRequestDto,
+  BillingWebhookEventDto,
   CreateOrganizationInviteRequestDto,
   CreateOrganizationRequestDto,
   OrganizationDto,
@@ -13,6 +14,8 @@ import type {
   UpdateOrganizationSettingsRequestDto,
   UpdateOrganizationMemberRoleRequestDto,
   UpdateResourceQuotaRequestDto,
+  UpdateTenantBillingRequestDto,
+  UpdateTenantBrandingRequestDto,
 } from '@pentesthub/shared';
 import type { AuditEventType } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
@@ -194,6 +197,122 @@ export class UpdateResourceQuotaHandler
       update: { ...command.data },
     });
     return toResourceQuotaDto(quota);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tenant Management (Module 14, Enterprise Edition only)
+// ---------------------------------------------------------------------------
+
+/// Gated by `@RequiresEdition('enterprise')` at the controller layer, not
+/// here — this handler itself doesn't re-check edition, matching every
+/// other command in this file (the guard is the single point of
+/// enforcement, not duplicated per-handler).
+export class UpdateTenantBillingCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly organizationId: string,
+    public readonly data: UpdateTenantBillingRequestDto,
+  ) {}
+}
+
+@CommandHandler(UpdateTenantBillingCommand)
+export class UpdateTenantBillingHandler implements ICommandHandler<UpdateTenantBillingCommand, OrganizationDto> {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(command: UpdateTenantBillingCommand): Promise<OrganizationDto> {
+    const { role } = await resolveOrganizationMembership(this.prisma, command.userId, command.organizationId);
+    requireEnterpriseRole(role, 'ORG_OWNER');
+
+    const organization = await this.prisma.organization.update({
+      where: { id: command.organizationId },
+      data: { billingEmail: command.data.billingEmail },
+    });
+    return toOrganizationDto(organization);
+  }
+}
+
+export class UpdateTenantBrandingCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly organizationId: string,
+    public readonly data: UpdateTenantBrandingRequestDto,
+  ) {}
+}
+
+@CommandHandler(UpdateTenantBrandingCommand)
+export class UpdateTenantBrandingHandler implements ICommandHandler<UpdateTenantBrandingCommand, OrganizationDto> {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(command: UpdateTenantBrandingCommand): Promise<OrganizationDto> {
+    const { role } = await resolveOrganizationMembership(this.prisma, command.userId, command.organizationId);
+    requireEnterpriseRole(role, 'ORG_OWNER');
+
+    // `customDomainVerifiedAt` is deliberately untouched here — setting a
+    // new `customDomain` does not itself prove the operator controls that
+    // domain. This codebase has no DNS-TXT-record verification flow yet
+    // (that's an infrastructure-level check, similar in spirit to
+    // Certificate rotation's ACME HTTP-01 challenge — see
+    // docs/security/tls-mtls-certificates.md), so `customDomainVerifiedAt`
+    // stays `null` until a future pass adds one; branding colors/favicon
+    // carry no such trust requirement and apply immediately.
+    const organization = await this.prisma.organization.update({
+      where: { id: command.organizationId },
+      data: {
+        customDomain: command.data.customDomain,
+        brandingPrimaryColor: command.data.brandingPrimaryColor,
+        brandingFaviconUrl: command.data.brandingFaviconUrl,
+      },
+    });
+    return toOrganizationDto(organization);
+  }
+}
+
+/// Module 14 — Tenant Management / Billing Hooks. Authorization for this
+/// command is the caller's job (`BillingWebhookController`'s shared-secret
+/// check), not this handler's — by the time this executes, the request
+/// is already trusted. Looks the organization up by
+/// `billingProviderCustomerId` (set once via `UpdateTenantBillingCommand`
+/// or an initial provisioning step outside this codebase) rather than by
+/// `organizationId`, since the billing provider only knows its own
+/// customer ID, not this platform's internal IDs.
+export class HandleBillingWebhookCommand implements ICommand {
+  constructor(public readonly event: BillingWebhookEventDto) {}
+}
+
+@CommandHandler(HandleBillingWebhookCommand)
+export class HandleBillingWebhookHandler implements ICommandHandler<HandleBillingWebhookCommand, void> {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(command: HandleBillingWebhookCommand): Promise<void> {
+    const { event } = command;
+    const organization = await this.prisma.organization.findFirst({
+      where: { billingProviderCustomerId: event.billingProviderCustomerId },
+    });
+    if (!organization) {
+      // Not an error worth surfacing to the billing provider as a
+      // delivery failure (that would trigger their own retry/alerting) —
+      // a customer ID this platform doesn't recognize (e.g. a test event,
+      // or a customer created before `billingProviderCustomerId` was
+      // ever set on the corresponding organization) is a no-op, not a
+      // fault.
+      return;
+    }
+
+    const subscriptionStatus =
+      event.type === 'SUBSCRIPTION_CANCELLED'
+        ? 'cancelled'
+        : event.type === 'PAYMENT_FAILED'
+          ? 'past_due'
+          : (event.subscriptionStatus ?? organization.subscriptionStatus);
+
+    await this.prisma.organization.update({
+      where: { id: organization.id },
+      data: {
+        subscriptionStatus,
+        subscriptionRenewsAt: event.subscriptionRenewsAt ? new Date(event.subscriptionRenewsAt) : undefined,
+      },
+    });
   }
 }
 

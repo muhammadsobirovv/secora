@@ -10,9 +10,11 @@ import type {
   OrganizationSettingsDto,
   ResourceQuotaDto,
   TeamDto,
+  TenantUsageDto,
 } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
+import { RequiresEdition } from '../../../common/decorators/requires-edition.decorator.js';
 import {
   AcceptOrganizationInviteDto,
   AddTeamMemberDto,
@@ -27,6 +29,8 @@ import {
   UpdateOrganizationSettingsDto,
   UpdateResourceQuotaDto,
   UpdateTeamDto,
+  UpdateTenantBillingDto,
+  UpdateTenantBrandingDto,
 } from '../dto/enterprise.dto.js';
 import {
   AcceptOrganizationInviteCommand,
@@ -38,6 +42,8 @@ import {
   UpdateOrganizationMemberRoleCommand,
   UpdateOrganizationSettingsCommand,
   UpdateResourceQuotaCommand,
+  UpdateTenantBillingCommand,
+  UpdateTenantBrandingCommand,
 } from '../commands/organizations.commands.js';
 import {
   AddTeamMemberCommand,
@@ -53,6 +59,7 @@ import {
   GetOrganizationQuery,
   GetOrganizationSettingsQuery,
   GetResourceQuotaQuery,
+  GetTenantUsageQuery,
   ListDepartmentsQuery,
   ListMyOrganizationsQuery,
   ListOrganizationMembersQuery,
@@ -138,6 +145,40 @@ export class OrganizationsController {
     @CurrentUser() user: RequestUser,
   ): Promise<ResourceQuotaDto> {
     return this.commandBus.execute(new UpdateResourceQuotaCommand(user.id, organizationId, dto));
+  }
+
+  // --- Tenant Management (Module 14, Enterprise Edition only) ---
+
+  @Patch('organizations/:organizationId/billing')
+  @RequiresEdition('enterprise')
+  @ApiOperation({ summary: 'Update tenant billing contact (ORG_OWNER+, Enterprise Edition only)' })
+  updateBilling(
+    @Param('organizationId') organizationId: string,
+    @Body() dto: UpdateTenantBillingDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<OrganizationDto> {
+    return this.commandBus.execute(new UpdateTenantBillingCommand(user.id, organizationId, dto));
+  }
+
+  @Patch('organizations/:organizationId/branding')
+  @RequiresEdition('enterprise')
+  @ApiOperation({ summary: 'Update custom domain / branding (ORG_OWNER+, Enterprise Edition only)' })
+  updateBranding(
+    @Param('organizationId') organizationId: string,
+    @Body() dto: UpdateTenantBrandingDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<OrganizationDto> {
+    return this.commandBus.execute(new UpdateTenantBrandingCommand(user.id, organizationId, dto));
+  }
+
+  @Get('organizations/:organizationId/usage')
+  @RequiresEdition('enterprise')
+  @ApiOperation({ summary: 'Resource usage against quota (members only, Enterprise Edition only)' })
+  getUsage(
+    @Param('organizationId') organizationId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<TenantUsageDto> {
+    return this.queryBus.execute(new GetTenantUsageQuery(user.id, organizationId));
   }
 
   // --- Members ---

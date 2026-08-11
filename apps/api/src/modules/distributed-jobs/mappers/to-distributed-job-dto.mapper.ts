@@ -13,6 +13,7 @@ export function toWorkerNodeDto(row: WorkerNode): WorkerNodeDto {
     currentLoad: row.currentLoad,
     registeredAt: row.registeredAt.toISOString(),
     lastHeartbeatAt: row.lastHeartbeatAt.toISOString(),
+    version: row.version,
   };
 }
 

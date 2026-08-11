@@ -2784,6 +2784,23 @@ model Organization {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
+  /// Module 14 — Tenant Management (Enterprise Edition only; see
+  /// `EditionService`/`RequiresEdition`). All nullable/defaulted so
+  /// Community Edition organizations (which never touch these fields)
+  /// need no data migration and no UI ever forces a value into them.
+  /// `billingProviderCustomerId`/`subscriptionStatus` are a payment-
+  /// provider-agnostic pair a real Stripe/Paddle/etc. webhook handler
+  /// would populate — this module ships the hook surface
+  /// (`BillingWebhookController`), not a payment integration itself.
+  billingEmail              String?
+  billingProviderCustomerId String?
+  subscriptionStatus        String?   @default("none")
+  subscriptionRenewsAt      DateTime?
+  customDomain              String?
+  customDomainVerifiedAt    DateTime?
+  brandingPrimaryColor      String?
+  brandingFaviconUrl        String?
+
   creator User @relation("OrganizationCreator", fields: [createdBy], references: [id])
 
   members                OrganizationMember[]
@@ -2815,6 +2832,8 @@ model Organization {
   complianceExports      ComplianceExportRequest[]
   apiRequestLogs         ApiRequestLog[]
   workflows              Workflow[]
+  backupRuns             BackupRun[]
+  licenses               License[]
 
   @@map("organizations")
 }
@@ -3180,6 +3199,13 @@ model WorkerNode {
   currentLoad      Int              @default(0)
   registeredAt     DateTime         @default(now())
   lastHeartbeatAt  DateTime         @default(now())
+  /// Module 14 — Auto Update: the running worker binary's version
+  /// (`npm_package_version` of the process that called register/
+  /// heartbeat), nullable so pre-existing rows and any client that
+  /// doesn't report one aren't broken. Powers version-skew visibility
+  /// across a horizontally-scaled worker fleet during a rolling upgrade
+  /// — see docs/architecture/auto-update.md.
+  version          String?
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   jobs         DistributedJob[]
@@ -3363,6 +3389,15 @@ model PluginVersion {
   installations PluginInstallation[]
 
   @@unique([pluginId, version])
+  /// Module 14 — Performance: `GetAvailablePluginUpdatesQuery`
+  /// (queries/plugin-installations.query.ts) does exactly this lookup —
+  /// non-deprecated versions for a set of plugin IDs, newest first.
+  /// `@@unique([pluginId, version])` above already gives Postgres a
+  /// `pluginId`-prefixed index it *could* use, but it's not sorted by
+  /// `publishedAt`, so a query ordering by `publishedAt desc` per
+  /// `pluginId` still has to sort at read time; this index lets it walk
+  /// pre-sorted instead.
+  @@index([pluginId, publishedAt])
   @@map("plugin_versions")
 }
 
@@ -3677,10 +3712,109 @@ model BackupPolicy {
   lastBackupAt   DateTime?
   createdAt      DateTime  @default(now())
 
+  /// Module 14 — Backup System. `scope` widens `BackupPolicyRunnerService`
+  /// beyond its original JSON-metadata-snapshot-only behavior (see
+  /// `BackupRun.scope` doc comment) to also cover real `pg_dump`-based
+  /// database dumps; `encrypt`/`lastPrunedAt` back the encryption and
+  /// retention-pruning gaps that service's Module 10 doc comment
+  /// explicitly disclosed as unimplemented.
+  scope        BackupScope @default(FULL)
+  encrypt      Boolean     @default(true)
+  lastPrunedAt DateTime?
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         BackupRun[]
 
   @@unique([organizationId])
   @@map("backup_policies")
+}
+
+enum BackupScope {
+  DATABASE
+  STORAGE
+  CONFIGURATION
+  FULL
+}
+
+enum BackupRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum BackupTrigger {
+  SCHEDULED
+  MANUAL
+}
+
+/// Module 14 — Backup System (task: Backup System, Disaster Recovery).
+/// One row per actual backup execution (`BackupPolicy` is the schedule/
+/// config; this is the history+audit trail a restore wizard and backup-
+/// verification job both read from). `organizationId` is nullable
+/// because a Community Edition single-tenant deployment can trigger a
+/// full-system backup with no `Organization` in scope at all — see
+/// `docs/deploy/backup-guide.md`.
+model BackupRun {
+  id             String          @id @default(uuid())
+  organizationId String?
+  backupPolicyId String?
+  scope          BackupScope     @default(FULL)
+  trigger        BackupTrigger   @default(SCHEDULED)
+  status         BackupRunStatus @default(PENDING)
+  storageKey     String?
+  sizeBytes      Int?
+  checksumSha256 String?
+  encrypted      Boolean         @default(false)
+  errorMessage   String?
+  verifiedAt     DateTime?
+  startedAt      DateTime        @default(now())
+  finishedAt     DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  backupPolicy BackupPolicy? @relation(fields: [backupPolicyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, startedAt])
+  @@index([status])
+  @@map("backup_runs")
+}
+
+enum LicenseEdition {
+  COMMUNITY
+  ENTERPRISE
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+/// Module 14 — Licensing (Admin Console "Licensing" page). Deployment-
+/// wide, not per-workspace: a self-hosted install activates Enterprise
+/// Edition by inserting exactly one row here (`organizationId` null =
+/// applies to the whole deployment). Community Edition never requires a
+/// row at all — `EditionService` falls back to `PENTESTHUB_EDITION`
+/// (default `community`) when no active license row exists, so a
+/// missing/expired license degrades to Community Edition rather than
+/// locking the deployment out, per this module's "every Enterprise
+/// feature must be optional" requirement.
+model License {
+  id             String         @id @default(uuid())
+  organizationId String?
+  edition        LicenseEdition @default(ENTERPRISE)
+  licenseKeyHash String         @unique
+  issuedTo       String
+  seats          Int?
+  status         LicenseStatus  @default(ACTIVE)
+  activatedAt    DateTime       @default(now())
+  expiresAt      DateTime?
+  createdAt      DateTime       @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("licenses")
 }
 
 enum ComplianceExportStatus {

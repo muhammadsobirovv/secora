@@ -364,6 +364,136 @@ const envSchema = z.object({
   // ORCHESTRATION_RUN memory chunk stays searchable before a background
   // sweep marks it expired. Null-equivalent (0) disables expiration.
   AI_MEMORY_DEFAULT_TTL_DAYS: z.coerce.number().int().nonnegative().default(0),
+
+  // Module 13 — AI Automation Platform + MCP Ecosystem + Security Agent
+  // SDK (task #275).
+  // Master switch for `mcp/mcp-server.module.ts` — off by default so an
+  // operator opts into exposing the MCP server rather than it appearing
+  // automatically on upgrade.
+  MCP_SERVER_ENABLED: z.coerce.boolean().default(false),
+  // An MCP session with no activity for this long is treated as EXPIRED
+  // by the same idle-sweep pattern Module 1's Session table already uses
+  // (see auth/session-cleanup, mirrored here for McpSession).
+  MCP_SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(60),
+  // Script Engine (task #286) wall-clock budget per execution — the
+  // second argument to `vm.Script#runInContext`'s `timeout`, same
+  // mechanism `PluginSandboxService` already uses.
+  SCRIPT_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+  // Python scripts are accepted and stored (ScriptDefinition.language)
+  // but rejected at execution time unless explicitly enabled — this
+  // deployment's `apps/api` process has no Python interpreter available
+  // to shell out to by default (see ScriptEngineService's doc comment).
+  SCRIPT_ENGINE_PYTHON_ENABLED: z.coerce.boolean().default(false),
+
+  // Module 14 — Cloud Platform, Enterprise SaaS, High Availability &
+  // Global Infrastructure. `EditionService` is the single source of
+  // truth every Enterprise-only surface (Tenant billing/branding,
+  // custom domains) checks — default `community` so a fresh
+  // `git clone` + `docker compose up` never accidentally boots into a
+  // gated mode. `enterprise` only unlocks the *code paths*; an actual
+  // active `License` row (or none) further determines what a specific
+  // organization sees — see docs/adr/0014.
+  PENTESTHUB_EDITION: z.enum(['community', 'enterprise']).default('community'),
+
+  // Queue abstraction (QUEUE_SERVICE token, common/providers/queue/).
+  // `memory` (default) is a real, fully-functional single-process queue
+  // — correct for Community Edition's single-container deployment.
+  // `redis` is for multi-replica deployments where more than one API/
+  // worker process needs to observe the same queue; requires REDIS_URL.
+  QUEUE_PROVIDER: z.enum(['memory', 'redis']).default('memory'),
+  REDIS_URL: z.string().optional(),
+  QUEUE_REDIS_KEY_PREFIX: z.string().default('pentesthub:queue:'),
+  QUEUE_DEFAULT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  QUEUE_DEFAULT_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(2_000),
+
+  // Object storage abstraction (STORAGE_SERVICE token, common/providers/
+  // storage/). `local` (default, `LocalDiskStorageService`) needs no
+  // configuration and is Community Edition's default — a Docker volume
+  // is enough. `s3` covers AWS S3, MinIO (self-hosted, still free), and
+  // Cloudflare R2/any S3-compatible endpoint via `STORAGE_S3_ENDPOINT`.
+  STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+  STORAGE_S3_ENDPOINT: z.string().url().optional(),
+  STORAGE_S3_REGION: z.string().default('auto'),
+  STORAGE_S3_BUCKET: z.string().optional(),
+  STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
+  STORAGE_S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // MinIO/some R2 setups need path-style URLs (`endpoint/bucket/key`)
+  // instead of virtual-hosted-style (`bucket.endpoint/key`).
+  STORAGE_S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
+  STORAGE_S3_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  // Cache abstraction (CACHE_SERVICE token, common/providers/cache/).
+  // `memory` (default) is a real in-process LRU-ish TTL cache — correct
+  // for a single-replica Community Edition install. `redis` is for
+  // multi-replica deployments that need a shared cache; `disk` trades
+  // memory for a filesystem-backed cache (useful for a memory-
+  // constrained single box that still wants cache survival across
+  // restarts).
+  CACHE_PROVIDER: z.enum(['memory', 'redis', 'disk']).default('memory'),
+  CACHE_DISK_DIR: z.string().default('.cache'),
+  CACHE_DEFAULT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
+  // Database — Module 14 Database section. Read-replica routing is
+  // opt-in: unset means every query goes to `DATABASE_URL` (correct for
+  // Community Edition's single-Postgres-instance deployment). Set this
+  // to route read-only queries (QueryBus handlers, via
+  // `PrismaService.replica()`) to a separate connection pool.
+  DATABASE_READ_REPLICA_URL: z.string().optional(),
+  DATABASE_READ_REPLICA_POOL_MAX: z.coerce.number().int().positive().default(10),
+
+  // Backup System / Disaster Recovery. `BACKUP_ENCRYPTION_KEY` mirrors
+  // `CREDENTIAL_ENCRYPTION_KEY`'s AES-256-GCM posture — optional because
+  // an operator can disable per-policy encryption (`BackupPolicy.encrypt
+  // = false`) for a low-stakes dev deployment, but required (checked at
+  // the service layer, not here) the moment any policy has `encrypt =
+  // true`, the default.
+  BACKUP_ENCRYPTION_KEY: z.string().min(32).optional(),
+  BACKUP_PG_DUMP_BIN: z.string().default('pg_dump'),
+  BACKUP_PG_RESTORE_BIN: z.string().default('pg_restore'),
+  BACKUP_VERIFICATION_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+
+  // Security — IP Allow Lists (optional, empty = disabled). Comma-
+  // separated CIDR blocks/exact IPs; checked after `TRUST_PROXY_HOPS`
+  // resolves the real client IP, so this is only as trustworthy as that
+  // setting is correctly configured.
+  IP_ALLOWLIST: z.string().optional(),
+  // Mutual TLS is terminated by the reverse proxy/ingress in every
+  // deployment this platform documents (nginx/Traefik/cloud LB), not by
+  // the Node process itself — this flag only controls whether the API
+  // *requires* the proxy-forwarded verified-client-cert header
+  // (`MTLS_CLIENT_CERT_VERIFY_HEADER`) to be present, for defense in
+  // depth against a misconfigured proxy that forwards traffic it should
+  // have rejected.
+  MTLS_REQUIRED: z.coerce.boolean().default(false),
+  MTLS_CLIENT_CERT_VERIFY_HEADER: z.string().default('X-Client-Cert-Verify'),
+
+  // Module 14 — Tenant Management (Enterprise Edition only). Shared
+  // secret `BillingWebhookController` requires in an `X-Billing-Webhook-Secret`
+  // header before trusting an inbound billing-provider event — this
+  // platform ships no provider-specific (Stripe/Paddle/...) signature
+  // verification since no specific provider is wired in by default (see
+  // `BillingWebhookEventDto`'s doc comment); a deployment that adds one
+  // should additionally verify that provider's own HMAC signature in
+  // front of this shared-secret check, not instead of it. Unset (the
+  // default) means the webhook endpoint rejects every request — there is
+  // deliberately no "billing webhooks accepted with no secret configured"
+  // mode, since that would let anyone flip an organization's subscription
+  // state.
+  BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
+
+  // Centralized logging — correlation IDs / structured JSON logs.
+  LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
+  SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
+
+  // Auto Update / version manifest (desktop, CLI, plugins). Every field
+  // optional — an unset minimum version means "no enforced floor",
+  // correct until an operator opts into requiring upgrades.
+  AUTO_UPDATE_DESKTOP_LATEST_VERSION: z.string().optional(),
+  AUTO_UPDATE_DESKTOP_MIN_VERSION: z.string().optional(),
+  AUTO_UPDATE_CLI_LATEST_VERSION: z.string().optional(),
+  AUTO_UPDATE_CLI_MIN_VERSION: z.string().optional(),
+  AUTO_UPDATE_MOBILE_LATEST_VERSION: z.string().optional(),
+  AUTO_UPDATE_MOBILE_MIN_VERSION: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
