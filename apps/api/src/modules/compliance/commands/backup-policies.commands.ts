@@ -29,10 +29,14 @@ export class UpsertBackupPolicyHandler implements ICommandHandler<UpsertBackupPo
         organizationId: command.organizationId,
         frequency: command.data.frequency,
         retentionCount: command.data.retentionCount ?? 7,
+        scope: command.data.scope ?? 'FULL',
+        encrypt: command.data.encrypt ?? true,
       },
       update: {
         frequency: command.data.frequency,
         retentionCount: command.data.retentionCount,
+        scope: command.data.scope,
+        encrypt: command.data.encrypt,
       },
     });
     return toBackupPolicyDto(policy);

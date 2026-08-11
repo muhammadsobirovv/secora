@@ -1,0 +1,201 @@
+name: Release
+
+# Module 14 — CI/CD: release/version automation. Deliberately separate
+# from ci.yml (PR/push validation) and docker-publish.yml (image build)
+# — this workflow is the release *orchestration* layer: it re-runs the
+# full verification gate against the exact tagged commit (never trusts
+# that whatever last passed on `main` is still what's tagged), generates
+# a monorepo-wide SBOM as a release artifact (in addition to the
+# per-image SBOM attestations docker-publish.yml already produces),
+# creates the GitHub Release with auto-generated notes, and optionally
+# publishes the CLI/Python SDK to their public registries — every
+# publish step is conditional on a secret being configured, so a
+# self-hosted fork with none of them set still gets a complete GitHub
+# Release with build artifacts and an SBOM; nothing here is required for
+# a Community Edition deployment to build and run (Community Edition
+# guarantee: no mandatory paid service, this workflow only ever adds
+# optional distribution channels on top of the free GitHub Release).
+#
+# Trigger: pushing a `vX.Y.Z` tag (matches docker-publish.yml's trigger,
+# so both run in parallel off the same tag) or manual dispatch for a
+# re-run against an already-tagged commit.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re-)release, e.g. v1.2.3"
+        required: true
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "11.10.0"
+  JWT_ACCESS_SECRET: "ci-test-jwt-access-secret-please-change-32chars"
+  CREDENTIAL_ENCRYPTION_KEY: "ci-test-credential-encryption-key-32ch"
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pentesthub_test"
+  FRONTEND_URL: "http://localhost:3001"
+
+jobs:
+  verify:
+    name: Verify (release gate)
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve-tag.outputs.tag }}
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pentesthub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Resolve tag
+        id: resolve-tag
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
+      - name: Apply schema to the test database
+        run: pnpm --filter api exec prisma db push --skip-generate
+      - name: Cache Turborepo task outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-release-${{ github.sha }}
+          restore-keys: |
+            turbo-release-
+      # A release gate re-runs everything unconditionally (`--force`),
+      # unlike ci.yml's normal push/PR jobs which lean on Turborepo's
+      # cache to skip unaffected tasks — a release should never ship on
+      # the strength of a stale cached result.
+      - run: pnpm turbo run build lint check-types test --force
+      - name: CLI smoke test
+        run: node packages/cli/dist/bin/pentesthub.js --help
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # CycloneDX for the whole npm/pnpm workspace — the monorepo-wide
+      # counterpart to docker-publish.yml's per-image BuildKit SBOM
+      # attestations (those cover exactly what's IN each shipped
+      # container; this covers the full source tree, including
+      # dev-only and non-containerized packages like the CLI and SDKs).
+      # `npx` — no new devDependency to maintain across every workspace
+      # package, just a one-shot tool invocation at release time.
+      - name: Generate CycloneDX SBOM (npm workspace)
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-format json --output-file sbom-npm.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-npm
+          path: sbom-npm.cdx.json
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [verify, sbom]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+          fetch-depth: 0 # full history — needed for auto-generated release notes
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom-npm
+          path: .
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.verify.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            sbom-npm.cdx.json
+          body: |
+            See per-image SBOM + provenance attestations and cosign signatures on the
+            container images published by the `Docker Publish` workflow for this tag
+            (`ghcr.io/${{ github.repository_owner }}/pentesthub-ai-{api,worker,web}`).
+
+  # Module 14 — Auto Update / CI/CD: optional publish steps. Each is
+  # gated on a secret existing so a fork/self-host with none configured
+  # still gets a complete, working release (Community Edition
+  # guarantee) — these are additive distribution channels, not part of
+  # what makes a release "done."
+  publish-cli:
+    name: Publish CLI to npm (optional)
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ vars.PUBLISH_CLI_TO_NPM == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @pentesthub/cli build
+      - run: pnpm --filter @pentesthub/cli publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-python-sdk:
+    name: Publish Python SDK to PyPI (optional)
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ vars.PUBLISH_PYTHON_SDK_TO_PYPI == 'true' }}
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}

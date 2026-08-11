@@ -28,6 +28,16 @@ export class GetEnterpriseAnalyticsDashboardQuery implements IQuery {
 /// (`GetQueueMetricsQuery`, dispatched through the same `QueryBus` every
 /// other CQRS query in this codebase uses — not a direct Prisma
 /// shortcut), and the Plugin Marketplace (`Plugin.downloadCount`).
+///
+/// Module 14 — Read Replica Support: every query in this handler after
+/// the initial membership check is read-only aggregate/trend data with
+/// no same-request write to be consistent with, making it the reference
+/// call site for `PrismaService.replica()` (see that method's doc
+/// comment) — a dashboard tolerating typical streaming-replication lag
+/// is exactly the intended use case. `resolveOrganizationMembership`
+/// deliberately stays on the primary connection (`this.prisma`, not
+/// `.replica()`): an auth check reading a just-created membership row
+/// through a lagging replica could incorrectly deny access.
 @QueryHandler(GetEnterpriseAnalyticsDashboardQuery)
 export class GetEnterpriseAnalyticsDashboardHandler
   implements IQueryHandler<GetEnterpriseAnalyticsDashboardQuery, EnterpriseAnalyticsDashboardDto>
@@ -68,18 +78,19 @@ export class GetEnterpriseAnalyticsDashboardHandler
 
     const workspaceWhere = { workspaceId: { in: workspaceIds }, deletedAt: null };
 
+    const replica = this.prisma.replica();
     const [trendRows, severityGroups, programGroups, slaPolicies, topPluginRows] = await Promise.all([
-      this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      replica.$queryRaw<{ day: Date; count: bigint }[]>`
         SELECT date_trunc('day', "createdAt") as day, COUNT(*)::bigint as count
         FROM "bugbounty_findings"
         WHERE "workspaceId" = ANY(${workspaceIds}) AND "createdAt" >= ${since} AND "deletedAt" IS NULL
         GROUP BY day
         ORDER BY day ASC
       `,
-      this.prisma.bugBountyFinding.groupBy({ by: ['severity'], where: workspaceWhere, _count: { _all: true } }),
-      this.prisma.bugBountyFinding.groupBy({ by: ['programId'], where: workspaceWhere, _count: { _all: true }, orderBy: { _count: { programId: 'desc' } }, take: 5 }),
-      this.prisma.slaPolicy.findMany({ where: { organizationId: query.organizationId } }),
-      this.prisma.pluginInstallation.groupBy({
+      replica.bugBountyFinding.groupBy({ by: ['severity'], where: workspaceWhere, _count: { _all: true } }),
+      replica.bugBountyFinding.groupBy({ by: ['programId'], where: workspaceWhere, _count: { _all: true }, orderBy: { _count: { programId: 'desc' } }, take: 5 }),
+      replica.slaPolicy.findMany({ where: { organizationId: query.organizationId } }),
+      replica.pluginInstallation.groupBy({
         by: ['pluginId'],
         where: { organizationId: query.organizationId },
         _count: { _all: true },
@@ -93,7 +104,7 @@ export class GetEnterpriseAnalyticsDashboardHandler
 
     const programIds = programGroups.map((g) => g.programId);
     const programs = programIds.length > 0
-      ? await this.prisma.bugBountyProgram.findMany({ where: { id: { in: programIds } }, select: { id: true, name: true } })
+      ? await replica.bugBountyProgram.findMany({ where: { id: { in: programIds } }, select: { id: true, name: true } })
       : [];
     const programNameById = new Map(programs.map((p) => [p.id, p.name]));
     const topPrograms = programGroups.map((g) => ({
@@ -107,7 +118,7 @@ export class GetEnterpriseAnalyticsDashboardHandler
       let evaluated = 0;
       let withinTarget = 0;
       for (const policy of slaPolicies) {
-        const findings = await this.prisma.bugBountyFinding.findMany({
+        const findings = await replica.bugBountyFinding.findMany({
           where: { ...workspaceWhere, severity: policy.severity, stage: { in: ['RESOLVED', 'CLOSED'] } },
           select: { createdAt: true, updatedAt: true },
         });
@@ -121,7 +132,7 @@ export class GetEnterpriseAnalyticsDashboardHandler
     }
 
     const pluginIds = topPluginRows.map((g) => g.pluginId);
-    const plugins = pluginIds.length > 0 ? await this.prisma.plugin.findMany({ where: { id: { in: pluginIds } }, select: { id: true, name: true } }) : [];
+    const plugins = pluginIds.length > 0 ? await replica.plugin.findMany({ where: { id: { in: pluginIds } }, select: { id: true, name: true } }) : [];
     const pluginNameById = new Map(plugins.map((p) => [p.id, p.name]));
     const topPlugins = topPluginRows.map((g) => ({
       pluginId: g.pluginId,

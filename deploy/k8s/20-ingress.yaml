@@ -4,6 +4,25 @@
 # `ingressClassName`/annotations for a different controller (Traefik,
 # AWS ALB Ingress Controller, GKE Ingress, etc.), the routing rules
 # themselves don't need to change.
+#
+# Certificate rotation: see 21-certificate.yaml.example — apply it (with
+# cert-manager installed) and uncomment the cluster-issuer annotation
+# below to get automatic issuance and renewal instead of manually
+# managing the `pentesthub-tls` Secret.
+#
+# Mutual TLS: only relevant if MTLS_REQUIRED=true in 01-configmap.yaml /
+# 02-secret.yaml — see docs/security/tls-mtls-certificates.md. The three
+# commented annotations below are ingress-nginx's mTLS support: point
+# `auth-tls-secret` at a Secret containing the trusted client CA bundle
+# (`ca.crt`), and `auth-tls-pass-certificate-to-upstream` forwards
+# verification result information toward the backend — but ingress-nginx
+# doesn't set apps/api/src/common/guards/mtls.guard.ts's expected
+# `X-Client-Cert-Verify` header by itself, so a deployment that needs
+# MTLS_REQUIRED enforced at this layer should front the Ingress with an
+# nginx ConfigMap snippet (or switch MTLS_CLIENT_CERT_VERIFY_HEADER to
+# whichever header your ingress controller actually emits, e.g.
+# ingress-nginx's `ssl-client-verify` upstream header via a custom
+# `configuration-snippet`).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,7 +30,10 @@ metadata:
   namespace: pentesthub
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # cert-manager.io/cluster-issuer: letsencrypt-prod  # uncomment if cert-manager is installed
+    # cert-manager.io/cluster-issuer: letsencrypt-prod  # uncomment if cert-manager is installed (see 21-certificate.yaml.example)
+    # nginx.ingress.kubernetes.io/auth-tls-secret: pentesthub/pentesthub-client-ca  # uncomment for mTLS
+    # nginx.ingress.kubernetes.io/auth-tls-verify-client: "optional"  # "on"/"optional"/"optional_no_ca" — see nginx ssl_verify_client
+    # nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
 spec:
   ingressClassName: nginx
   tls:

@@ -1,0 +1,165 @@
+name: Desktop CI
+
+# Module 14 — CI/CD. apps/desktop (Module 7) is a Tauri v2 app —
+# TypeScript/Vite frontend plus a Rust `src-tauri` crate — and had zero
+# CI coverage until this workflow: `ci.yml`'s Turborepo graph only spans
+# pnpm workspace `build`/`lint`/`check-types`/`test` tasks, which does
+# cover apps/desktop's JS side (it's a normal `apps/*` workspace member,
+# same as apps/web), but nothing in this repo ever built, linted, or
+# tested the Rust `src-tauri` crate, and nothing produced an installer
+# artifact for any platform. This closes that gap, following the same
+# structure `mobile-ci.yml` established for Flutter: analyze/lint job,
+# then a per-platform build job producing unsigned artifacts.
+#
+# Like mobile-ci.yml, this could not be executed or dry-run in the
+# sandbox this was authored in (no Rust toolchain, no Tauri CLI, no
+# Windows/macOS runners available) — written against Tauri's documented
+# GitHub Actions conventions (tauri-apps/tauri-action, dtolnay/rust-
+# toolchain) and should be treated as unverified until it runs green
+# once on a real push. See docs/deployment/ci-cd.md's verification
+# section for the full disclosure.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "packages/shared/**"
+      - ".github/workflows/desktop-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "packages/shared/**"
+      - ".github/workflows/desktop-ci.yml"
+
+concurrency:
+  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "11.10.0"
+  # `sqlx`'s compile-time query macros normally need a live database to
+  # verify SQL against; `SQLX_OFFLINE=true` makes them fall back to a
+  # `.sqlx` query cache instead (see apps/desktop/src-tauri/Cargo.toml's
+  # own comment on this, quoted in this workflow's research: "CI/sandbox
+  # has no DB"). CI has no Postgres/SQLite fixture wired up for the
+  # desktop crate, so this must stay set for `cargo build`/`check`/`test`
+  # to succeed here.
+  SQLX_OFFLINE: "true"
+
+defaults:
+  run:
+    working-directory: apps/desktop
+
+jobs:
+  frontend:
+    name: Frontend (lint, check-types, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      # Full workspace install (not --filter desktop) — apps/desktop
+      # depends on the workspace @pentesthub/shared package, which pnpm
+      # needs the root lockfile/link graph to resolve.
+      - working-directory: .
+        run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm check-types
+      - run: pnpm build
+
+  rust-lint:
+    name: Rust (fmt, clippy, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      # Tauri's Linux bundler links against webkit2gtk/appindicator/rsvg
+      # — required even just to `cargo check`/`clippy` the crate, since
+      # the `tauri` crate's Linux backend pulls these in as real (not
+      # bundler-only) compile-time dependencies. Per Tauri's own
+      # documented CI setup for Ubuntu 22.04+ runners.
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
+      - name: cargo fmt --check
+        working-directory: apps/desktop/src-tauri
+        run: cargo fmt --check
+      - name: cargo clippy
+        working-directory: apps/desktop/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test
+        working-directory: apps/desktop/src-tauri
+        run: cargo test
+
+  build:
+    name: Build (${{ matrix.platform }}, unsigned)
+    needs: [frontend, rust-lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            args: ""
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: . # tauri-action operates from repo root via projectPath below
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
+      - run: pnpm install --frozen-lockfile
+      # No `TAURI_SIGNING_PRIVATE_KEY`/`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+      # configured — this produces unsigned installers, same posture as
+      # mobile-ci.yml's `flutter build ios --no-codesign`: proves the
+      # build configuration itself is sound (bundler config, Rust crate,
+      # frontend build) without requiring a real code-signing
+      # certificate/Apple Developer identity in CI. A real signed
+      # release build needs those secrets configured and the
+      # `tauri.conf.json` updater `pubkey` replaced from its current
+      # placeholder (see docs/architecture/auto-update.md's desktop
+      # section) — both are release-time prerequisites, not something
+      # this PR-validation-adjacent workflow should require to stay
+      # green on every push.
+      - name: Build Tauri app (unsigned)
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: apps/desktop
+          args: ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**
+          if-no-files-found: warn

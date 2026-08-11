@@ -80,6 +80,9 @@ dependencies:
   device_info_plus: ^10.1.2
   package_info_plus: ^8.0.0
   permission_handler: ^11.3.1
+  # Module 14 — Auto Update: opens the app store listing from the
+  # "update available" dialog (core/updates/app_update_service.dart).
+  url_launcher: ^6.3.0
 
   # --- Background sync ---------------------------------------------------------
   workmanager: ^0.5.2

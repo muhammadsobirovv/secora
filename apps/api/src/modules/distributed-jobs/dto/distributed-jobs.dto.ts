@@ -19,6 +19,7 @@ export class RegisterWorkerNodeDto implements RegisterWorkerShape {
   @ApiProperty() @IsString() @MaxLength(255) hostname!: string;
   @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true }) capabilities!: string[];
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(256) maxConcurrency?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) version?: string;
 }
 
 export class EnqueueDistributedJobDto implements EnqueueJobShape {
@@ -50,4 +51,8 @@ export class ListDistributedJobsQueryParamsDto implements ListJobsShape {
 
 export class HeartbeatWorkerNodeDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) currentLoad?: number;
+  // Module 14 — Auto Update: lets a worker report a version bump on a
+  // live heartbeat (e.g. a rolling restart onto a new image) without
+  // needing a full re-register.
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) version?: string;
 }

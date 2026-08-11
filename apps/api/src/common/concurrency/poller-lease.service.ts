@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { ClusterLeaseDto } from '@pentesthub/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /// Module 10 — High Availability. Every `setInterval`-based poller
@@ -40,8 +41,18 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 /// milliseconds). A plain row with an expiry avoids both problems: the
 /// lease claim is one fast statement, and the guarded work runs
 /// entirely outside any transaction.
+///
+/// Module 14 note: despite the class name, `withLease` is already a
+/// general-purpose distributed lock / leader-election primitive, not
+/// something poller-specific — any code that needs "only one replica
+/// does X at a time" (not just the seven pollers listed above) can call
+/// it with its own lease name. Module 14 adds `listLeases()` (cluster
+/// visibility, for the Admin Console) and `onModuleDestroy` (proactive
+/// release on graceful shutdown, for faster failover) on top of the
+/// same Module 10 mechanism rather than introducing a second lock
+/// implementation.
 @Injectable()
-export class PollerLeaseService {
+export class PollerLeaseService implements OnModuleDestroy {
   private readonly logger = new Logger(PollerLeaseService.name);
   /// One random identity per process (not per instance of this
   /// injectable — Nest's default provider scope is a singleton, so this
@@ -49,8 +60,63 @@ export class PollerLeaseService {
   /// renewal by the same replica is distinguishable from a takeover by
   /// a different one.
   private readonly instanceId = randomUUID();
+  /// Every lease name this instance has actually acquired at least
+  /// once, so `onModuleDestroy` only issues release UPDATEs for leases
+  /// this replica might plausibly still be holding, rather than one
+  /// query per lease name that ever exists platform-wide.
+  private readonly acquiredLeaseNames = new Set<string>();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /// Module 14 — Cluster Overview / Admin Console: this replica's
+  /// identity, so an operator looking at `ClusterOverviewDto.leases`
+  /// can tell which entries this specific API instance currently owns
+  /// (`holderId === getInstanceId()`) without cross-referencing pod
+  /// names or IPs.
+  getInstanceId(): string {
+    return this.instanceId;
+  }
+
+  /// Module 14 — High Availability / leader election visibility.
+  /// Returns every named lease's current state, regardless of which
+  /// replica holds it — the leader-election primitive Module 10's
+  /// pollers already use, made queryable rather than only usable via
+  /// `withLease`. Feeds `ClusterOverviewDto.leases` in the Admin
+  /// Console's Cluster Overview page (Module 14's Admin Console task).
+  async listLeases(): Promise<ClusterLeaseDto[]> {
+    const now = Date.now();
+    const leases = await this.prisma.pollerLease.findMany({ orderBy: { id: 'asc' } });
+    return leases.map((lease) => ({
+      name: lease.id,
+      holderId: lease.holderId,
+      acquiredAt: lease.acquiredAt.toISOString(),
+      expiresAt: lease.expiresAt.toISOString(),
+      expired: lease.expiresAt.getTime() < now,
+    }));
+  }
+
+  /// Module 14 — Failover / Automatic Recovery. On a graceful shutdown
+  /// (SIGTERM via `main.ts`'s `app.enableShutdownHooks()` — the normal
+  /// path for a Kubernetes rolling update, `docker compose restart`, or
+  /// `systemctl restart`), proactively release every lease this
+  /// instance holds instead of leaving the next poller tick on another
+  /// replica to wait out the full TTL before taking over. This turns a
+  /// planned failover (the common case — deploys, scale-downs) from
+  /// "up to `ttlMs` of no replica running that poller" into
+  /// "effectively instant." An unplanned crash (SIGKILL, OOM, node
+  /// failure) still falls back to the TTL-based expiry this service
+  /// already implements — there's no hook that can run after a process
+  /// is killed outright, which is exactly why every lease has a TTL in
+  /// the first place rather than relying on explicit release alone.
+  async onModuleDestroy(): Promise<void> {
+    if (this.acquiredLeaseNames.size === 0) return;
+    const now = new Date();
+    await this.prisma.pollerLease.updateMany({
+      where: { id: { in: [...this.acquiredLeaseNames] }, holderId: this.instanceId },
+      data: { expiresAt: now },
+    });
+    this.logger.log(`Released ${this.acquiredLeaseNames.size} lease(s) held by this instance on shutdown.`);
+  }
 
   /// Runs `fn()` only if this replica currently holds (or just
   /// acquired) the named lease; otherwise resolves to `undefined`
@@ -86,6 +152,7 @@ export class PollerLeaseService {
       this.logger.debug(`Lease "${leaseName}" held by another replica — skipping this tick.`);
       return undefined;
     }
+    this.acquiredLeaseNames.add(leaseName);
 
     try {
       return await fn();

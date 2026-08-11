@@ -34,12 +34,32 @@ kubectl apply -f deploy/k8s/20-ingress.yaml
 
 Or, once the real Secret exists: `kubectl apply -f deploy/k8s/` applies everything else in the correct order (filenames are numbered for this).
 
+### Optional: Module 14 multi-replica providers
+
+`13-redis.yaml` and `14-minio.yaml` are opt-in — only needed once `01-configmap.yaml`'s
+`QUEUE_PROVIDER`/`CACHE_PROVIDER`/`STORAGE_PROVIDER` are switched from their
+Community Edition defaults (`in-memory`/`memory`/`local`) to `redis`/`redis`/`s3`,
+which becomes necessary once the api/worker Deployments run more than one
+replica each (the in-memory and local-disk providers aren't shared across pods —
+see that ConfigMap's comment). Apply them, fill in the corresponding
+`REDIS_PASSWORD`/`REDIS_URL`/`STORAGE_S3_*` keys in the real Secret (see
+`02-secret.yaml.example`), then flip the ConfigMap values and roll the
+Deployments:
+
+```bash
+kubectl apply -f deploy/k8s/13-redis.yaml
+kubectl apply -f deploy/k8s/14-minio.yaml
+kubectl rollout restart deployment/api deployment/worker -n pentesthub
+```
+
 ## First-time schema setup
 
-This schema has no unbroken `prisma migrate` history past Module 5 (see
-`apps/api/prisma/migrations`' own contents and `ci.yml`'s test job comment) —
-run a one-off `db push` against the target database before traffic hits the
-api Deployment for the first time:
+This schema does not have a guaranteed-unbroken `prisma migrate` history
+(see `apps/api/prisma/migrations`' own contents, `ci.yml`'s test job comment,
+and `pnpm --filter api run prisma:migrate:validate` — Module 14 — for how to
+check current drift against a real database) — run a one-off `db push`
+against the target database before traffic hits the api Deployment for the
+first time:
 
 ```bash
 kubectl run pentesthub-schema-init --rm -it --restart=Never -n pentesthub \

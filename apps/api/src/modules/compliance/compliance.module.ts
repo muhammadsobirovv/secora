@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BackupsModule } from '../backups/backups.module.js';
 import { UpsertDataRetentionPolicyHandler, DeleteDataRetentionPolicyHandler } from './commands/data-retention-policies.commands.js';
 import { UpsertBackupPolicyHandler } from './commands/backup-policies.commands.js';
 import { CreateComplianceExportRequestHandler } from './commands/compliance-exports.commands.js';
@@ -14,13 +15,16 @@ import { ComplianceExportProcessorService } from './services/compliance-export-p
 import { ComplianceController } from './controllers/compliance.controller.js';
 
 /// Module 10 — Compliance: `DataRetentionPolicy` + automatic enforcement
-/// (`DataRetentionEnforcerService`), `BackupPolicy` + real snapshot
-/// generation (`BackupPolicyRunnerService`), and `ComplianceExportRequest`
-/// (GDPR/SOC2-style data export) + async processing
-/// (`ComplianceExportProcessorService`). `STORAGE_SERVICE` (used by the
-/// latter two) is provided by the `@Global()` `ProvidersModule` — no
-/// explicit import needed here.
+/// (`DataRetentionEnforcerService`), `BackupPolicy` + real backups
+/// (`BackupPolicyRunnerService`, now delegating the actual archive
+/// creation to Module 14's `BackupService` — see that class's doc
+/// comment), and `ComplianceExportRequest` (GDPR/SOC2-style data export)
+/// + async processing (`ComplianceExportProcessorService`).
+/// `STORAGE_SERVICE` (used directly by the export processor) is
+/// provided by the `@Global()` `ProvidersModule` — no explicit import
+/// needed for that one.
 @Module({
+  imports: [BackupsModule],
   controllers: [ComplianceController],
   providers: [
     UpsertDataRetentionPolicyHandler,

@@ -1,0 +1,83 @@
+# Redis for QUEUE_PROVIDER=redis / CACHE_PROVIDER=redis (Module 14 —
+# see apps/api/src/common/providers/queue/redis-queue.service.ts and
+# cache/redis-cache.service.ts). Optional: only needed once the api/
+# worker Deployments run more than one replica each and the in-memory
+# providers' "not shared across pods" limitation actually matters — see
+# 01-configmap.yaml's comment on QUEUE_PROVIDER/CACHE_PROVIDER.
+#
+# Single replica, no clustering/Sentinel — same caveat as
+# 03-postgres.yaml's self-managed Postgres: this is a starting point,
+# not a highly-available Redis. Use a managed Redis offering (Elasti-
+# Cache, Memorystore, Upstash, ...) or a Redis Operator (with Sentinel/
+# Cluster mode) for a real production HA deployment. A Redis outage
+# degrades functionality (in-memory queue jobs and cache reads fail)
+# but does not corrupt data — nothing durable is Redis-only; the queue
+# abstraction's job payloads are transient by design (see
+# QueueService's doc comment), and cache is, definitionally, a cache.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: pentesthub
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pentesthub-secrets
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" ping"]
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              memory: "512Mi"
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: pentesthub
+spec:
+  clusterIP: None # headless — StatefulSet gets a stable DNS name (redis-0.redis.pentesthub.svc)
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379

@@ -36,7 +36,9 @@ export class ApiKeyAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request & { user?: RequestUser; apiKeyScopes?: string[] }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user?: RequestUser; apiKeyScopes?: string[]; apiKeyWorkspaceId?: string | null }>();
     const rawKey = request.header('x-api-key');
     if (!rawKey || !rawKey.startsWith('phb_')) {
       throw new AppException('API_KEY_NOT_FOUND', 'Missing or malformed X-API-Key header.', HttpStatus.UNAUTHORIZED);
@@ -58,6 +60,11 @@ export class ApiKeyAuthGuard implements CanActivate {
 
     request.user = { id: apiKey.userId, email: '', roles: [], sessionId: `apikey:${apiKey.id}` };
     request.apiKeyScopes = apiKey.scopes;
+    // Module 13 addition — MCP sessions are workspace-scoped
+    // (`McpSession.workspaceId`); a personal (non-workspace) API key has
+    // no workspace to scope to, so `McpRpcController` rejects those with
+    // a clear error rather than silently defaulting to "no workspace".
+    request.apiKeyWorkspaceId = apiKey.workspaceId;
     return true;
   }
 }

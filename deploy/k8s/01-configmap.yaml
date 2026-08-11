@@ -28,3 +28,30 @@ data:
   # how to resize this if replica count changes.
   DATABASE_POOL_MAX: "15"
   WORKER_DATABASE_POOL_MAX: "5"
+  # --- Module 14: Cloud Platform / Enterprise SaaS ---
+  # "community" (default, zero paid dependencies) or "enterprise" — see
+  # apps/api/src/modules/infrastructure/edition.service.ts. Setting this
+  # to "enterprise" alone does nothing without at least one active
+  # License row; it only changes the *fallback* used when no License
+  # exists, which stays permissive ("trusted environment") specifically
+  # so a self-hosted cluster is never locked out — see that service's
+  # doc comment.
+  PENTESTHUB_EDITION: "community"
+  # Provider selection for the pluggable abstractions in
+  # apps/api/src/common/providers/ — each defaults to the Community
+  # Edition, zero-external-dependency binding. Uncomment the Enterprise
+  # values (and apply 13-redis.yaml / a real S3-compatible bucket) for
+  # a multi-replica cluster; see this manifest set's README for when
+  # that's necessary vs. optional.
+  # Module 14 — Community Edition guarantee pass: fixed from "in-memory"
+  # to "memory" — env.validation.ts's zod schema only accepts
+  # `'memory' | 'redis'`; the old value would have failed
+  # `validateEnv()` at boot with "Invalid environment configuration" the
+  # moment anyone applied this ConfigMap as shipped.
+  QUEUE_PROVIDER: "memory" # or "redis" — required once replicas > 1, since in-memory queues aren't shared across pods
+  CACHE_PROVIDER: "memory" # or "redis" / "disk"
+  STORAGE_PROVIDER: "local" # or "s3" — required once replicas > 1, since local-disk storage isn't shared across pods without a ReadWriteMany volume
+  # STORAGE_S3_ENDPOINT: "https://minio.your-cluster.svc:9000"
+  # STORAGE_S3_REGION: "us-east-1"
+  # STORAGE_S3_BUCKET: "pentesthub"
+  # STORAGE_S3_FORCE_PATH_STYLE: "true"

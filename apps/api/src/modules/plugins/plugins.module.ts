@@ -15,7 +15,10 @@ import {
   ListPluginsHandler,
   ListWorkspacePluginCapabilitiesHandler,
 } from './queries/plugins.query.js';
-import { ListPluginInstallationsHandler } from './queries/plugin-installations.query.js';
+import {
+  GetAvailablePluginUpdatesHandler,
+  ListPluginInstallationsHandler,
+} from './queries/plugin-installations.query.js';
 import { PluginsController } from './controllers/plugins.controller.js';
 import { PluginInstallationsController } from './controllers/plugin-installations.controller.js';
 import { PluginSandboxService } from './plugin-sandbox.service.js';
@@ -40,6 +43,8 @@ const QUERY_HANDLERS = [
   ListWorkspacePluginCapabilitiesHandler,
   // Module 13 — Automation Marketplace (task #287)
   ListMarketplacePacksHandler,
+  // Module 14 — Auto Update (task #317)
+  GetAvailablePluginUpdatesHandler,
 ];
 
 /// Module 10 — Plugin Marketplace: registry (publish/version/update),

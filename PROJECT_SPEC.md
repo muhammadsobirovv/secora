@@ -1110,3 +1110,56 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > See `docs/adr/0013-ai-automation-platform-mcp-ecosystem.md`,
 > `docs/modules/13-ai-automation-platform-mcp-ecosystem.md`,
 > `docs/releases/module-13-release-notes.md`, and `docs/mcp/mcp-guide.md`.
+>
+> **Module 14 — Cloud Platform, Enterprise SaaS & High Availability**
+> (2026-08-10): source-complete. Closes the gaps Module 10 explicitly
+> left open: three pluggable infrastructure provider seams (`QUEUE_PROVIDER`
+> memory/Redis, `CACHE_PROVIDER` memory/Redis/disk, `STORAGE_PROVIDER`
+> local/S3-compatible — each defaulting to the zero-external-dependency
+> binding, each consumed only through an interface); High Availability
+> (`PollerLeaseService` generalized into a reusable distributed-lock/
+> leader-election primitive, with proactive lease release on graceful
+> shutdown for faster failover); Distributed Worker extensions (a
+> canonical job-type-category vocabulary, worker version reporting);
+> Database support (pool sizing, optional read-replica routing, a
+> migration drift-validation script now wired into CI); a real backup
+> system (encrypted `pg_dump`/config/storage backups, checksummed
+> verification, restore instructions, a recovery-test script) built on
+> the same storage abstraction as everything else; Security (opt-in
+> mTLS, IP allow lists, secrets-management/permission-matrix/WAF docs);
+> an Admin Console (one call aggregating cluster/worker/queue/cache/
+> storage/database/backup/licensing state); Enterprise-only Tenant
+> Management (billing/branding/usage, a new `EditionGuard` that treats
+> an unlicensed deployment as trusted rather than locked out); an API
+> Gateway (opt-in per-route response caching); Auto Update (check-and-
+> notify across every client, never silent self-replacement except the
+> pre-existing Tauri desktop path); and production-grade CI/CD
+> (PR-validation/release workflow separation, Turborepo caching, Docker
+> builds with SBOM/provenance/Trivy scanning/cosign signing, a new
+> desktop CI workflow, release-time SBOM generation, secret-gated
+> npm/PyPI publishing). A dedicated Performance pass fixed one real N+1
+> (`GetAvailablePluginUpdatesHandler`); a dedicated Community Edition
+> guarantee audit confirmed the standing "no mandatory paid service"
+> guarantee holds across every Module 14 subsystem and, in the process,
+> found and fixed a real bug (`deploy/k8s/01-configmap.yaml`'s
+> `QUEUE_PROVIDER: "in-memory"` didn't match the zod schema's accepted
+> values and would have failed boot validation as shipped). This
+> module's sandbox verification hit a different set of constraints than
+> Modules 7-13's "no `pnpm`, no registry access" ceiling: `pnpm` and a
+> degraded-but-present network were both available, but the `turbo` npm
+> package itself was never fully installed in this sandbox (only a
+> dangling `.bin/turbo` symlink), so the requested
+> `pnpm turbo run build lint check-types test --force` verification
+> could not execute here at all; direct `tsc`/`prisma validate`
+> invocations hung with zero output, root-caused to filesystem I/O
+> latency on the mounted host folder rather than a code defect; and no
+> Docker daemon or `kubectl` was available for image builds or live
+> manifest validation. What did verify cleanly: structural YAML parsing
+> of every new/modified CI workflow and Kubernetes/Compose manifest (9
+> files, all passed). No git commit was made for this module's work
+> pending that verification — see
+> `docs/adr/0014-cloud-platform-enterprise-saas-ha.md`,
+> `docs/modules/14-cloud-platform-enterprise-saas-ha.md`,
+> `docs/releases/module-14-release-notes.md`,
+> `docs/architecture/{api-gateway,auto-update,ci-cd}.md`, and
+> `docs/reviews/{0006-module-14-performance-review,0007-module-14-community-edition-guarantee}.md`.

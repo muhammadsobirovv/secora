@@ -1,12 +1,13 @@
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus } from '@nestjs/common';
-import type { TriggerWorkflowRequestDto, WorkflowRunDto } from '@pentesthub/shared';
+import type { ApproveWorkflowStepRequestDto, TriggerWorkflowRequestDto, WorkflowRunDto, WorkflowWebhookTriggerDto } from '@pentesthub/shared';
 import type { Prisma } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { resolveOrganizationMembership } from '../../enterprise/organization-membership.util.js';
 import { requireEnterpriseRole } from '../../enterprise/enterprise-permissions.util.js';
 import { WorkflowExecutorService } from '../services/workflow-executor.service.js';
+import { WorkflowWebhookTriggerRepository } from '../workflow-webhook-trigger.repository.js';
 import { toWorkflowRunDto } from '../mappers/to-workflow-dto.mapper.js';
 
 export class TriggerWorkflowCommand implements ICommand {
@@ -105,5 +106,142 @@ export class CancelWorkflowRunHandler implements ICommandHandler<CancelWorkflowR
       data: { status: 'CANCELLED', pausedAtStepKey: null, resumeAt: null, finishedAt: new Date() },
     });
     return toWorkflowRunDto(cancelled);
+  }
+}
+
+// ---- Module 13 additions (task #283) ----
+
+export class ApproveWorkflowStepCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly organizationId: string,
+    public readonly workflowId: string,
+    public readonly runId: string,
+    public readonly data: ApproveWorkflowStepRequestDto,
+  ) {}
+}
+
+@CommandHandler(ApproveWorkflowStepCommand)
+export class ApproveWorkflowStepHandler implements ICommandHandler<ApproveWorkflowStepCommand, WorkflowRunDto> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly executor: WorkflowExecutorService,
+  ) {}
+
+  async execute(command: ApproveWorkflowStepCommand): Promise<WorkflowRunDto> {
+    const { role } = await resolveOrganizationMembership(this.prisma, command.userId, command.organizationId);
+    requireEnterpriseRole(role, 'TEAM_LEAD');
+
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id: command.workflowId, organizationId: command.organizationId },
+    });
+    if (!workflow) {
+      throw new AppException('WORKFLOW_NOT_FOUND', 'Workflow not found.', HttpStatus.NOT_FOUND);
+    }
+    const run = await this.prisma.workflowRun.findFirst({ where: { id: command.runId, workflowId: workflow.id } });
+    if (!run) {
+      throw new AppException('WORKFLOW_RUN_NOT_FOUND', 'Workflow run not found.', HttpStatus.NOT_FOUND);
+    }
+    if (run.status !== 'RUNNING' || !run.pausedAtStepKey) {
+      throw new AppException('WORKFLOW_STEP_NOT_AWAITING_APPROVAL', 'This workflow run is not awaiting approval.', HttpStatus.CONFLICT);
+    }
+
+    await this.executor.resumeApproval(run.id, command.data.approved, command.data.note);
+    const updated = await this.prisma.workflowRun.findUniqueOrThrow({ where: { id: run.id } });
+    return toWorkflowRunDto(updated);
+  }
+}
+
+/// Workflow Builder's WEBHOOK trigger management (task #283) — creates
+/// (or rotates) the one `WorkflowWebhookTrigger` row a Workflow can
+/// have. Reusing "Team Lead+" the same as `TriggerWorkflowCommand`
+/// since minting a token is functionally equivalent to being able to
+/// trigger the workflow yourself.
+export class CreateWorkflowWebhookTriggerCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly organizationId: string,
+    public readonly workflowId: string,
+    public readonly publicBaseUrl: string,
+  ) {}
+}
+
+@CommandHandler(CreateWorkflowWebhookTriggerCommand)
+export class CreateWorkflowWebhookTriggerHandler
+  implements ICommandHandler<CreateWorkflowWebhookTriggerCommand, WorkflowWebhookTriggerDto>
+{
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly triggerRepository: WorkflowWebhookTriggerRepository,
+  ) {}
+
+  async execute(command: CreateWorkflowWebhookTriggerCommand): Promise<WorkflowWebhookTriggerDto> {
+    const { role } = await resolveOrganizationMembership(this.prisma, command.userId, command.organizationId);
+    requireEnterpriseRole(role, 'TEAM_LEAD');
+
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id: command.workflowId, organizationId: command.organizationId },
+    });
+    if (!workflow) {
+      throw new AppException('WORKFLOW_NOT_FOUND', 'Workflow not found.', HttpStatus.NOT_FOUND);
+    }
+
+    const trigger = await this.triggerRepository.rotate(workflow.id, command.userId);
+    return {
+      workflowId: trigger.workflowId,
+      token: trigger.token,
+      url: `${command.publicBaseUrl.replace(/\/$/, '')}/public/workflow-triggers/${trigger.token}`,
+      createdAt: trigger.createdAt.toISOString(),
+    };
+  }
+}
+
+/// Starts a run from an inbound webhook call — no user/organization
+/// context at all (the token itself is the credential, same trust
+/// model as an inbound third-party provider webhook this server
+/// receives elsewhere). Deliberately does NOT await the full run the
+/// way `TriggerWorkflowCommand` does — an inbound webhook sender
+/// expects a fast response, not to block on however many steps this
+/// workflow has.
+export class TriggerWorkflowByWebhookCommand implements ICommand {
+  constructor(
+    public readonly token: string,
+    public readonly input: Record<string, unknown>,
+  ) {}
+}
+
+@CommandHandler(TriggerWorkflowByWebhookCommand)
+export class TriggerWorkflowByWebhookHandler implements ICommandHandler<TriggerWorkflowByWebhookCommand, { runId: string }> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly triggerRepository: WorkflowWebhookTriggerRepository,
+    private readonly executor: WorkflowExecutorService,
+  ) {}
+
+  async execute(command: TriggerWorkflowByWebhookCommand): Promise<{ runId: string }> {
+    const trigger = await this.triggerRepository.findByToken(command.token);
+    if (!trigger) {
+      throw new AppException('WORKFLOW_WEBHOOK_TRIGGER_NOT_FOUND', 'Unknown webhook trigger token.', HttpStatus.NOT_FOUND);
+    }
+    const workflow = await this.prisma.workflow.findUnique({ where: { id: trigger.workflowId } });
+    if (!workflow || !workflow.enabled) {
+      throw new AppException('WORKFLOW_WEBHOOK_TRIGGER_NOT_FOUND', 'This workflow is disabled or no longer exists.', HttpStatus.NOT_FOUND);
+    }
+
+    const run = await this.prisma.workflowRun.create({
+      data: {
+        workflowId: workflow.id,
+        status: 'PENDING',
+        triggeredBy: trigger.createdBy,
+        input: (command.input as Prisma.InputJsonValue) ?? {},
+      },
+    });
+
+    // Fire-and-forget — the executor's own error handling persists a
+    // FAILED WorkflowRun on any thrown error, so a failure here never
+    // becomes an unhandled rejection.
+    void this.executor.start(run.id).catch(() => undefined);
+
+    return { runId: run.id };
   }
 }

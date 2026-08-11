@@ -1,7 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import type { ExecutePluginHookResultDto, PluginInstallationDto } from '@pentesthub/shared';
+import type {
+  ExecutePluginHookResultDto,
+  PluginAvailableUpdateDto,
+  PluginInstallationDto,
+} from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import { ExecutePluginHookDto, InstallPluginDto, UpdatePluginInstallationDto } from '../dto/plugins.dto.js';
@@ -11,7 +15,10 @@ import {
   UninstallPluginCommand,
   UpdatePluginInstallationCommand,
 } from '../commands/plugin-installations.commands.js';
-import { ListPluginInstallationsQuery } from '../queries/plugin-installations.query.js';
+import {
+  GetAvailablePluginUpdatesQuery,
+  ListPluginInstallationsQuery,
+} from '../queries/plugin-installations.query.js';
 
 @ApiTags('plugins')
 @ApiBearerAuth()
@@ -30,6 +37,21 @@ export class PluginInstallationsController {
     @CurrentUser() user: RequestUser,
   ): Promise<PluginInstallationDto[]> {
     return this.queryBus.execute(new ListPluginInstallationsQuery(user.id, organizationId, workspaceId));
+  }
+
+  // Module 14 — Auto Update. Declared before any `:id`-shaped route so
+  // Express never mistakes the literal segment "updates" for an
+  // installation ID (no conflict exists today — no other `@Get(':id')`
+  // route is registered on this controller — but this ordering is the
+  // defensive default regardless).
+  @Get('updates')
+  @ApiOperation({ summary: 'List installed plugins that have a newer non-deprecated version available' })
+  availableUpdates(
+    @Param('organizationId') organizationId: string,
+    @Query('workspaceId') workspaceId: string | undefined,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PluginAvailableUpdateDto[]> {
+    return this.queryBus.execute(new GetAvailablePluginUpdatesQuery(user.id, organizationId, workspaceId));
   }
 
   @Post()

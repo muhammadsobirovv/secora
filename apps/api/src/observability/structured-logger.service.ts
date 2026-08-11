@@ -1,4 +1,5 @@
 import { LoggerService, LogLevel } from '@nestjs/common';
+import { getRequestId } from './request-context.js';
 
 /// A single-file, dependency-free structured logger implementing
 /// NestJS's `LoggerService` interface, passed to `NestFactory.create`
@@ -51,9 +52,21 @@ function mapConfiguredLevel(level: string): LogLevel {
 
 export class StructuredLoggerService implements LoggerService {
   private readonly threshold: number;
+  /// Module 14 — `LOG_FORMAT` (env.validation.ts): `'json'` (default,
+  /// the format described in this class's own doc comment above) or
+  /// `'pretty'` — a single-line, human-scannable format for local
+  /// development, where a person reading a terminal benefits more from
+  /// readability than a log aggregator's ingestion format does. Every
+  /// other behavior (level filtering, correlation ids, stderr/stdout
+  /// routing) is identical between the two formats.
+  private readonly pretty: boolean;
 
-  constructor(configuredLogLevel = process.env.LOG_LEVEL ?? 'info') {
+  constructor(
+    configuredLogLevel = process.env.LOG_LEVEL ?? 'info',
+    logFormat = process.env.LOG_FORMAT ?? 'json',
+  ) {
     this.threshold = LEVEL_RANK[mapConfiguredLevel(configuredLogLevel)];
+    this.pretty = logFormat === 'pretty';
   }
 
   log(message: unknown, ...optionalParams: unknown[]): void {
@@ -90,20 +103,35 @@ export class StructuredLoggerService implements LoggerService {
     const context = optionalParams.length > 0 ? optionalParams[optionalParams.length - 1] : undefined;
     const rest = optionalParams.length > 0 ? optionalParams.slice(0, -1) : [];
 
+    const requestId = getRequestId();
     const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       level,
       message: message instanceof Error ? message.message : message,
       ...(message instanceof Error ? { stack: message.stack } : {}),
       ...(typeof context === 'string' ? { context } : {}),
+      ...(requestId ? { requestId } : {}),
       ...(rest.length > 0 ? { details: rest } : {}),
     };
 
-    const line = JSON.stringify(entry);
+    const line = this.pretty ? this.renderPretty(entry) : JSON.stringify(entry);
     if (level === 'error' || level === 'fatal') {
       process.stderr.write(line + '\n');
     } else {
       process.stdout.write(line + '\n');
     }
+  }
+
+  /// `LOG_FORMAT=pretty` — one line, no JSON braces, everything a
+  /// developer's eye needs in reading order:
+  /// `HH:MM:SS LEVEL [context] [reqId] message {details}`.
+  private renderPretty(entry: Record<string, unknown>): string {
+    const time = String(entry.timestamp).slice(11, 19);
+    const level = String(entry.level).toUpperCase().padEnd(7);
+    const context = entry.context ? `[${String(entry.context)}] ` : '';
+    const reqId = entry.requestId ? `[${String(entry.requestId).slice(0, 8)}] ` : '';
+    const details = entry.details ? ` ${JSON.stringify(entry.details)}` : '';
+    const stack = entry.stack ? `\n${String(entry.stack)}` : '';
+    return `${time} ${level} ${context}${reqId}${String(entry.message)}${details}${stack}`;
   }
 }

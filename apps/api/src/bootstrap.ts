@@ -2,7 +2,8 @@ import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import type { Express } from 'express';
+import compression from 'compression';
+import type { Express, Request, Response } from 'express';
 import type { EnvConfig } from './config/env.validation.js';
 import { requestIdMiddleware } from './observability/request-id.middleware.js';
 
@@ -53,6 +54,26 @@ export function configureApp(app: INestApplication): void {
       // pinning it here documents the decision) — this API serves no
       // content that should ever be framed by another origin.
       frameguard: { action: 'deny' },
+    }),
+  );
+  // Module 14 — API Gateway: response compression. Explicit `filter`
+  // (rather than the package default alone) so SSE responses — Module
+  // 5/11's AI chat streaming, Module 3/4's live job logs — are never
+  // touched even if a future dependency bump changes `compressible`'s
+  // (the library `compression` delegates to) classification of
+  // `text/event-stream`; compressing a stream that's meant to flush
+  // token-by-token would buffer it instead, defeating the entire point
+  // of SSE. Falls through to `compression`'s own default filter (which
+  // already respects `Cache-Control: no-transform` and skips
+  // already-compressed/non-compressible mime types) for everything else.
+  app.use(
+    compression({
+      filter: (req: Request, res: Response) => {
+        if (res.getHeader('Content-Type')?.toString().includes('text/event-stream')) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
     }),
   );
   // Module 10 — Observability: assigns/propagates X-Request-Id before

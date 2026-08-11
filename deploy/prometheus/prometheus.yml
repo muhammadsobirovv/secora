@@ -1,0 +1,33 @@
+# PentestHub AI — Prometheus scrape config (Module 14: Monitoring).
+#
+# Docker Compose path: mounted into the `prometheus` service by
+# docker-compose.monitoring.yml. Kubernetes path: not used directly —
+# a cluster-wide Prometheus (kube-prometheus-stack or similar) should
+# instead auto-discover the `api` Service via the `prometheus.io/*`
+# annotations already on it (see deploy/k8s/10-api-deployment.yaml) —
+# see deploy/prometheus/README.md for why this repo doesn't ship its
+# own Prometheus Kubernetes manifests.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Process metrics + HTTP/webhook/workflow/MCP/Agent SDK/script/
+  # evaluation counters — see apps/api/src/modules/observability/
+  # metrics-registry.service.ts for the full metric list. Open by
+  # default; set OBSERVABILITY_METRICS_TOKEN and add a `bearer_token`
+  # line here to require auth (recommended for anything beyond local
+  # development).
+  - job_name: pentesthub-api
+    metrics_path: /observability/metrics
+    static_configs:
+      - targets: ["api:3000"]
+    # bearer_token: "REPLACE_WITH_OBSERVABILITY_METRICS_TOKEN"

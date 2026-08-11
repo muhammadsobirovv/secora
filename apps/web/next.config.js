@@ -1,3 +1,13 @@
+import { createRequire } from "node:module";
+
+// Module 14 — Auto Update: bakes this build's package.json version into
+// the client bundle as NEXT_PUBLIC_APP_VERSION. `createRequire` rather
+// than a JSON import-assertion — works across the Node versions this
+// monorepo's various tooling targets without depending on a specific
+// `import ... with { type: "json" }` engine cutoff.
+const require = createRequire(import.meta.url);
+const { version: appVersion } = require("./package.json");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // @pentesthub/shared ships TypeScript source directly (no build step,
@@ -14,6 +24,9 @@ const nextConfig = {
   // instead of copying the entire monorepo's node_modules into the
   // final container layer.
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
 };
 
 export default nextConfig;

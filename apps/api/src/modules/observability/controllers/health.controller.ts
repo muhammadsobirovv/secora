@@ -26,8 +26,16 @@ export class HealthController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Liveness probe — process is up' })
-  liveness(): { status: 'ok'; uptimeSeconds: number } {
-    return { status: 'ok', uptimeSeconds: process.uptime() };
+  liveness(): { status: 'ok'; uptimeSeconds: number; version: string } {
+    // Module 14 — Auto Update: same `npm_package_version` source
+    // `ClusterOverviewService`'s `version.current` and `worker.main.ts`'s
+    // boot log already use. This is the one endpoint reachable
+    // unauthenticated from the browser (no DB dependency, so safe to
+    // poll frequently) — `apps/web`'s stale-build banner compares this
+    // against the version baked into the JS bundle at build time
+    // (`NEXT_PUBLIC_APP_VERSION`) to detect "server redeployed since you
+    // loaded this page."
+    return { status: 'ok', uptimeSeconds: process.uptime(), version: process.env.npm_package_version ?? 'unknown' };
   }
 
   @Public()

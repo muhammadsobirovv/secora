@@ -256,6 +256,24 @@ export interface PluginInstallationDto {
   updatedAt: string;
 }
 
+/// Module 14 — Auto Update. One row per installation whose installed
+/// `versionId` is not the plugin's latest non-deprecated published
+/// version — the "check for plugin updates" surface the Plugin
+/// SDK/Marketplace (Module 13) never got a query for. Denormalizes
+/// plugin name + both version strings so the Admin Console/frontend can
+/// render a list without a second round-trip per row.
+export interface PluginAvailableUpdateDto {
+  installationId: string;
+  pluginId: string;
+  pluginName: string;
+  workspaceId: string | null;
+  installedVersionId: string;
+  installedVersion: string;
+  latestVersionId: string;
+  latestVersion: string;
+  latestChangelog: string | null;
+}
+
 export interface UpdatePluginInstallationRequestDto {
   versionId?: string;
   enabled?: boolean;

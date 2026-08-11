@@ -5,6 +5,7 @@ import { ReconJobPollerService } from './modules/recon/execution/recon-job-polle
 import { VulnScanJobPollerService } from './modules/vuln/execution/vuln-scan-job-poller.service.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
+import { StructuredLoggerService } from './observability/structured-logger.service.js';
 
 /// The background worker's own entry point, run as a separate OS process
 /// from the HTTP API (`pnpm worker:dev` / `node dist/src/worker.main.js`)
@@ -20,8 +21,27 @@ import { WorkerReaperService } from './modules/distributed-jobs/services/worker-
 /// — see worker.module.ts's comment for why Module 4 didn't introduce a
 /// second worker binary.
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(WorkerModule);
+  // Module 14 — Centralized Logging: the worker process previously fell
+  // back to Nest's default pretty-printed console logger since only
+  // main.ts (the API process) passed a `logger` option to its factory
+  // call — meaning worker logs (recon/vuln tool execution, backup runs,
+  // worker-reaper crash recovery) weren't structured JSON like every
+  // API-process log line, breaking log aggregation for exactly the
+  // events an operator most wants to search. `createApplicationContext`
+  // accepts the same `logger` option `NestFactory.create` does.
+  const app = await NestFactory.createApplicationContext(WorkerModule, {
+    logger: new StructuredLoggerService(),
+  });
   const logger = new Logger('Worker');
+  // Module 14 — Auto Update: logs the running version at boot, same
+  // `npm_package_version` source `ClusterOverviewService` reads for the
+  // API process's own `version.current` — the cheapest possible
+  // version-visibility mechanism for this process, since it has no HTTP
+  // listener to expose a `/version` endpoint from (see
+  // docs/architecture/auto-update.md for why, and for the
+  // WorkerNode.version field this process does not currently populate —
+  // it isn't a distributed-jobs fleet client).
+  logger.log(`Worker starting (version ${process.env.npm_package_version ?? 'unknown'})`);
 
   const reconPoller = app.get(ReconJobPollerService);
   const vulnPoller = app.get(VulnScanJobPollerService);

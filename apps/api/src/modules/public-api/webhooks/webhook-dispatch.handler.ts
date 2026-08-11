@@ -40,6 +40,13 @@ import {
   ScheduledJobRunCompletedEvent,
   ScheduledJobRunFailedEvent,
 } from '../../automation/events/scheduled-job-events.js';
+import { ProjectCreatedEvent } from '../../projects/events/project-events.js';
+import {
+  OrchestrationRunCancelledEvent,
+  OrchestrationRunCompletedEvent,
+  OrchestrationRunCreatedEvent,
+  OrchestrationRunFailedEvent,
+} from '../../agent/events/orchestration-run-events.js';
 import { toWebhookEventKey } from './webhook-signature.util.js';
 
 /// Turns a real domain event into pending outbound webhook deliveries.
@@ -103,6 +110,13 @@ import { toWebhookEventKey } from './webhook-signature.util.js';
   PluginUninstalledEvent,
   ScheduledJobRunCompletedEvent,
   ScheduledJobRunFailedEvent,
+  // Module 13 — Event Bus expansion (task #284): real, already-published
+  // events that simply weren't wired to webhook delivery before.
+  ProjectCreatedEvent,
+  OrchestrationRunCreatedEvent,
+  OrchestrationRunCompletedEvent,
+  OrchestrationRunFailedEvent,
+  OrchestrationRunCancelledEvent,
 )
 export class WebhookDispatchHandler implements IEventHandler<ActivityDomainEvent> {
   private readonly logger = new Logger(WebhookDispatchHandler.name);

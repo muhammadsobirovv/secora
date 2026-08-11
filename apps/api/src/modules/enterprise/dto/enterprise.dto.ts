@@ -1,12 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsEmail,
+  IsHexColor,
   IsIn,
   IsInt,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -15,6 +18,8 @@ import type {
   AcceptOrganizationInviteRequestDto as AcceptInviteShape,
   AddTeamMemberRequestDto as AddTeamMemberShape,
   ApprovalRequestStatus,
+  BillingWebhookEventDto as BillingWebhookShape,
+  BillingWebhookEventType,
   CreateApprovalRequestRequestDto as CreateApprovalRequestShape,
   CreateApprovalWorkflowRequestDto as CreateApprovalWorkflowShape,
   CreateCustomRoleRequestDto as CreateCustomRoleShape,
@@ -38,6 +43,8 @@ import type {
   UpdateOrganizationSettingsRequestDto as UpdateOrgSettingsShape,
   UpdateResourceQuotaRequestDto as UpdateQuotaShape,
   UpdateTeamRequestDto as UpdateTeamShape,
+  UpdateTenantBillingRequestDto as UpdateTenantBillingShape,
+  UpdateTenantBrandingRequestDto as UpdateTenantBrandingShape,
 } from '@pentesthub/shared';
 
 const ENTERPRISE_ROLES: EnterpriseRole[] = [
@@ -54,6 +61,12 @@ const ENTERPRISE_ROLES: EnterpriseRole[] = [
 ];
 const ORG_MEMBER_STATUSES: OrganizationMemberStatus[] = ['ACTIVE', 'SUSPENDED'];
 const ORG_STATUSES = ['ACTIVE', 'TRIAL', 'SUSPENDED', 'ARCHIVED'] as const;
+const BILLING_WEBHOOK_EVENT_TYPES: BillingWebhookEventType[] = [
+  'SUBSCRIPTION_CREATED',
+  'SUBSCRIPTION_UPDATED',
+  'SUBSCRIPTION_CANCELLED',
+  'PAYMENT_FAILED',
+];
 const PERMISSION_SUBJECT_TYPES: PermissionSubjectType[] = ['USER', 'TEAM', 'ROLE'];
 const PERMISSION_EFFECTS: PermissionEffect[] = ['ALLOW', 'DENY'];
 const APPROVAL_REQUEST_STATUSES: ApprovalRequestStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
@@ -92,6 +105,29 @@ export class UpdateResourceQuotaDto implements UpdateQuotaShape {
   @ApiPropertyOptional() @IsOptional() @IsInt() maxAiTokensPerMonth?: number | null;
   @ApiPropertyOptional() @IsOptional() @IsInt() maxApiKeysPerMember?: number | null;
   @ApiPropertyOptional() @IsOptional() @IsInt() maxWebhooksPerWorkspace?: number | null;
+}
+
+// --- Tenant Management (Module 14, Enterprise Edition only) ---
+
+export class UpdateTenantBillingDto implements UpdateTenantBillingShape {
+  @ApiPropertyOptional() @IsOptional() @IsEmail() billingEmail?: string;
+}
+
+export class UpdateTenantBrandingDto implements UpdateTenantBrandingShape {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(253) customDomain?: string;
+  @ApiPropertyOptional() @IsOptional() @IsHexColor() brandingPrimaryColor?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUrl() brandingFaviconUrl?: string;
+}
+
+/// Module 14 — Tenant Management. Body shape `BillingWebhookController`
+/// accepts — see that controller's doc comment for the shared-secret
+/// auth model (there's no per-provider signature scheme here, since no
+/// specific billing provider is wired in by default).
+export class BillingWebhookEventDto implements BillingWebhookShape {
+  @ApiProperty({ enum: BILLING_WEBHOOK_EVENT_TYPES }) @IsIn(BILLING_WEBHOOK_EVENT_TYPES) type!: BillingWebhookEventType;
+  @ApiProperty() @IsString() billingProviderCustomerId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() subscriptionStatus?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() subscriptionRenewsAt?: string;
 }
 
 export class ListOrganizationMembersQueryParamsDto implements ListMembersShape {
