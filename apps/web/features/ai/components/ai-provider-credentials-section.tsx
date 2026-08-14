@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Trash2 } from "lucide-react";
+import { ExternalLink, KeyRound, Loader2, Trash2 } from "lucide-react";
 import type { AiProviderCredentialDto, AiProviderName } from "@pentesthub/shared";
 import { AI_PROVIDER_NAMES } from "@pentesthub/shared";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   useAiProviderCredentials,
+  useAiProviderMarketplace,
   useAiProviders,
   useDeleteAiProviderCredential,
   useUpsertAiProviderCredential,
@@ -52,6 +53,10 @@ const EMPTY_FORM: ProviderFormState = { apiKey: "", baseUrl: "", model: "" };
 export function AiProviderCredentialsSection() {
   const { data: statuses, isLoading: statusesLoading } = useAiProviders();
   const { data: credentials, isLoading: credentialsLoading } = useAiProviderCredentials();
+  // Module 15 — AI provider marketplace (BYOK expansion, task #341). Only
+  // used for its docsUrl per provider here — recommendedModels/description
+  // are available for a fuller "browse" view later without another fetch.
+  const { data: marketplace } = useAiProviderMarketplace();
   const upsert = useUpsertAiProviderCredential();
   const del = useDeleteAiProviderCredential();
 
@@ -132,6 +137,7 @@ export function AiProviderCredentialsSection() {
         {!loading &&
           AI_PROVIDER_NAMES.map((provider, index) => {
             const status = statuses?.find((s) => s.provider === provider);
+            const marketplaceEntry = marketplace?.find((e) => e.provider === provider);
             const credential = credentialByProvider.get(provider);
             const form = getForm(provider);
             const isSaving = savingProvider === provider;
@@ -166,7 +172,22 @@ export function AiProviderCredentialsSection() {
                       </Button>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{PROVIDER_HINTS[provider]}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {PROVIDER_HINTS[provider]}
+                    {marketplaceEntry?.docsUrl && (
+                      <>
+                        {" "}
+                        <a
+                          href={marketplaceEntry.docsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                        >
+                          Docs <ExternalLink className="size-3" />
+                        </a>
+                      </>
+                    )}
+                  </p>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="space-y-1.5">

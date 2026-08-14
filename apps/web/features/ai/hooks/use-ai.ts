@@ -13,6 +13,7 @@ export const aiKeys = {
   conversations: (projectId?: string) => ["ai", "conversations", projectId ?? "all"] as const,
   conversation: (id: string) => ["ai", "conversations", "detail", id] as const,
   providers: ["ai", "providers"] as const,
+  providerMarketplace: ["ai", "provider-marketplace"] as const,
   providerCredentials: ["ai", "provider-credentials"] as const,
   speechProviders: ["ai", "speech-providers"] as const,
   context: (projectId: string) => ["ai", "context", projectId] as const,
@@ -41,6 +42,17 @@ export function useAiConversation(id: string | null) {
 
 export function useAiProviders() {
   return useQuery({ queryKey: aiKeys.providers, queryFn: aiApi.listAiProviders });
+}
+
+/// Module 15 — AI provider marketplace (BYOK expansion, task #341). Catalog
+/// metadata (description, docsUrl, recommended models) merged with live
+/// status — same underlying data as useAiProviders, richer for a "browse
+/// what's available" view rather than just a configured/unconfigured list.
+export function useAiProviderMarketplace() {
+  return useQuery({
+    queryKey: aiKeys.providerMarketplace,
+    queryFn: aiApi.listAiProviderMarketplace,
+  });
 }
 
 /// Local-First Migration Phase 1 (BYOK) — this workspace's own stored

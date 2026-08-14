@@ -51,11 +51,17 @@ class ProjectCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // Module 15 — task #349 (accessibility audit): a star-shaped
+              // icon alone carries no accessible name — `tooltip` gives
+              // IconButton both a long-press tooltip and the Semantics
+              // label screen readers announce, matching the same
+              // favorite-toggle gap fixed in apps/web's project table.
               IconButton(
                 icon: Icon(
                   project.isFavorite ? Icons.star : Icons.star_border,
                   color: project.isFavorite ? AppColors.warning : AppColors.textSecondary,
                 ),
+                tooltip: project.isFavorite ? 'Remove from favorites' : 'Add to favorites',
                 onPressed: onToggleFavorite,
               ),
             ],

@@ -1,200 +1,120 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { EventBus } from '@nestjs/cqrs';
-import { ConfigService } from '@nestjs/config';
-import {
-  CreateVulnScanJobCommand,
-  CreateVulnScanJobHandler,
-} from './create-vuln-scan-job.command.js';
+import type { ConfigService } from '@nestjs/config';
 import type { WorkspacesRepository } from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import type { ProjectsRepository } from '../../projects/domain/repositories/projects.repository.interface.js';
 import type { TargetsRepository } from '../../targets/domain/repositories/targets.repository.interface.js';
 import type { VulnScanJobsRepository } from '../domain/repositories/vuln-scan-jobs.repository.interface.js';
 import type { VulnScanTemplatesRepository } from '../domain/repositories/vuln-scan-templates.repository.interface.js';
-import type { EnvConfig } from '../../../config/env.validation.js';
-import type {
-  Target,
-  VulnScanJob,
-  VulnScanJobToolRun,
-  Workspace,
-} from '../../../prisma-types.js';
+import type { Target, Workspace } from '../../../prisma-types.js';
+import { CreateVulnScanJobCommand, CreateVulnScanJobHandler } from './create-vuln-scan-job.command.js';
 
-function buildDeps() {
-  const workspace = { id: 'ws-1' } as Workspace;
-  const target = {
+function buildTarget(overrides?: Partial<Target>): Target {
+  return {
     id: 'target-1',
-    projectId: 'proj-1',
-    type: 'URL',
-    value: 'https://example.com',
-  } as Target;
-  const job = {
-    id: 'job-1',
-    workspaceId: 'ws-1',
-    projectId: 'proj-1',
-    targetId: 'target-1',
-    scanners: ['NUCLEI'],
-    status: 'PENDING',
-    toolRuns: [
-      {
-        id: 'tr-1',
-        scanner: 'NUCLEI',
-        status: 'PENDING',
-      } as VulnScanJobToolRun,
-    ],
+    projectId: 'project-1',
+    type: 'DOMAIN',
+    value: 'example.com',
+    name: null,
+    description: null,
+    environment: 'UNKNOWN',
+    scopeStatus: 'PENDING_REVIEW',
+    customFields: null,
+    createdBy: 'user-1',
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as unknown as VulnScanJob & { toolRuns: VulnScanJobToolRun[] };
+    ...overrides,
+  } as Target;
+}
 
-  const workspacesRepository = {
-    findPersonalWorkspaceForUser: jest
-      .fn<WorkspacesRepository['findPersonalWorkspaceForUser']>()
-      .mockResolvedValue(workspace),
-  } as unknown as jest.Mocked<WorkspacesRepository>;
-  const projectsRepository = {
-    findByIdForWorkspace: jest
-      .fn<ProjectsRepository['findByIdForWorkspace']>()
-      .mockResolvedValue({
-        id: 'proj-1',
-        workspaceId: 'ws-1',
-        tags: [],
-      } as never),
-  } as unknown as jest.Mocked<ProjectsRepository>;
-  const targetsRepository = {
-    findById: jest
-      .fn<TargetsRepository['findById']>()
-      .mockResolvedValue({ ...target, tags: [] }),
-  } as unknown as jest.Mocked<TargetsRepository>;
-  const vulnScanJobsRepository = {
-    create: jest.fn<VulnScanJobsRepository['create']>().mockResolvedValue(job),
-  } as unknown as jest.Mocked<VulnScanJobsRepository>;
-  const vulnScanTemplatesRepository = {
-    findByIdForWorkspace:
-      jest.fn<VulnScanTemplatesRepository['findByIdForWorkspace']>(),
-  } as unknown as jest.Mocked<VulnScanTemplatesRepository>;
-  const configService = {
-    get: jest.fn((key: string) =>
-      key === 'VULN_JOB_TIMEOUT_SECONDS' ? 1800 : 2,
-    ),
-  } as unknown as jest.Mocked<ConfigService<EnvConfig, true>>;
-  const eventBus = { publish: jest.fn() } as unknown as jest.Mocked<EventBus>;
-
+function buildWorkspace(overrides?: Partial<Workspace>): Workspace {
   return {
+    id: 'workspace-1',
+    name: 'Test workspace',
+    slug: 'test-workspace',
+    avatarUrl: null,
+    description: null,
+    plan: null,
+    organizationId: null,
+    teamId: null,
+    isDemo: false,
+    demoExpiresAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as Workspace;
+}
+
+function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
+  const workspacesRepository: WorkspacesRepository = {
+    create: jest.fn(),
+    addMember: jest.fn(),
+    findById: jest.fn(),
+    findPersonalWorkspaceForUser: jest.fn(async () => opts.workspace) as unknown as WorkspacesRepository['findPersonalWorkspaceForUser'],
+    update: jest.fn(),
+    listMembers: jest.fn(),
+    isMember: jest.fn(),
+  };
+  const projectsRepository: Partial<ProjectsRepository> = {
+    findByIdForWorkspace: jest.fn(async () => ({ id: 'project-1' })) as unknown as ProjectsRepository['findByIdForWorkspace'],
+  };
+  const targetsRepository: Partial<TargetsRepository> = {
+    findById: jest.fn(async () => buildTarget()) as unknown as TargetsRepository['findById'],
+  };
+  const vulnScanJobsRepository: Partial<VulnScanJobsRepository> = {
+    create: opts.create as unknown as VulnScanJobsRepository['create'],
+  };
+  const vulnScanTemplatesRepository: Partial<VulnScanTemplatesRepository> = {
+    findByIdForWorkspace: jest.fn(),
+  };
+  const configService = { get: jest.fn(() => 1800) } as unknown as ConfigService;
+  const eventBus = { publish: jest.fn() } as unknown as EventBus;
+
+  const handler = new CreateVulnScanJobHandler(
     workspacesRepository,
-    projectsRepository,
-    targetsRepository,
-    vulnScanJobsRepository,
-    vulnScanTemplatesRepository,
+    projectsRepository as ProjectsRepository,
+    targetsRepository as TargetsRepository,
+    vulnScanJobsRepository as VulnScanJobsRepository,
+    vulnScanTemplatesRepository as VulnScanTemplatesRepository,
     configService,
     eventBus,
-    job,
-  };
+  );
+  return { handler, vulnScanJobsRepository, eventBus };
 }
 
 describe('CreateVulnScanJobHandler', () => {
-  it('resolves the target, validates scanner/target-type compatibility, creates the job, and publishes VulnScanJobCreatedEvent', async () => {
-    const deps = buildDeps();
-    const handler = new CreateVulnScanJobHandler(
-      deps.workspacesRepository,
-      deps.projectsRepository,
-      deps.targetsRepository,
-      deps.vulnScanJobsRepository,
-      deps.vulnScanTemplatesRepository,
-      deps.configService,
-      deps.eventBus,
-    );
+  // Module 15 — task #352 (demo mode). Same guard as
+  // CreateReconJobHandler, same reasoning: a demo workspace must never
+  // start a real vulnerability scan.
 
-    const result = await handler.execute(
-      new CreateVulnScanJobCommand('user-1', 'target-1', {
-        scanners: ['NUCLEI'],
-      }),
-    );
-
-    expect(deps.vulnScanJobsRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workspaceId: 'ws-1',
-        projectId: 'proj-1',
-        targetId: 'target-1',
-        scanners: ['NUCLEI'],
-        requestedBy: 'user-1',
-        priority: 0,
-      }),
-    );
-    expect(deps.eventBus.publish).toHaveBeenCalledWith(
-      expect.objectContaining({
-        verb: 'vuln_scan_job.created',
-        jobId: 'job-1',
-      }),
-    );
-    expect(result.id).toBe('job-1');
-  });
-
-  it('rejects a scanner that does not support the target type before ever creating a job', async () => {
-    const deps = buildDeps();
-    deps.targetsRepository.findById = jest
-      .fn<TargetsRepository['findById']>()
-      .mockResolvedValue({
-        id: 'target-1',
-        projectId: 'proj-1',
-        type: 'IP_ADDRESS', // FFUF only supports URL
-        value: '1.2.3.4',
-        tags: [],
-      } as never);
-
-    const handler = new CreateVulnScanJobHandler(
-      deps.workspacesRepository,
-      deps.projectsRepository,
-      deps.targetsRepository,
-      deps.vulnScanJobsRepository,
-      deps.vulnScanTemplatesRepository,
-      deps.configService,
-      deps.eventBus,
-    );
+  it('rejects job creation for a demo workspace before touching the repository', async () => {
+    const create = jest.fn();
+    const { handler, vulnScanJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: true }),
+      create,
+    });
 
     await expect(
-      handler.execute(
-        new CreateVulnScanJobCommand('user-1', 'target-1', {
-          scanners: ['FFUF'],
-        }),
-      ),
-    ).rejects.toMatchObject({
-      code: 'VULN_SCANNER_NOT_SUPPORTED_FOR_TARGET_TYPE',
-    });
-    expect(deps.vulnScanJobsRepository.create).not.toHaveBeenCalled();
+      handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] })),
+    ).rejects.toMatchObject({ code: 'DEMO_WORKSPACE_READ_ONLY' });
+
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
-  it('falls back to the template scanners/config when none are supplied directly', async () => {
-    const deps = buildDeps();
-    deps.vulnScanTemplatesRepository.findByIdForWorkspace = jest
-      .fn<VulnScanTemplatesRepository['findByIdForWorkspace']>()
-      .mockResolvedValue({
-        id: 'tmpl-1',
-        workspaceId: 'ws-1',
-        scanners: ['NUCLEI', 'NIKTO'],
-        config: { NUCLEI: { severity: ['high'] } },
-      } as never);
+  it('creates the job normally for a non-demo workspace', async () => {
+    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const { handler, vulnScanJobsRepository } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+    });
 
-    const handler = new CreateVulnScanJobHandler(
-      deps.workspacesRepository,
-      deps.projectsRepository,
-      deps.targetsRepository,
-      deps.vulnScanJobsRepository,
-      deps.vulnScanTemplatesRepository,
-      deps.configService,
-      deps.eventBus,
+    const result = await handler.execute(
+      new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] }),
     );
 
-    await handler.execute(
-      new CreateVulnScanJobCommand('user-1', 'target-1', {
-        scanners: [],
-        templateId: 'tmpl-1',
-      }),
-    );
-
-    expect(deps.vulnScanJobsRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        scanners: ['NUCLEI', 'NIKTO'],
-        config: { NUCLEI: { severity: ['high'] } },
-        templateId: 'tmpl-1',
-      }),
-    );
+    expect(vulnScanJobsRepository.create).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe('job-1');
   });
 });

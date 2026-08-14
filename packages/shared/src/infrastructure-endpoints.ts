@@ -17,4 +17,7 @@ export const ADMIN_INFRASTRUCTURE_ENDPOINTS = {
 export const OBSERVABILITY_HEALTH_ENDPOINTS = {
   liveness: () => "/observability/health",
   readiness: () => "/observability/health/ready",
+  // Module 15 — task #353. Public combined self-test used by the
+  // Settings → Diagnostics page (and any future support-ticket flow).
+  diagnostics: () => "/observability/health/diagnostics",
 } as const;

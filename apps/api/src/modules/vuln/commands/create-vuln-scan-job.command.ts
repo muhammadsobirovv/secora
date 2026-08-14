@@ -70,13 +70,25 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
   ) {}
 
   async execute(command: CreateVulnScanJobCommand): Promise<VulnScanJobDto> {
-    const { workspaceId, target } = await resolveTargetForCaller(
+    const { workspaceId, isDemoWorkspace, target } = await resolveTargetForCaller(
       this.workspacesRepository,
       this.projectsRepository,
       this.targetsRepository,
       command.userId,
       command.targetId,
     );
+
+    // Module 15 — task #352 (demo mode). Same reasoning as
+    // CreateReconJobHandler's identical guard: demo workspaces are
+    // read-only sandboxes over pre-seeded data, reachable from an
+    // unauthenticated public entry point — never allow a real scan.
+    if (isDemoWorkspace) {
+      throw new AppException(
+        'DEMO_WORKSPACE_READ_ONLY',
+        'This is a demo workspace with sample data only — new scans are disabled. Sign up for a free account to run real scans.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     let scanners = command.data.scanners;
     let config = command.data.config ?? null;

@@ -85,10 +85,25 @@ export interface WorkspaceAiPrivacySettingDto {
   workspaceId: string;
   mode: AiPrivacyMode;
   updatedAt: string;
+  /// Module 15 — Local-first AI confirmation (task #341). Null until the
+  /// workspace has explicitly acknowledged that CLOUD/HYBRID mode sends
+  /// data to a third-party AI provider; set the first time
+  /// UpdateWorkspaceAiPrivacyModeRequestDto.confirmCloudUsage is sent as
+  /// true. Never cleared by switching to LOCAL — once a workspace has
+  /// confirmed, re-enabling CLOUD/HYBRID later doesn't ask again.
+  cloudUsageConfirmedAt: string | null;
 }
 
 export interface UpdateWorkspaceAiPrivacyModeRequestDto {
   mode: AiPrivacyMode;
+  /// Module 15 (task #341). Required (must be `true`) the first time a
+  /// workspace sets mode to CLOUD or HYBRID and has no prior
+  /// cloudUsageConfirmedAt — the backend throws AI_CLOUD_USAGE_NOT_CONFIRMED
+  /// otherwise, so the frontend gets a clear signal to show a one-time
+  /// consent dialog ("your data may be sent to OpenAI/Anthropic/etc.") and
+  /// resubmit with this set to true. Ignored (no-op) for mode: "LOCAL" and
+  /// for any workspace that has already confirmed once before.
+  confirmCloudUsage?: boolean;
 }
 
 /// The internal platform tools the AI can call (AI Tool Calling). Kept here
@@ -232,6 +247,95 @@ export interface AiProviderStatusDto {
   /// under LOCAL mode the same way it already greys out unconfigured ones,
   /// rather than letting the user pick one that will throw
   /// AiPrivacyModeViolationError on first use.
+  allowedByPrivacyMode: boolean;
+}
+
+/// Module 15 — AI provider marketplace (BYOK expansion, task #341).
+/// Structural signal ("does this provider run cloud-side or on
+/// infrastructure the workspace controls") already exists as
+/// LOCAL_AI_PROVIDER_NAMES; this catalog adds the human-facing metadata
+/// (what is this, why would I pick it, where do I get a key) that turns
+/// GET /ai/providers' bare configured/unconfigured list into an actual
+/// browsable marketplace a workspace admin can use to decide what to set
+/// up next — not just a status readout of providers already wired up.
+export interface AiProviderMarketplaceCatalogEntry {
+  provider: AiProviderName;
+  displayName: string;
+  description: string;
+  /// Mirrors LOCAL_AI_PROVIDER_NAMES membership — kept as an explicit field
+  /// here (rather than making the frontend re-derive it) since this DTO is
+  /// the one purpose-built for display.
+  category: "cloud" | "local";
+  requiresApiKey: boolean;
+  capabilities: ("chat" | "embeddings" | "vision")[];
+  docsUrl: string;
+  recommendedModels: string[];
+}
+
+export const AI_PROVIDER_MARKETPLACE: AiProviderMarketplaceCatalogEntry[] = [
+  {
+    provider: "OPENAI",
+    displayName: "OpenAI",
+    description:
+      "GPT-4o/GPT-4.1 family — strong general-purpose reasoning and tool calling, plus the platform's default embeddings provider.",
+    category: "cloud",
+    requiresApiKey: true,
+    capabilities: ["chat", "embeddings", "vision"],
+    docsUrl: "https://platform.openai.com/docs/api-reference",
+    recommendedModels: ["gpt-4o", "gpt-4o-mini", "gpt-4.1"],
+  },
+  {
+    provider: "ANTHROPIC",
+    displayName: "Anthropic",
+    description:
+      "Claude family — long-context reasoning and code generation. No embeddings API; RAG always falls back to a different embedding-capable provider.",
+    category: "cloud",
+    requiresApiKey: true,
+    capabilities: ["chat", "vision"],
+    docsUrl: "https://docs.claude.com/en/api",
+    recommendedModels: ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"],
+  },
+  {
+    provider: "GEMINI",
+    displayName: "Google Gemini",
+    description:
+      "Gemini family — competitive pricing, native multimodal input, and its own embeddings API.",
+    category: "cloud",
+    requiresApiKey: true,
+    capabilities: ["chat", "embeddings", "vision"],
+    docsUrl: "https://ai.google.dev/gemini-api/docs",
+    recommendedModels: ["gemini-2.0-flash", "gemini-2.0-pro"],
+  },
+  {
+    provider: "OLLAMA",
+    displayName: "Ollama (self-hosted)",
+    description:
+      "Runs entirely on infrastructure the workspace controls — no API key, no data leaving the workspace's own network. The only provider LOCAL privacy mode permits.",
+    category: "local",
+    requiresApiKey: false,
+    capabilities: ["chat", "embeddings"],
+    docsUrl: "https://github.com/ollama/ollama/blob/main/docs/api.md",
+    recommendedModels: ["llama3.1", "mistral", "nomic-embed-text"],
+  },
+  {
+    provider: "OPENROUTER",
+    displayName: "OpenRouter",
+    description:
+      "Unified API in front of dozens of hosted models (including many not otherwise wired in as first-class adapters) — useful for trying alternatives without a separate integration per model. No embeddings API.",
+    category: "cloud",
+    requiresApiKey: true,
+    capabilities: ["chat"],
+    docsUrl: "https://openrouter.ai/docs",
+    recommendedModels: ["openai/gpt-4o", "anthropic/claude-sonnet-4.5"],
+  },
+];
+
+/// The live-status equivalent of AiProviderStatusDto, merged with its
+/// catalog entry — what GET /ai/providers/marketplace actually returns.
+export interface AiProviderMarketplaceEntryDto extends AiProviderMarketplaceCatalogEntry {
+  configured: boolean;
+  defaultModel: string | null;
+  byok: boolean;
   allowedByPrivacyMode: boolean;
 }
 

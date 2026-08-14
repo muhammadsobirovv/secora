@@ -120,6 +120,53 @@ export interface MfaDisableRequestDto {
   currentPassword: string;
 }
 
+// --- Privacy controls (Module 15, task #342) ------------------------------------
+
+/// Re-proves account ownership before permanently deleting the account —
+/// same "currentPassword" re-confirmation pattern as MfaDisableRequestDto/
+/// ChangePasswordDto, for the same reason: a live access token alone must
+/// not be sufficient to trigger an irreversible account action.
+export interface DeleteAccountRequestDto {
+  currentPassword: string;
+}
+
+/// GET /auth/privacy/data-export — a synchronous, self-service export of
+/// everything this codebase currently associates with the calling user's
+/// own account (profile, sessions, linked OAuth accounts, preferences,
+/// audit events). Deliberately NOT the same thing as Module 10's
+/// organization-wide ComplianceExportRequest flow (async, admin-triggered,
+/// covers audit/org-membership/workflow/integration data across an entire
+/// organization) — this is the individual "download my data" self-service
+/// right, scoped to exactly one account, returned inline rather than
+/// queued, since a single account's footprint is small.
+export interface UserDataExportDto {
+  exportedAt: string;
+  account: {
+    id: string;
+    email: string;
+    displayName: string;
+    emailVerified: boolean;
+    status: string;
+    createdAt: string;
+  };
+  preferences: Record<string, unknown> | null;
+  sessions: Array<{
+    id: string;
+    deviceName: string;
+    ipAddress: string;
+    userAgent: string;
+    createdAt: string;
+    lastActiveAt: string;
+  }>;
+  linkedOAuthAccounts: Array<{ provider: string; linkedAt: string }>;
+  recentAuditEvents: Array<{
+    type: string;
+    ipAddress: string;
+    userAgent: string;
+    createdAt: string;
+  }>;
+}
+
 // --- Sessions / devices --------------------------------------------------------
 
 export interface SessionSummaryDto {

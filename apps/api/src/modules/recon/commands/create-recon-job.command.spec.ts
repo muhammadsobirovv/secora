@@ -1,160 +1,116 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { EventBus } from '@nestjs/cqrs';
-import { ConfigService } from '@nestjs/config';
-import {
-  CreateReconJobCommand,
-  CreateReconJobHandler,
-} from './create-recon-job.command.js';
+import type { ConfigService } from '@nestjs/config';
 import type { WorkspacesRepository } from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import type { ProjectsRepository } from '../../projects/domain/repositories/projects.repository.interface.js';
 import type { TargetsRepository } from '../../targets/domain/repositories/targets.repository.interface.js';
 import type { ReconJobsRepository } from '../domain/repositories/recon-jobs.repository.interface.js';
-import type { EnvConfig } from '../../../config/env.validation.js';
-import type {
-  ReconJob,
-  ReconJobToolRun,
-  Target,
-  Workspace,
-} from '../../../prisma-types.js';
+import type { Target, Workspace } from '../../../prisma-types.js';
+import { CreateReconJobCommand, CreateReconJobHandler } from './create-recon-job.command.js';
+
+function buildTarget(overrides?: Partial<Target>): Target {
+  return {
+    id: 'target-1',
+    projectId: 'project-1',
+    type: 'DOMAIN',
+    value: 'example.com',
+    name: null,
+    description: null,
+    environment: 'UNKNOWN',
+    scopeStatus: 'PENDING_REVIEW',
+    customFields: null,
+    createdBy: 'user-1',
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as Target;
+}
+
+function buildWorkspace(overrides?: Partial<Workspace>): Workspace {
+  return {
+    id: 'workspace-1',
+    name: 'Test workspace',
+    slug: 'test-workspace',
+    avatarUrl: null,
+    description: null,
+    plan: null,
+    organizationId: null,
+    teamId: null,
+    isDemo: false,
+    demoExpiresAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as Workspace;
+}
+
+function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
+  const workspacesRepository: WorkspacesRepository = {
+    create: jest.fn(),
+    addMember: jest.fn(),
+    findById: jest.fn(),
+    findPersonalWorkspaceForUser: jest.fn(async () => opts.workspace) as unknown as WorkspacesRepository['findPersonalWorkspaceForUser'],
+    update: jest.fn(),
+    listMembers: jest.fn(),
+    isMember: jest.fn(),
+  };
+  const projectsRepository: Partial<ProjectsRepository> = {
+    findByIdForWorkspace: jest.fn(async () => ({ id: 'project-1' })) as unknown as ProjectsRepository['findByIdForWorkspace'],
+  };
+  const targetsRepository: Partial<TargetsRepository> = {
+    findById: jest.fn(async () => buildTarget()) as unknown as TargetsRepository['findById'],
+  };
+  const reconJobsRepository: Partial<ReconJobsRepository> = {
+    create: opts.create as unknown as ReconJobsRepository['create'],
+  };
+  const configService = { get: jest.fn(() => 600) } as unknown as ConfigService;
+  const eventBus = { publish: jest.fn() } as unknown as EventBus;
+
+  const handler = new CreateReconJobHandler(
+    workspacesRepository,
+    projectsRepository as ProjectsRepository,
+    targetsRepository as TargetsRepository,
+    reconJobsRepository as ReconJobsRepository,
+    configService,
+    eventBus,
+  );
+  return { handler, reconJobsRepository, eventBus };
+}
 
 describe('CreateReconJobHandler', () => {
-  it('resolves the target, validates tool/target-type compatibility, creates the job, and publishes ReconJobCreatedEvent', async () => {
-    const workspace = { id: 'ws-1' } as Workspace;
-    const target = {
-      id: 'target-1',
-      projectId: 'proj-1',
-      type: 'DOMAIN',
-      value: 'example.com',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as Target;
-    const targetWithTags = { ...target, tags: [] };
-    const job = {
-      id: 'job-1',
-      workspaceId: 'ws-1',
-      projectId: 'proj-1',
-      targetId: 'target-1',
-      tools: ['SUBFINDER'],
-      status: 'PENDING',
-      toolRuns: [
-        { id: 'tr-1', tool: 'SUBFINDER', status: 'PENDING' } as ReconJobToolRun,
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as unknown as ReconJob & { toolRuns: ReconJobToolRun[] };
+  // Module 15 — task #352 (demo mode). The one behavior this task added
+  // here: a demo workspace (isDemo: true) must never be able to start a
+  // real recon job, since POST /demo/session is an unauthenticated,
+  // publicly reachable entry point.
 
-    const workspacesRepository = {
-      findPersonalWorkspaceForUser: jest
-        .fn<WorkspacesRepository['findPersonalWorkspaceForUser']>()
-        .mockResolvedValue(workspace),
-    } as unknown as jest.Mocked<WorkspacesRepository>;
-    const projectsRepository = {
-      findByIdForWorkspace: jest
-        .fn<ProjectsRepository['findByIdForWorkspace']>()
-        .mockResolvedValue({
-          id: 'proj-1',
-          workspaceId: 'ws-1',
-          tags: [],
-        } as never),
-    } as unknown as jest.Mocked<ProjectsRepository>;
-    const targetsRepository = {
-      findById: jest
-        .fn<TargetsRepository['findById']>()
-        .mockResolvedValue(targetWithTags),
-    } as unknown as jest.Mocked<TargetsRepository>;
-    const reconJobsRepository = {
-      create: jest.fn<ReconJobsRepository['create']>().mockResolvedValue(job),
-    } as unknown as jest.Mocked<ReconJobsRepository>;
-    const configService = {
-      get: jest.fn((key: string) =>
-        key === 'RECON_JOB_TIMEOUT_SECONDS' ? 600 : 2,
-      ),
-    } as unknown as jest.Mocked<ConfigService<EnvConfig, true>>;
-    const eventBus = { publish: jest.fn() } as unknown as jest.Mocked<EventBus>;
-
-    const handler = new CreateReconJobHandler(
-      workspacesRepository,
-      projectsRepository,
-      targetsRepository,
-      reconJobsRepository,
-      configService,
-      eventBus,
-    );
-
-    const result = await handler.execute(
-      new CreateReconJobCommand('user-1', 'target-1', { tools: ['SUBFINDER'] }),
-    );
-
-    expect(reconJobsRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workspaceId: 'ws-1',
-        projectId: 'proj-1',
-        targetId: 'target-1',
-        tools: ['SUBFINDER'],
-        requestedBy: 'user-1',
-      }),
-    );
-    expect(eventBus.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ verb: 'recon_job.created', jobId: 'job-1' }),
-    );
-    expect(result.id).toBe('job-1');
-  });
-
-  it('rejects a tool that does not support the target type before ever creating a job', async () => {
-    const workspace = { id: 'ws-1' } as Workspace;
-    const target = {
-      id: 'target-1',
-      projectId: 'proj-1',
-      type: 'URL', // SUBFINDER only supports DOMAIN
-      value: 'https://example.com',
-    } as Target;
-    const targetWithTags = { ...target, tags: [] };
-
-    const workspacesRepository = {
-      findPersonalWorkspaceForUser: jest
-        .fn<WorkspacesRepository['findPersonalWorkspaceForUser']>()
-        .mockResolvedValue(workspace),
-    } as unknown as jest.Mocked<WorkspacesRepository>;
-    const projectsRepository = {
-      findByIdForWorkspace: jest
-        .fn<ProjectsRepository['findByIdForWorkspace']>()
-        .mockResolvedValue({
-          id: 'proj-1',
-          workspaceId: 'ws-1',
-          tags: [],
-        } as never),
-    } as unknown as jest.Mocked<ProjectsRepository>;
-    const targetsRepository = {
-      findById: jest
-        .fn<TargetsRepository['findById']>()
-        .mockResolvedValue(targetWithTags),
-    } as unknown as jest.Mocked<TargetsRepository>;
-    const reconJobsRepository = {
-      create: jest.fn(),
-    } as unknown as jest.Mocked<ReconJobsRepository>;
-    const configService = {
-      get: jest.fn(),
-    } as unknown as jest.Mocked<ConfigService<EnvConfig, true>>;
-    const eventBus = { publish: jest.fn() } as unknown as jest.Mocked<EventBus>;
-
-    const handler = new CreateReconJobHandler(
-      workspacesRepository,
-      projectsRepository,
-      targetsRepository,
-      reconJobsRepository,
-      configService,
-      eventBus,
-    );
+  it('rejects job creation for a demo workspace before touching the repository', async () => {
+    const create = jest.fn();
+    const { handler, reconJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: true }),
+      create,
+    });
 
     await expect(
-      handler.execute(
-        new CreateReconJobCommand('user-1', 'target-1', {
-          tools: ['SUBFINDER'],
-        }),
-      ),
-    ).rejects.toMatchObject({
-      code: 'RECON_TOOL_NOT_SUPPORTED_FOR_TARGET_TYPE',
-    });
+      handler.execute(new CreateReconJobCommand('user-1', 'target-1', { tools: ['NMAP'] })),
+    ).rejects.toMatchObject({ code: 'DEMO_WORKSPACE_READ_ONLY' });
+
     expect(reconJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('creates the job normally for a non-demo workspace', async () => {
+    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const { handler, reconJobsRepository } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+    });
+
+    const result = await handler.execute(
+      new CreateReconJobCommand('user-1', 'target-1', { tools: ['NMAP'] }),
+    );
+
+    expect(reconJobsRepository.create).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe('job-1');
   });
 });

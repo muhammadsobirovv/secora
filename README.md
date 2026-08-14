@@ -8,6 +8,7 @@ between HackerOne/Bugcrowd tabs, Burp, PayloadAllTheThings, HackTricks,
 and a chat tab.
 
 Canonical spec: `PROJECT_SPEC.md`. Architecture decisions: `docs/adr/`.
+Found a security issue? See `SECURITY.md` for how to report it privately.
 
 ## Local-first architecture
 
@@ -150,6 +151,27 @@ Turborepo + pnpm workspaces:
     `docs/adr/0014-cloud-platform-enterprise-saas-ha.md`,
     `docs/modules/14-cloud-platform-enterprise-saas-ha.md`,
     `docs/architecture/{api-gateway,auto-update,ci-cd}.md`
+15. **Production Hardening, Monetization & Marketplace** — a
+    `PaymentProvider` abstraction with a Stripe adapter (checkout,
+    subscriptions, invoices, and an independent HMAC-verified
+    `POST /billing/webhook/stripe`), usage metering + quota enforcement,
+    marketplace security (publisher verification, checksums, enforced
+    per-plugin permission declarations), a versioned Public API v1 layer,
+    nine outbound integrations, AI spend budgets, self-service privacy
+    controls (data export/deletion, telemetry opt-out) with a GDPR
+    readiness foundation, i18n (English/Uzbek/Russian) and an
+    accessibility audit, first-run onboarding + isolated demo mode,
+    health diagnostics + correlation-ID error handling + a support ticket
+    queue, semantic-versioned release engineering (`CHANGELOG.md`,
+    `RELEASE_CHANNEL`), and a feature-flags system with USER/WORKSPACE/
+    ORGANIZATION override precedence — all holding the standing "no
+    mandatory paid service" guarantee, reverified by a dedicated audit
+    this module.
+    `docs/adr/0015-production-hardening-monetization-marketplace.md`,
+    `docs/architecture/{stripe-webhook,feature-flags,release-engineering,
+    health-diagnostics,error-handling,support-system,demo-mode,i18n,
+    onboarding}.md`,
+    `PRIVACY.md`, `docs/compliance/gdpr-readiness.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs
@@ -180,3 +202,7 @@ worker:dev`.
 - `docs/releases/` — per-module release notes.
 - `docs/migration/` — the local-first architecture migration audit and
   roadmap.
+- `SECURITY.md` — how to report a security vulnerability.
+- `PRIVACY.md` — what data this platform collects and your rights over
+  it; `docs/compliance/gdpr-readiness.md` has the detailed mapping.
+- `CHANGELOG.md` — release history from `0.1.0` onward.

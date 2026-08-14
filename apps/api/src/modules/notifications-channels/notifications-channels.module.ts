@@ -6,8 +6,8 @@ import {
   UpdateNotificationChannelConfigHandler,
 } from './commands/notification-channel-configs.commands.js';
 import { ListNotificationChannelConfigsHandler } from './queries/notification-channel-configs.query.js';
-import { NotificationDispatcherService } from './services/notification-dispatcher.service.js';
 import { NotificationChannelsController } from './controllers/notification-channels.controller.js';
+import { NotificationsChannelsCoreModule } from './notifications-channels-core.module.js';
 
 /// Module 9's multi-channel Notifications surface — Desktop/Browser/
 /// Email/Webhook/Discord/Slack/Telegram/Custom API, layered on top of
@@ -20,6 +20,7 @@ import { NotificationChannelsController } from './controllers/notification-chann
 /// that one-line addition to Module 6 is the single "integration
 /// required" touch point, not a rewrite.
 @Module({
+  imports: [NotificationsChannelsCoreModule],
   controllers: [NotificationChannelsController],
   providers: [
     CreateNotificationChannelConfigHandler,
@@ -27,8 +28,7 @@ import { NotificationChannelsController } from './controllers/notification-chann
     DeleteNotificationChannelConfigHandler,
     TestNotificationChannelConfigHandler,
     ListNotificationChannelConfigsHandler,
-    NotificationDispatcherService,
   ],
-  exports: [NotificationDispatcherService],
+  exports: [NotificationsChannelsCoreModule],
 })
 export class NotificationsChannelsModule {}

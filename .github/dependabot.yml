@@ -1,0 +1,108 @@
+## Module 15 — supply-chain security extensions (task #345).
+##
+## Module 14's CI (`security-scan.yml`) already runs `pnpm audit` and
+## `cargo audit` against whatever's currently in the lockfiles — informational
+## checks against installed versions, not something that proposes updates.
+## Nothing before this file automated actually bumping a dependency when a
+## fix becomes available, so a known-vulnerable version could sit in the
+## lockfile indefinitely even with the scanning job green (the scan
+## configuration is `continue-on-error: true` by design — see
+## docs/architecture/ci-cd.md — so it never blocks a PR on its own).
+## Dependabot closes that gap: it opens PRs for outdated/vulnerable
+## dependencies across every ecosystem this monorepo actually uses, so the
+## scanning job in security-scan.yml has something to actually catch drift
+## against over time.
+##
+## Security updates (vulnerability-driven) are handled by GitHub's
+## repository-level Dependabot alerts setting, which this file doesn't
+## control — an operator forking/self-hosting this repo needs to enable
+## "Dependabot alerts" and "Dependabot security updates" in their own
+## repository's Settings > Code security, same as any GitHub repo. This
+## file only controls scheduled *version* updates.
+version: 2
+updates:
+  # Single pnpm workspace, one lockfile at the repo root — covers
+  # apps/api, apps/web, and every package under packages/* in one entry
+  # (Dependabot understands pnpm-lock.yaml directly).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 15
+    groups:
+      # Batch low-risk patch/minor bumps together so they don't each need
+      # a separate review; anything major stays its own PR since a major
+      # bump is far more likely to need a code change alongside it.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+
+  # Desktop Agent (Module 7) — Tauri/Rust side.
+  - package-ecosystem: "cargo"
+    directory: "/apps/desktop/src-tauri"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "desktop"
+
+  # Mobile app (Module 12) — Flutter/Dart.
+  - package-ecosystem: "pub"
+    directory: "/apps/mobile"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "mobile"
+
+  # Container base images — apps/api (also builds Dockerfile.worker from
+  # the same directory) and apps/web.
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "docker"
+
+  # The GitHub Actions themselves (e.g. actions/checkout, docker/build-push-action,
+  # sigstore/cosign-installer) are part of the supply chain too — an
+  # attacker who compromises a pinned Action version can run arbitrary
+  # code in CI. Keeping these current matters as much as npm packages.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "ci"

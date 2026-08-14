@@ -104,6 +104,14 @@ export function oauthExchange(code: string) {
   return apiFetch<AuthTokensDto>("/auth/oauth/exchange", { method: "POST", body: { code }, public: true });
 }
 
+/// Module 15 — task #352 (demo mode). Mirrors `login`/`oauthExchange`:
+/// hits a public, unauthenticated endpoint and gets back the same
+/// `AuthTokensDto` shape any other sign-in path returns, so the caller
+/// can pass the result straight into `useAuth().completeLogin(tokens)`.
+export function startDemoSession() {
+  return apiFetch<AuthTokensDto>("/demo/session", { method: "POST", public: true });
+}
+
 export function oauthStartUrl(provider: "google" | "github"): string {
   return `${API_BASE_URL}${provider === "google" ? AUTH_ENDPOINTS.oauthGoogleStart : AUTH_ENDPOINTS.oauthGithubStart}`;
 }

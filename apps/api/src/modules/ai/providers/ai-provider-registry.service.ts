@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiPrivacyMode, AiProviderName } from '@pentesthub/shared';
-import { AI_PROVIDER_NAMES, LOCAL_AI_PROVIDER_NAMES } from '@pentesthub/shared';
+import type { AiPrivacyMode, AiProviderMarketplaceEntryDto, AiProviderName } from '@pentesthub/shared';
+import { AI_PROVIDER_MARKETPLACE, AI_PROVIDER_NAMES, LOCAL_AI_PROVIDER_NAMES } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import { decryptCredential } from '../../../common/utils/credential-encryption.util.js';
 import {
@@ -241,5 +241,25 @@ export class AiProviderRegistryService {
       });
     }
     return results;
+  }
+
+  /// Module 15 — AI provider marketplace (BYOK expansion, task #341).
+  /// Merges the static AI_PROVIDER_MARKETPLACE catalog with this
+  /// workspace's live status (same underlying data listStatuses already
+  /// computes) — one request gets both "what is this provider, how do I
+  /// set it up" and "is it already configured for my workspace."
+  async listMarketplace(workspaceId: string): Promise<AiProviderMarketplaceEntryDto[]> {
+    const statuses = await this.listStatuses(workspaceId);
+    const statusByProvider = new Map(statuses.map((status) => [status.provider, status]));
+    return AI_PROVIDER_MARKETPLACE.map((entry) => {
+      const status = statusByProvider.get(entry.provider);
+      return {
+        ...entry,
+        configured: status?.configured ?? false,
+        defaultModel: status?.defaultModel ?? null,
+        byok: status?.byok ?? false,
+        allowedByPrivacyMode: status?.allowedByPrivacyMode ?? true,
+      };
+    });
   }
 }

@@ -9,5 +9,9 @@ export function toUserPreferencesDto(
     language: prefs.language,
     timezone: prefs.timezone,
     notificationsEnabled: prefs.notificationsEnabled,
+    telemetryOptOut: prefs.telemetryOptOut,
+    onboardingCompletedAt: prefs.onboardingCompletedAt
+      ? prefs.onboardingCompletedAt.toISOString()
+      : null,
   };
 }

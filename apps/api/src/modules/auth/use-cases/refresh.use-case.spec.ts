@@ -41,6 +41,7 @@ describe('RefreshUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const sessionsRepository: jest.Mocked<SessionsRepository> = {
       create: jest.fn(),

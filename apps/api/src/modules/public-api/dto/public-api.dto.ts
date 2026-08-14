@@ -14,6 +14,13 @@ export class CreateApiKeyDto implements CreateApiKeyShape {
   @ApiPropertyOptional() @IsOptional() @IsUUID() workspaceId?: string;
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) scopes?: string[];
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(365) expiresInDays?: number;
+  /// Module 15 — API key management (task #336).
+  @ApiPropertyOptional({ type: [String], description: 'CIDR or exact-IP strings; empty/omitted = unrestricted' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  ipAllowlist?: string[];
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(100_000) rateLimitPerMinute?: number;
 }
 
 export class ListApiKeysQueryParamsDto implements ListApiKeysShape {

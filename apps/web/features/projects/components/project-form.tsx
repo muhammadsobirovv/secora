@@ -65,12 +65,18 @@ export function ProjectForm({
       </div>
       {showStatus && (
         <div className="flex flex-col gap-2">
-          <Label>Status</Label>
+          {/* Module 15 — task #349 (accessibility audit): a bare <Label>
+              with no htmlFor/id pairing isn't programmatically associated
+              with the Select trigger below it — screen readers announce
+              the trigger's role but not "Status". aria-labelledby closes
+              that gap (native `for`/`id` doesn't apply here since the
+              trigger renders as a button, not a labelable form element). */}
+          <Label id="status-label">Status</Label>
           <Select
             value={form.watch("status")}
             onValueChange={(v) => form.setValue("status", v as ProjectFormValues["status"])}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" aria-labelledby="status-label">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

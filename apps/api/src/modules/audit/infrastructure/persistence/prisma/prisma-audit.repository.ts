@@ -5,7 +5,7 @@ import type {
   AuditRepository,
   RecordAuditEventInput,
 } from '../../../domain/audit.repository.interface.js';
-import type { Prisma } from '../../../../../prisma-types.js';
+import type { AuditEvent, Prisma } from '../../../../../prisma-types.js';
 
 @Injectable()
 export class PrismaAuditRepository implements AuditRepository {
@@ -22,6 +22,14 @@ export class PrismaAuditRepository implements AuditRepository {
         userAgent: input.userAgent,
         metadata: input.metadata as Prisma.InputJsonValue | undefined,
       },
+    });
+  }
+
+  findRecentByUserId(userId: string, limit: number): Promise<AuditEvent[]> {
+    return this.txHost.tx.auditEvent.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
     });
   }
 }

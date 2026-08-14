@@ -1,10 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NotificationChannel } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { NotificationChannelConfig } from '../../../prisma-types.js';
 import { decryptChannelConfigSecrets } from '../notification-channel-config-crypto.util.js';
+import { MAIL_SERVICE } from '../../../common/providers/tokens.js';
+import type { MailService } from '../../../common/providers/mail/mail-service.interface.js';
 
 interface DeliveryResult {
   delivered: boolean;
@@ -45,6 +47,7 @@ export class NotificationDispatcherService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    @Inject(MAIL_SERVICE) private readonly mailService: MailService,
   ) {}
 
   async dispatch(notificationId: string, workspaceId: string, userId: string, title: string, body: string | null): Promise<void> {
@@ -101,12 +104,14 @@ export class NotificationDispatcherService {
         case 'CUSTOM_API':
           return await this.deliverToCustomApi(decryptedConfig, title, body);
         case 'EMAIL':
-          // No transactional-email provider is configured anywhere in
-          // this codebase yet (see the same disclosed gap noted in
-          // collaboration/commands/workspace-invites.commands.ts for
-          // invite emails) — recorded as a graceful no-op rather than a
-          // silent failure, with the gap itself the documented follow-up.
-          return { delivered: false, error: 'No email provider configured (see Module 9 verification handoff).' };
+          // Module 15 — Integrations (task #338). `MAIL_SERVICE` now
+          // resolves to a real provider when `MAIL_PROVIDER=smtp`
+          // (see providers.module.ts / SmtpMailService); on the
+          // Community Edition default (`dev`) this still routes to
+          // `DevMailService` (.mail-outbox/), same honest "not actually
+          // delivered anywhere but not a broken code path" posture as
+          // the auth module's forgot-password/verification emails.
+          return await this.deliverToEmail(config, decryptedConfig, title, body);
         case 'DESKTOP':
         case 'BROWSER':
           return { delivered: true, error: null };
@@ -154,6 +159,31 @@ export class NotificationDispatcherService {
       signal: AbortSignal.timeout(10_000),
     });
     return { delivered: response.ok, error: response.ok ? null : `HTTP ${response.status}` };
+  }
+
+  /// `EmailChannelConfig.toAddress` (packages/shared/src/bugbounty-os.ts)
+  /// is optional — "absent = account email" was the design from when this
+  /// type was first added, so a per-user channel config (`config.userId`
+  /// set) with no explicit override falls back to that user's account
+  /// email. A workspace-wide config (`config.userId` null) has no account
+  /// to fall back to and must set `toAddress` explicitly.
+  private async deliverToEmail(
+    config: NotificationChannelConfig,
+    decrypted: ChannelDeliveryInput,
+    title: string,
+    body: string | null,
+  ): Promise<DeliveryResult> {
+    const cfg = decrypted.config as { toAddress?: string };
+    let toAddress = cfg.toAddress;
+    if (!toAddress && config.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: config.userId }, select: { email: true } });
+      toAddress = user?.email;
+    }
+    if (!toAddress) {
+      return { delivered: false, error: 'No toAddress configured and no account email to fall back to.' };
+    }
+    await this.mailService.send({ to: toAddress, subject: title, text: body ?? title });
+    return { delivered: true, error: null };
   }
 
   private async deliverToCustomApi(config: ChannelDeliveryInput, title: string, body: string | null): Promise<DeliveryResult> {

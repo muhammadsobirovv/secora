@@ -38,6 +38,10 @@ export class UpdateWorkspaceAiPrivacyModeHandler
     if (!workspace) {
       throw new AppException('WORKSPACE_NOT_FOUND', 'Workspace not found.', HttpStatus.NOT_FOUND);
     }
-    return this.privacyModeService.setMode(workspace.id, command.data.mode);
+    return this.privacyModeService.setMode(
+      workspace.id,
+      command.data.mode,
+      command.data.confirmCloudUsage ?? false,
+    );
   }
 }

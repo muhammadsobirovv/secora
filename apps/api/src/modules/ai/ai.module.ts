@@ -37,6 +37,7 @@ import {
 import { ListAiConversationsHandler } from './queries/list-ai-conversations.query.js';
 import { GetAiConversationHandler } from './queries/get-ai-conversation.query.js';
 import { ListAiProvidersHandler } from './queries/list-ai-providers.query.js';
+import { ListAiProviderMarketplaceHandler } from './queries/list-ai-provider-marketplace.query.js';
 import { ListAiProviderCredentialsHandler } from './queries/list-ai-provider-credentials.query.js';
 import { ListAiSpeechProvidersHandler } from './queries/list-ai-speech-providers.query.js';
 import { GetAiContextSummaryHandler } from './queries/get-ai-context-summary.query.js';
@@ -122,6 +123,7 @@ import { AiPrivacyController } from './controllers/ai-privacy.controller.js';
     ListAiConversationsHandler,
     GetAiConversationHandler,
     ListAiProvidersHandler,
+    ListAiProviderMarketplaceHandler,
     ListAiProviderCredentialsHandler,
     ListAiSpeechProvidersHandler,
     GetAiContextSummaryHandler,

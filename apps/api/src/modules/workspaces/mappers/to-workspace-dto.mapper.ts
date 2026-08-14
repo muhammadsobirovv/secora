@@ -10,5 +10,6 @@ export function toWorkspaceDto(workspace: Workspace): WorkspaceDto {
     description: workspace.description,
     createdAt: workspace.createdAt.toISOString(),
     updatedAt: workspace.updatedAt.toISOString(),
+    isDemo: workspace.isDemo,
   };
 }

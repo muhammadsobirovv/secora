@@ -1,0 +1,11 @@
+{
+  "@@locale": "ru",
+  "appTitle": "PentestHub AI",
+  "settingsTitle": "Настройки",
+  "settingsTheme": "Тема",
+  "settingsLanguage": "Язык",
+  "commonSave": "Сохранить",
+  "commonCancel": "Отмена",
+  "commonLoading": "Загрузка…",
+  "commonError": "Что-то пошло не так"
+}

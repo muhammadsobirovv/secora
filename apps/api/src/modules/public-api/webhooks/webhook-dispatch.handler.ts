@@ -35,7 +35,7 @@ import {
   BugBountyProgramCreatedEvent,
   BugBountyProgramUpdatedEvent,
 } from '../../bugbounty/events/bugbounty-program-events.js';
-import { PluginInstalledEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
+import { PluginInstalledEvent, PluginPermissionGrantedEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
 import {
   ScheduledJobRunCompletedEvent,
   ScheduledJobRunFailedEvent,
@@ -117,6 +117,9 @@ import { toWebhookEventKey } from './webhook-signature.util.js';
   OrchestrationRunCompletedEvent,
   OrchestrationRunFailedEvent,
   OrchestrationRunCancelledEvent,
+  // Module 15 — Webhook platform improvements (task #337): new event
+  // "plugin_permission.granted".
+  PluginPermissionGrantedEvent,
 )
 export class WebhookDispatchHandler implements IEventHandler<ActivityDomainEvent> {
   private readonly logger = new Logger(WebhookDispatchHandler.name);

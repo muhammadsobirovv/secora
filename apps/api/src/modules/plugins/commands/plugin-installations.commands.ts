@@ -19,6 +19,8 @@ import { PluginSandboxService } from '../plugin-sandbox.service.js';
 import { validateHookDeclared } from '../plugin-sandbox.service.js';
 import { toPluginInstallationDto } from '../mappers/to-plugin-dto.mapper.js';
 import { PluginInstalledEvent, PluginUninstalledEvent } from '../events/plugin-events.js';
+import { PluginPermissionEnforcerService } from '../plugin-permission-enforcer.service.js';
+import { hashPluginBundle } from '../plugin-signature.util.js';
 
 // ---------------------------------------------------------------------------
 // Install
@@ -37,6 +39,7 @@ export class InstallPluginHandler implements ICommandHandler<InstallPluginComman
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBus,
+    private readonly permissionEnforcer: PluginPermissionEnforcerService,
   ) {}
 
   async execute(command: InstallPluginCommand): Promise<PluginInstallationDto> {
@@ -51,6 +54,29 @@ export class InstallPluginHandler implements ICommandHandler<InstallPluginComman
     }
     if (version.deprecated) {
       throw new AppException('PLUGIN_VERSION_DEPRECATED', 'This plugin version is deprecated.', HttpStatus.CONFLICT);
+    }
+
+    // Module 15 — supply-chain security extensions (task #345). A
+    // checksum is computed once at publish time (`checksumSha256`, see
+    // `PublishPluginHandler`) and never re-checked again anywhere —
+    // meaning tampering with the stored `sourceCode` after publish (a DB
+    // compromise, a bad migration, a future admin-edit code path) would
+    // silently install and execute altered code. Re-hash the currently
+    // stored bundle and refuse to install on a mismatch, closing that gap
+    // without changing the existing, disclosed "unsigned plugins are
+    // still installable" product decision (task #333) — this is a pure
+    // tamper-evidence check, not a signature/verified-badge requirement,
+    // so it fires identically whether or not the version was ever signed.
+    if (version.checksumSha256 && version.sourceCode) {
+      const currentBundleBase64 = Buffer.from(version.sourceCode, 'utf8').toString('base64');
+      const recomputedChecksum = hashPluginBundle(currentBundleBase64);
+      if (recomputedChecksum !== version.checksumSha256) {
+        throw new AppException(
+          'PLUGIN_INTEGRITY_CHECK_FAILED',
+          'This plugin version failed an integrity check (recomputed checksum does not match the recorded value) and cannot be installed.',
+          HttpStatus.CONFLICT,
+        );
+      }
     }
 
     // Explicit-consent check — the accepted set must exactly match the
@@ -129,6 +155,13 @@ export class InstallPluginHandler implements ICommandHandler<InstallPluginComman
       data: { downloadCount: { increment: 1 } },
     });
 
+    // Module 15 — Plugin permission enforcement (task #334). Consent was
+    // already validated above as an exact match against the version's
+    // declared permissions — recording it as `PluginPermissionGrant`
+    // rows is what makes `ExecutePluginHookHandler` actually enforce it
+    // rather than just have disclosed it.
+    await this.permissionEnforcer.grant(installation.id, command.data.acceptedPermissions, command.userId);
+
     const type: AuditEventType = 'PLUGIN_INSTALLED';
     await this.prisma.auditEvent.create({
       data: {
@@ -170,7 +203,10 @@ export class UpdatePluginInstallationCommand implements ICommand {
 export class UpdatePluginInstallationHandler
   implements ICommandHandler<UpdatePluginInstallationCommand, PluginInstallationDto>
 {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permissionEnforcer: PluginPermissionEnforcerService,
+  ) {}
 
   async execute(command: UpdatePluginInstallationCommand): Promise<PluginInstallationDto> {
     const { role } = await resolveOrganizationMembership(this.prisma, command.userId, command.organizationId);
@@ -214,6 +250,16 @@ export class UpdatePluginInstallationHandler
         config: command.data.config as unknown as Prisma.InputJsonValue,
       },
     });
+
+    // Module 15 — Plugin permission enforcement (task #334). A version
+    // upgrade that carried fresh `acceptedPermissions` re-grants them —
+    // old grants for permissions the new version no longer declares are
+    // simply never matched by `resolveEffective()`'s declared∩granted
+    // intersection, so they don't need explicit cleanup here.
+    if (command.data.acceptedPermissions) {
+      await this.permissionEnforcer.grant(existing.id, command.data.acceptedPermissions, command.userId);
+    }
+
     return toPluginInstallationDto(updated);
   }
 }
@@ -288,6 +334,7 @@ export class ExecutePluginHookHandler
   constructor(
     private readonly prisma: PrismaService,
     private readonly sandbox: PluginSandboxService,
+    private readonly permissionEnforcer: PluginPermissionEnforcerService,
   ) {}
 
   async execute(command: ExecutePluginHookCommand): Promise<ExecutePluginHookResultDto> {
@@ -312,11 +359,19 @@ export class ExecutePluginHookHandler
     }
 
     try {
+      // Module 15 — Plugin permission enforcement (task #334). The
+      // sandbox now only ever sees the granted∩declared subset, not the
+      // full declared list — see `PluginPermissionEnforcerService`'s doc
+      // comment for the backward-compatible migration story.
+      const effectivePermissions = await this.permissionEnforcer.resolveEffective(
+        installation.id,
+        installation.version.permissions,
+      );
       const result = await this.sandbox.run({
         source: installation.version.sourceCode,
         hook: command.data.hook,
         input: command.data.input,
-        permissions: installation.version.permissions,
+        permissions: effectivePermissions,
       });
       return result;
     } catch (error) {

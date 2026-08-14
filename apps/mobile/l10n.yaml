@@ -1,0 +1,14 @@
+# Module 15 — task #348 "i18n architecture — English/Uzbek/Russian".
+#
+# Standard Flutter l10n config. Run `flutter gen-l10n` (or `flutter run`/
+# `flutter build`, which trigger it automatically) on a machine with the
+# Flutter SDK to generate `lib/l10n/generated/app_localizations.dart` (an
+# `AppLocalizations` class + one delegate per configured locale) from the
+# ARB files below. This sandbox cannot run that — see pubspec.yaml's
+# top-of-file comment — so the generated output does not exist in this
+# repo yet, and no Dart file here imports it.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-dir: lib/l10n/generated
+output-localization-file: app_localizations.dart
+nullable-getter: false

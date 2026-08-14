@@ -4,6 +4,7 @@ import type {
   AiContextSummaryDto,
   AiMessageDto,
   AiProviderCredentialDto,
+  AiProviderMarketplaceEntryDto,
   AiProviderStatusDto,
   AiSpeechProviderStatusDto,
   AiSuggestedQuestionDto,
@@ -93,6 +94,11 @@ export function deleteAiMessage(messageId: string) {
 
 export function listAiProviders() {
   return apiFetch<AiProviderStatusDto[]>(AI_PROVIDER_ENDPOINTS.list);
+}
+
+/// Module 15 — AI provider marketplace (BYOK expansion, task #341).
+export function listAiProviderMarketplace() {
+  return apiFetch<AiProviderMarketplaceEntryDto[]>(AI_PROVIDER_ENDPOINTS.marketplace);
 }
 
 /// Local-First Migration Phase 1 (BYOK) — this workspace's own stored

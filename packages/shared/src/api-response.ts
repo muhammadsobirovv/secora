@@ -11,4 +11,15 @@ export interface ApiErrorResponse {
   statusCode: number;
   code: string;
   message: string;
+  /// Module 15 — task #354 (Consistent error handling system). Same value
+  /// as the `X-Request-Id` response header (see
+  /// `apps/api/src/observability/request-id.middleware.ts`), duplicated
+  /// into the JSON body itself so it survives being copy-pasted out of a
+  /// toast or error card into a support ticket — headers don't. Cross-
+  /// references 1:1 with the `requestId` field `StructuredLoggerService`
+  /// attaches to every log line the same request produced. Optional
+  /// because it's only set once request-context middleware has run;
+  /// absent for the small number of failures that occur before that
+  /// (e.g. a malformed request the body parser itself rejects).
+  requestId?: string;
 }

@@ -1,0 +1,17 @@
+{
+  "common.save": "Сохранить",
+  "common.cancel": "Отмена",
+  "common.loading": "Загрузка…",
+  "common.error": "Что-то пошло не так",
+  "common.confirm": "Подтвердить",
+  "common.delete": "Удалить",
+  "common.close": "Закрыть",
+  "settings.preferences.title": "Настройки",
+  "settings.preferences.description": "Настройте внешний вид и поведение PentestHub AI под себя.",
+  "settings.preferences.theme": "Тема",
+  "settings.preferences.language": "Язык",
+  "settings.preferences.timezone": "Часовой пояс",
+  "settings.preferences.notifications": "Уведомления по email",
+  "settings.preferences.saved": "Настройки сохранены",
+  "settings.preferences.saveError": "Не удалось сохранить настройки."
+}

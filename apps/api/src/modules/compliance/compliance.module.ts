@@ -13,6 +13,8 @@ import { DataRetentionEnforcerService } from './services/data-retention-enforcer
 import { BackupPolicyRunnerService } from './services/backup-policy-runner.service.js';
 import { ComplianceExportProcessorService } from './services/compliance-export-processor.service.js';
 import { ComplianceController } from './controllers/compliance.controller.js';
+import { GdprController } from './controllers/gdpr.controller.js';
+import { GetGdprOverviewHandler } from './queries/gdpr-overview.query.js';
 
 /// Module 10 — Compliance: `DataRetentionPolicy` + automatic enforcement
 /// (`DataRetentionEnforcerService`), `BackupPolicy` + real backups
@@ -25,7 +27,7 @@ import { ComplianceController } from './controllers/compliance.controller.js';
 /// needed for that one.
 @Module({
   imports: [BackupsModule],
-  controllers: [ComplianceController],
+  controllers: [ComplianceController, GdprController],
   providers: [
     UpsertDataRetentionPolicyHandler,
     DeleteDataRetentionPolicyHandler,
@@ -35,6 +37,7 @@ import { ComplianceController } from './controllers/compliance.controller.js';
     GetBackupPolicyHandler,
     ListComplianceExportRequestsHandler,
     GetComplianceExportRequestHandler,
+    GetGdprOverviewHandler,
     DataRetentionEnforcerService,
     BackupPolicyRunnerService,
     ComplianceExportProcessorService,

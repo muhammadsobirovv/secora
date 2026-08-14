@@ -27,6 +27,8 @@ export const AI_MESSAGE_ENDPOINTS = {
 
 export const AI_PROVIDER_ENDPOINTS = {
   list: "/ai/providers",
+  /// Module 15 — AI provider marketplace (BYOK expansion, task #341).
+  marketplace: "/ai/providers/marketplace",
 } as const;
 
 /// Local-First Migration Phase 1 (BYOK) — one credential row per

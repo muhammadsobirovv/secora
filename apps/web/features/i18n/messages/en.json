@@ -1,0 +1,17 @@
+{
+  "common.save": "Save",
+  "common.cancel": "Cancel",
+  "common.loading": "Loading…",
+  "common.error": "Something went wrong",
+  "common.confirm": "Confirm",
+  "common.delete": "Delete",
+  "common.close": "Close",
+  "settings.preferences.title": "Preferences",
+  "settings.preferences.description": "Personalize how PentestHub AI looks and behaves for you.",
+  "settings.preferences.theme": "Theme",
+  "settings.preferences.language": "Language",
+  "settings.preferences.timezone": "Timezone",
+  "settings.preferences.notifications": "Email notifications",
+  "settings.preferences.saved": "Preferences saved",
+  "settings.preferences.saveError": "Couldn't save preferences."
+}

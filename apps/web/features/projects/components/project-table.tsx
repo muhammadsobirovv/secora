@@ -21,7 +21,12 @@ export function ProjectTable({ projects }: { projects: ProjectDto[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead />
+          {/* Module 15 — task #349 (accessibility audit): an empty header
+              cell leaves this column unlabeled for screen reader users —
+              visually blank is fine, but it still needs a name. */}
+          <TableHead>
+            <span className="sr-only">Favorite</span>
+          </TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Tags</TableHead>
@@ -32,12 +37,18 @@ export function ProjectTable({ projects }: { projects: ProjectDto[] }) {
         {projects.map((project) => (
           <TableRow key={project.id}>
             <TableCell>
+              {/* Module 15 — task #349: the star shape alone is a
+                  visual-only signal — `aria-hidden` + an `sr-only` text
+                  alternative gives screen reader users the same
+                  favorite/not-favorite information sighted users get. */}
               <Star
+                aria-hidden="true"
                 className={cn(
                   "size-4",
                   project.isFavorite ? "fill-warning text-warning" : "text-transparent",
                 )}
               />
+              <span className="sr-only">{project.isFavorite ? "Favorite" : "Not favorite"}</span>
             </TableCell>
             <TableCell>
               <Link href={`/projects/${project.id}`} className="font-medium hover:underline">

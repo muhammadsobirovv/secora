@@ -22,6 +22,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Module 15 — task #348 "i18n architecture". Provides
+  # GlobalMaterialLocalizations/GlobalWidgetsLocalizations/
+  # GlobalCupertinoLocalizations — wired into MaterialApp.router in
+  # app.dart. Ships as part of the Flutter SDK itself (no pub.dev
+  # resolution needed), so unlike every other dependency in this file it
+  # doesn't carry the "unverified against a live resolution" caveat above.
+  flutter_localizations:
+    sdk: flutter
 
   # --- State management / navigation / codegen -------------------------------
   flutter_riverpod: ^2.5.1
@@ -118,6 +126,17 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Module 15 — task #348. Turns on codegen for the app's own string
+  # catalog (lib/l10n/*.arb, configured by l10n.yaml at the repo root of
+  # this package) into a generated `AppLocalizations` class. Requires
+  # `flutter gen-l10n` (or any `flutter build`/`flutter run`, which runs it
+  # automatically) — this sandbox cannot do that (see the top-of-file
+  # comment), so `AppLocalizations` does not exist yet anywhere in this
+  # repo and nothing here imports it. Run once on a real machine, then wire
+  # `AppLocalizations.delegate` into `app.dart`'s `localizationsDelegates`
+  # list and start replacing hardcoded strings screen by screen — see
+  # docs/architecture/i18n.md.
+  generate: true
   assets:
     - assets/images/
     - assets/icons/

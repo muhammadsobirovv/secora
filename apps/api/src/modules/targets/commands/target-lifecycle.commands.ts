@@ -37,7 +37,7 @@ export async function resolveTargetForCaller(
   targetsRepository: TargetsRepository,
   userId: string,
   targetId: string,
-): Promise<{ workspaceId: string; target: TargetWithTags }> {
+): Promise<{ workspaceId: string; isDemoWorkspace: boolean; target: TargetWithTags }> {
   const target = await targetsRepository.findById(targetId);
   if (!target) {
     throw new AppException(
@@ -66,7 +66,14 @@ export async function resolveTargetForCaller(
       HttpStatus.NOT_FOUND,
     );
   }
-  return { workspaceId: workspace.id, target };
+  // Module 15 — task #352 (demo mode). Surfaced here, at the one shared
+  // resolution path every Target-scoped command uses, rather than
+  // duplicated per caller. Most callers (UpdateTarget, DeleteTarget, ...)
+  // don't destructure it and are unaffected; CreateReconJob/
+  // CreateVulnScanJob do, to reject new scan requests against a demo
+  // workspace (see those handlers for why: a public, unauthenticated demo
+  // entry point must never be able to trigger a real network scan).
+  return { workspaceId: workspace.id, isDemoWorkspace: workspace.isDemo, target };
 }
 
 export class UpdateTargetCommand implements ICommand {

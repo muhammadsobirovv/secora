@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ApiKeysModule } from '../api-keys/api-keys.module.js';
 import { ObservabilityModule } from '../observability/observability.module.js';
-import { CreateApiKeyHandler, RevokeApiKeyHandler } from './commands/api-keys.commands.js';
+import { CreateApiKeyHandler, RevokeApiKeyHandler, RotateApiKeyHandler } from './commands/api-keys.commands.js';
 import { ListApiKeysHandler } from './queries/api-keys.query.js';
 import {
   CreateWebhookTokenHandler,
@@ -14,6 +14,7 @@ import { ListWebhookTokensHandler } from './queries/webhook-tokens.query.js';
 import { ListWebhookDeliveriesHandler } from './queries/webhook-deliveries.query.js';
 import { ApiKeysController } from './controllers/api-keys.controller.js';
 import { WebhookTokensController } from './controllers/webhook-tokens.controller.js';
+import { ApiVersionController } from './controllers/api-version.controller.js';
 import { ApiKeyAuthGuard } from './guards/api-key-auth.guard.js';
 import { WebhookDispatchHandler } from './webhooks/webhook-dispatch.handler.js';
 import { WebhookDeliveryQueueService } from './webhooks/webhook-delivery-queue.service.js';
@@ -36,10 +37,11 @@ import { WebhookDeliveryQueueService } from './webhooks/webhook-delivery-queue.s
 /// no separate Swagger wiring needed per module.
 @Module({
   imports: [ApiKeysModule, ObservabilityModule],
-  controllers: [ApiKeysController, WebhookTokensController],
+  controllers: [ApiKeysController, WebhookTokensController, ApiVersionController],
   providers: [
     CreateApiKeyHandler,
     RevokeApiKeyHandler,
+    RotateApiKeyHandler,
     ListApiKeysHandler,
     CreateWebhookTokenHandler,
     UpdateWebhookTokenHandler,

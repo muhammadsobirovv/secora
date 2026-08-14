@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,6 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/updates/app_update_service.dart';
 import 'features/auth/application/auth_notifier.dart';
+import 'features/settings/application/locale_notifier.dart';
 import 'features/settings/application/settings_notifier.dart';
 import 'features/settings/data/device_integrity_service.dart';
 
@@ -97,6 +99,7 @@ class _PentestHubAppState extends ConsumerState<PentestHubApp> with WidgetsBindi
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
 
     final showIntegrityWarning =
         !_integrityWarningDismissed && (_integrityStatus?.compromised ?? false);
@@ -107,6 +110,22 @@ class _PentestHubAppState extends ConsumerState<PentestHubApp> with WidgetsBindi
       themeMode: themeMode,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      // Module 15 — task #348. `supportedLocales`/`locale` give real,
+      // immediately-working localization for Flutter's own built-in
+      // Material/Widgets/Cupertino strings (date pickers, "OK"/"Cancel",
+      // text direction) via the three Global*Localizations delegates below.
+      // `AppLocalizations.delegate` (the codegenerated catalog for this
+      // app's own strings, from lib/l10n/*.arb + l10n.yaml) is deliberately
+      // NOT added to this list yet — see `locale_notifier.dart`'s doc
+      // comment for why this sandbox can't generate it, and
+      // docs/architecture/i18n.md for the follow-up step on a real machine.
+      supportedLocales: supportedLocales,
+      locale: locale,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routerConfig: router,
       builder: (context, child) {
         // Module 14 — Auto Update: fires once, after this frame, using

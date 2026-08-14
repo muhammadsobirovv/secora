@@ -1,0 +1,17 @@
+{
+  "common.save": "Saqlash",
+  "common.cancel": "Bekor qilish",
+  "common.loading": "Yuklanmoqda…",
+  "common.error": "Nimadir noto'g'ri ketdi",
+  "common.confirm": "Tasdiqlash",
+  "common.delete": "O'chirish",
+  "common.close": "Yopish",
+  "settings.preferences.title": "Sozlamalar",
+  "settings.preferences.description": "PentestHub AI qanday ko'rinishi va ishlashini o'zingizga moslang.",
+  "settings.preferences.theme": "Mavzu",
+  "settings.preferences.language": "Til",
+  "settings.preferences.timezone": "Vaqt mintaqasi",
+  "settings.preferences.notifications": "Elektron pochta xabarnomalari",
+  "settings.preferences.saved": "Sozlamalar saqlandi",
+  "settings.preferences.saveError": "Sozlamalarni saqlab bo'lmadi."
+}

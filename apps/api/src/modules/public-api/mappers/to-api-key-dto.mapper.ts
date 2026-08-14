@@ -12,5 +12,8 @@ export function toApiKeyDto(apiKey: ApiKey): ApiKeyDto {
     expiresAt: apiKey.expiresAt ? apiKey.expiresAt.toISOString() : null,
     revokedAt: apiKey.revokedAt ? apiKey.revokedAt.toISOString() : null,
     createdAt: apiKey.createdAt.toISOString(),
+    ipAllowlist: apiKey.ipAllowlist,
+    rateLimitPerMinute: apiKey.rateLimitPerMinute,
+    rotatedFromId: apiKey.rotatedFromId,
   };
 }

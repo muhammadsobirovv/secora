@@ -37,6 +37,7 @@ import { PromptInjectionGuardService } from '../security/prompt-injection-guard.
 import { AiChatStreamHubService } from './ai-chat-stream-hub.service.js';
 import { toAiMessageDto } from '../mappers/to-ai-message-dto.mapper.js';
 import type { AiMessageDto } from '@pentesthub/shared';
+import { AiBudgetEnforcerService } from '../../billing/ai-cost/ai-budget-enforcer.service.js';
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
 
@@ -70,6 +71,7 @@ export class AiChatService {
     private readonly injectionGuard: PromptInjectionGuardService,
     private readonly streamHub: AiChatStreamHubService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly budgetEnforcer: AiBudgetEnforcerService,
   ) {}
 
   /// Creates the user + placeholder assistant rows synchronously, then
@@ -320,6 +322,28 @@ export class AiChatService {
         infer: true,
       });
 
+      // Module 15 — AI cost control (task #340). Throws AI_BUDGET_EXCEEDED
+      // (caught by this method's own outer try/catch below, same path as
+      // every other provider error — see formatProviderError) when this
+      // workspace is over an AiBudgetPolicy with hardStop set. A
+      // warning-only breach (hardStop unset) doesn't fail the request —
+      // if a cheaper model is configured for the same provider, use it
+      // for this turn instead; this is the "model fallback" half of task
+      // #340. Falls back to the originally-resolved model whenever no
+      // cheaper alternative is configured, which is always true on a
+      // Community Edition deployment with no AiBudgetPolicy/AiModelPricing
+      // rows at all (check() returns allowed:true, warning:false, no-op).
+      const budgetCheck = await this.budgetEnforcer.check(conversation.workspaceId, userId, provider.name, model);
+      const effectiveModel =
+        budgetCheck.warning && budgetCheck.fallbackSuggested?.provider === provider.name
+          ? budgetCheck.fallbackSuggested.model
+          : model;
+      if (effectiveModel !== model) {
+        this.logger.warn(
+          `AI budget warning for workspace ${conversation.workspaceId}: using cheaper model ${effectiveModel} instead of ${model} for this turn.`,
+        );
+      }
+
       let finalContent =
         options?.mode === 'continue' ? (options.existingContent ?? '') : '';
       let promptTokens: number | undefined;
@@ -333,7 +357,7 @@ export class AiChatService {
 
         for await (const chunk of provider.streamChatCompletion(
           {
-            model,
+            model: effectiveModel,
             messages: history,
             maxTokens,
             signal: controller.signal,
@@ -402,6 +426,20 @@ export class AiChatService {
         promptTokens,
         completionTokens,
       });
+      // Module 15 — AI cost control (task #340). Fire-and-forget — this
+      // service already catches and logs its own errors internally (see
+      // its doc comment), so a metering failure can never surface as a
+      // failed chat turn. Uses `effectiveModel` (what actually served the
+      // request, possibly the cost-fallback model), not `model`, so the
+      // usage ledger and budget counters reflect reality.
+      void this.budgetEnforcer.recordUsage(
+        conversation.workspaceId,
+        userId,
+        provider.name,
+        effectiveModel,
+        promptTokens ?? 0,
+        completionTokens ?? 0,
+      );
       const toolCalls =
         await this.toolCallLogsRepository.listForMessage(assistantMessageId);
       const messageDto = toAiMessageDto(updated, toolCalls);

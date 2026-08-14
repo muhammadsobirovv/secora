@@ -13,6 +13,7 @@ import type { PrismaClient } from './prisma-types.js';
 import { ProvidersModule } from './common/providers/providers.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
+import { ApiVersionInterceptor } from './modules/public-api/interceptors/api-version.interceptor.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { EditionGuard } from './common/guards/edition.guard.js';
@@ -60,6 +61,11 @@ import { EvaluationModule } from './modules/evaluation/evaluation.module.js';
 import { DeveloperPortalModule } from './modules/developer-portal/developer-portal.module.js';
 import { InfrastructureModule } from './modules/infrastructure/infrastructure.module.js';
 import { BackupsModule } from './modules/backups/backups.module.js';
+import { BillingModule } from './modules/billing/billing.module.js';
+import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
+import { DemoModule } from './modules/demo/demo.module.js';
+import { SupportModule } from './modules/support/support.module.js';
+import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module.js';
 
 @Module({
   imports: [
@@ -162,6 +168,18 @@ import { BackupsModule } from './modules/backups/backups.module.js';
     // can resolve `EditionService` from the root injector.
     InfrastructureModule,
     BackupsModule,
+    BillingModule,
+    // Module 15 — Telemetry (task #347): opt-in, privacy-aware anonymous
+    // usage aggregate pings. See TelemetryModule's own doc comment for
+    // why this is also registered in worker.module.ts.
+    TelemetryModule,
+    // Module 15 — Demo mode (task #352): POST /demo/session, gated at
+    // runtime by DEMO_MODE_ENABLED (DemoSessionService throws 404 when
+    // unset, same as leaving the route unregistered but without needing
+    // a conditional module import here).
+    DemoModule,
+    SupportModule,
+    FeatureFlagsModule,
   ],
   providers: [
     // Order matters: throttle first, then IP allowlist, then mTLS, then
@@ -179,6 +197,8 @@ import { BackupsModule } from './modules/backups/backups.module.js';
     { provide: APP_GUARD, useClass: EditionGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    // Module 15 — Public API v1 versioning layer (task #335)
+    { provide: APP_INTERCEPTOR, useClass: ApiVersionInterceptor },
   ],
 })
 export class AppModule {}

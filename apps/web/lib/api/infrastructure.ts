@@ -7,6 +7,7 @@ import type {
   ActivateLicenseRequestDto,
   ClusterOverviewDto,
   EditionInfoDto,
+  HealthDiagnosticsDto,
   LicenseDto,
   LivenessDto,
 } from "@pentesthub/shared";
@@ -32,4 +33,11 @@ export function revokeLicense(id: string) {
 // logged-out visitors too (the stale-build banner isn't auth-gated).
 export function getLiveness() {
   return apiFetch<LivenessDto>(OBSERVABILITY_HEALTH_ENDPOINTS.liveness(), { public: true });
+}
+
+// Module 15 — task #353 (Health & diagnostics). Same `public: true`
+// reasoning as `getLiveness()` — a signed-out visitor troubleshooting a
+// login problem is exactly who needs this to work without a token.
+export function getHealthDiagnostics() {
+  return apiFetch<HealthDiagnosticsDto>(OBSERVABILITY_HEALTH_ENDPOINTS.diagnostics(), { public: true });
 }
