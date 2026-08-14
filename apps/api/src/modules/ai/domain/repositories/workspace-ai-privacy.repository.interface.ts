@@ -14,6 +14,9 @@ import type { AiPrivacyMode } from '@pentesthub/shared';
 export interface WorkspaceAiPrivacySettingRecord {
   workspaceId: string;
   mode: AiPrivacyMode;
+  /// Module 15 — Local-first AI confirmation (task #341). Null until the
+  /// workspace has explicitly confirmed CLOUD/HYBRID usage at least once.
+  cloudUsageConfirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,7 +26,16 @@ export interface WorkspaceAiPrivacyRepository {
   /// caller should fall back to the AI_ORCHESTRATOR_MODE env default (see
   /// AiPrivacyModeService.resolveMode).
   findByWorkspaceId(workspaceId: string): Promise<WorkspaceAiPrivacySettingRecord | null>;
-  upsert(workspaceId: string, mode: AiPrivacyMode): Promise<WorkspaceAiPrivacySettingRecord>;
+  /// `confirmCloudUsage: true` stamps cloudUsageConfirmedAt = now() (only
+  /// if not already set — never overwritten once confirmed); false leaves
+  /// any existing confirmation timestamp untouched. See
+  /// AiPrivacyModeService.setMode for the "must confirm before CLOUD/
+  /// HYBRID" gate this supports.
+  upsert(
+    workspaceId: string,
+    mode: AiPrivacyMode,
+    confirmCloudUsage: boolean,
+  ): Promise<WorkspaceAiPrivacySettingRecord>;
 }
 
 export const WORKSPACE_AI_PRIVACY_REPOSITORY = Symbol('WORKSPACE_AI_PRIVACY_REPOSITORY');

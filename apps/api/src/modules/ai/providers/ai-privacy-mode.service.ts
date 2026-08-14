@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiPrivacyMode, WorkspaceAiPrivacySettingDto } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
+import { AppException } from '../../../common/exceptions/app.exception.js';
 import {
   WORKSPACE_AI_PRIVACY_REPOSITORY,
   type WorkspaceAiPrivacyRepository,
@@ -19,6 +20,16 @@ import {
 /// provider* a request may use. It does not implement ADR 0007's full
 /// definition of "local" (routing execution to the Desktop Agent) — that
 /// remains a documented gap, not something this task claims to close.
+///
+/// Module 15 — Local-first AI confirmation (task #341). setMode now
+/// requires an explicit one-time confirmation (`confirmCloudUsage: true`)
+/// before a workspace can switch into CLOUD or HYBRID mode, throwing
+/// AI_CLOUD_USAGE_NOT_CONFIRMED otherwise — deliberately enforced only at
+/// this single write path (not inside AiProviderRegistryService's hot-path
+/// resolveProvider) so it stays a one-time consent gate on the rarely-called
+/// "change privacy mode" command rather than a per-turn check that would
+/// change today's already-tested CLOUD-mode "unrestricted" resolution
+/// behavior (see ai-provider-registry.service.spec.ts).
 @Injectable()
 export class AiPrivacyModeService {
   constructor(
@@ -43,6 +54,7 @@ export class AiPrivacyModeService {
         workspaceId: setting.workspaceId,
         mode: setting.mode,
         updatedAt: setting.updatedAt.toISOString(),
+        cloudUsageConfirmedAt: setting.cloudUsageConfirmedAt?.toISOString() ?? null,
       };
     }
     // No explicit row yet — report the effective (env-default) mode, with
@@ -51,15 +63,31 @@ export class AiPrivacyModeService {
       workspaceId,
       mode: this.getEnvDefault(),
       updatedAt: new Date().toISOString(),
+      cloudUsageConfirmedAt: null,
     };
   }
 
-  async setMode(workspaceId: string, mode: AiPrivacyMode): Promise<WorkspaceAiPrivacySettingDto> {
-    const setting = await this.repository.upsert(workspaceId, mode);
+  async setMode(
+    workspaceId: string,
+    mode: AiPrivacyMode,
+    confirmCloudUsage = false,
+  ): Promise<WorkspaceAiPrivacySettingDto> {
+    if (mode !== 'LOCAL' && !confirmCloudUsage) {
+      const existing = await this.repository.findByWorkspaceId(workspaceId);
+      if (!existing?.cloudUsageConfirmedAt) {
+        throw new AppException(
+          'AI_CLOUD_USAGE_NOT_CONFIRMED',
+          'This workspace has not yet confirmed cloud AI usage — resubmit with confirmCloudUsage: true to acknowledge that CLOUD/HYBRID mode sends data to a third-party AI provider.',
+          HttpStatus.CONFLICT,
+        );
+      }
+    }
+    const setting = await this.repository.upsert(workspaceId, mode, confirmCloudUsage);
     return {
       workspaceId: setting.workspaceId,
       mode: setting.mode,
       updatedAt: setting.updatedAt.toISOString(),
+      cloudUsageConfirmedAt: setting.cloudUsageConfirmedAt?.toISOString() ?? null,
     };
   }
 }

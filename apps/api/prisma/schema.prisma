@@ -50,6 +50,8 @@ model User {
   workspaceMemberships    WorkspaceMember[]
   apiKeys                 ApiKey[]
   preferences             UserPreferences?
+  // Module 15 — additive back-relation.
+  marketplacePublisherProfile MarketplacePublisher?
 
   projectsCreated     Project[]
   projectMemberships  ProjectMember[]
@@ -373,6 +375,16 @@ model Workspace {
   /// Modules 1-9 read/write the workspace itself.
   organizationId String?
   teamId         String?
+  // Module 15 — task #352 (demo mode). isDemo marks a workspace created by
+  // POST /demo/session rather than registration — the sole switch
+  // `resolveTargetForCaller` checks to reject new ReconJob/VulnScanJob
+  // creation (demo workspaces only ever contain pre-seeded, already-
+  // completed synthetic data; a public "try it" entry point must never be
+  // able to trigger a real network scan against an arbitrary target).
+  // demoExpiresAt drives DemoCleanupService's sweep — null for every
+  // non-demo workspace.
+  isDemo         Boolean   @default(false)
+  demoExpiresAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1341,6 +1353,21 @@ model ApiKey {
   expiresAt  DateTime?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
+  /// Module 15 — API key management improvements (task #336). Empty
+  /// array means "no restriction" (the pre-existing default behavior),
+  /// never "deny all" — an operator who never touches this field sees no
+  /// behavior change. CIDR notation supported by
+  /// `ApiKeyAuthGuard`'s IP check (e.g. `"203.0.113.0/24"`), plain IPs
+  /// also accepted.
+  ipAllowlist        String[] @default([])
+  /// Per-key override of the throttler's default limit — `null` means
+  /// "use the global `@Throttle` default the route already declares."
+  rateLimitPerMinute Int?
+  /// Set by `RotateApiKeyCommand` on the *new* key row, pointing back at
+  /// the key it replaces — the old key is simultaneously revoked, never
+  /// deleted, so audit history and `ApiRequestLog.apiKeyId` references
+  /// stay intact.
+  rotatedFromId      String?
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1361,6 +1388,18 @@ model UserPreferences {
   language             String   @default("en")
   timezone             String   @default("UTC")
   notificationsEnabled Boolean  @default(true)
+  // Module 15 — Privacy controls (task #342). Per-user override consulted
+  // by the future telemetry collector (task #347) before sending any
+  // event for this user — default false (opted in) matches the operator-
+  // level TELEMETRY_ENABLED default of false in env.validation.ts, so
+  // telemetry only ever fires when both the operator has turned it on AND
+  // the user hasn't individually opted out.
+  telemetryOptOut      Boolean  @default(false)
+  // Module 15 — task #351 (first-run onboarding). Null until the user
+  // finishes (or dismisses) the onboarding flow; `apps/web`'s dashboard
+  // shows the onboarding overlay whenever this is null. Stamped
+  // server-side via PATCH /users/me/preferences {onboardingCompleted:true}.
+  onboardingCompletedAt DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1440,6 +1479,14 @@ enum AuditEventType {
   INTEGRATION_DISCONNECTED
   WORKER_NODE_REGISTERED
   SECRET_ROTATED
+  // Module 15 additions — additive only, existing values/behavior unchanged.
+  // Privacy controls (task #342).
+  DATA_EXPORT_REQUESTED
+  ACCOUNT_DELETION_REQUESTED
+  // Demo mode (task #352).
+  DEMO_SESSION_STARTED
+  // Support system (task #355).
+  SUPPORT_TICKET_CREATED
 }
 
 // ---------------------------------------------------------------------------
@@ -2338,6 +2385,10 @@ enum BugBountyNotificationType {
   // Module 10 — Automation Engine: raised by a Workflow's `notify` step
   // (see automation-engine/workflow-executor.service.ts).
   WORKFLOW_ALERT
+  // Module 15 — AI cost control (task #340): raised by
+  // AiBudgetEnforcerService when a workspace crosses a soft (warning) or
+  // hard (blocked) AiBudgetPolicy limit.
+  AI_BUDGET_ALERT
 }
 
 /// `relatedEntityType`/`relatedEntityId` is a loose reference, same
@@ -2834,6 +2885,13 @@ model Organization {
   workflows              Workflow[]
   backupRuns             BackupRun[]
   licenses               License[]
+  // Module 15 — additive back-relations. `subscription` is 1:1
+  // (`Subscription.organizationId` is `@unique`) — every Organization,
+  // Community or Enterprise, gets exactly one, defaulted to
+  // `PlanTier.FREE`/`BillingProviderKind.NONE` at creation.
+  subscription  Subscription?
+  invoices      Invoice[]
+  paymentMethods PaymentMethod[]
 
   @@map("organizations")
 }
@@ -3348,14 +3406,23 @@ model Plugin {
   ratingCount    Int            @default(0)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  /// Module 15 — Marketplace security (task #333). Distinct from
+  /// `authorUserId` (who clicked "publish") — a `MarketplacePublisher`
+  /// is an optional, separately-verified identity a plugin can be
+  /// attributed to. Nullable so every pre-Module-15 Plugin row keeps
+  /// working unchanged with no publisher attached.
+  publisherId    String?
 
   organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   author       User                 @relation("PluginAuthor", fields: [authorUserId], references: [id])
+  publisher    MarketplacePublisher? @relation(fields: [publisherId], references: [id], onDelete: SetNull)
   versions     PluginVersion[]
   installs     PluginInstallation[]
   ratings      PluginRating[]
+  securityAdvisories SecurityAdvisory[]
 
   @@index([category, status])
+  @@index([publisherId])
   @@map("plugins")
 }
 
@@ -3384,9 +3451,26 @@ model PluginVersion {
   changelog    String?
   deprecated   Boolean  @default(false)
   publishedAt  DateTime @default(now())
+  /// Module 15 — Marketplace security (task #333). Persisted so a
+  /// client can verify integrity against a known-good value without
+  /// re-hashing `sourceCode` itself (useful for large bundles, and for
+  /// verifying a download out-of-band from this API). Computed at
+  /// publish time by the same `hashPluginBundle()` used for signature
+  /// verification (`plugin-signature.util.ts`) — SHA-256 over the
+  /// base64 source bundle.
+  checksumSha256 String?
+  /// Moderation status, separate from the plugin-lifecycle `Plugin.status`
+  /// (DRAFT/PUBLISHED/DEPRECATED/SUSPENDED). A version can be
+  /// `PUBLISHED` on its parent Plugin (visible, installable) while still
+  /// `PENDING` review — reviewStatus only gates the "Verified"/reviewed
+  /// badge and marketplace search ranking, never installability, so a
+  /// self-hosted deployment with no reviewer configured is never blocked
+  /// from installing anything.
+  reviewStatus MarketplaceReviewStatus @default(PENDING)
 
   plugin       Plugin               @relation(fields: [pluginId], references: [id], onDelete: Cascade)
   installations PluginInstallation[]
+  scanResults  MarketplaceScanResult[]
 
   @@unique([pluginId, version])
   /// Module 14 — Performance: `GetAvailablePluginUpdatesQuery`
@@ -3417,6 +3501,7 @@ model PluginInstallation {
   plugin       Plugin        @relation(fields: [pluginId], references: [id], onDelete: Cascade)
   version      PluginVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
   installer    User          @relation("PluginInstaller", fields: [installedBy], references: [id])
+  permissionGrants PluginPermissionGrant[]
 
   @@unique([organizationId, workspaceId, pluginId])
   @@map("plugin_installations")
@@ -4223,6 +4308,10 @@ enum AiPrivacyMode {
 model WorkspaceAiPrivacySetting {
   workspaceId String        @id
   mode        AiPrivacyMode @default(CLOUD)
+  // Module 15 — Local-first AI confirmation (task #341). Null until the
+  // workspace has explicitly confirmed CLOUD/HYBRID usage at least once —
+  // see AiPrivacyModeService.setMode and AiCloudUsageNotConfirmedError.
+  cloudUsageConfirmedAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -4618,4 +4707,514 @@ model RelayCommand {
 
   @@index([workspaceId, target, status])
   @@map("relay_commands")
+}
+
+// =============================================================================
+// Module 15 — Production Hardening, Monetization, Marketplace & Global Launch
+// =============================================================================
+// Provider-agnostic by design (see docs/adr/0015-production-hardening-monetization-marketplace.md):
+// every model below describes billing/quota/marketplace *state*, never calls
+// a payment provider's API directly — that lives behind
+// `apps/api/src/modules/billing/providers/payment-provider.interface.ts`. A
+// Community Edition deployment with no provider configured still gets a
+// fully functional `Subscription` row pinned to `PlanTier.FREE`/
+// `BillingProviderKind.NONE` — nothing in this block requires Stripe, or any
+// paid service, to exist or be reachable. See task #361's Community Edition
+// guarantee review for the audit that confirms this holds.
+
+enum PlanTier {
+  FREE
+  CLOUD_FREE
+  PRO
+  TEAM
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  NONE
+}
+
+enum BillingProviderKind {
+  STRIPE
+  MANUAL
+  NONE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+/// One row per plan tier — the single configuration-driven source of truth
+/// for pricing/limits (task #328), so "make Pro cheaper" or "raise the Team
+/// storage limit" is a data change, never a code change. Seeded by
+/// `apps/api/prisma/seed-plans.ts`; `PlanTier.FREE` always exists with
+/// `priceMonthlyCents: 0` and is what every new Organization starts on
+/// (`SubscriptionService.ensureDefaultSubscription`).
+model Plan {
+  id                String   @id @default(uuid())
+  tier              PlanTier @unique
+  name              String
+  description       String
+  priceMonthlyCents Int      @default(0)
+  priceYearlyCents  Int      @default(0)
+  currency          String   @default("usd")
+  /// Keyed by `UsageResourceType` (e.g. `{"AI_TOKENS": {"monthly":
+  /// 100000}, "STORAGE_BYTES": {"total": 5368709120}}`) — consumed by
+  /// `QuotaEnforcer` as the plan-level default `QuotaPolicy` when no more
+  /// specific override exists. A `null` limit value means "unlimited,"
+  /// used by `PlanTier.FREE`'s self-hosted-usage entries per the standing
+  /// "never charge users for self-hosted usage" rule.
+  limits    Json
+  /// Boolean/short-string feature toggles this plan unlocks (e.g.
+  /// `{"hostedWorkers": true, "sso": false, "prioritySupport": false}`) —
+  /// read by `EntitlementService`, never hardcoded per-plan in business
+  /// logic.
+  features  Json
+  isActive  Boolean  @default(true)
+  /// Provider-specific config a `PaymentProvider` adapter needs but
+  /// this table shouldn't hardcode a column for (e.g.
+  /// `{"stripe": {"monthlyPriceId": "price_...", "yearlyPriceId":
+  /// "price_..."}}`). `null`/missing entries mean "this provider isn't
+  /// wired for this plan yet" — `StripePaymentProvider.createCheckoutSession()`
+  /// falls back to returning `null` (no checkout) rather than throwing,
+  /// so an unconfigured Stripe price never breaks the rest of the page.
+  providerMetadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// One active subscription per Organization. Community Edition orgs get one
+/// row pinned to FREE/NONE at creation — this table is not Enterprise-only
+/// or Cloud-only, unlike `License` (Module 14, which gates Enterprise
+/// *features*; this gates *billing state* and applies to every edition).
+/// `Organization.subscriptionStatus`/`billingProviderCustomerId` (Module 14,
+/// plain strings) are left as-is for backward compatibility with the
+/// existing `BillingWebhookController`; this table is the typed system of
+/// record `SubscriptionService` actually reads/writes, and keeps those
+/// legacy columns in sync as a denormalized convenience.
+model Subscription {
+  id                     String              @id @default(uuid())
+  organizationId         String              @unique
+  planId                 String
+  status                 SubscriptionStatus  @default(NONE)
+  provider               BillingProviderKind @default(NONE)
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean             @default(false)
+  trialEndsAt            DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
+
+  @@index([provider, providerSubscriptionId])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id                String              @id @default(uuid())
+  organizationId    String
+  subscriptionId    String?
+  provider          BillingProviderKind
+  providerInvoiceId String?
+  status            InvoiceStatus       @default(DRAFT)
+  amountCents       Int
+  currency          String              @default("usd")
+  issuedAt          DateTime            @default(now())
+  paidAt            DateTime?
+  dueAt             DateTime?
+  hostedInvoiceUrl  String?
+  pdfUrl            String?
+  createdAt         DateTime            @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, issuedAt])
+  @@index([provider, providerInvoiceId])
+  @@map("invoices")
+}
+
+model PaymentMethod {
+  id                      String              @id @default(uuid())
+  organizationId          String
+  provider                BillingProviderKind
+  providerPaymentMethodId String
+  brand                   String?
+  last4                   String?
+  expMonth                Int?
+  expYear                 Int?
+  isDefault               Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("payment_methods")
+}
+
+// ---------------------------------------------------------------------------
+// Usage metering + quota engine (tasks #329-330)
+// ---------------------------------------------------------------------------
+
+enum UsageResourceType {
+  AI_TOKENS
+  AI_REQUESTS
+  SCANNER_JOBS
+  RECON_JOBS
+  WORKER_CPU_SECONDS
+  STORAGE_BYTES
+  BANDWIDTH_BYTES
+  REPORTS_GENERATED
+  WORKFLOW_EXECUTIONS
+  MCP_CALLS
+  API_REQUESTS
+  PLUGIN_EXECUTIONS
+  DESKTOP_JOBS
+  MOBILE_SYNCS
+  /// Module 15 — AI cost control (task #340). See
+  /// packages/shared/src/usage-metering.ts's doc comment on the same value.
+  AI_COST_CENTS
+}
+
+enum QuotaScopeType {
+  PLAN
+  ORGANIZATION
+  WORKSPACE
+  USER
+}
+
+enum QuotaPeriodType {
+  DAILY
+  MONTHLY
+  TOTAL
+}
+
+/// One pre-aggregated counter per (scope, resource, period) — written by
+/// `UsageService.record()` as an upsert (`quantity += $1`), not a
+/// row-per-event log, so this table stays small regardless of API traffic
+/// volume. `organizationId`/`workspaceId`/`userId` are plain nullable
+/// FK-shaped fields with no Prisma relation, matching `ApiRequestLog`'s
+/// existing convention for high-volume metering tables (Module 14) — exactly
+/// one of the three is populated per row, matching whichever scope the
+/// event was recorded at.
+model UsageCounter {
+  id           String            @id @default(uuid())
+  /// Deliberately non-nullable, `@default("")` for "not scoped at this
+  /// dimension" rather than `String?`/`null` — Postgres treats every
+  /// `NULL` as distinct for unique-constraint purposes, which would
+  /// silently break `UsageService.record()`'s upsert (`ON CONFLICT`
+  /// never matches when any constraint column is `NULL`, so every call
+  /// would insert a fresh row instead of incrementing one). An empty
+  /// string sentinel keeps the composite `@@unique` below fully
+  /// functional. Application code never treats `""` as a real ID.
+  organizationId String            @default("")
+  workspaceId    String            @default("")
+  userId         String            @default("")
+  resourceType   UsageResourceType
+  periodType     QuotaPeriodType
+  periodStart    DateTime
+  periodEnd      DateTime
+  quantity       Float             @default(0)
+  unit           String
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([organizationId, workspaceId, userId, resourceType, periodType, periodStart])
+  @@index([organizationId, resourceType, periodStart])
+  @@map("usage_counters")
+}
+
+/// A limit at one scope level. `QuotaEnforcer` resolves the *tightest*
+/// applicable policy across PLAN -> ORGANIZATION -> WORKSPACE -> USER (most
+/// specific wins if present, else falls back up the chain to the plan
+/// default in `Plan.limits`) — generalizes the same most-specific-wins
+/// pattern `ResourceQuota` (Module 10) established with fixed per-org
+/// columns, now per-resource-type and per-scope. `scopeId` is null for
+/// `PLAN` scope (use `planTier` instead); exactly one of `scopeId`/
+/// `planTier` is set per row.
+model QuotaPolicy {
+  id           String            @id @default(uuid())
+  scopeType    QuotaScopeType
+  scopeId      String?
+  planTier     PlanTier?
+  resourceType UsageResourceType
+  periodType   QuotaPeriodType
+  softLimit    Float?
+  hardLimit    Float?
+  graceHours   Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([scopeType, scopeId, planTier, resourceType, periodType])
+  @@index([scopeType, scopeId])
+  @@map("quota_policies")
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace security (task #333) — extends Module 10/13's Plugin
+// Marketplace, doesn't replace it. `Plugin.verified`/`downloadCount`/
+// `ratingAverage`/`ratingCount` and `PluginRating` already exist (Module 10)
+// and are reused as-is for download stats and community rating.
+// ---------------------------------------------------------------------------
+
+enum MarketplaceReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+/// A verified publisher identity, distinct from `Plugin.authorUserId`
+/// (which just records who clicked "publish"). A Plugin published by a
+/// `MarketplacePublisher` with `verified: true` is what the marketplace UI
+/// badges as "Verified Publisher" — separate from `Plugin.verified`
+/// (Module 10), which reflects *signature* validity. `publicKeyPem` lets a
+/// verified publisher sign with their own key instead of only the
+/// marketplace operator's single shared key
+/// (`PLUGIN_MARKETPLACE_PUBLIC_KEY`).
+model MarketplacePublisher {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  organizationId String?
+  displayName    String
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime?
+  publicKeyPem   String?
+  websiteUrl     String?
+  supportEmail   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plugins Plugin[]
+
+  @@map("marketplace_publishers")
+}
+
+/// One row per automated scan run against a `PluginVersion` (dependency
+/// scan, malware-scan hook, secret scan). `MarketplaceScannerService` runs a
+/// best-effort static pass in-process — no paid scanning API required — and
+/// records the result here regardless of outcome, so "never scanned" (no
+/// rows) is visibly different from "scanned clean" (a row with `passed:
+/// true`).
+model MarketplaceScanResult {
+  id              String   @id @default(uuid())
+  pluginVersionId String
+  scanType        String
+  passed          Boolean
+  findings        Json?
+  scannedAt       DateTime @default(now())
+
+  pluginVersion PluginVersion @relation(fields: [pluginVersionId], references: [id], onDelete: Cascade)
+
+  @@index([pluginVersionId])
+  @@map("marketplace_scan_results")
+}
+
+/// A disclosed vulnerability in a published plugin. Reuses
+/// `VulnFindingSeverity` (Module 4) rather than a new severity enum — the
+/// same 5-level scale a security advisory needs.
+model SecurityAdvisory {
+  id                   String              @id @default(uuid())
+  pluginId             String?
+  title                String
+  description          String
+  severity             VulnFindingSeverity
+  affectedVersionRange String?
+  patchedVersion       String?
+  publishedAt          DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+
+  plugin Plugin? @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@index([pluginId])
+  @@map("security_advisories")
+}
+
+/// Explicit per-installation permission grants — a plugin's
+/// `PluginVersion.permissions` (Module 10, `string[]`) is what it
+/// *declares*; this is what an org admin actually *granted* at install
+/// time, enforced by `PluginPermissionEnforcer` (task #334). A
+/// declared-but-not-granted permission is unavailable at runtime even
+/// though the plugin asked for it — the same disclose-then-consent model
+/// OAuth app installs use, now actually enforced rather than only
+/// disclosed.
+model PluginPermissionGrant {
+  id                   String   @id @default(uuid())
+  pluginInstallationId String
+  permission           String
+  grantedByUserId      String
+  grantedAt            DateTime @default(now())
+
+  installation PluginInstallation @relation(fields: [pluginInstallationId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginInstallationId, permission])
+  @@map("plugin_permission_grants")
+}
+
+// ---------------------------------------------------------------------------
+// Feature flags (task #357)
+// ---------------------------------------------------------------------------
+
+enum FeatureFlagScopeType {
+  ORGANIZATION
+  WORKSPACE
+  USER
+}
+
+/// A named toggle. `defaultEnabled` is the fallback when no
+/// `FeatureFlagOverride` matches — Community/Cloud/Enterprise/Beta/
+/// Developer/Self-hosted targeting is expressed as JSON conditions in
+/// `editionRules` (e.g. `{"minEdition": "enterprise"}` or `{"planTiers":
+/// ["PRO","TEAM","ENTERPRISE"]}`), evaluated by `FeatureFlagService` before
+/// falling back to `defaultEnabled`.
+model FeatureFlag {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  description    String
+  defaultEnabled Boolean  @default(false)
+  editionRules   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  overrides FeatureFlagOverride[]
+
+  @@map("feature_flags")
+}
+
+/// A per-scope override, taking precedence over both `editionRules` and
+/// `defaultEnabled`. `scopeId` is polymorphic against `scopeType` (the same
+/// established pattern as `AttachableType`/`attachableId` — Module 2) — no
+/// Prisma relation, since the referenced model varies.
+model FeatureFlagOverride {
+  id            String               @id @default(uuid())
+  featureFlagId String
+  scopeType     FeatureFlagScopeType
+  scopeId       String
+  enabled       Boolean
+  createdAt     DateTime             @default(now())
+
+  featureFlag FeatureFlag @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+
+  @@unique([featureFlagId, scopeType, scopeId])
+  @@map("feature_flag_overrides")
+}
+
+// ---------------------------------------------------------------------------
+// AI cost control (task #340)
+// ---------------------------------------------------------------------------
+
+/// Per-provider/per-model pricing, so cost estimation doesn't hardcode
+/// dollar amounts in TypeScript. Seeded with publicly documented list
+/// prices for the built-in cloud providers; `OLLAMA` rows are seeded at $0
+/// since there's no metered cost to a local model. Operators can update
+/// prices here without a code change if a provider's pricing changes.
+model AiModelPricing {
+  id                          String         @id @default(uuid())
+  provider                    AiProviderName
+  model                       String
+  inputCentsPerMillionTokens  Int            @default(0)
+  outputCentsPerMillionTokens Int            @default(0)
+  updatedAt                   DateTime       @updatedAt
+
+  @@unique([provider, model])
+  @@map("ai_model_pricing")
+}
+
+/// Budget ceiling for a scope (mirrors `QuotaPolicy`'s scope model but kept
+/// as its own table rather than overloading `QuotaPolicy` with cost-specific
+/// fields, since AI budget enforcement — refuse the *next* AI call outright
+/// — is a stricter, synchronous check than the softer "you're over quota,
+/// keep going with warnings" model `QuotaEnforcer` otherwise applies to
+/// metered resources like storage).
+model AiBudgetPolicy {
+  id                    String         @id @default(uuid())
+  scopeType             QuotaScopeType
+  scopeId               String?
+  planTier              PlanTier?
+  dailyTokenLimit       Int?
+  monthlyTokenLimit     Int?
+  dailyCostCentsLimit   Int?
+  monthlyCostCentsLimit Int?
+  hardStop              Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@unique([scopeType, scopeId, planTier])
+  @@map("ai_budget_policies")
+}
+
+// Module 15 — Support system (task #355).
+
+enum SupportTicketCategory {
+  BUG
+  BILLING
+  ACCOUNT
+  FEATURE_REQUEST
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+/// A user-submitted support request. Deliberately not a full threaded
+/// ticketing system with per-message rows — this platform has no
+/// deployment-wide "platform admin" role to gate an in-app triage UI
+/// behind (the same gap `ClusterOverviewService` already discloses), so
+/// this table exists for audit history and for the submitter's own "my
+/// tickets" list, while an operator actually triages via the notification
+/// email `CreateSupportTicketHandler` sends to `SUPPORT_INBOX_EMAIL` — the
+/// same "monitored inbox is the primary channel" posture SECURITY.md
+/// already documents for security reports. `userId`/`workspaceId` are
+/// nullable because the intake endpoint is deliberately public — someone
+/// who can't log in is exactly who most needs to be able to reach support.
+model SupportTicket {
+  id       String  @id @default(uuid())
+  /// Null for a logged-out submitter; set for an authenticated one so
+  /// `ListMySupportTicketsQuery` can scope "my tickets" without a Prisma
+  /// relation (matching `ApiKey.userId`'s plain-field precedent above).
+  userId   String?
+  workspaceId String?
+  /// Always present — even for an authenticated submitter, since the
+  /// reply naturally goes here rather than requiring a lookup back to
+  /// `User.email` (which may not match where the person wants a reply).
+  email    String
+  category SupportTicketCategory
+  subject  String
+  message  String
+  status   SupportTicketStatus @default(OPEN)
+  /// Optional client-side snapshot from `useDiagnostics()` (task #353) —
+  /// JSON blob of app/server version, latency, database status, browser
+  /// info — attached at submission time so a first response doesn't have
+  /// to start with "what browser are you using?" Never required; a ticket
+  /// filed from outside the product (e.g. by email in the future) simply
+  /// won't have one.
+  diagnosticsSnapshot Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
 }

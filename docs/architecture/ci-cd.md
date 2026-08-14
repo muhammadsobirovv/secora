@@ -12,6 +12,7 @@ Five GitHub Actions workflows cover this monorepo's CI/CD surface. This document
 | `.github/workflows/security-scan.yml` | push/PR to `main`, weekly schedule | CodeQL static analysis, `pnpm audit`, `cargo audit`. |
 | `.github/workflows/docker-publish.yml` | push to `main`, `v*.*.*` tags | Builds and pushes the `api`/`worker`/`web` container images to GHCR, with SBOM + provenance attestations, Trivy vulnerability scanning, and cosign keyless signing. |
 | `.github/workflows/release.yml` | `v*.*.*` tags, manual dispatch | Release orchestration: re-runs the full verification gate against the tagged commit, generates a monorepo-wide SBOM, creates the GitHub Release, and (optionally) publishes the CLI to npm / Python SDK to PyPI. |
+| `.github/dependabot.yml` | scheduled (weekly), not a workflow file — configures GitHub's own bot | Opens PRs for outdated/vulnerable dependencies across every ecosystem this monorepo uses (npm/pnpm, cargo, pub, docker, github-actions) — see `docs/security/supply-chain.md`. |
 
 **PR validation vs. release/deployment, deliberately separate**: `ci.yml`/`mobile-ci.yml`/`desktop-ci.yml`/`security-scan.yml` answer "is this change safe to merge" and run on every push/PR. `docker-publish.yml`/`release.yml` answer "is this tagged commit ready to ship" and only run on `main`/tags — a docs-only PR never triggers a multi-gigabyte image build or a release orchestration run.
 
@@ -85,3 +86,4 @@ Nothing else — no database URL, JWT secret, or encryption key secret is read f
 - `deploy/README.md` — deployment paths (Docker Compose, Kubernetes, bare-metal installer) these pipelines' artifacts feed into.
 - `docs/architecture/auto-update.md` — how the artifacts these pipelines produce relate to each component's update/rollback/version-pinning story.
 - `docs/security/` — secrets management, TLS/mTLS, WAF compatibility (the *runtime* security posture; this document covers *build-time* security only).
+- `docs/security/supply-chain.md` (Module 15, task #345) — the full dependency/SBOM/signing/plugin-integrity policy this document's "Security/dependency scanning, SBOM, and signing" section is a summary of.

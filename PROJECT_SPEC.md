@@ -1163,3 +1163,75 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/releases/module-14-release-notes.md`,
 > `docs/architecture/{api-gateway,auto-update,ci-cd}.md`, and
 > `docs/reviews/{0006-module-14-performance-review,0007-module-14-community-edition-guarantee}.md`.
+>
+> **Module 15 — Production Hardening, Monetization & Marketplace**
+> (2026-08-14): source-complete. Answers the questions every prior
+> module's release notes deferred: a `PaymentProvider` abstraction with a
+> Stripe adapter (plain `fetch()`, deliberately no `stripe` npm SDK) over
+> new `Subscription`/`Invoice`/`Plan`/`PaymentMethod`/`QuotaPolicy`/
+> `UsageCounter` tables, hosted checkout, and a `StripeWebhookController`
+> (`POST /billing/webhook/stripe`) verifying Stripe's own HMAC signature
+> scheme independently of Module 14's pre-existing generic billing
+> webhook; `UsageService`/`QuotaService` metering and enforcing
+> configurable per-scope limits (`BILLING_PROVIDER` defaults to `none`,
+> and the `FREE` plan's limits are `UNLIMITED` by seed default, so a
+> self-hosted deployment is never throttled by default); Marketplace
+> security (publisher verification, package checksums, enforced
+> per-plugin permission declarations via `PluginPermissionGrant`); a
+> versioned Public API v1 layer and expanded API key management (IP
+> allowlists, per-key rate limits, rotation lineage); nine outbound
+> Integrations (Slack/Discord/Telegram/email/GitHub/GitLab/Jira/Linear/
+> Microsoft Teams) plus a generic webhook, all through one
+> `IntegrationConnection`/`IntegrationProvider` abstraction; AI cost
+> control (`AiModelPricingService`/`AiBudgetEnforcerService`, per-
+> workspace/organization spend budgets with provider/model fallback);
+> privacy groundwork (self-service data export/deletion, telemetry
+> opt-out, an opt-in privacy-aware `TelemetryModule` off by default,
+> documented in the new `PRIVACY.md` and `docs/compliance/gdpr-readiness.md`);
+> i18n (English/Uzbek/Russian) and an accessibility audit across web/
+> mobile/desktop; first-run onboarding and an isolated, read-only Demo
+> Mode; Operability (`GET /observability/health/diagnostics`, a
+> request-correlation ID threaded from `AsyncLocalStorage` through every
+> `AppException` and into root/dashboard-segment React error boundaries,
+> and a Support ticket queue — deliberately without a triage UI, since no
+> deployment-wide platform-admin role exists yet, the same posture
+> Module 14's Tenant Management and Admin Console already established);
+> Release engineering (`CHANGELOG.md`, a `RELEASE_CHANNEL` env var,
+> root/app `package.json` versions synchronized to the module-tracking
+> scheme for the first time, `0.15.0`); and a Feature Flags system
+> (`FeatureFlagsService.evaluateAll()` resolving USER > WORKSPACE >
+> ORGANIZATION overrides, then `editionRules` reusing Module 14's
+> `EditionService.isEnterpriseFor()`, then `defaultEnabled` — management
+> endpoints exist and work but, matching the same admin-role gap, are
+> reachable via Swagger/`curl` only). Dedicated Performance
+> (`QuotaService.resolveLimit()`'s sequential-`findFirst`-per-scope loop
+> collapsed into one `findMany`), Security (two passes — see
+> `docs/reviews/0008-m15-security-hardening-review.md` and its
+> `0011-module-15-security-review-followup.md` follow-up), UX (a missing
+> loading state found and fixed on the Diagnostics page), and Community
+> Edition guarantee passes all ran and are documented in
+> `docs/reviews/`. This module's sandbox verification constraint is
+> **strictly worse** than every prior module's: discovered while building
+> the Stripe webhook, the root `package.json` files for `@nestjs/common`,
+> `@nestjs/swagger`, `@nestjs/cqrs`, `@nestjs/config`, and
+> `@prisma/client` are physically missing from this sandbox's pnpm store
+> (confirmed via direct filesystem inspection and a plain `node -e
+> "require.resolve(...)"` failure), meaning `apps/api`'s `tsc --noEmit`
+> cannot complete here **at all**, not merely slowly — every module back
+> through Module 7 could at least attempt a slow/partial compiler pass;
+> this one couldn't attempt one at all. `jest` remains absent from this
+> sandbox for the same standing reason disclosed since Module 7; three
+> new spec files (Stripe webhook signature verification, the quota N+1
+> fix, feature-flag precedence rules) were written and manually traced
+> against their targets' real control flow but never executed. `npx
+> prisma generate` / a real migration have not run here either — Module
+> 15's schema changes are captured in one consolidated migration file.
+> Billing UI (`/billing`, `/pricing`, `/settings/billing`) and a Feature
+> Flags admin UI are both disclosed as the largest remaining end-user-
+> facing gaps, tracked as separate follow-up work rather than folded
+> silently into "Module 15 is done." See
+> `docs/adr/0015-production-hardening-monetization-marketplace.md`,
+> `docs/releases/module-15-release-notes.md`,
+> `docs/architecture/{stripe-webhook,feature-flags,release-engineering,
+> health-diagnostics,error-handling,support-system,demo-mode,i18n,
+> onboarding}.md`, `PRIVACY.md`, and `docs/compliance/gdpr-readiness.md`.

@@ -6,7 +6,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import type { UpdateUserPreferencesRequestDto as UpdatePreferencesShape } from '@pentesthub/shared';
+import { SUPPORTED_LOCALES, type UpdateUserPreferencesRequestDto as UpdatePreferencesShape } from '@pentesthub/shared';
 import type { Theme } from '../../../prisma-types.js';
 
 const THEMES: Theme[] = ['LIGHT', 'DARK', 'SYSTEM'];
@@ -17,10 +17,14 @@ export class UpdatePreferencesDto implements UpdatePreferencesShape {
   @IsIn(THEMES)
   theme?: Theme;
 
-  @ApiPropertyOptional({ maxLength: 10 })
+  // Module 15 — task #348. `language` stays a plain `String` column (see
+  // schema.prisma) rather than a Prisma enum — tightening it to
+  // SUPPORTED_LOCALES here, at the DTO boundary, gets the same guarantee
+  // without a schema migration (this pass deliberately avoids adding to
+  // the already-disclosed stale-generated-Prisma-client gap — task #365).
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @IsIn(SUPPORTED_LOCALES)
   language?: string;
 
   @ApiPropertyOptional({ maxLength: 100 })
@@ -33,4 +37,17 @@ export class UpdatePreferencesDto implements UpdatePreferencesShape {
   @IsOptional()
   @IsBoolean()
   notificationsEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  telemetryOptOut?: boolean;
+
+  // Module 15 — task #351 (first-run onboarding). Write-only, one-directional:
+  // `true` stamps `onboardingCompletedAt`; anything else is a no-op. See the
+  // shared-package doc comment on `UpdateUserPreferencesRequestDto` for why.
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  onboardingCompleted?: boolean;
 }

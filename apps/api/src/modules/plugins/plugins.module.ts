@@ -21,7 +21,13 @@ import {
 } from './queries/plugin-installations.query.js';
 import { PluginsController } from './controllers/plugins.controller.js';
 import { PluginInstallationsController } from './controllers/plugin-installations.controller.js';
+import { MarketplacePublisherController } from './controllers/marketplace-publisher.controller.js';
+import { MarketplaceSecurityController } from './controllers/marketplace-security.controller.js';
 import { PluginSandboxService } from './plugin-sandbox.service.js';
+import { MarketplacePublisherService } from './marketplace-publisher.service.js';
+import { MarketplaceScannerService } from './marketplace-scanner.service.js';
+import { SecurityAdvisoryService } from './security-advisory.service.js';
+import { PluginPermissionEnforcerService } from './plugin-permission-enforcer.service.js';
 
 const COMMAND_HANDLERS = [
   PublishPluginHandler,
@@ -59,7 +65,28 @@ const QUERY_HANDLERS = [
 /// does.
 @Module({
   imports: [WorkspacesModule],
-  controllers: [PluginsController, PluginInstallationsController],
-  providers: [...COMMAND_HANDLERS, ...QUERY_HANDLERS, PluginSandboxService],
+  controllers: [
+    PluginsController,
+    PluginInstallationsController,
+    // Module 15 — Marketplace security (task #333)
+    MarketplacePublisherController,
+    MarketplaceSecurityController,
+  ],
+  providers: [
+    ...COMMAND_HANDLERS,
+    ...QUERY_HANDLERS,
+    PluginSandboxService,
+    // Module 15 — Marketplace security (task #333). Plain services (not
+    // CQRS handlers) injected directly into `PublishPluginHandler`/
+    // `PublishPluginVersionHandler` above and into their own plain
+    // controllers — see `marketplace-publisher.service.ts`'s doc comment
+    // for why this one corner of `PluginsModule` doesn't follow the
+    // CQRS pattern the rest of the module uses.
+    MarketplacePublisherService,
+    MarketplaceScannerService,
+    SecurityAdvisoryService,
+    // Module 15 — Plugin permission enforcement (task #334)
+    PluginPermissionEnforcerService,
+  ],
 })
 export class PluginsModule {}

@@ -54,7 +54,7 @@ import {
   VulnFindingResolvedEvent,
   VulnFindingUpdatedEvent,
 } from '../../vuln/events/vuln-finding-events.js';
-import { PluginInstalledEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
+import { PluginInstalledEvent, PluginPermissionGrantedEvent, PluginUninstalledEvent } from '../../plugins/events/plugin-events.js';
 import { ScheduledJobRunCompletedEvent, ScheduledJobRunFailedEvent } from '../../automation/events/scheduled-job-events.js';
 import {
   OrchestrationRunCancelledEvent,
@@ -116,6 +116,9 @@ import {
   // fit the Activity Timeline's workspace-scoped shape.
   PluginInstalledEvent,
   PluginUninstalledEvent,
+  // Module 15 — Plugin permission enforcement (task #334) / Webhook
+  // platform improvements (task #337).
+  PluginPermissionGrantedEvent,
   // Module 10 — Automation/webhooks expansion. See scheduled-job-events.ts.
   ScheduledJobRunCompletedEvent,
   ScheduledJobRunFailedEvent,

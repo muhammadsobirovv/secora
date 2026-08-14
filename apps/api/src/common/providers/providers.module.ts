@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { EnvConfig } from '../../config/env.validation.js';
 import { DevMailService } from './mail/dev-mail.service.js';
+import { SmtpMailService } from './mail/smtp-mail.service.js';
 import { LocalDiskStorageService } from './storage/local-disk-storage.service.js';
 import { S3CompatibleStorageService } from './storage/s3-compatible-storage.service.js';
 import { InMemoryQueueService } from './queue/in-memory-queue.service.js';
@@ -14,19 +15,26 @@ import { PollerLeaseService } from '../concurrency/poller-lease.service.js';
 
 /// Global module exporting the platform's four swappable provider
 /// interfaces (mail/storage/queue/cache). Module 14 turned three of
-/// these (storage/queue/cache — mail is a pre-existing exception; see
-/// `DevMailService`'s own module for why no real mail provider ships
-/// yet) from "always the dev-local implementation" into genuinely
-/// config-driven selections (`STORAGE_PROVIDER`/`QUEUE_PROVIDER`/
-/// `CACHE_PROVIDER`) via `useFactory`, so a deployment can move to
-/// Redis/S3-compatible storage without a code change — just an env var.
-/// Every factory still defaults to the zero-configuration Community
-/// Edition binding when the corresponding env var is unset, preserving
-/// this module's original "boots with nothing configured" guarantee.
+/// these (storage/queue/cache) from "always the dev-local implementation"
+/// into genuinely config-driven selections (`STORAGE_PROVIDER`/
+/// `QUEUE_PROVIDER`/`CACHE_PROVIDER`) via `useFactory`, so a deployment
+/// can move to Redis/S3-compatible storage without a code change — just
+/// an env var. Module 15 (task #338) closes the same gap for mail —
+/// `MAIL_PROVIDER=smtp` swaps in `SmtpMailService`. Every factory still
+/// defaults to the zero-configuration Community Edition binding when the
+/// corresponding env var is unset, preserving this module's original
+/// "boots with nothing configured" guarantee.
 @Global()
 @Module({
   providers: [
-    { provide: MAIL_SERVICE, useClass: DevMailService },
+    {
+      provide: MAIL_SERVICE,
+      useFactory: (configService: ConfigService<EnvConfig, true>) => {
+        const provider = configService.get('MAIL_PROVIDER', { infer: true });
+        return provider === 'smtp' ? new SmtpMailService(configService) : new DevMailService(configService);
+      },
+      inject: [ConfigService],
+    },
     {
       provide: STORAGE_SERVICE,
       useFactory: (configService: ConfigService<EnvConfig, true>) => {

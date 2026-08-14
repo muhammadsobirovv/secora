@@ -43,6 +43,8 @@ import { OAuthExchangeUseCase } from './use-cases/oauth-exchange.use-case.js';
 import { ListSessionsUseCase } from './use-cases/list-sessions.use-case.js';
 import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case.js';
 import { GetCurrentUserUseCase } from './use-cases/get-current-user.use-case.js';
+import { ExportUserDataUseCase } from './use-cases/export-user-data.use-case.js';
+import { DeleteAccountUseCase } from './use-cases/delete-account.use-case.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { GoogleStrategy } from './strategies/google.strategy.js';
 import { GithubStrategy } from './strategies/github.strategy.js';
@@ -52,6 +54,7 @@ import { EmailVerificationController } from './controllers/email-verification.co
 import { MfaController } from './controllers/mfa.controller.js';
 import { OAuthController } from './controllers/oauth.controller.js';
 import { SessionsController } from './controllers/sessions.controller.js';
+import { PrivacyController } from './controllers/privacy.controller.js';
 
 @Module({
   imports: [
@@ -71,6 +74,7 @@ import { SessionsController } from './controllers/sessions.controller.js';
     MfaController,
     OAuthController,
     SessionsController,
+    PrivacyController,
   ],
   providers: [
     { provide: USERS_REPOSITORY, useClass: PrismaUsersRepository },
@@ -119,6 +123,8 @@ import { SessionsController } from './controllers/sessions.controller.js';
     ListSessionsUseCase,
     RevokeSessionUseCase,
     GetCurrentUserUseCase,
+    ExportUserDataUseCase,
+    DeleteAccountUseCase,
     JwtStrategy,
     GoogleStrategy,
     GithubStrategy,
@@ -153,6 +159,14 @@ import { SessionsController } from './controllers/sessions.controller.js';
     OAuthExchangeUseCase,
     ListSessionsUseCase,
     RevokeSessionUseCase,
+    // Module 15 — task #352 (demo mode). DemoSessionService needs to issue
+    // a real session for a synthetic demo user without going through any
+    // password/MFA/OAuth flow — SessionIssuerService.issue(user, ctx) is
+    // exactly that primitive, already shared by every flow that ends in a
+    // live session (see its own doc comment). Previously used only inside
+    // this module; exporting it is additive and changes nothing about how
+    // login/mfa-challenge/oauth-exchange already use it.
+    SessionIssuerService,
   ],
 })
 export class AuthModule {}

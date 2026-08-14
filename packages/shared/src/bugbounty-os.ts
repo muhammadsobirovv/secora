@@ -387,6 +387,18 @@ export interface ApiKeyDto {
   expiresAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  /// Module 15 — API key management (task #336). Empty array = no IP
+  /// restriction (the default — never enforced unless an owner
+  /// explicitly opts in).
+  ipAllowlist: string[];
+  /// `null` = no per-key rate limit (falls back to whatever throttling
+  /// already applies to the route, e.g. `ThrottlerModule`'s per-IP
+  /// default).
+  rateLimitPerMinute: number | null;
+  /// Set when this key was minted by rotating an older key —
+  /// `POST public-api/keys/:id/rotate`. `null` for a key created
+  /// directly.
+  rotatedFromId: string | null;
 }
 
 export interface CreateApiKeyRequestDto {
@@ -395,12 +407,27 @@ export interface CreateApiKeyRequestDto {
   workspaceId?: string;
   scopes?: string[];
   expiresInDays?: number;
+  /// Module 15 (task #336). CIDR or exact-IP strings; omitted/empty
+  /// means unrestricted.
+  ipAllowlist?: string[];
+  rateLimitPerMinute?: number;
 }
 
 /// Returned exactly once, at creation — the raw key is never retrievable
 /// again afterward (same pattern as a refresh token / password reset
 /// token: only the hash is stored).
 export interface CreateApiKeyResultDto {
+  apiKey: ApiKeyDto;
+  rawKey: string;
+}
+
+/// Module 15 — API key management (task #336). Rotation mints a
+/// replacement key (`rotatedFromId` pointing back at the original) and
+/// immediately revokes the original in the same operation — a caller
+/// updates to the new `rawKey` and the old credential stops working
+/// right away, the "rotate, don't just add a second valid key" posture a
+/// credential rotation is expected to have.
+export interface RotateApiKeyResultDto {
   apiKey: ApiKeyDto;
   rawKey: string;
 }
@@ -486,6 +513,11 @@ export const WEBHOOK_EVENT_TYPES = [
   "workflow_run.finished",
   "desktop.sync",
   "browser.capture",
+  // Module 15 — Webhook platform improvements (task #337). Unlike
+  // "desktop.sync"/"browser.capture" above, this one has a real, live
+  // publisher (PluginPermissionEnforcerService.grant(), workspace-scoped
+  // installations only) already wired end-to-end to WebhookDispatchHandler.
+  "plugin_permission.granted",
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 

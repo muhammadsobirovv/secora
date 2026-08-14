@@ -10,6 +10,10 @@ export interface CreateApiKeyInput {
   prefix: string;
   scopes: string[];
   expiresAt?: Date;
+  /// Module 15 — API key management (task #336).
+  ipAllowlist?: string[];
+  rateLimitPerMinute?: number;
+  rotatedFromId?: string;
 }
 
 /// Module 9 activates this module (Module 1 left it schema+repository

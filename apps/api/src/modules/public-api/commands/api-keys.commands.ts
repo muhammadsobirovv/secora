@@ -2,7 +2,7 @@ import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus, Inject } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import type { AuditEventType } from '../../../prisma-types.js';
-import type { CreateApiKeyRequestDto, CreateApiKeyResultDto } from '@pentesthub/shared';
+import type { CreateApiKeyRequestDto, CreateApiKeyResultDto, RotateApiKeyResultDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import {
   API_KEYS_REPOSITORY,
@@ -62,6 +62,8 @@ export class CreateApiKeyHandler implements ICommandHandler<CreateApiKeyCommand,
       prefix,
       scopes: command.data.scopes ?? [],
       expiresAt,
+      ipAllowlist: command.data.ipAllowlist,
+      rateLimitPerMinute: command.data.rateLimitPerMinute,
     });
 
     await this.recordAudit(command.userId, apiKey.id, command.data.workspaceId);
@@ -80,6 +82,67 @@ export class CreateApiKeyHandler implements ICommandHandler<CreateApiKeyCommand,
         metadata: { apiKeyId, workspaceId },
       },
     });
+  }
+}
+
+// Module 15 — API key management (task #336)
+export class RotateApiKeyCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly apiKeyId: string,
+  ) {}
+}
+
+@CommandHandler(RotateApiKeyCommand)
+export class RotateApiKeyHandler implements ICommandHandler<RotateApiKeyCommand, RotateApiKeyResultDto> {
+  constructor(
+    @Inject(API_KEYS_REPOSITORY) private readonly apiKeysRepository: ApiKeysRepository,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async execute(command: RotateApiKeyCommand): Promise<RotateApiKeyResultDto> {
+    const existing = await this.apiKeysRepository.findById(command.apiKeyId);
+    if (!existing) {
+      throw new AppException('API_KEY_NOT_FOUND', 'API key not found.', HttpStatus.NOT_FOUND);
+    }
+    if (existing.userId !== command.userId) {
+      if (!existing.workspaceId) {
+        throw new AppException('API_KEY_NOT_FOUND', 'API key not found.', HttpStatus.NOT_FOUND);
+      }
+      const { role } = await resolveWorkspaceMembership(this.prisma, command.userId, existing.workspaceId);
+      requireRole(role, 'ADMIN');
+    }
+    if (existing.revokedAt) {
+      throw new AppException('API_KEY_NOT_FOUND', 'Cannot rotate an already-revoked API key.', HttpStatus.CONFLICT);
+    }
+
+    const { rawKey, keyHash, prefix } = generateRawApiKey();
+    const rotated = await this.apiKeysRepository.create({
+      userId: existing.userId,
+      workspaceId: existing.workspaceId ?? undefined,
+      name: existing.name,
+      keyHash,
+      prefix,
+      scopes: existing.scopes,
+      expiresAt: existing.expiresAt ?? undefined,
+      ipAllowlist: existing.ipAllowlist,
+      rateLimitPerMinute: existing.rateLimitPerMinute ?? undefined,
+      rotatedFromId: existing.id,
+    });
+    await this.apiKeysRepository.revoke(existing.id);
+
+    const type: AuditEventType = 'API_KEY_REVOKED';
+    await this.prisma.auditEvent.create({
+      data: {
+        userId: command.userId,
+        type,
+        ipAddress: '0.0.0.0',
+        userAgent: 'api',
+        metadata: { apiKeyId: existing.id, rotatedToId: rotated.id, reason: 'rotated' },
+      },
+    });
+
+    return { apiKey: toApiKeyDto(rotated), rawKey };
   }
 }
 

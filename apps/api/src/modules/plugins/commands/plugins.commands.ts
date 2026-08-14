@@ -12,9 +12,10 @@ import type { EnvConfig } from '../../../config/env.validation.js';
 import type { Prisma } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
-import { verifyPluginSignature } from '../plugin-signature.util.js';
+import { hashPluginBundle, verifyPluginSignature } from '../plugin-signature.util.js';
 import { validatePluginManifestCapabilities } from '../plugin-sandbox.service.js';
 import { toPluginDto } from '../mappers/to-plugin-dto.mapper.js';
+import { MarketplaceScannerService } from '../marketplace-scanner.service.js';
 
 /// Module 13 (task #285): shared publish-time check reused by both
 /// `PublishPluginHandler` (first version) and `PublishPluginVersionHandler`
@@ -48,6 +49,7 @@ export class PublishPluginHandler implements ICommandHandler<PublishPluginComman
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly scanner: MarketplaceScannerService,
   ) {}
 
   async execute(command: PublishPluginCommand): Promise<PluginDto> {
@@ -58,12 +60,19 @@ export class PublishPluginHandler implements ICommandHandler<PublishPluginComman
 
     assertValidManifestCapabilities(command.data.version.manifest);
 
-    const publicKey = this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
+    // Module 15 — Marketplace security (task #333). A registered
+    // `MarketplacePublisher`'s own key takes priority over the shared
+    // marketplace operator key when present — "signed by an arbitrary
+    // registered author key," the follow-up `plugin-signature.util.ts`'s
+    // own doc comment flagged as not-yet-built in Module 10/13.
+    const publisher = await this.prisma.marketplacePublisher.findUnique({ where: { userId: command.userId } });
+    const publicKey = publisher?.publicKeyPem ?? this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
     const { attempted, valid } = verifyPluginSignature(
       command.data.version.sourceBundleBase64,
       command.data.version.signature,
       publicKey,
     );
+    const checksumSha256 = hashPluginBundle(command.data.version.sourceBundleBase64);
 
     const plugin = await this.prisma.plugin.create({
       data: {
@@ -72,6 +81,7 @@ export class PublishPluginHandler implements ICommandHandler<PublishPluginComman
         category: command.data.category,
         description: command.data.description,
         authorUserId: command.userId,
+        publisherId: publisher?.id,
         iconUrl: command.data.iconUrl,
         homepageUrl: command.data.homepageUrl,
         repoUrl: command.data.repoUrl,
@@ -87,10 +97,22 @@ export class PublishPluginHandler implements ICommandHandler<PublishPluginComman
             signature: command.data.version.signature,
             sourceCode: Buffer.from(command.data.version.sourceBundleBase64, 'base64').toString('utf8'),
             changelog: command.data.version.changelog,
+            checksumSha256,
           },
         },
       },
+      include: { versions: true },
     });
+
+    // Best-effort — a scanner failure never blocks publishing (see
+    // `MarketplaceScannerService`'s doc comment: a scan result is
+    // advisory, not a hard publish gate).
+    const firstVersion = plugin.versions[0];
+    if (firstVersion) {
+      await this.scanner
+        .scanVersion(firstVersion.id, firstVersion.sourceCode, command.data.version.dependencies ?? null)
+        .catch(() => undefined);
+    }
 
     return toPluginDto(plugin, command.data.version.version);
   }
@@ -109,6 +131,7 @@ export class PublishPluginVersionHandler implements ICommandHandler<PublishPlugi
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly scanner: MarketplaceScannerService,
   ) {}
 
   async execute(command: PublishPluginVersionCommand): Promise<PluginDto> {
@@ -128,14 +151,16 @@ export class PublishPluginVersionHandler implements ICommandHandler<PublishPlugi
 
     assertValidManifestCapabilities(command.data.manifest);
 
-    const publicKey = this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
+    const publisher = plugin.publisherId ? await this.prisma.marketplacePublisher.findUnique({ where: { id: plugin.publisherId } }) : null;
+    const publicKey = publisher?.publicKeyPem ?? this.configService.get('PLUGIN_MARKETPLACE_PUBLIC_KEY', { infer: true });
     const { attempted, valid } = verifyPluginSignature(
       command.data.sourceBundleBase64,
       command.data.signature,
       publicKey,
     );
+    const checksumSha256 = hashPluginBundle(command.data.sourceBundleBase64);
 
-    await this.prisma.pluginVersion.create({
+    const version = await this.prisma.pluginVersion.create({
       data: {
         pluginId: plugin.id,
         version: command.data.version,
@@ -145,8 +170,11 @@ export class PublishPluginVersionHandler implements ICommandHandler<PublishPlugi
         signature: command.data.signature,
         sourceCode: Buffer.from(command.data.sourceBundleBase64, 'base64').toString('utf8'),
         changelog: command.data.changelog,
+        checksumSha256,
       },
     });
+
+    await this.scanner.scanVersion(version.id, version.sourceCode, command.data.dependencies ?? null).catch(() => undefined);
 
     const updated = await this.prisma.plugin.update({
       where: { id: plugin.id },

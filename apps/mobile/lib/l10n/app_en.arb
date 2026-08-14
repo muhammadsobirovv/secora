@@ -1,0 +1,11 @@
+{
+  "@@locale": "en",
+  "appTitle": "PentestHub AI",
+  "settingsTitle": "Settings",
+  "settingsTheme": "Theme",
+  "settingsLanguage": "Language",
+  "commonSave": "Save",
+  "commonCancel": "Cancel",
+  "commonLoading": "Loading…",
+  "commonError": "Something went wrong"
+}

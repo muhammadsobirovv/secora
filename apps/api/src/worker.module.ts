@@ -14,6 +14,7 @@ import { ReconCoreModule } from './modules/recon/recon-core.module.js';
 import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 import { AiCoreModule } from './modules/ai/ai-core.module.js';
 import { BugBountyCoreModule } from './modules/bugbounty/bugbounty-core.module.js';
+import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
 
@@ -82,6 +83,11 @@ import { WorkerReaperService } from './modules/distributed-jobs/services/worker-
     VulnCoreModule,
     AiCoreModule,
     BugBountyCoreModule,
+    // Module 15 — Telemetry (task #347): recon/vuln-scan events are
+    // published from this process, so this needs its own
+    // TelemetryRecordingHandler instance — see TelemetryModule's doc
+    // comment (same reasoning as ActivityModule's dual registration).
+    TelemetryModule,
   ],
   // Module 10 adds WorkerReaperService — dead-worker recovery + job
   // migration for the Distributed Job System, a fourth self-scheduling

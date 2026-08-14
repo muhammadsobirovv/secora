@@ -19,7 +19,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <WorkspaceSwitcher />
       </div>
       <Separator className="my-2" />
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2" onClick={onNavigate}>
+      {/* Module 15 — task #349: an unlabeled <nav> is ambiguous for
+          screen reader users navigating by landmark when a page has more
+          than one (this app also has page-local nav in some feature
+          areas) — "Main" distinguishes this one as the primary sidebar. */}
+      <nav
+        aria-label="Main"
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2"
+        onClick={onNavigate}
+      >
         {PRIMARY_NAV.map((item) => (
           <NavItem key={item.href} item={item} />
         ))}

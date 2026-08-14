@@ -17,6 +17,7 @@ import {
   BookOpen,
   Sparkles,
   Server,
+  Library,
 } from "lucide-react";
 
 export interface NavItem {
@@ -49,6 +50,10 @@ export const PRIMARY_NAV: NavItem[] = [
   // ClusterOverviewService's doc comment for why this has no additional
   // role gate beyond normal authentication yet.
   { label: "Admin", href: "/admin", icon: Server },
+  // Module 15 — task #350 (documentation portal). Points at the public
+  // `/docs` route (a sibling of the `(dashboard)` route group, not gated
+  // by DashboardShell's auth check) — reachable whether logged in or not.
+  { label: "Documentation", href: "/docs", icon: Library },
 ];
 
 export const FUTURE_NAV: NavItem[] = [

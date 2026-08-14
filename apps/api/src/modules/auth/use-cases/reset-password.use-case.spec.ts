@@ -47,6 +47,7 @@ describe('ResetPasswordUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const passwordResetTokensRepository: jest.Mocked<PasswordResetTokensRepository> =
       {

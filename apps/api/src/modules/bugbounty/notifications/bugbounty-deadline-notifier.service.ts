@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { EnvConfig } from '../../../config/env.validation.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
+import { resolveLocale } from '../../../common/i18n/locale.util.js';
+import { translate } from '../../../common/i18n/message-catalog.js';
 import {
   BUGBOUNTY_CALENDAR_REPOSITORY,
   type BugBountyCalendarRepository,
@@ -39,6 +42,15 @@ export class BugBountyDeadlineNotifierService {
     // service specifically so it can be injected here without either
     // module reaching into the other's internals.
     private readonly dispatcher: NotificationDispatcherService,
+    // Module 15 — task #348. Used only for a best-effort, read-only
+    // `userPreferences.language` lookup (see `notifyDueEvents()`) so this
+    // notification's title/body can be translated into the recipient's
+    // locale. Deliberately using `PrismaService` directly instead of
+    // importing the whole `UserPreferencesModule` here (which also
+    // registers an HTTP controller that has no business running inside
+    // this worker-process application context — see worker.module.ts's
+    // own doc comment on why it excludes that module).
+    private readonly prisma: PrismaService,
   ) {}
 
   start(): void {
@@ -77,10 +89,22 @@ export class BugBountyDeadlineNotifierService {
 
     for (const event of dueEvents) {
       const isOverdue = event.dueAt.getTime() < Date.now();
-      const title = isOverdue
-        ? `Overdue: ${event.title}`
-        : `Upcoming: ${event.title}`;
-      const body = `Due ${event.dueAt.toISOString()}${event.notes ? ` — ${event.notes}` : ''}`;
+      // Module 15 — task #348: this notification's title/body is now
+      // translated into the recipient's locale via the shared
+      // resolveLocale()/translate() pair (see common/i18n/), the reference
+      // implementation for the platform's backend message-catalog
+      // architecture. A failed/missing preference lookup falls back to
+      // DEFAULT_LOCALE rather than blocking the notification.
+      const locale = resolveLocale(await this.lookupRecipientLanguage(event.createdBy), null);
+      const dueAt = event.dueAt.toISOString();
+      const title = translate(
+        isOverdue ? 'bugbounty.deadline.overdueTitle' : 'bugbounty.deadline.upcomingTitle',
+        locale,
+        { eventTitle: event.title },
+      );
+      const body = event.notes
+        ? translate('bugbounty.deadline.bodyWithNotes', locale, { dueAt, notes: event.notes })
+        : translate('bugbounty.deadline.body', locale, { dueAt });
       const notification = await this.notificationsRepository.create({
         workspaceId: event.workspaceId,
         userId: event.createdBy,
@@ -111,6 +135,23 @@ export class BugBountyDeadlineNotifierService {
           error,
         );
       }
+    }
+  }
+
+  /// Best-effort, read-only locale lookup — a failed/missing preference row
+  /// must never block a deadline notification from being sent; the caller
+  /// (`resolveLocale`) already falls back to `DEFAULT_LOCALE` for a `null`
+  /// return here.
+  private async lookupRecipientLanguage(userId: string): Promise<string | null> {
+    try {
+      const prefs = await this.prisma.userPreferences.findUnique({
+        where: { userId },
+        select: { language: true },
+      });
+      return prefs?.language ?? null;
+    } catch (error) {
+      this.logger.warn(`Could not resolve recipient locale for user ${userId}`, error);
+      return null;
     }
   }
 }

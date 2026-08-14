@@ -8,6 +8,30 @@ import {
   type ApiKeysRepository,
 } from '../../api-keys/domain/repositories/api-keys.repository.interface.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
+import { isIpAllowlisted } from '../../../common/guards/ip-allowlist.util.js';
+
+/// Module 15 — API key management (task #336). One sliding 60s window
+/// per `apiKeyId`, kept in process memory — correct for a single-instance
+/// Community Edition deployment; a multi-instance HA deployment (Module
+/// 14) needs a shared store (Redis, matching `RedisCacheService`) for
+/// this to hold across instances instead of per-instance, which is a
+/// disclosed follow-up rather than something this pass implements. Not
+/// wired through `CacheService`/`ThrottlerStorage` here specifically to
+/// avoid this guard depending on `ProvidersModule`'s Redis-vs-memory
+/// selection just for a counter this simple.
+const rateLimitWindows = new Map<string, { windowStart: number; count: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkRateLimit(apiKeyId: string, limitPerMinute: number): boolean {
+  const now = Date.now();
+  const existing = rateLimitWindows.get(apiKeyId);
+  if (!existing || now - existing.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    rateLimitWindows.set(apiKeyId, { windowStart: now, count: 1 });
+    return true;
+  }
+  existing.count += 1;
+  return existing.count <= limitPerMinute;
+}
 
 /// Authenticates a request via the `X-API-Key` header instead of the JWT
 /// access token every other route uses (`JwtAuthGuard`, registered
@@ -51,6 +75,26 @@ export class ApiKeyAuthGuard implements CanActivate {
     }
     if (apiKey.expiresAt && apiKey.expiresAt.getTime() < Date.now()) {
       throw new AppException('API_KEY_NOT_FOUND', 'This API key has expired.', HttpStatus.UNAUTHORIZED);
+    }
+
+    // Module 15 — API key management (task #336). Reuses Module 14's
+    // `isIpAllowlisted` matcher — an empty `ipAllowlist` (the default)
+    // is a no-op, same "opt-in, never enforced by default" posture the
+    // deployment-wide `IP_ALLOWLIST` guard already has.
+    if (apiKey.ipAllowlist.length > 0 && !isIpAllowlisted(request.ip ?? '', apiKey.ipAllowlist)) {
+      throw new AppException(
+        'API_KEY_IP_NOT_ALLOWLISTED',
+        'This API key is not permitted to be used from your network address.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (apiKey.rateLimitPerMinute != null && !checkRateLimit(apiKey.id, apiKey.rateLimitPerMinute)) {
+      throw new AppException(
+        'API_KEY_RATE_LIMITED',
+        `This API key is limited to ${apiKey.rateLimitPerMinute} requests/minute.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     // Fire-and-forget — not awaited so a slow write never adds latency to

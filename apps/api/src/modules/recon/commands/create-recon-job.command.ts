@@ -4,7 +4,7 @@ import {
   ICommand,
   ICommandHandler,
 } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CreateReconJobRequestDto, ReconJobDto } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
@@ -57,13 +57,26 @@ export class CreateReconJobHandler implements ICommandHandler<
   ) {}
 
   async execute(command: CreateReconJobCommand): Promise<ReconJobDto> {
-    const { workspaceId, target } = await resolveTargetForCaller(
+    const { workspaceId, isDemoWorkspace, target } = await resolveTargetForCaller(
       this.workspacesRepository,
       this.projectsRepository,
       this.targetsRepository,
       command.userId,
       command.targetId,
     );
+
+    // Module 15 — task #352 (demo mode). Demo workspaces only ever hold
+    // pre-seeded, already-completed synthetic data — POST /demo/session is
+    // an unauthenticated, publicly reachable entry point, and it must
+    // never be able to trigger a real network scan against an arbitrary
+    // target. Reject before any tool-compatibility work, not after.
+    if (isDemoWorkspace) {
+      throw new AppException(
+        'DEMO_WORKSPACE_READ_ONLY',
+        'This is a demo workspace with sample data only — new scans are disabled. Sign up for a free account to run real scans.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     for (const tool of command.data.tools) {
       if (!isToolCompatibleWithTargetType(tool, target.type)) {

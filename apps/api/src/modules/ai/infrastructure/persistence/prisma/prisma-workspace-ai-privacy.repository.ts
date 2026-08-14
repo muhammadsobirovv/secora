@@ -20,12 +20,26 @@ export class PrismaWorkspaceAiPrivacyRepository implements WorkspaceAiPrivacyRep
     return rows[0] ?? null;
   }
 
-  async upsert(workspaceId: string, mode: AiPrivacyMode): Promise<WorkspaceAiPrivacySettingRecord> {
+  async upsert(
+    workspaceId: string,
+    mode: AiPrivacyMode,
+    confirmCloudUsage: boolean,
+  ): Promise<WorkspaceAiPrivacySettingRecord> {
     const rows = await this.txHost.tx.$queryRaw<WorkspaceAiPrivacySettingRecord[]>`
-      INSERT INTO "workspace_ai_privacy_settings" ("workspaceId", "mode", "createdAt", "updatedAt")
-      VALUES (${workspaceId}, ${mode}::"AiPrivacyMode", now(), now())
+      INSERT INTO "workspace_ai_privacy_settings" ("workspaceId", "mode", "cloudUsageConfirmedAt", "createdAt", "updatedAt")
+      VALUES (
+        ${workspaceId},
+        ${mode}::"AiPrivacyMode",
+        CASE WHEN ${confirmCloudUsage} THEN now() ELSE NULL END,
+        now(),
+        now()
+      )
       ON CONFLICT ("workspaceId") DO UPDATE SET
         "mode" = EXCLUDED."mode",
+        "cloudUsageConfirmedAt" = CASE
+          WHEN ${confirmCloudUsage} THEN COALESCE("workspace_ai_privacy_settings"."cloudUsageConfirmedAt", now())
+          ELSE "workspace_ai_privacy_settings"."cloudUsageConfirmedAt"
+        END,
         "updatedAt" = now()
       RETURNING *
     `;

@@ -11,6 +11,7 @@ import {
   encryptCredential,
   decryptCredential,
 } from '../../../common/utils/credential-encryption.util.js';
+import { assertSafeWebhookUrl } from '../../../common/utils/ssrf-guard.util.js';
 import { resolveWorkspaceMembership } from '../../collaboration/workspace-membership.util.js';
 import { requireRole } from '../../collaboration/permissions.util.js';
 import { toWebhookTokenDto } from '../mappers/to-webhook-token-dto.mapper.js';
@@ -33,6 +34,12 @@ export class CreateWebhookTokenHandler implements ICommandHandler<CreateWebhookT
   async execute(command: CreateWebhookTokenCommand): Promise<WebhookTokenDto> {
     const { role } = await resolveWorkspaceMembership(this.prisma, command.userId, command.workspaceId);
     requireRole(role, 'MANAGER');
+
+    // Module 15 — task #344 security hardening: reject webhook URLs that
+    // resolve to loopback/private/link-local/internal addresses before
+    // ever storing them. Re-checked again at actual delivery time in
+    // WebhookDeliveryQueueService (DNS can change after creation).
+    await assertSafeWebhookUrl(command.data.url);
 
     // HMAC signing secret — sent to the receiving endpoint only indirectly
     // (as an `X-PentestHub-Signature` header computed from it, never in
@@ -172,6 +179,19 @@ export class TestWebhookTokenHandler
 
     const body = JSON.stringify({ event: 'test', message: 'PentestHub AI webhook test delivery', sentAt: new Date().toISOString() });
     const signature = createHmac('sha256', rawSecret).update(body).digest('hex');
+
+    // Module 15 — task #344: re-check at send time, not just at creation
+    // time — a hostname that resolved safely when the webhook was created
+    // can be re-pointed at an internal address later (DNS rebinding).
+    try {
+      await assertSafeWebhookUrl(webhook.url);
+    } catch (error) {
+      return {
+        delivered: false,
+        statusCode: null,
+        error: error instanceof AppException ? error.message : 'Webhook URL failed the safety check.',
+      };
+    }
 
     try {
       const response = await fetch(webhook.url, {

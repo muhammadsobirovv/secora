@@ -56,4 +56,11 @@ export class PrismaUsersRepository implements UsersRepository {
       data: { lockedUntil: until, failedLoginCount: 0 },
     });
   }
+
+  async markDeleted(id: string): Promise<void> {
+    await this.txHost.tx.user.update({
+      where: { id },
+      data: { status: 'DELETED' },
+    });
+  }
 }

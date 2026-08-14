@@ -61,6 +61,7 @@ describe('MfaDisableUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const passwordHasher = {
       hash: jest.fn(),

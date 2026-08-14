@@ -7,6 +7,7 @@ import { decryptWebhookSecret, signWebhookPayload } from './webhook-signature.ut
 import { withSpan } from '../../../observability/tracing.js';
 import { MetricsRegistryService } from '../../observability/metrics-registry.service.js';
 import { PollerLeaseService } from '../../../common/concurrency/poller-lease.service.js';
+import { assertSafeWebhookUrl } from '../../../common/utils/ssrf-guard.util.js';
 
 const LEASE_NAME = 'webhook-delivery-queue';
 const LEASE_TTL_MS = 90_000; // 1.5x the 60s tick interval — see PollerLeaseService's doc comment.
@@ -96,10 +97,27 @@ export class WebhookDeliveryQueueService implements OnModuleInit, OnModuleDestro
       return;
     }
 
+    // Module 15 — task #344 security hardening: re-check the destination
+    // is still safe on every single delivery attempt, not just once at
+    // webhook-creation time — a hostname that resolved to a public IP when
+    // the webhook was created can be re-pointed at an internal/private
+    // address later (DNS rebinding), and this poller runs unattended.
+    const attempt = delivery.attempt + 1;
+    try {
+      await assertSafeWebhookUrl(webhookToken.url);
+    } catch (error) {
+      await this.recordFailure(
+        delivery.id,
+        attempt,
+        error instanceof Error ? error.message : 'Webhook URL failed the safety check.',
+        null,
+      );
+      return;
+    }
+
     const rawSecret = decryptWebhookSecret(webhookToken.secret, this.configService);
     const body = JSON.stringify(delivery.payload);
     const signature = signWebhookPayload(rawSecret, body);
-    const attempt = delivery.attempt + 1;
 
     try {
       const response = await withSpan('webhook.delivery.send', (span) => {

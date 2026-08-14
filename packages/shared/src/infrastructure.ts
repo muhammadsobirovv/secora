@@ -22,6 +22,26 @@ export interface LivenessDto {
   version: string;
 }
 
+/// Module 15 — task #353 (Health & diagnostics). A public, richer
+/// sibling to `LivenessDto`/readiness: bundles a real database
+/// round-trip (with its own latency, not just ok/failed) alongside
+/// process metadata, so `apps/web`'s Settings → Diagnostics page and any
+/// future support-ticket flow (task #355) can build a self-contained
+/// "here's what my client sees" report from a single request instead of
+/// stitching together liveness + readiness + client-side timing by hand.
+/// Deliberately `@Public()` on the API side — a user who can't log in is
+/// exactly the person who most needs this to work.
+export interface HealthDiagnosticsDto {
+  status: "ok" | "degraded";
+  serverTime: string;
+  uptimeSeconds: number;
+  version: string;
+  nodeEnv: string;
+  checks: {
+    database: { status: "ok" | "failed"; latencyMs: number | null };
+  };
+}
+
 export interface EditionInfoDto {
   edition: Edition;
   /// True when `edition === 'enterprise'` AND (no `License` rows exist,

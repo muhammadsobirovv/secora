@@ -189,4 +189,47 @@ export type AppErrorCode =
   | "STORAGE_PROVIDER_NOT_CONFIGURED"
   | "IP_NOT_ALLOWLISTED"
   | "MTLS_CLIENT_CERT_NOT_VERIFIED"
-  | "BILLING_WEBHOOK_UNAUTHORIZED";
+  | "BILLING_WEBHOOK_UNAUTHORIZED"
+  // Module 15 — Production Hardening, Monetization, Marketplace & Global
+  // Launch.
+  | "SUBSCRIPTION_NOT_FOUND"
+  | "PLAN_NOT_FOUND"
+  | "PLAN_NOT_AVAILABLE_FOR_PROVIDER"
+  | "PAYMENT_PROVIDER_NOT_CONFIGURED"
+  | "INVOICE_NOT_FOUND"
+  // Module 15 — task #366 (Stripe webhook, distinct from the generic
+  // Module 14 BILLING_WEBHOOK_UNAUTHORIZED above).
+  | "STRIPE_WEBHOOK_NOT_CONFIGURED"
+  | "STRIPE_WEBHOOK_NO_RAW_BODY"
+  | "STRIPE_WEBHOOK_INVALID_PAYLOAD"
+  | "STRIPE_WEBHOOK_UNAUTHORIZED"
+  | "QUOTA_EXCEEDED"
+  | "QUOTA_POLICY_NOT_FOUND"
+  | "AI_BUDGET_EXCEEDED"
+  | "AI_BUDGET_POLICY_NOT_FOUND"
+  | "MARKETPLACE_PUBLISHER_NOT_FOUND"
+  | "MARKETPLACE_PUBLISHER_ALREADY_REGISTERED"
+  | "SECURITY_ADVISORY_NOT_FOUND"
+  | "PLUGIN_PERMISSION_NOT_DECLARED"
+  | "PLUGIN_INSTALLATION_NOT_FOUND"
+  | "API_KEY_IP_NOT_ALLOWLISTED"
+  | "FEATURE_FLAG_NOT_FOUND"
+  | "FEATURE_FLAG_KEY_ALREADY_EXISTS"
+  | "API_VERSION_UNSUPPORTED"
+  | "API_KEY_RATE_LIMITED"
+  | "WEBHOOK_TOKEN_NOT_FOUND"
+  | "MAIL_PROVIDER_NOT_CONFIGURED"
+  | "MAIL_DELIVERY_FAILED"
+  // Module 15 — AI provider marketplace + local-first AI confirmation
+  // (task #341).
+  | "AI_CLOUD_USAGE_NOT_CONFIRMED"
+  // Module 15 — dedicated security hardening review (task #344): SSRF
+  // guard on user-supplied webhook/integration URLs.
+  | "UNSAFE_WEBHOOK_URL"
+  | "UNSAFE_INTEGRATION_URL"
+  // Module 15 — supply-chain security extensions (task #345): re-verify
+  // a plugin version's integrity at install time, not just at publish.
+  | "PLUGIN_INTEGRITY_CHECK_FAILED"
+  // Module 15 — demo mode (task #352).
+  | "DEMO_MODE_DISABLED"
+  | "DEMO_WORKSPACE_READ_ONLY";

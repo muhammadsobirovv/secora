@@ -27,6 +27,7 @@ describe('MfaSetupUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const mfaRepository: jest.Mocked<MfaRepository> = {
       findFactorByUserId: jest

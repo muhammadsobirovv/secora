@@ -19,6 +19,14 @@ async function bootstrap(): Promise<void> {
     // including framework-internal lifecycle logs — see
     // StructuredLoggerService's doc comment for the LOG_LEVEL mapping.
     logger: new StructuredLoggerService(),
+    // Module 15 — task #366 (Stripe webhook). Nest's built-in option:
+    // attaches the exact raw request bytes as `req.rawBody` alongside the
+    // normal parsed `req.body`, for every route — needed because Stripe's
+    // webhook signature is computed over the raw payload bytes, and
+    // re-serializing the already-parsed JSON body would not reproduce
+    // them byte-for-byte (key order, whitespace). No effect on any
+    // existing route; nothing else in this codebase reads `req.rawBody`.
+    rawBody: true,
   });
   configureApp(app);
   setupSwagger(app);

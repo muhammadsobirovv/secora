@@ -36,6 +36,12 @@ export function Button({
           font-size: 13px; font-weight: 500; transition: background 0.12s, border-color 0.12s, opacity 0.12s;
           white-space: nowrap; }
         .phai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        /* Module 15 — task #349 (accessibility audit): an explicit,
+           always-visible keyboard focus ring — none of this file's
+           components defined one before, relying entirely on each
+           browser's default outline, which is easy to accidentally
+           clip/override on a rounded, custom-colored control like this. */
+        .phai-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
         .phai-btn-sm { padding: 4px 10px; }
         .phai-btn-md { padding: 7px 14px; }
         .phai-btn-lg { padding: 10px 18px; font-size: 14px; }

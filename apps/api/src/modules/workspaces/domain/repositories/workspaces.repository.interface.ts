@@ -6,6 +6,10 @@ import type {
 export interface CreateWorkspaceInput {
   name: string;
   slug: string;
+  /// Module 15 — task #352 (demo mode). Both optional and unset by every
+  /// caller except DemoSessionService — registration never touches these.
+  isDemo?: boolean;
+  demoExpiresAt?: Date;
 }
 
 /// Membership foundation only — invites, switching, multi-member

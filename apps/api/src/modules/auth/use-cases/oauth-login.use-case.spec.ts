@@ -55,6 +55,7 @@ describe('OAuthLoginUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const oauthAccountsRepository: jest.Mocked<OAuthAccountsRepository> = {
       findByProviderAccount: jest

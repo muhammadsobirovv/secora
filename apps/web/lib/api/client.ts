@@ -10,6 +10,11 @@ export class ApiError extends Error {
     public readonly code: AppErrorCode | "UNKNOWN_ERROR",
     message: string,
     public readonly statusCode: number,
+    // Module 15 — task #354. Mirrors the API's `X-Request-Id` /
+    // `ApiErrorResponse.requestId` — carried onto the thrown error so any
+    // catch site (error boundary, toast, Diagnostics-style "copy report")
+    // can surface it for cross-referencing against server logs.
+    public readonly requestId?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -113,6 +118,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
       (err.code as AppErrorCode) ?? "UNKNOWN_ERROR",
       err.message ?? "Something went wrong.",
       res.status,
+      err.requestId,
     );
   }
 

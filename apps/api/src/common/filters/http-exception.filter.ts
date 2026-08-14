@@ -10,6 +10,7 @@ import { ThrottlerException } from '@nestjs/throttler';
 import type { Response } from 'express';
 import type { ApiErrorResponse } from '@pentesthub/shared';
 import { AppException } from '../exceptions/app.exception.js';
+import { getRequestId } from '../../observability/request-context.js';
 
 /// Every error response — validation failures, thrown AppExceptions, rate
 /// limiting, unexpected crashes — comes out through here in one consistent
@@ -70,7 +71,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     code: string,
     message: string,
   ): void {
-    const body: ApiErrorResponse = { statusCode, code, message };
+    // Module 15 — task #354. `getRequestId()` reads the same
+    // AsyncLocalStorage `requestIdMiddleware` populated for this request
+    // (see request-context.ts) — undefined only for the rare failure that
+    // happens before that middleware runs.
+    const requestId = getRequestId();
+    const body: ApiErrorResponse = { statusCode, code, message, ...(requestId ? { requestId } : {}) };
     response.status(statusCode).json(body);
   }
 }

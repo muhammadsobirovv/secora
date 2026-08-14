@@ -7,6 +7,7 @@ import { EvidenceModule } from '../evidence/evidence.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
 import { ReconCoreModule } from '../recon/recon-core.module.js';
 import { VulnCoreModule } from '../vuln/vuln-core.module.js';
+import { BillingCoreModule } from '../billing/billing-core.module.js';
 
 import { AI_CONVERSATIONS_REPOSITORY } from './domain/repositories/ai-conversations.repository.interface.js';
 import { PrismaAiConversationsRepository } from './infrastructure/persistence/prisma/prisma-ai-conversations.repository.js';
@@ -84,6 +85,12 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
     ActivityModule,
     ReconCoreModule,
     VulnCoreModule,
+    // Module 15 — AI cost control (task #340). AiChatService injects
+    // AiBudgetEnforcerService (budget check + usage recording around
+    // every generation) — see that service's own doc comment. Imports the
+    // Core variant (no HTTP controllers) because worker.module.ts also
+    // imports AiCoreModule and must stay controller-free.
+    BillingCoreModule,
   ],
   providers: [
     {

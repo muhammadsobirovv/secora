@@ -8,6 +8,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../auth/application/auth_notifier.dart';
 import '../../../files/presentation/screens/file_manager_screen.dart';
 import '../../../voice/application/voice_providers.dart';
+import '../../application/locale_notifier.dart';
 import '../../application/settings_notifier.dart';
 import '../../data/privacy_mode_repository.dart';
 import 'pin_setup_screen.dart';
@@ -37,6 +38,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
     final handsFree = ref.watch(handsFreeModeProvider);
     final readAloud = ref.watch(readRepliesAloudProvider);
     final pendingSync = ref.watch(syncPendingCountProvider);
@@ -94,7 +96,23 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
           ),
-          const ListTile(title: Text('Language'), trailing: Text('English (device default)')),
+          // Module 15 — task #348: was a static placeholder
+          // (`Text('English (device default)')`); now reads/writes
+          // `localeProvider` the same way the Theme row above does.
+          ListTile(
+            title: const Text('Language'),
+            trailing: DropdownButton<Locale>(
+              value: locale,
+              items: const [
+                DropdownMenuItem(value: Locale('en'), child: Text('English')),
+                DropdownMenuItem(value: Locale('uz'), child: Text("O'zbekcha")),
+                DropdownMenuItem(value: Locale('ru'), child: Text('Русский')),
+              ],
+              onChanged: (next) {
+                if (next != null) ref.read(localeProvider.notifier).setLocale(next);
+              },
+            ),
+          ),
 
           const Divider(),
           const _SectionLabel('Security'),

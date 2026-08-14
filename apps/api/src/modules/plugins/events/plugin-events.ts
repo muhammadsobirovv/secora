@@ -35,3 +35,23 @@ export class PluginUninstalledEvent implements IEvent, ActivityDomainEvent {
     public readonly metadata: Record<string, unknown>,
   ) {}
 }
+
+/// Module 15 — Webhook platform improvements (task #337), new event
+/// `plugin_permission.granted`. Same "only fired when `workspaceId` is
+/// present" rule as the two events above — `PluginPermissionEnforcerService
+/// .grant()` is called for org-wide (no-workspace) installations too, but
+/// those simply don't publish this event, since `WebhookDispatchHandler`
+/// can only route a webhook delivery to a `WebhookToken` by
+/// `workspaceId` (it has no organization-wide subscription concept yet).
+export class PluginPermissionGrantedEvent implements IEvent, ActivityDomainEvent {
+  readonly projectId = null;
+  readonly verb = 'granted';
+  readonly entityType = 'PLUGIN_PERMISSION';
+
+  constructor(
+    public readonly workspaceId: string,
+    public readonly actorUserId: string,
+    public readonly entityId: string,
+    public readonly metadata: Record<string, unknown>,
+  ) {}
+}

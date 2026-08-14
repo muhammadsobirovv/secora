@@ -43,6 +43,19 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
   MAIL_FROM: z.string().default('PentestHub AI <no-reply@pentesthub.local>'),
+  // Module 15 — Integrations (task #338). `dev` (default, `DevMailService`)
+  // needs no configuration and is Community Edition's default — mail is
+  // logged and written to `.mail-outbox/` for manual inspection. `smtp`
+  // (`SmtpMailService`) sends real mail through any standard SMTP relay —
+  // self-hosted Postfix, MailHog for local dev (still free), or a paid
+  // SendGrid/SES/Postmark SMTP endpoint if a deployment wants one. See
+  // providers.module.ts.
+  MAIL_PROVIDER: z.enum(['dev', 'smtp']).default('dev'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
 
   ACCOUNT_LOCKOUT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   ACCOUNT_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
@@ -392,7 +405,7 @@ const envSchema = z.object({
   // `git clone` + `docker compose up` never accidentally boots into a
   // gated mode. `enterprise` only unlocks the *code paths*; an actual
   // active `License` row (or none) further determines what a specific
-  // organization sees — see docs/adr/0014.
+  // organization sees — see docs/adr/0014-cloud-platform-enterprise-saas-ha.md.
   PENTESTHUB_EDITION: z.enum(['community', 'enterprise']).default('community'),
 
   // Queue abstraction (QUEUE_SERVICE token, common/providers/queue/).
@@ -494,6 +507,54 @@ const envSchema = z.object({
   AUTO_UPDATE_CLI_MIN_VERSION: z.string().optional(),
   AUTO_UPDATE_MOBILE_LATEST_VERSION: z.string().optional(),
   AUTO_UPDATE_MOBILE_MIN_VERSION: z.string().optional(),
+
+  // Module 15 — Monetization. `BILLING_PROVIDER=none` (the default) is
+  // the Community Edition state: `BillingService` still creates a real
+  // `Subscription` row per organization (pinned to `PlanTier.FREE`), it
+  // just never calls out to a payment provider. Setting `stripe` without
+  // `STRIPE_SECRET_KEY` configured logs a warning rather than crashing
+  // (the Stripe adapter is still selected — every call will fail until a
+  // key is set) — see the `PAYMENT_PROVIDER` factory in
+  // `apps/api/src/modules/billing/billing.module.ts`.
+  // Module 15 — Release engineering (task #356). Purely informational —
+  // no code path branches on this beyond surfacing it on the liveness
+  // endpoint and in the Admin Console. `stable` is every tagged
+  // `vX.Y.Z` release (see `.github/workflows/release.yml`); `beta` is a
+  // `vX.Y.Z-beta.N` pre-release tag (same workflow, same verification
+  // gate, published as a GitHub pre-release); `nightly` is an
+  // operator-built image off `main` between releases. See
+  // docs/architecture/release-engineering.md.
+  RELEASE_CHANNEL: z.enum(['stable', 'beta', 'nightly']).default('stable'),
+  BILLING_PROVIDER: z.enum(['none', 'stripe', 'manual']).default('none'),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+
+  // Module 15 — Telemetry (task #347). Opt-in, never required for core
+  // functionality — unset/false means "send nothing," matching every
+  // other optional integration's default-off posture in this platform.
+  TELEMETRY_ENABLED: z.coerce.boolean().default(false),
+  TELEMETRY_ENDPOINT: z.string().url().optional(),
+
+  // Module 15 — first-run onboarding + demo mode (tasks #351-352).
+  DEMO_MODE_ENABLED: z.coerce.boolean().default(false),
+  // How long a POST /demo/session sandbox lives before DemoCleanupService
+  // sweeps it. Kept short by default — a demo workspace only ever holds
+  // pre-seeded synthetic data, so there's no data-loss risk in expiring it
+  // aggressively, and a short TTL bounds storage growth from an
+  // unauthenticated, publicly reachable endpoint.
+  DEMO_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(24),
+
+  // Module 15 — Support system (task #355). Where `POST /support/tickets`
+  // forwards a notification email for an operator to triage — the same
+  // "monitored inbox is the primary channel" posture SECURITY.md already
+  // documents for security reports, reused here rather than building a
+  // separate in-app ticket-management surface. There's no deployment-wide
+  // "platform admin" role in this codebase to gate one behind (see
+  // `ClusterOverviewService`'s doc comment on the same gap) — email is the
+  // honest choice until that role exists, not a placeholder to be embarrassed
+  // about.
+  SUPPORT_INBOX_EMAIL: z.string().email().default('support@pentesthub.ai'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

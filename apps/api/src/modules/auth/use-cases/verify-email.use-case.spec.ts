@@ -27,6 +27,7 @@ describe('VerifyEmailUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const emailVerificationTokensRepository: jest.Mocked<EmailVerificationTokensRepository> =
       {

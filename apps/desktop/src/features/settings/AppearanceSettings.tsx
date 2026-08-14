@@ -1,35 +1,31 @@
-import { useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { LOCALE_LABELS, SUPPORTED_LOCALES, type Locale } from "@pentesthub/shared";
 import { useThemeStore, type ThemePreference } from "../../hooks/useTheme";
+import { useI18nStore } from "../../hooks/useI18n";
 import { Card } from "../../components/ui";
 
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "uz", label: "O'zbekcha" },
-  { code: "ru", label: "Русский" },
-];
-
-const LANGUAGE_STORAGE_KEY = "phai.language";
-
-/// Theme + Language — Desktop Settings section 1/2. Language is stored
-/// locally (same per-machine-preference reasoning as Theme, see
-/// `hooks/useTheme.ts`); actual UI string translation is a follow-on i18n
-/// pass (react-intl/i18next wiring) — this control persists the choice
-/// and is the integration point once that lands, not a no-op.
+/// Theme + Language — Desktop Settings section 1/2. Module 15 — task
+/// #348: this is the i18n architecture's reference desktop integration —
+/// `useI18nStore` (mirrors `useThemeStore`'s Zustand + localStorage
+/// pattern) now backs both the language `<select>` itself and this
+/// section's own labels via `t()`. Full-app string extraction beyond this
+/// settings section is out of scope for this task (see
+/// docs/architecture/i18n.md) — everywhere else in the desktop UI is still
+/// hardcoded English, same as it was before this pass.
 export function AppearanceSettings() {
   const { preference, setPreference } = useThemeStore();
-  const [language, setLanguage] = useState(() => localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? "en");
+  const { locale, setLocale, t } = useI18nStore();
 
   const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+    { value: "light", label: t("settings.appearance.themeLight"), icon: Sun },
+    { value: "dark", label: t("settings.appearance.themeDark"), icon: Moon },
+    { value: "system", label: t("settings.appearance.themeSystem"), icon: Monitor },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Card style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Theme</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{t("settings.appearance.theme")}</div>
         <div style={{ display: "flex", gap: 8 }}>
           {options.map(({ value, label, icon: Icon }) => (
             <button
@@ -55,18 +51,15 @@ export function AppearanceSettings() {
       </Card>
 
       <Card style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Language</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{t("settings.appearance.language")}</div>
         <select
-          value={language}
-          onChange={(e) => {
-            setLanguage(e.target.value);
-            localStorage.setItem(LANGUAGE_STORAGE_KEY, e.target.value);
-          }}
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as Locale)}
           style={{ padding: "7px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", fontSize: 13 }}
         >
-          {LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.label}
+          {SUPPORTED_LOCALES.map((code) => (
+            <option key={code} value={code}>
+              {LOCALE_LABELS[code]}
             </option>
           ))}
         </select>

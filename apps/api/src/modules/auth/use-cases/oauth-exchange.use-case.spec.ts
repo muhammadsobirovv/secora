@@ -37,6 +37,7 @@ describe('OAuthExchangeUseCase', () => {
       recordFailedLogin: jest.fn(),
       resetFailedLogin: jest.fn(),
       lockUntil: jest.fn(),
+      markDeleted: jest.fn(),
     };
     const oauthExchangeCodesRepository: jest.Mocked<OAuthExchangeCodesRepository> =
       {

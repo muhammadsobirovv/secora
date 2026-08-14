@@ -78,10 +78,23 @@ export function CommandPalette() {
       <div
         onClick={(e) => e.stopPropagation()}
         className="phai-fade-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
         style={{ width: 560, maxWidth: "90vw", background: "var(--color-bg-elevated)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-md)", overflow: "hidden" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
-          <Search size={16} color="var(--color-text-muted)" />
+          <Search size={16} color="var(--color-text-muted)" aria-hidden="true" />
+          {/*
+            Module 15 — task #349 (accessibility audit): this was a plain
+            text input with no indication to assistive tech that it drives
+            a filtered, keyboard-navigable results list below it — the
+            standard ARIA 1.2 combobox pattern (role="combobox" +
+            aria-controls/aria-expanded/aria-activedescendant on the input,
+            role="listbox"/role="option" on the results) makes that
+            relationship explicit, mirroring what ArrowUp/ArrowDown/Enter
+            already do visually/behaviorally.
+          */}
           <input
             ref={inputRef}
             value={query}
@@ -98,14 +111,27 @@ export function CommandPalette() {
               }
             }}
             placeholder="Type a command or search…"
+            role="combobox"
+            aria-expanded={filtered.length > 0}
+            aria-controls="command-palette-listbox"
+            aria-activedescendant={filtered[activeIndex] ? `command-palette-option-${filtered[activeIndex].id}` : undefined}
+            aria-autocomplete="list"
             style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "var(--color-text)" }}
           />
         </div>
-        <div style={{ maxHeight: 360, overflowY: "auto", padding: 6 }}>
+        <div
+          id="command-palette-listbox"
+          role="listbox"
+          aria-label="Commands"
+          style={{ maxHeight: 360, overflowY: "auto", padding: 6 }}
+        >
           {filtered.length === 0 && <div style={{ padding: 16, color: "var(--color-text-muted)", fontSize: 13 }}>No matching commands.</div>}
           {filtered.map((cmd, i) => (
             <div
               key={cmd.id}
+              id={`command-palette-option-${cmd.id}`}
+              role="option"
+              aria-selected={i === activeIndex}
               onMouseEnter={() => setActiveIndex(i)}
               onClick={() => runCommand(cmd)}
               style={{

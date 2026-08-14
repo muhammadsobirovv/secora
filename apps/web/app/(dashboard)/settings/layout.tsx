@@ -12,6 +12,10 @@ const SETTINGS_NAV = [
   { label: "AI Providers", href: "/settings/ai-providers" },
   { label: "Preferences", href: "/settings/preferences" },
   { label: "Workspace", href: "/settings/workspace" },
+  // Module 15 — task #353.
+  { label: "Diagnostics", href: "/settings/diagnostics" },
+  // Module 15 — task #355.
+  { label: "Support", href: "/settings/support" },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

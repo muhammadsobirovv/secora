@@ -23,6 +23,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { completeLogin } = useAuth();
   const [submitting, setSubmitting] = React.useState(false);
+  const [demoSubmitting, setDemoSubmitting] = React.useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -48,6 +49,28 @@ export function LoginForm() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Module 15 — task #352 (demo mode). A visitor never needs to know
+  // whether DEMO_MODE_ENABLED is set on this deployment to see this
+  // button — the backend 404s with DEMO_MODE_DISABLED when it's off, and
+  // that's the one error message worth distinguishing from "something
+  // went wrong."
+  async function handleTryDemo() {
+    setDemoSubmitting(true);
+    try {
+      const tokens = await authApi.startDemoSession();
+      await completeLogin(tokens);
+      router.push("/");
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "DEMO_MODE_DISABLED") {
+        toast.error("Demo mode isn't available on this deployment.");
+      } else {
+        toast.error("Couldn't start a demo session. Please try again.");
+      }
+    } finally {
+      setDemoSubmitting(false);
     }
   }
 
@@ -95,6 +118,10 @@ export function LoginForm() {
           </Button>
         </form>
         <OAuthButtons />
+        <Button variant="outline" onClick={handleTryDemo} disabled={demoSubmitting}>
+          {demoSubmitting && <Loader2 className="size-4 animate-spin" />}
+          Try the demo — no account needed
+        </Button>
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link href="/register" className="text-primary hover:underline">

@@ -27,6 +27,7 @@ describe('AiPrivacyModeService', () => {
       repository.findByWorkspaceId.mockResolvedValue({
         workspaceId: 'ws-1',
         mode: 'LOCAL',
+        cloudUsageConfirmedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -54,6 +55,7 @@ describe('AiPrivacyModeService', () => {
       repository.findByWorkspaceId.mockResolvedValue({
         workspaceId: 'ws-1',
         mode: 'HYBRID',
+        cloudUsageConfirmedAt: updatedAt,
         createdAt: updatedAt,
         updatedAt,
       });
@@ -64,6 +66,7 @@ describe('AiPrivacyModeService', () => {
         workspaceId: 'ws-1',
         mode: 'HYBRID',
         updatedAt: updatedAt.toISOString(),
+        cloudUsageConfirmedAt: updatedAt.toISOString(),
       });
     });
 
@@ -75,27 +78,81 @@ describe('AiPrivacyModeService', () => {
 
       expect(dto.workspaceId).toBe('ws-3');
       expect(dto.mode).toBe('CLOUD');
+      expect(dto.cloudUsageConfirmedAt).toBeNull();
     });
   });
 
   describe('setMode', () => {
-    it('upserts and returns the resulting DTO', async () => {
+    it('upserts and returns the resulting DTO for LOCAL mode without requiring confirmation', async () => {
       const updatedAt = new Date('2026-02-01T00:00:00.000Z');
       repository.upsert.mockResolvedValue({
         workspaceId: 'ws-1',
         mode: 'LOCAL',
+        cloudUsageConfirmedAt: null,
         createdAt: updatedAt,
         updatedAt,
       });
 
       const dto = await service.setMode('ws-1', 'LOCAL');
 
-      expect(repository.upsert).toHaveBeenCalledWith('ws-1', 'LOCAL');
+      expect(repository.findByWorkspaceId).not.toHaveBeenCalled();
+      expect(repository.upsert).toHaveBeenCalledWith('ws-1', 'LOCAL', false);
       expect(dto).toEqual({
         workspaceId: 'ws-1',
         mode: 'LOCAL',
         updatedAt: updatedAt.toISOString(),
+        cloudUsageConfirmedAt: null,
       });
+    });
+
+    it('throws AI_CLOUD_USAGE_NOT_CONFIRMED for CLOUD mode when never confirmed and confirmCloudUsage is not passed', async () => {
+      repository.findByWorkspaceId.mockResolvedValue(null);
+
+      await expect(service.setMode('ws-1', 'CLOUD')).rejects.toMatchObject({
+        code: 'AI_CLOUD_USAGE_NOT_CONFIRMED',
+      });
+      expect(repository.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows CLOUD mode when confirmCloudUsage: true is passed', async () => {
+      const updatedAt = new Date('2026-02-01T00:00:00.000Z');
+      repository.findByWorkspaceId.mockResolvedValue(null);
+      repository.upsert.mockResolvedValue({
+        workspaceId: 'ws-1',
+        mode: 'CLOUD',
+        cloudUsageConfirmedAt: updatedAt,
+        createdAt: updatedAt,
+        updatedAt,
+      });
+
+      const dto = await service.setMode('ws-1', 'CLOUD', true);
+
+      expect(repository.upsert).toHaveBeenCalledWith('ws-1', 'CLOUD', true);
+      expect(dto.cloudUsageConfirmedAt).toBe(updatedAt.toISOString());
+    });
+
+    it('allows HYBRID mode without re-confirming when already confirmed previously', async () => {
+      const confirmedAt = new Date('2026-01-15T00:00:00.000Z');
+      const updatedAt = new Date('2026-02-01T00:00:00.000Z');
+      repository.findByWorkspaceId.mockResolvedValue({
+        workspaceId: 'ws-1',
+        mode: 'CLOUD',
+        cloudUsageConfirmedAt: confirmedAt,
+        createdAt: confirmedAt,
+        updatedAt: confirmedAt,
+      });
+      repository.upsert.mockResolvedValue({
+        workspaceId: 'ws-1',
+        mode: 'HYBRID',
+        cloudUsageConfirmedAt: confirmedAt,
+        createdAt: confirmedAt,
+        updatedAt,
+      });
+
+      const dto = await service.setMode('ws-1', 'HYBRID');
+
+      expect(repository.upsert).toHaveBeenCalledWith('ws-1', 'HYBRID', false);
+      expect(dto.cloudUsageConfirmedAt).toBe(confirmedAt.toISOString());
     });
   });
 });

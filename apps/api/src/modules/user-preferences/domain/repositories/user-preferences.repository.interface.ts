@@ -5,6 +5,11 @@ export interface UpdateUserPreferencesInput {
   language?: string;
   timezone?: string;
   notificationsEnabled?: boolean;
+  telemetryOptOut?: boolean;
+  /// Module 15 — task #351. Domain-level input is already the translated
+  /// `Date`, not the wire-level `onboardingCompleted: boolean` — see
+  /// `UpdatePreferencesHandler` for the boolean→Date translation.
+  onboardingCompletedAt?: Date;
 }
 
 /// Register creates a default row (decision 8, docs/adr/0001-auth-module.md);

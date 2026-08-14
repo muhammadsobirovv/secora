@@ -20,6 +20,11 @@ export interface WorkspaceDto {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  /// Module 15 — task #352 (demo mode). True for a sandbox provisioned by
+  /// POST /demo/session rather than registration. `apps/web` uses this to
+  /// show a persistent "you're in a demo — data resets" banner and to
+  /// explain why new recon/vuln scans are rejected.
+  isDemo: boolean;
 }
 
 export interface WorkspaceMemberDto {

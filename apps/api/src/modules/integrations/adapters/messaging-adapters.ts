@@ -9,6 +9,36 @@ async function fetchJson(url: string, init: RequestInit): Promise<{ status: numb
   return { status: response.status, body };
 }
 
+/// Module 15 — task #344 security hardening. `DiscordAdapter` and
+/// `MsTeamsAdapter` treat `credentials` as an arbitrary webhook URL an org
+/// ADMIN types in (unlike Slack/Telegram, which use a bot token against a
+/// fixed API host this code controls) — without a check, `fetch()`-ing
+/// that URL is a straightforward SSRF primitive (point it at
+/// `http://169.254.169.254/...` or an internal service and the API server
+/// makes the request for you). Both providers only ever need a URL on
+/// their own known webhook host, so this is a strict allowlist rather
+/// than the general private-IP-resolution guard used for user-defined
+/// `WebhookToken.url` (see `common/utils/ssrf-guard.util.ts`) — simpler
+/// and more precise here since the valid destination set is fixed.
+function assertKnownWebhookHost(url: string, allowedHostSuffixes: string[], providerLabel: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new IntegrationActionError(`${providerLabel} webhook URL is not a valid URL.`);
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new IntegrationActionError(`${providerLabel} webhook URL must use https.`);
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  const allowed = allowedHostSuffixes.some((suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`));
+  if (!allowed) {
+    throw new IntegrationActionError(
+      `${providerLabel} webhook URL must point to ${allowedHostSuffixes.join(' or ')}, not "${hostname}".`,
+    );
+  }
+}
+
 /// v1 scope: post a message to a channel. Auth: a Slack Bot User OAuth
 /// Token (`xoxb-...`) sent as `Authorization: Bearer <token>`. Slack's
 /// REST API always returns HTTP 200 with an `ok: boolean` body field even
@@ -67,6 +97,11 @@ export class DiscordAdapter implements IntegrationAdapter {
   readonly actions = ['sendMessage'];
 
   async testConnection(credentials: string): Promise<{ ok: boolean; message: string }> {
+    try {
+      assertKnownWebhookHost(credentials, ['discord.com', 'discordapp.com'], 'Discord');
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : 'Invalid Discord webhook URL.' };
+    }
     const { status, body } = await fetchJson(credentials, { method: 'GET' });
     if (status !== 200) return { ok: false, message: `Discord webhook check failed (${status}): ${JSON.stringify(body)}` };
     const name = (body as { name?: string }).name ?? 'unknown';
@@ -75,6 +110,7 @@ export class DiscordAdapter implements IntegrationAdapter {
 
   async execute(action: string, credentials: string, _config: Record<string, unknown> | null, payload: Record<string, unknown>): Promise<unknown> {
     if (action !== 'sendMessage') throw new IntegrationActionError(`Unsupported Discord action: ${action}`);
+    assertKnownWebhookHost(credentials, ['discord.com', 'discordapp.com'], 'Discord');
     const { content, username, embeds } = payload as { content: string; username?: string; embeds?: unknown };
     const { status, body } = await fetchJson(`${credentials}?wait=true`, {
       method: 'POST',
@@ -96,8 +132,11 @@ export class MsTeamsAdapter implements IntegrationAdapter {
   readonly provider = 'MS_TEAMS' as const;
   readonly actions = ['sendMessage'];
 
+  private static readonly ALLOWED_HOSTS = ['office.com', 'logic.azure.com'];
+
   async testConnection(credentials: string): Promise<{ ok: boolean; message: string }> {
     try {
+      assertKnownWebhookHost(credentials, MsTeamsAdapter.ALLOWED_HOSTS, 'MS Teams');
       const response = await fetch(credentials, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,6 +152,7 @@ export class MsTeamsAdapter implements IntegrationAdapter {
 
   async execute(action: string, credentials: string, _config: Record<string, unknown> | null, payload: Record<string, unknown>): Promise<unknown> {
     if (action !== 'sendMessage') throw new IntegrationActionError(`Unsupported MS Teams action: ${action}`);
+    assertKnownWebhookHost(credentials, MsTeamsAdapter.ALLOWED_HOSTS, 'MS Teams');
     const { title, text } = payload as { title?: string; text: string };
     const response = await fetch(credentials, {
       method: 'POST',

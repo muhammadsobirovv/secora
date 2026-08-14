@@ -5,10 +5,12 @@ import type {
   ExecutePluginHookResultDto,
   PluginAvailableUpdateDto,
   PluginInstallationDto,
+  PluginPermissionStatusDto,
 } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import { ExecutePluginHookDto, InstallPluginDto, UpdatePluginInstallationDto } from '../dto/plugins.dto.js';
+import { GrantPluginPermissionsBodyDto } from '../dto/marketplace-security.dto.js';
 import {
   ExecutePluginHookCommand,
   InstallPluginCommand,
@@ -19,6 +21,10 @@ import {
   GetAvailablePluginUpdatesQuery,
   ListPluginInstallationsQuery,
 } from '../queries/plugin-installations.query.js';
+import { PluginPermissionEnforcerService } from '../plugin-permission-enforcer.service.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
+import { resolveOrganizationMembership } from '../../enterprise/organization-membership.util.js';
+import { requireEnterpriseRole } from '../../enterprise/enterprise-permissions.util.js';
 
 @ApiTags('plugins')
 @ApiBearerAuth()
@@ -27,7 +33,20 @@ export class PluginInstallationsController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly permissionEnforcer: PluginPermissionEnforcerService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /// Every permission-management endpoint below calls the plain
+  /// `PluginPermissionEnforcerService` directly (not `CommandBus`), so
+  /// unlike `install`/`update`/`uninstall` above it doesn't get the
+  /// ADMIN+ check for free from inside a command handler — this
+  /// re-establishes the exact same `resolveOrganizationMembership` +
+  /// `requireEnterpriseRole(role, 'ADMIN')` gate those handlers use.
+  private async requireAdmin(userId: string, organizationId: string): Promise<void> {
+    const { role } = await resolveOrganizationMembership(this.prisma, userId, organizationId);
+    requireEnterpriseRole(role, 'ADMIN');
+  }
 
   @Get()
   @ApiOperation({ summary: 'List installed plugins for an organization/workspace' })
@@ -95,5 +114,42 @@ export class PluginInstallationsController {
     @CurrentUser() user: RequestUser,
   ): Promise<ExecutePluginHookResultDto> {
     return this.commandBus.execute(new ExecutePluginHookCommand(user.id, organizationId, id, dto));
+  }
+
+  // Module 15 — Plugin permission declarations + enforcement (task #334)
+
+  @Get(':id/permissions')
+  @ApiOperation({ summary: 'Declared vs. granted vs. pending permissions for an installation' })
+  async getPermissions(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PluginPermissionStatusDto> {
+    await resolveOrganizationMembership(this.prisma, user.id, organizationId);
+    return this.permissionEnforcer.getStatus(id);
+  }
+
+  @Post(':id/permissions/grant')
+  @ApiOperation({ summary: 'Grant one or more declared-but-not-yet-granted permissions (ADMIN+)' })
+  async grantPermissions(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @Body() dto: GrantPluginPermissionsBodyDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PluginPermissionStatusDto> {
+    await this.requireAdmin(user.id, organizationId);
+    return this.permissionEnforcer.grant(id, dto.permissions, user.id);
+  }
+
+  @Delete(':id/permissions/:permission')
+  @ApiOperation({ summary: 'Revoke a previously granted permission (ADMIN+)' })
+  async revokePermission(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @Param('permission') permission: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PluginPermissionStatusDto> {
+    await this.requireAdmin(user.id, organizationId);
+    return this.permissionEnforcer.revoke(id, permission);
   }
 }

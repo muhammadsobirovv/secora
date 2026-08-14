@@ -30,10 +30,18 @@ export class UpdatePreferencesHandler implements ICommandHandler<
   async execute(
     command: UpdatePreferencesCommand,
   ): Promise<UserPreferencesDto> {
-    const updated = await this.userPreferencesRepository.update(
-      command.userId,
-      command.data,
-    );
+    // Module 15 — task #351. Translate the wire-level boolean into the
+    // domain-level timestamp here, at the command boundary, rather than
+    // pushing `Date.now()` down into the repository (keeps the repository
+    // a dumb persistence layer and the "what does completing onboarding
+    // mean" decision in one place). `onboardingCompleted` itself is never
+    // forwarded — only the derived timestamp is, so a stray boolean field
+    // can't leak into the Prisma `update` payload.
+    const { onboardingCompleted, ...rest } = command.data;
+    const updated = await this.userPreferencesRepository.update(command.userId, {
+      ...rest,
+      ...(onboardingCompleted ? { onboardingCompletedAt: new Date() } : {}),
+    });
     return toUserPreferencesDto(updated);
   }
 }

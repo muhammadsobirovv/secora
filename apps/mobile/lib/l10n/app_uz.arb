@@ -1,0 +1,11 @@
+{
+  "@@locale": "uz",
+  "appTitle": "PentestHub AI",
+  "settingsTitle": "Sozlamalar",
+  "settingsTheme": "Mavzu",
+  "settingsLanguage": "Til",
+  "commonSave": "Saqlash",
+  "commonCancel": "Bekor qilish",
+  "commonLoading": "Yuklanmoqda…",
+  "commonError": "Nimadir noto'g'ri ketdi"
+}

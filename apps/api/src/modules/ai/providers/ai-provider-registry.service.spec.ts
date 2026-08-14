@@ -281,4 +281,39 @@ describe('AiProviderRegistryService', () => {
       expect(byName.get('OPENROUTER')).toBe(false);
     });
   });
+
+  describe('listMarketplace (Module 15 — task #341)', () => {
+    it('merges catalog metadata with live status for every provider', async () => {
+      const { registry } = buildRegistry({ configured: { OPENAI: true }, privacyMode: 'CLOUD' });
+      const marketplace = await registry.listMarketplace('ws-1');
+      expect(marketplace).toHaveLength(5);
+      const openai = marketplace.find((e) => e.provider === 'OPENAI');
+      expect(openai).toMatchObject({
+        provider: 'OPENAI',
+        displayName: 'OpenAI',
+        category: 'cloud',
+        requiresApiKey: true,
+        configured: true,
+        defaultModel: 'openai-default-model',
+        allowedByPrivacyMode: true,
+      });
+      const ollama = marketplace.find((e) => e.provider === 'OLLAMA');
+      expect(ollama).toMatchObject({
+        provider: 'OLLAMA',
+        category: 'local',
+        requiresApiKey: false,
+        configured: false,
+      });
+    });
+
+    it('every catalog entry carries a non-empty docsUrl and description', async () => {
+      const { registry } = buildRegistry({});
+      const marketplace = await registry.listMarketplace('ws-1');
+      for (const entry of marketplace) {
+        expect(entry.docsUrl.length).toBeGreaterThan(0);
+        expect(entry.description.length).toBeGreaterThan(0);
+        expect(entry.recommendedModels.length).toBeGreaterThan(0);
+      }
+    });
+  });
 });
