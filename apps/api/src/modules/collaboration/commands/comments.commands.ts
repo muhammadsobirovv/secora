@@ -1,10 +1,11 @@
-import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, EventBus, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus } from '@nestjs/common';
 import type { CommentDto, CreateCommentRequestDto, UpdateCommentRequestDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { resolveWorkspaceMembership } from '../workspace-membership.util.js';
 import { toCommentDto } from '../mappers/to-comment-dto.mapper.js';
+import { CommentCreatedEvent, MentionCreatedEvent } from '../events/comment-events.js';
 
 /// Extracts `@<uuid>` mention tokens from a comment body — the frontend's
 /// mention picker inserts them in this exact shape (see
@@ -35,7 +36,10 @@ export class CreateCommentCommand implements ICommand {
 
 @CommandHandler(CreateCommentCommand)
 export class CreateCommentHandler implements ICommandHandler<CreateCommentCommand, CommentDto> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async execute(command: CreateCommentCommand): Promise<CommentDto> {
     await resolveWorkspaceMembership(this.prisma, command.userId, command.workspaceId);
@@ -55,14 +59,35 @@ export class CreateCommentHandler implements ICommandHandler<CreateCommentComman
     const createdMentions: string[] = [];
     for (const mentionedUserId of mentionedUserIds) {
       try {
-        await this.prisma.mention.create({ data: { commentId: comment.id, mentionedUserId } });
+        const mention = await this.prisma.mention.create({ data: { commentId: comment.id, mentionedUserId } });
         createdMentions.push(mentionedUserId);
+        // Targeted, per-user event — see MentionCreatedEvent's doc comment.
+        this.eventBus.publish(
+          new MentionCreatedEvent(command.workspaceId, mention.id, command.userId, mentionedUserId, {
+            commentId: comment.id,
+            entityType: comment.entityType,
+            entityId: comment.entityId,
+          }),
+        );
       } catch {
         // Not a real user, or not a member of this workspace at all (FK
         // failure) — skip silently rather than failing the whole comment
         // over a bad @mention token.
       }
     }
+
+    // Module 16 — Real-time gateway (task #391): the only place a new
+    // comment is published as a domain event. Previously this handler
+    // published nothing at all, so comments never reached the Activity
+    // Timeline or any real-time listener (see comment-events.ts's doc
+    // comment for the full rationale).
+    this.eventBus.publish(
+      new CommentCreatedEvent(command.workspaceId, comment.id, command.userId, {
+        entityType: comment.entityType,
+        entityId: comment.entityId,
+        parentCommentId: comment.parentCommentId,
+      }),
+    );
 
     return toCommentDto(comment, createdMentions);
   }

@@ -5,6 +5,8 @@ import { OrganizationsResource } from './resources/organizations.resource.js';
 import { DistributedJobsResource } from './resources/distributed-jobs.resource.js';
 import { PluginsResource } from './resources/plugins.resource.js';
 import { IntegrationsResource } from './resources/integrations.resource.js';
+import { KnowledgeGraphResource } from './resources/knowledge-graph.resource.js';
+import { ExtensionsResource } from './resources/extensions.resource.js';
 
 /// The official PentestHub AI SDK entrypoint.
 ///
@@ -18,13 +20,19 @@ import { IntegrationsResource } from './resources/integrations.resource.js';
 /// ```
 ///
 /// v1 scope covers Auth, Organizations, Distributed Jobs, the Plugin
-/// registry/installations, and Integrations — the same disclosed subset
-/// the GraphQL API's v1 covers (`graphql-api.types.ts`), not the full
-/// ~250-route REST surface. Every resource method is a thin, typed
+/// registry/installations, Integrations, and (Module 16) the Knowledge
+/// Graph query layer and Extension API registry — the same disclosed
+/// subset the GraphQL API's v1 covers (`graphql-api.types.ts`), not the
+/// full ~250+-route REST surface. Every resource method is a thin, typed
 /// wrapper around one REST call using the exact same
 /// `@pentesthub/shared` endpoint-builder constants and DTO types the
 /// server itself is built from, so the SDK can never silently drift from
-/// the API it targets.
+/// the API it targets. Module 16's other new surfaces (Collaboration
+/// extensions, Public Sharing, AI Memory, the real-time SSE gateway) are
+/// not yet wrapped here — same disclosed-scope posture, not an
+/// oversight; a future pass can add resources for them following the
+/// exact same pattern as `knowledge-graph.resource.ts`/
+/// `extensions.resource.ts`.
 export class PentestHubClient {
   private readonly http: HttpClient;
 
@@ -33,6 +41,8 @@ export class PentestHubClient {
   readonly distributedJobs: DistributedJobsResource;
   readonly plugins: PluginsResource;
   readonly integrations: IntegrationsResource;
+  readonly knowledgeGraph: KnowledgeGraphResource;
+  readonly extensions: ExtensionsResource;
 
   constructor(options: HttpClientOptions) {
     this.http = new HttpClient(options);
@@ -44,6 +54,8 @@ export class PentestHubClient {
     this.distributedJobs = new DistributedJobsResource(this.http);
     this.plugins = new PluginsResource(this.http);
     this.integrations = new IntegrationsResource(this.http);
+    this.knowledgeGraph = new KnowledgeGraphResource(this.http);
+    this.extensions = new ExtensionsResource(this.http);
   }
 
   /// Directly set/replace the access token in use (e.g. after restoring

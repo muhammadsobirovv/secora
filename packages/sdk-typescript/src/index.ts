@@ -5,6 +5,8 @@ export { OrganizationsResource } from './resources/organizations.resource.js';
 export { DistributedJobsResource } from './resources/distributed-jobs.resource.js';
 export { PluginsResource } from './resources/plugins.resource.js';
 export { IntegrationsResource } from './resources/integrations.resource.js';
+export { KnowledgeGraphResource } from './resources/knowledge-graph.resource.js';
+export { ExtensionsResource } from './resources/extensions.resource.js';
 export {
   McpClient,
   McpRpcCallError,

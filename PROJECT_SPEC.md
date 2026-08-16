@@ -829,6 +829,22 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 9. Admin Panel
 10. Integrations, Voice Assistant, Mobile/Desktop (Flutter), Marketplace/Plugin SDK
 
+> **Note on items 7-10 above and this list's staleness**: items 7-10 are the
+> original placeholder text and predate Modules 7-16 actually being built —
+> they were not updated as those modules shipped and no longer reflect this
+> project's real status (e.g. Mobile/Desktop exist as Modules 12/7, not as
+> item 10's vague placeholder). A full rewrite of this section to match the
+> project's actual module history was judged a separate, larger task and was
+> not attempted as part of Module 16's documentation pass. For authoritative
+> per-module status, see `docs/releases/module-{N}-release-notes.md` for
+> Modules 2, 4, 5 (phase 1 & 2), 6, 9, 10, 11, 12, 13, 14, 15, and 16 — the
+> most recent, which covers Global Security Intelligence, the Bug Bounty
+> platform (submissions/rewards, Safe Terminal, Playbooks, Risk Engine, CVE
+> matching), and Collaboration (Watchers/Reactions, a real-time SSE gateway,
+> Public Sharing, Knowledge Graph queries, AI Memory, and an Extension API
+> Registry). Mobile, Desktop Agent, and Browser Extension updates for Module
+> 16 were explicitly deferred by user decision and are not part of it.
+
 > **Local-first migration status** (2026-07-16): per the Local-First Core
 > Principle above, Modules 3-6 as described in this list still execute
 > server-side today. Module 3's 14 tool runners and Module 4's 5 scanner

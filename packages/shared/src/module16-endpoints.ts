@@ -87,9 +87,39 @@ export const PLAYBOOK_ENDPOINTS = {
   decideApproval: (id: string) => `playbook-approvals/${id}/decide`,
 } as const;
 
+export const KNOWLEDGE_GRAPH_ENDPOINTS = {
+  node: (type: string, id: string) => `knowledge-graph/nodes/${type}/${id}`,
+  relationships: (type: string, id: string) => `knowledge-graph/nodes/${type}/${id}/relationships`,
+  search: () => "knowledge-graph/search",
+  path: () => "knowledge-graph/path",
+} as const;
+
+export const EXTENSION_REGISTRY_ENDPOINTS = {
+  list: () => "extensions",
+  register: () => "extensions",
+  extension: (id: string) => `extensions/${id}`,
+  enable: (id: string) => `extensions/${id}/enable`,
+  disable: (id: string) => `extensions/${id}/disable`,
+  unregister: (id: string) => `extensions/${id}`,
+} as const;
+
 export const SHARE_LINK_ENDPOINTS = {
   create: () => "share-links",
   list: () => "share-links",
   revoke: (id: string) => `share-links/${id}/revoke`,
-  resolve: (token: string) => `share/${token}`,
+  /// POST, not GET — resolving a link is a mutating action (increments
+  /// accessCount, writes an audit event on every attempt) and accepts an
+  /// optional `{ password }` body for password-protected links. See
+  /// PublicShareController / access-share-link.command.ts.
+  access: (token: string) => `share/${token}/access`,
+} as const;
+
+export const REALTIME_ENDPOINTS = {
+  /// SSE stream — `Accept: text/event-stream`, one long-lived GET per
+  /// connection. Query param `workspaceId` selects which workspace's
+  /// events to receive; server validates membership before opening the
+  /// stream (see RealtimeController).
+  stream: () => "realtime/stream",
+  typing: () => "realtime/typing",
+  presenceHeartbeat: () => "realtime/presence/heartbeat",
 } as const;

@@ -4,6 +4,7 @@ import type {
   AcceptWorkspaceInviteRequestDto as AcceptInviteShape,
   AssignableEntityType,
   AssignmentStatus,
+  CollaborationEntityType,
   CommentEntityType,
   CreateAssignmentRequestDto as CreateAssignmentShape,
   CreateCommentRequestDto as CreateCommentShape,
@@ -13,6 +14,8 @@ import type {
   ListCommentsQueryDto as ListCommentsShape,
   ListTaskItemsQueryDto as ListTasksShape,
   ListWorkspaceInvitesQueryDto as ListInvitesShape,
+  ToggleReactionRequestDto as ToggleReactionShape,
+  ToggleWatcherRequestDto as ToggleWatcherShape,
   UpdateAssignmentRequestDto as UpdateAssignmentShape,
   UpdateCommentRequestDto as UpdateCommentShape,
   UpdateTaskItemRequestDto as UpdateTaskShape,
@@ -26,6 +29,12 @@ const WORKSPACE_INVITE_STATUSES: WorkspaceInviteStatus[] = ['PENDING', 'ACCEPTED
 const COMMENT_ENTITY_TYPES: CommentEntityType[] = ['PROGRAM', 'FINDING', 'REPORT', 'TARGET', 'NOTE', 'TASK'];
 const ASSIGNABLE_ENTITY_TYPES: AssignableEntityType[] = ['PROGRAM', 'FINDING', 'REPORT', 'TARGET', 'TASK'];
 const ASSIGNMENT_STATUSES: AssignmentStatus[] = ['OPEN', 'IN_PROGRESS', 'DONE'];
+const COLLABORATION_ENTITY_TYPES: CollaborationEntityType[] = [
+  'BUGBOUNTY_FINDING',
+  'BUG_REPORT',
+  'COMMENT',
+  'RESEARCH_SESSION',
+];
 
 // --- Invites / members ---
 
@@ -126,4 +135,27 @@ export class ListActivityFeedQueryParamsDto {
   @ApiPropertyOptional() @IsOptional() @IsString() entityType?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() entityId?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(200) limit?: number;
+}
+
+// --- Watchers / Reactions (Module 16, task #390) ---
+
+export class ToggleWatcherDto implements ToggleWatcherShape {
+  @ApiProperty({ enum: COLLABORATION_ENTITY_TYPES }) @IsIn(COLLABORATION_ENTITY_TYPES) entityType!: CollaborationEntityType;
+  @ApiProperty() @IsUUID() entityId!: string;
+}
+
+export class ListWatchersQueryParamsDto {
+  @ApiProperty({ enum: COLLABORATION_ENTITY_TYPES }) @IsIn(COLLABORATION_ENTITY_TYPES) entityType!: CollaborationEntityType;
+  @ApiProperty() @IsUUID() entityId!: string;
+}
+
+export class ToggleReactionDto implements ToggleReactionShape {
+  @ApiProperty({ enum: COLLABORATION_ENTITY_TYPES }) @IsIn(COLLABORATION_ENTITY_TYPES) entityType!: CollaborationEntityType;
+  @ApiProperty() @IsUUID() entityId!: string;
+  @ApiProperty() @IsString() @MaxLength(8) emoji!: string;
+}
+
+export class ListReactionsQueryParamsDto {
+  @ApiProperty({ enum: COLLABORATION_ENTITY_TYPES }) @IsIn(COLLABORATION_ENTITY_TYPES) entityType!: CollaborationEntityType;
+  @ApiProperty() @IsUUID() entityId!: string;
 }

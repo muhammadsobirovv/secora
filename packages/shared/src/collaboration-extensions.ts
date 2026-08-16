@@ -58,3 +58,19 @@ export interface CreateShareLinkRequestDto {
   password?: string;
   expiresInDays?: number;
 }
+
+/// Returned by the public (unauthenticated) resolve endpoint —
+/// deliberately excludes `workspaceId`, `createdBy`, and every other
+/// internal identifier; a share link only ever hands the recipient the
+/// resource itself, never the tenant it lives in.
+export interface ResolvedShareLinkDto {
+  resourceType: ShareResourceType;
+  resourceId: string;
+  title: string;
+  permission: SharePermission;
+}
+
+export interface AccessShareLinkRequestDto {
+  password?: string;
+}
+

@@ -46,6 +46,20 @@ ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'SECURITY_APPROVAL_DECIDED';
 ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'AI_INVESTIGATION_STARTED';
 ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'AI_INVESTIGATION_STEP_EXECUTED';
 
+-- Module 16 — Collaboration/Sharing/AI-Memory/Extension-API completion
+-- pass (Watchers/Reactions, Public Sharing, Researcher Memory CRUD,
+-- Extension Registry). See schema.prisma's AuditEventType doc comments
+-- for what each new value is written for.
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'SHARE_LINK_CREATED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'SHARE_LINK_REVOKED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'SHARE_LINK_ACCESSED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'SHARE_LINK_ACCESS_DENIED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'AI_MEMORY_ENTRY_MUTATED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_REGISTERED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_ENABLED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_DISABLED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_UNREGISTERED';
+
 -- ---------------------------------------------------------------------------
 -- Additive columns on pre-existing tables
 -- ---------------------------------------------------------------------------
@@ -368,7 +382,8 @@ CREATE TABLE "share_links" (
     "workspaceId" TEXT NOT NULL,
     "resourceType" "ShareResourceType" NOT NULL,
     "resourceId" TEXT NOT NULL,
-    "token" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "tokenPrefix" TEXT NOT NULL,
     "passwordHash" TEXT,
     "permission" "SharePermission" NOT NULL DEFAULT 'VIEW',
     "expiresAt" TIMESTAMP(3),
@@ -379,8 +394,34 @@ CREATE TABLE "share_links" (
     "accessCount" INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT "share_links_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "share_links_token_key" ON "share_links"("token");
+CREATE UNIQUE INDEX "share_links_tokenHash_key" ON "share_links"("tokenHash");
 CREATE INDEX "share_links_workspaceId_resourceType_resourceId_idx" ON "share_links"("workspaceId", "resourceType", "resourceId");
+
+-- ---------------------------------------------------------------------------
+-- Extension API registry (task #401)
+-- ---------------------------------------------------------------------------
+
+CREATE TYPE "ExtensionType" AS ENUM ('RECON_PROVIDER', 'SCANNER_PROVIDER', 'INTELLIGENCE_PROVIDER', 'AI_AGENT', 'REPORT_TEMPLATE', 'WORKFLOW_NODE', 'MARKETPLACE_PLUGIN');
+
+CREATE TABLE "extension_registrations" (
+    "id" TEXT NOT NULL,
+    "workspaceId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "type" "ExtensionType" NOT NULL,
+    "permissions" TEXT[],
+    "capabilities" TEXT[],
+    "entrypoint" TEXT NOT NULL,
+    "metadata" JSONB,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "pluginInstallationId" TEXT,
+    "registeredBy" TEXT NOT NULL,
+    "registeredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "extension_registrations_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "extension_registrations_workspaceId_name_version_key" ON "extension_registrations"("workspaceId", "name", "version");
+CREATE INDEX "extension_registrations_workspaceId_type_enabled_idx" ON "extension_registrations"("workspaceId", "type", "enabled");
 
 -- ---------------------------------------------------------------------------
 -- AI Investigation Mode

@@ -2,7 +2,8 @@
 // REST API. It covers the same v1 resource scope as the TypeScript
 // (packages/sdk-typescript) and Python (sdks/python) SDKs: Auth,
 // Organizations, the Distributed Job System, the Plugin registry/
-// installations, and Integrations.
+// installations, Integrations, and (Module 16) the Knowledge Graph query
+// layer and Extension API registry.
 //
 // It has zero third-party dependencies — built entirely on net/http and
 // encoding/json from the standard library — following the same
@@ -44,6 +45,8 @@ type Client struct {
 	DistributedJobs *DistributedJobsResource
 	Plugins         *PluginsResource
 	Integrations    *IntegrationsResource
+	KnowledgeGraph  *KnowledgeGraphResource
+	Extensions      *ExtensionsResource
 }
 
 // New constructs a Client from Options.
@@ -63,6 +66,8 @@ func New(opts Options) *Client {
 		DistributedJobs: &DistributedJobsResource{http: httpClient},
 		Plugins:         &PluginsResource{http: httpClient},
 		Integrations:    &IntegrationsResource{http: httpClient},
+		KnowledgeGraph:  &KnowledgeGraphResource{http: httpClient},
+		Extensions:      &ExtensionsResource{http: httpClient},
 	}
 }
 
