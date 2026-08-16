@@ -95,4 +95,7 @@ export * from "./researcher-memory.js";
 export * from "./collaboration-extensions.js";
 export * from "./terminal-workspace.js";
 export * from "./playbooks.js";
+export * from "./knowledge-graph.js";
+export * from "./extension-api.js";
+export * from "./realtime.js";
 export * from "./module16-endpoints.js";

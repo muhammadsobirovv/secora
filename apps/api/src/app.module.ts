@@ -76,6 +76,11 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module.j
 import { AiInvestigationModule } from './modules/ai-investigation/ai-investigation.module.js';
 import { TerminalModule } from './modules/terminal/terminal.module.js';
 import { PlaybooksModule } from './modules/playbooks/playbooks.module.js';
+import { SharingModule } from './modules/sharing/sharing.module.js';
+import { ResearcherMemoryModule } from './modules/researcher-memory/researcher-memory.module.js';
+import { KnowledgeGraphModule } from './modules/knowledge-graph/knowledge-graph.module.js';
+import { ExtensionRegistryModule } from './modules/extension-registry/extension-registry.module.js';
+import { RealtimeModule } from './modules/realtime/realtime.module.js';
 
 @Module({
   imports: [
@@ -140,6 +145,11 @@ import { PlaybooksModule } from './modules/playbooks/playbooks.module.js';
     AiInvestigationModule,
     TerminalModule,
     PlaybooksModule,
+    SharingModule,
+    ResearcherMemoryModule,
+    KnowledgeGraphModule,
+    ExtensionRegistryModule,
+    RealtimeModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this

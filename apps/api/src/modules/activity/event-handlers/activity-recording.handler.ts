@@ -62,6 +62,7 @@ import {
   OrchestrationRunCreatedEvent,
   OrchestrationRunFailedEvent,
 } from '../../agent/events/orchestration-run-events.js';
+import { CommentCreatedEvent } from '../../collaboration/events/comment-events.js';
 
 /// The single listener that turns every domain event into an ActivityEvent
 /// row. This is what "generic enough for future modules" means in
@@ -128,6 +129,9 @@ import {
   OrchestrationRunCompletedEvent,
   OrchestrationRunFailedEvent,
   OrchestrationRunCancelledEvent,
+  // Module 16 — Real-time gateway (task #391) / disclosed gap fix: comments
+  // previously published no domain event at all (see comment-events.ts).
+  CommentCreatedEvent,
 )
 export class ActivityRecordingHandler implements IEventHandler<ActivityDomainEvent> {
   constructor(

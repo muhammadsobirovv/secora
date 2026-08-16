@@ -1517,6 +1517,27 @@ enum AuditEventType {
   // each playbook execution step.
   TERMINAL_COMMAND_EXECUTED
   PLAYBOOK_STEP_EXECUTED
+  // Module 16 — Public Sharing (task #392). Written on every share-link
+  // create/revoke and on every *access* against a password-protected or
+  // otherwise sensitive link, so a workspace can audit who saw/attempted
+  // a shared resource, not just who created the link (spec: "audit
+  // logging" under Public Sharing).
+  SHARE_LINK_CREATED
+  SHARE_LINK_REVOKED
+  SHARE_LINK_ACCESSED
+  SHARE_LINK_ACCESS_DENIED
+  // Module 16 — AI Memory (task #397). "Audit important memory
+  // mutations" — written for IMPORTANT_FINDING/DECISION kind entries
+  // (the two kinds the spec calls out as needing an audit trail) on
+  // create/update/delete; PREFERENCE/NOTE/PROJECT_CONTEXT/
+  // CUSTOM_INSTRUCTION mutations are lower-stakes and rely on
+  // AiMemoryChunk's own existing storage instead of a second audit path.
+  AI_MEMORY_ENTRY_MUTATED
+  // Module 16 — Extension API registry (task #401).
+  EXTENSION_REGISTERED
+  EXTENSION_ENABLED
+  EXTENSION_DISABLED
+  EXTENSION_UNREGISTERED
 }
 
 // ---------------------------------------------------------------------------
@@ -5999,12 +6020,25 @@ enum SharePermission {
   COMMENT
 }
 
+/// `tokenHash` (sha256 of the raw bearer token) is the only persisted
+/// form of the secret — mirrors ApiKey's `keyHash` pattern
+/// (api-keys.commands.ts / api-key-auth.guard.ts): the raw token is
+/// generated, returned to the caller exactly once at creation time, and
+/// never stored or logged anywhere. Lookups on public access always hash
+/// the presented token and query by that hash, so a stolen/leaked DB
+/// snapshot can never be used to derive working share links, and a
+/// timing-safe equality on a random 256-bit hash makes guessing
+/// infeasible (non-enumerable). `tokenPrefix` (first 12 chars of the raw
+/// token, e.g. `shl_xxxxxxxx`) exists purely for display/audit purposes
+/// (so a user can recognize *which* link a log entry refers to) and is
+/// never sufficient on its own to resolve a link.
 model ShareLink {
   id             String            @id @default(uuid())
   workspaceId    String
   resourceType   ShareResourceType
   resourceId     String
-  token          String            @unique
+  tokenHash      String            @unique
+  tokenPrefix    String
   passwordHash   String?
   permission     SharePermission   @default(VIEW)
   expiresAt      DateTime?
@@ -6016,6 +6050,55 @@ model ShareLink {
 
   @@index([workspaceId, resourceType, resourceId])
   @@map("share_links")
+}
+
+// --- Extension API registry -------------------------------------------------------
+
+/// Mirrors `packages/shared/src/extension-api.ts`'s `ExtensionType` union
+/// exactly. `MARKETPLACE_PLUGIN` registrations are expected to carry a
+/// `pluginInstallationId` pointing at an existing `PluginInstallation`
+/// row (the real M13 marketplace install) rather than duplicating plugin
+/// state here — the other six types are lighter-weight, code-level
+/// extension points with no marketplace publishing pipeline behind them.
+enum ExtensionType {
+  RECON_PROVIDER
+  SCANNER_PROVIDER
+  INTELLIGENCE_PROVIDER
+  AI_AGENT
+  REPORT_TEMPLATE
+  WORKFLOW_NODE
+  MARKETPLACE_PLUGIN
+}
+
+/// Mirrors `ExtensionPermission` in the same shared file — a closed,
+/// declared vocabulary. Stored as `String[]` (like `PluginVersion.
+/// permissions`) rather than a Postgres enum array so new permissions
+/// can be added without a migration; the closed-world check happens in
+/// application code (`ExtensionPermissionEnforcer`), not at the DB layer.
+model ExtensionRegistration {
+  id                   String        @id @default(uuid())
+  workspaceId          String
+  name                 String
+  version              String
+  type                 ExtensionType
+  permissions          String[]
+  capabilities         String[]
+  entrypoint           String
+  metadata             Json?
+  enabled              Boolean       @default(true)
+  /// Only meaningful when `type == MARKETPLACE_PLUGIN`; null otherwise.
+  /// Not a Prisma `@relation` (consistent with this module's other new
+  /// models this session — Watcher/Reaction/ShareLink/
+  /// ResearcherMemoryEntry — which use plain FK columns rather than
+  /// growing the User/Workspace models' relation-array lists further).
+  pluginInstallationId String?
+  registeredBy         String
+  registeredAt         DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@unique([workspaceId, name, version])
+  @@index([workspaceId, type, enabled])
+  @@map("extension_registrations")
 }
 
 // --- AI Investigation Mode -------------------------------------------------------

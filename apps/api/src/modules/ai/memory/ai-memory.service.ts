@@ -148,6 +148,17 @@ export class AiMemoryService {
     await this.memoryRepository.deleteByProject(projectId);
   }
 
+  /// Module 16 — AI Memory / researcher memory (task #397). Thin
+  /// pass-through so callers outside this module (ResearcherMemoryService)
+  /// can remove a single source's chunks on explicit user deletion without
+  /// reaching past this service into the repository directly — keeps
+  /// `AI_MEMORY_REPOSITORY`'s pgvector persistence boundary exactly where
+  /// its own doc comment says it should stay (see
+  /// ai-memory.repository.interface.ts).
+  async deindexContent(sourceType: AiMemorySourceType, sourceId: string): Promise<void> {
+    await this.memoryRepository.deleteBySource(sourceType, sourceId);
+  }
+
   /// Module 11 — Long-Term Memory's Summarization requirement: condenses a
   /// set of retrieved memory chunks (typically this method's own caller
   /// having just called `search`) into a short prose brief, for callers

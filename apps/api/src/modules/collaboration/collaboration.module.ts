@@ -38,12 +38,22 @@ import { ListTaskItemsHandler } from './queries/task-items.query.js';
 // Activity feed
 import { ListActivityFeedHandler } from './queries/activity-feed.query.js';
 
+// Watchers / Reactions (Module 16, task #390)
+import { ToggleWatcherHandler } from './commands/watchers.commands.js';
+import { ToggleReactionHandler } from './commands/reactions.commands.js';
+import {
+  GetMyWatchStateHandler,
+  ListReactionsHandler,
+  ListWatchersHandler,
+} from './queries/watchers-reactions.query.js';
+
 // Controllers
 import { WorkspaceMembersController } from './controllers/workspace-members.controller.js';
 import { CommentsController, MentionsController } from './controllers/comments.controller.js';
 import { AssignmentsController } from './controllers/assignments.controller.js';
 import { TaskItemsController } from './controllers/task-items.controller.js';
 import { ActivityFeedController } from './controllers/activity-feed.controller.js';
+import { ReactionsController, WatchersController } from './controllers/watchers-reactions.controller.js';
 
 const COMMAND_HANDLERS = [
   CreateWorkspaceInviteHandler,
@@ -61,6 +71,8 @@ const COMMAND_HANDLERS = [
   CreateTaskItemHandler,
   UpdateTaskItemHandler,
   DeleteTaskItemHandler,
+  ToggleWatcherHandler,
+  ToggleReactionHandler,
 ];
 
 const QUERY_HANDLERS = [
@@ -70,6 +82,9 @@ const QUERY_HANDLERS = [
   ListAssignmentsHandler,
   ListTaskItemsHandler,
   ListActivityFeedHandler,
+  ListWatchersHandler,
+  GetMyWatchStateHandler,
+  ListReactionsHandler,
 ];
 
 /// Module 9's Collaboration surface — Invite Members, Roles (Reviewer/
@@ -91,6 +106,8 @@ const QUERY_HANDLERS = [
     AssignmentsController,
     TaskItemsController,
     ActivityFeedController,
+    WatchersController,
+    ReactionsController,
   ],
   providers: [...COMMAND_HANDLERS, ...QUERY_HANDLERS],
 })
