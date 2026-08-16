@@ -18,6 +18,9 @@ import {
   Sparkles,
   Server,
   Library,
+  FlaskConical,
+  TerminalSquare,
+  Workflow,
 } from "lucide-react";
 
 export interface NavItem {
@@ -37,6 +40,16 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Recon", href: "/recon", icon: Radar },
   { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert },
   { label: "Bug Bounty", href: "/bugbounty", icon: Bug },
+  // Module 16 — task #371. Groups Recon/Vuln/Findings/Notes/Evidence/
+  // Terminal/AI-conversation activity produced during one research
+  // engagement, without moving or re-owning any of that data.
+  { label: "Research Sessions", href: "/research-sessions", icon: FlaskConical },
+  // Module 16 — task #388. Safe Terminal: every command here runs through
+  // AdHocCommandService's Scope Engine -> Permission Check -> Approval
+  // Gate -> ToolRunner chain, never a raw shell exec.
+  { label: "Terminal", href: "/terminal", icon: TerminalSquare },
+  // Module 16 — task #389. Playbooks: reusable, auditable step graphs.
+  { label: "Playbooks", href: "/playbooks", icon: Workflow },
   { label: "AI Assistant", href: "/ai", icon: Bot },
   // Module 11 — AI Security Copilot + Autonomous Multi-Agent System
   // (task #237): Master AI Orchestrator run list/detail + system-wide

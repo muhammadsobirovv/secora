@@ -39,6 +39,22 @@ export interface CreateBugBountyFindingInput {
   owaspCategory?: OwaspCategory | null;
   mitreAttack?: { id: string; name: string }[] | null;
   cvssBreakdown?: Record<string, unknown> | null;
+  // --- Module 16 additions: Finding Intelligence (tasks #377-380). cve/
+  // epss/cpe are normally populated by Vulnerability Matching (task
+  // #395), not user input; confidence/exploitability/businessImpact are
+  // free-text/numeric narrative fields a researcher or the AI Security
+  // Analyst can set; fingerprint/riskScore/riskLevel are always
+  // *computed* by FindingFingerprintService/RiskScoringService — the
+  // handlers set them, callers never pass them through the request DTO.
+  cve?: string | null;
+  epss?: number | null;
+  cpe?: string | null;
+  confidence?: number | null;
+  exploitability?: string | null;
+  businessImpact?: string | null;
+  fingerprint?: string | null;
+  riskScore?: number | null;
+  riskLevel?: string | null;
 }
 
 export type UpdateBugBountyFindingInput = Partial<

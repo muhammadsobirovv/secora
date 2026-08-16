@@ -143,6 +143,12 @@ export class ReconJobExecutionService {
           {
             findingsCount,
             toolsRun: job.tools,
+            // Module 16 — task #372/#373/#374/#376. Lets IntelligenceModule's
+            // ReconJobCompletedEvent handler (Technology detection, Asset
+            // Graph rebuild, Change Detection diff) resolve which target to
+            // re-derive without a second query — additive field, no
+            // existing consumer of this event reads `metadata` by position.
+            targetId: job.targetId,
           },
         ),
       );

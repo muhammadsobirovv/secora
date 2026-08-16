@@ -15,6 +15,8 @@ import { BUGBOUNTY_CALENDAR_REPOSITORY } from './domain/repositories/bugbounty-c
 import { PrismaBugBountyCalendarRepository } from './infrastructure/persistence/prisma/prisma-bugbounty-calendar.repository.js';
 import { BUGBOUNTY_NOTIFICATIONS_REPOSITORY } from './domain/repositories/bugbounty-notifications.repository.interface.js';
 import { PrismaBugBountyNotificationsRepository } from './infrastructure/persistence/prisma/prisma-bugbounty-notifications.repository.js';
+import { SUBMISSIONS_REPOSITORY } from './domain/repositories/submissions.repository.interface.js';
+import { PrismaSubmissionsRepository } from './infrastructure/persistence/prisma/prisma-submissions.repository.js';
 import { HackerOneImporter } from './importers/adapters/hackerone.importer.js';
 import { BugcrowdImporter } from './importers/adapters/bugcrowd.importer.js';
 import { IntigritiImporter } from './importers/adapters/intigriti.importer.js';
@@ -55,6 +57,10 @@ import { ProgramImporterRegistryService } from './importers/program-importer-reg
       provide: BUGBOUNTY_NOTIFICATIONS_REPOSITORY,
       useClass: PrismaBugBountyNotificationsRepository,
     },
+    {
+      provide: SUBMISSIONS_REPOSITORY,
+      useClass: PrismaSubmissionsRepository,
+    },
     HackerOneImporter,
     BugcrowdImporter,
     IntigritiImporter,
@@ -71,6 +77,7 @@ import { ProgramImporterRegistryService } from './importers/program-importer-reg
     BOOKMARKS_REPOSITORY,
     BUGBOUNTY_CALENDAR_REPOSITORY,
     BUGBOUNTY_NOTIFICATIONS_REPOSITORY,
+    SUBMISSIONS_REPOSITORY,
     ProgramImporterRegistryService,
   ],
 })

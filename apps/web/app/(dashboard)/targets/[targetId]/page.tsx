@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { FileText, ImageIcon, Radar, ShieldAlert } from "lucide-react";
+import { FileText, ImageIcon, Layers, Radar, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { useNotes } from "@/features/notes/hooks/use-notes";
 import { useEvidenceList } from "@/features/evidence/hooks/use-evidence";
 import { useReconJobsForTarget } from "@/features/recon/hooks/use-recon";
 import { useVulnScanJobsForTarget } from "@/features/vuln/hooks/use-vuln";
+import { useChangeEvents, useTechnologies } from "@/features/intelligence/hooks/use-intelligence";
+import { formatDateTime } from "@/lib/format";
 import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
 import { TargetActionsMenu } from "@/features/targets/components/target-actions-menu";
 import { CreateReconJobDialog } from "@/features/recon/components/create-recon-job-dialog";
@@ -38,6 +40,8 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
   );
   const { data: reconJobs, isLoading: reconLoading } = useReconJobsForTarget(targetId);
   const { data: vulnJobs, isLoading: vulnLoading } = useVulnScanJobsForTarget(targetId);
+  const { data: technologies, isLoading: technologiesLoading } = useTechnologies(targetId);
+  const { data: changeEvents, isLoading: changeEventsLoading } = useChangeEvents(targetId);
 
   if (isLoading) {
     return (
@@ -114,6 +118,43 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
             isLoading={vulnLoading}
             emptyDescription="Start a scan to find vulnerabilities on this target."
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Layers className="size-4" /> Technologies &amp; changes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {technologiesLoading ? (
+            <ListSkeleton rows={2} />
+          ) : !technologies || technologies.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No technologies detected yet — run a Recon scan (HTTPX/WhatWeb) to fingerprint this target.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {technologies.map((tech) => (
+                <Badge key={tech.id} variant="outline">
+                  {tech.name}
+                  {tech.version ? ` ${tech.version}` : ""}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {!changeEventsLoading && changeEvents && changeEvents.length > 0 && (
+            <div className="flex flex-col divide-y divide-border border-t border-border pt-2">
+              {changeEvents.slice(0, 5).map((event) => (
+                <div key={event.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="text-sm">{event.changeType.replace(/_/g, " ")} — {event.entityRef}</span>
+                  <span className="text-xs text-muted-foreground">{formatDateTime(event.detectedAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

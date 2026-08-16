@@ -737,6 +737,10 @@ enum EvidenceType {
   // values/usages (Recon) are untouched. See docs/adr/0004.
   PAYLOAD
   COMMAND
+  // Module 16 additions — Evidence Workspace section asked for audio
+  // capture and AI-analysis snapshots alongside the existing kinds.
+  AUDIO
+  AI_ANALYSIS
 }
 
 /// `textContent` holds HTTP request/response or log text captured inline;
@@ -751,6 +755,13 @@ model Evidence {
   description String?
   textContent String?
   checksum    String?
+  /// Module 16 addition — where this evidence item was captured from
+  /// (e.g. "browser-extension", "terminal-workspace", "ai-investigation",
+  /// "manual-upload", "recon-tool:httpx") — the spec's Evidence Workspace
+  /// section asks every item to record its source alongside the existing
+  /// SHA-256/timestamp/author/related-finding fields (`checksum`/
+  /// `createdAt`/`createdBy`/the various `*Links` relations below).
+  source      String?
   createdBy   String
   deletedAt   DateTime?
   createdAt   DateTime     @default(now())
@@ -1487,6 +1498,25 @@ enum AuditEventType {
   DEMO_SESSION_STARTED
   // Support system (task #355).
   SUPPORT_TICKET_CREATED
+  // Module 16 — Scope Engine decision log (task #370). Written for every
+  // tool-execution attempt, allowed or denied — the spec's "record the
+  // decision in audit logs" requirement, and the primary evidence trail
+  // the dedicated security review (task #407) checks for scope-bypass
+  // testing.
+  SCOPE_VALIDATION_ALLOWED
+  SCOPE_VALIDATION_DENIED
+  SECURITY_APPROVAL_REQUESTED
+  SECURITY_APPROVAL_DECIDED
+  AI_INVESTIGATION_STARTED
+  AI_INVESTIGATION_STEP_EXECUTED
+  // Module 16 — Terminal workspace (task #388) / Playbooks (task #389).
+  // TERMINAL_COMMAND_EXECUTED is written for every ad-hoc command
+  // resolution — SAFE run, REQUIRES_APPROVAL request, or BLOCKED
+  // rejection — the "every execution creates an audit event" requirement
+  // (spec section "TERMINAL AUDIT"). PLAYBOOK_STEP_EXECUTED mirrors it for
+  // each playbook execution step.
+  TERMINAL_COMMAND_EXECUTED
+  PLAYBOOK_STEP_EXECUTED
 }
 
 // ---------------------------------------------------------------------------
@@ -1601,6 +1631,11 @@ enum AiMemorySourceType {
   KNOWLEDGE_BASE_REFERENCE
   AGENT_TASK_OUTPUT
   ORCHESTRATION_RUN
+  // Module 16 addition — ResearcherMemoryEntry rows are mirrored into
+  // this same RAG store on create/update so "AI Memory" (spec section 36)
+  // is retrievable by the existing similarity search rather than a
+  // second, parallel retrieval mechanism.
+  RESEARCHER_MEMORY
 }
 
 /// One chat thread. `provider`/`model` are captured per-conversation (not
@@ -1804,6 +1839,19 @@ enum ScopeClassification {
   DEPRECATED
 }
 
+/// Module 16 addition. Purely descriptive metadata about how the program
+/// itself is listed on its platform — not an access-control mechanism for
+/// this workspace's own data (every program row is already workspace-
+/// scoped and RBAC-protected the same way every other Module 6 resource
+/// is); this only records whether the *external* bounty program is
+/// public/private/invite-only, since that changes how a hunter is allowed
+/// to reference or share it.
+enum BugBountyProgramVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
 /// A program the hunter is engaged on. `projectId` is nullable — a program
 /// can be tracked workspace-wide (a personal HackerOne program the hunter
 /// is hunting on solo) or tied to a specific client Project, matching how
@@ -1849,6 +1897,20 @@ model BugBountyProgram {
   /// compares it against this column to decide whether anything changed.
   lastImportedAt    DateTime?
   importFingerprint String?
+  // --- Module 16 additions (additive only) — the spec's Program Management
+  // section names five fields this model didn't have a dedicated column
+  // for yet: `description`/`notesMarkdown` already existed but were
+  // conflated (notesMarkdown is the hunter's private notes, not a public
+  // program summary) — description is now separate; `rulesMarkdown`/`url`
+  // already covered "rules"/"programUrl", policyUrl is the (often
+  // different) disclosure-policy document link `disclosurePolicy` (a free
+  // text field below) didn't capture as a URL specifically.
+  description   String?
+  policyUrl     String?
+  visibility    BugBountyProgramVisibility @default(PUBLIC)
+  currency      String?                    @default("USD")
+  rewardRangeMin Float?
+  rewardRangeMax Float?
 
   workspace     Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project       Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -1859,6 +1921,8 @@ model BugBountyProgram {
   reports       BugReport[]
   calendarEvents BugBountyCalendarEvent[]
   scheduledJobs ScheduledJob[]
+  // Module 16 additive back-relation.
+  submissions   Submission[]
 
   @@index([workspaceId, status])
   @@index([projectId])
@@ -1927,6 +1991,18 @@ enum BugBountyFindingStage {
   RESOLVED
   CLOSED
   ARCHIVED
+  // --- Module 16 additions (additive only) — closes the gap between this
+  // enum's existing 13 values and the spec's Finding Validation Workflow
+  // (New/Triaged/Needs Validation/Confirmed/False Positive/Duplicate/
+  // Accepted Risk/Remediated/Closed/Reopened): NEED_MORE_INFO already
+  // covers "Needs Validation", VERIFIED already covers "Confirmed",
+  // DUPLICATE/CLOSED are already present — these four are the genuinely
+  // missing terminal/re-open states. See
+  // docs/adr/0016-global-security-intelligence-bugbounty-collaboration.md.
+  FALSE_POSITIVE
+  ACCEPTED_RISK
+  REMEDIATED
+  REOPENED
 }
 
 /// The bug-bounty-specific finding lifecycle (9 stages) — deliberately
@@ -1992,6 +2068,29 @@ model BugBountyFinding {
   /// the calculator can be re-opened pre-filled instead of having to
   /// re-parse the vector string every time.
   cvssBreakdown Json?
+  // --- Module 16 additions (additive only) — "Finding Intelligence" section.
+  // CWE/CVSS/OWASP/CAPEC/MITRE already exist above (Module 9); these close
+  // the remaining gap: EPSS/CPE (feed CveMatch/RiskScoringService below),
+  // a numeric confidence distinct from the workflow `stage`, free-text
+  // exploitability/impact narratives (AI-assisted, never auto-scored to a
+  // false precision), and the deterministic dedup fingerprint.
+  cve             String?
+  epss            Float?
+  cpe             String?
+  confidence      Float?
+  exploitability  String?
+  businessImpact  String?
+  /// SHA-256 hex, computed by FindingFingerprintService from
+  /// target+endpoint+vulnType+parameter+evidence-signature+scanner — see
+  /// docs/architecture/finding-fingerprinting.md. Indexed (not unique):
+  /// two findings sharing a fingerprint are dedup *candidates* the
+  /// existing Duplicate Detection (Module 6) still confirms/links, not an
+  /// automatic hard merge.
+  fingerprint     String?
+  /// Output of RiskScoringService — recomputed whenever any risk input
+  /// changes (severity/cvss/epss/confidence/...), never hand-edited.
+  riskScore       Float?
+  riskLevel       String?
 
   workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -2004,10 +2103,13 @@ model BugBountyFinding {
   evidenceLinks BugBountyFindingEvidence[]
   reports       BugReport[]
   knowledgeBaseNotes KnowledgeBaseNote[]
+  submissions   Submission[]
+  cveMatches    CveMatch[]
 
   @@index([workspaceId, stage])
   @@index([programId])
   @@index([projectId])
+  @@index([fingerprint])
   @@map("bugbounty_findings")
 }
 
@@ -5217,4 +5319,853 @@ model SupportTicket {
   @@index([userId])
   @@index([status])
   @@map("support_tickets")
+}
+
+// =============================================================================
+// Module 16 — Global Security Intelligence, Bug Bounty Platform & Collaboration
+// See docs/adr/0016-global-security-intelligence-bugbounty-collaboration.md.
+//
+// Every `workspaceId`/`projectId`/`targetId`/`userId`/`createdBy` column below
+// is a plain, un-relationed string field — matching `SupportTicket.userId`'s
+// established precedent ("matching ApiKey.userId's plain-field precedent")
+// rather than adding a `@relation` back-array to Workspace/Project/Target/
+// User for every new Module 16 model, which would mean editing those four
+// large, heavily-depended-on models 15+ times each. Relations between the
+// *new* models introduced in this section are still declared properly.
+// =============================================================================
+
+// --- Research Session -------------------------------------------------------
+
+enum ResearchSessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+/// Groups Recon jobs, Vuln scans, Findings, Notes, Evidence, ad-hoc
+/// Commands, AI conversations, and Reports produced during one research
+/// engagement, without moving or re-owning any of that data — a
+/// `ResearchSessionLink` row is a pointer, the linked row's real owner
+/// (Project/Target/Program) is unchanged.
+model ResearchSession {
+  id          String                 @id @default(uuid())
+  workspaceId String
+  projectId   String?
+  targetId    String?
+  programId   String?
+  name        String
+  description String?
+  status      ResearchSessionStatus  @default(ACTIVE)
+  createdBy   String
+  startedAt   DateTime               @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  links ResearchSessionLink[]
+
+  @@index([workspaceId, status])
+  @@index([projectId])
+  @@index([targetId])
+  @@map("research_sessions")
+}
+
+enum ResearchSessionEntityType {
+  RECON_JOB
+  VULN_SCAN_JOB
+  BUGBOUNTY_FINDING
+  VULN_FINDING
+  NOTE
+  EVIDENCE
+  AD_HOC_COMMAND
+  AI_CONVERSATION
+  AI_INVESTIGATION_SESSION
+  BUG_REPORT
+  ACTIVITY_EVENT
+}
+
+model ResearchSessionLink {
+  id         String                     @id @default(uuid())
+  sessionId  String
+  entityType ResearchSessionEntityType
+  entityId   String
+  linkedAt   DateTime                   @default(now())
+
+  session ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, entityType, entityId])
+  @@index([entityType, entityId])
+  @@map("research_session_links")
+}
+
+// --- Technology fingerprinting -----------------------------------------------
+
+/// Normalized technology detections, derived from existing HTTPX/WhatWeb
+/// recon output (`ReconFinding` rows of the relevant type) rather than a
+/// second scanning pipeline — `TechnologyDetectionService` parses those
+/// results into one row per (target, technology name) pair.
+model Technology {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  projectId    String
+  targetId     String
+  name         String
+  category     String?
+  version      String?
+  detectedVia  String
+  confidence   Float    @default(1)
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  cveMatches CveMatch[]
+
+  @@unique([targetId, name])
+  @@index([workspaceId, name])
+  @@index([projectId])
+  @@map("technologies")
+}
+
+// --- Asset Graph --------------------------------------------------------------
+
+enum AssetGraphNodeType {
+  DOMAIN
+  SUBDOMAIN
+  IP
+  PORT
+  URL
+  ENDPOINT
+  TECHNOLOGY
+  CERTIFICATE
+  ASN
+  CLOUD_ASSET
+  REPOSITORY
+  FINDING
+}
+
+/// A refreshable *cache* of the asset relationship graph, not a new source
+/// of truth — `AssetGraphService.rebuild(targetId)` derives every node/edge
+/// from `Target`/`ReconFinding`/`Technology`/`BugBountyFinding` and
+/// replaces this target's rows, the same "read-through, don't duplicate"
+/// posture Module 6's Asset Inventory already established. Persisted
+/// (rather than computed on every request) purely so the graph view and
+/// Knowledge Graph queries don't re-derive it on every page load.
+model AssetGraphNode {
+  id          String             @id @default(uuid())
+  workspaceId String
+  projectId   String
+  targetId    String
+  nodeType    AssetGraphNodeType
+  refId       String
+  label       String
+  metadata    Json?
+  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime           @default(now())
+
+  edgesFrom AssetGraphEdge[] @relation("AssetGraphEdgeFrom")
+  edgesTo   AssetGraphEdge[] @relation("AssetGraphEdgeTo")
+
+  @@unique([targetId, nodeType, refId])
+  @@index([workspaceId, projectId])
+  @@map("asset_graph_nodes")
+}
+
+enum AssetGraphEdgeType {
+  RESOLVES_TO
+  CONTAINS
+  HOSTS
+  USES
+  REDIRECTS_TO
+  BELONGS_TO
+  DISCOVERED_BY
+  AFFECTED_BY
+}
+
+model AssetGraphEdge {
+  id          String             @id @default(uuid())
+  workspaceId String
+  fromNodeId  String
+  toNodeId    String
+  edgeType    AssetGraphEdgeType
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  fromNode AssetGraphNode @relation("AssetGraphEdgeFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode   AssetGraphNode @relation("AssetGraphEdgeTo", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([fromNodeId, toNodeId, edgeType])
+  @@index([workspaceId])
+  @@map("asset_graph_edges")
+}
+
+// --- Change detection ---------------------------------------------------------
+
+enum ChangeDetectionEventType {
+  NEW_SUBDOMAIN
+  REMOVED_SUBDOMAIN
+  NEW_PORT
+  CLOSED_PORT
+  NEW_ENDPOINT
+  CHANGED_TECHNOLOGY
+  CHANGED_HTTP_HEADERS
+  CHANGED_TLS_CERTIFICATE
+  CHANGED_DNS
+  CHANGED_SCOPE
+}
+
+/// Written by `ChangeDetectionService.diff()` whenever a Recon job
+/// completes and a prior completed job exists for the same target —
+/// compares the two `ReconFinding` sets (plus `Technology` rows) rather
+/// than storing full snapshots.
+model ChangeDetectionEvent {
+  id            String                    @id @default(uuid())
+  workspaceId   String
+  projectId     String
+  targetId      String
+  reconJobId    String?
+  changeType    ChangeDetectionEventType
+  entityRef     String
+  previousValue Json?
+  newValue      Json?
+  detectedAt    DateTime                  @default(now())
+
+  @@index([targetId, changeType])
+  @@index([workspaceId, detectedAt])
+  @@map("change_detection_events")
+}
+
+// --- Finding correlation -------------------------------------------------------
+
+enum CorrelationInsightKind {
+  OPEN_PORT_EXPOSED_SERVICE
+  OUTDATED_TECH_KNOWN_CVE
+  SUBDOMAIN_TAKEOVER_DANGLING_DNS
+  MISSING_HEADER_SENSITIVE_ENDPOINT
+  AUTH_WEAKNESS_SENSITIVE_API
+}
+
+/// Output of `CorrelationEngineService` — a proposed insight linking two
+/// or more already-persisted facts (never a new finding on its own; a
+/// human or the AI Security Analyst still decides whether to promote one
+/// into a `BugBountyFinding`).
+model CorrelationInsight {
+  id          String                  @id @default(uuid())
+  workspaceId String
+  projectId   String
+  targetId    String?
+  kind        CorrelationInsightKind
+  title       String
+  description String
+  severity    VulnFindingSeverity?
+  relatedRefs Json
+  createdAt   DateTime                @default(now())
+
+  @@index([workspaceId, kind])
+  @@index([targetId])
+  @@map("correlation_insights")
+}
+
+// --- Bug Bounty Submissions & reward tracking ----------------------------------
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  TRIAGED
+  INFORMATIVE
+  DUPLICATE
+  NOT_APPLICABLE
+  ACCEPTED
+  RESOLVED
+  BOUNTY_PAID
+  CLOSED
+  REOPENED
+}
+
+/// Tracks a finding's life *on the external platform* after a hunter
+/// reports it — distinct from `BugReport` (the rendered document content)
+/// and from `BugBountyFinding.stage` (this platform's internal validation
+/// workflow): a `Submission` is the correspondence record (external id/
+/// URL, platform response, reward) a `BugReport` gets attached to once
+/// sent.
+model Submission {
+  id            String            @id @default(uuid())
+  workspaceId   String
+  projectId     String
+  programId     String
+  findingId     String
+  bugReportId   String?
+  title         String
+  severity      VulnFindingSeverity
+  status        SubmissionStatus  @default(DRAFT)
+  submittedAt   DateTime?
+  responseAt    DateTime?
+  reward        Float?
+  currency      String?           @default("USD")
+  platform      BugBountyPlatform
+  externalId    String?
+  externalUrl   String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  program BugBountyProgram  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  finding BugBountyFinding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  rewardEntries RewardLedgerEntry[]
+
+  @@index([workspaceId, status])
+  @@index([programId])
+  @@index([findingId])
+  @@map("bugbounty_submissions")
+}
+
+/// One ledger line per reward event (a submission can be repaid, adjusted,
+/// or bonused more than once) — monthly/yearly totals are a query
+/// (`SUM(netAmount) GROUP BY date_trunc(...)`), not a separate rollup
+/// table, avoiding a second source of truth that could drift.
+model RewardLedgerEntry {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  submissionId String?
+  programId    String
+  amount       Float
+  currency     String   @default("USD")
+  feeAmount    Float?   @default(0)
+  netAmount    Float
+  occurredAt   DateTime @default(now())
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  submission Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, occurredAt])
+  @@index([programId])
+  @@map("reward_ledger_entries")
+}
+
+// --- Terminal workspace + safe command execution (task #388) --------------------
+
+enum AdHocCommandStatus {
+  PENDING
+  PENDING_APPROVAL
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+  REJECTED
+}
+
+/// One row per Terminal-issued command — the audit journal + output store
+/// for task #388. Execution never happens against this table directly;
+/// AdHocCommandService resolves the same ToolRunnerRegistry/
+/// ScannerRunnerRegistry Recon/Vuln jobs use (see that service's doc
+/// comment for why there is deliberately no separate "shell exec"
+/// implementation), then records the outcome here. `classification` is
+/// stamped from the server-side command registry at request time (never
+/// derived from client input), so this row alone is enough to answer "was
+/// this command SAFE, did it require approval, or was it blocked" without
+/// re-consulting the registry.
+model AdHocCommand {
+  id                String             @id @default(uuid())
+  workspaceId       String
+  projectId         String
+  targetId          String
+  tool              String
+  kind              String
+  argsSummary       String?
+  classification    String
+  status            AdHocCommandStatus @default(PENDING)
+  approvalRequestId String?
+  exitCode          Int?
+  stdout            String?
+  stderr            String?
+  rejectionReason   String?
+  requestedBy       String
+  source            String             @default("WEB")
+  researchSessionId String?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  durationMs        Int?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([workspaceId, requestedBy, createdAt])
+  @@index([targetId])
+  @@index([approvalRequestId])
+  @@map("adhoc_commands")
+}
+
+// --- Playbooks + Playbook Builder (task #389) ------------------------------------
+
+enum PlaybookStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PlaybookExecutionStatus {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PlaybookExecutionStepStatus {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  SKIPPED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PlaybookApprovalStatus {
+  WAITING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+/// Task #389. `PlaybookStep` and `PlaybookVariable` (named separately in
+/// the spec) are deliberately *not* their own SQL tables here — a
+/// playbook's step graph and variable declarations are versioned as one
+/// atomic unit (`PlaybookVersion.graph`/`.variables`, both JSONB), which
+/// is what makes "each execution must preserve the exact version used"
+/// (spec requirement) trivial: an execution just references a
+/// `playbookVersionId`, and that row's `graph` is immutable once
+/// published. Normalizing steps/variables into separate joined tables
+/// would let a step be edited in place after executions already reference
+/// it — exactly the failure mode "preserve the exact version" is meant to
+/// prevent. See PlaybookGraph / PlaybookStepDefinition in
+/// @pentesthub/shared/playbooks.ts for the JSON shape stored in `graph`.
+model Playbook {
+  id               String         @id @default(uuid())
+  workspaceId      String
+  name             String
+  description      String?
+  category         String
+  isBuiltIn        Boolean        @default(false)
+  status           PlaybookStatus @default(DRAFT)
+  currentVersionId String?
+  createdBy        String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  archivedAt       DateTime?
+
+  versions   PlaybookVersion[]
+  executions PlaybookExecution[]
+
+  @@index([workspaceId, status])
+  @@map("playbooks")
+}
+
+model PlaybookVersion {
+  id          String    @id @default(uuid())
+  playbookId  String
+  version     Int
+  graph       Json
+  variables   Json      @default("[]")
+  publishedAt DateTime?
+  publishedBy String?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  playbook   Playbook             @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  executions PlaybookExecution[]
+
+  @@unique([playbookId, version])
+  @@map("playbook_versions")
+}
+
+model PlaybookExecution {
+  id                String                   @id @default(uuid())
+  workspaceId       String
+  projectId         String
+  playbookId        String
+  playbookVersionId String
+  targetId          String
+  status            PlaybookExecutionStatus  @default(PENDING)
+  isDryRun          Boolean                  @default(false)
+  variableValues    Json                     @default("{}")
+  requestedBy       String
+  error             String?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  playbook Playbook        @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  version  PlaybookVersion @relation(fields: [playbookVersionId], references: [id], onDelete: Restrict)
+  steps    PlaybookExecutionStep[]
+  approvals PlaybookApproval[]
+
+  @@index([workspaceId, status])
+  @@index([playbookId])
+  @@map("playbook_executions")
+}
+
+model PlaybookExecutionStep {
+  id             String                       @id @default(uuid())
+  executionId    String
+  nodeId         String
+  stepType       String
+  status         PlaybookExecutionStepStatus  @default(PENDING)
+  input          Json?
+  output         Json?
+  error          String?
+  reconJobId     String?
+  vulnScanJobId  String?
+  adHocCommandId String?
+  approvalId     String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  execution PlaybookExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("playbook_execution_steps")
+}
+
+model PlaybookApproval {
+  id                        String                  @id @default(uuid())
+  executionId               String
+  executionStepId           String
+  workspaceId               String
+  status                    PlaybookApprovalStatus  @default(WAITING_APPROVAL)
+  securityApprovalRequestId String?
+  requestedBy               String
+  decidedBy                 String?
+  decidedAt                 DateTime?
+  expiresAt                 DateTime?
+  createdAt                 DateTime                @default(now())
+
+  execution PlaybookExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([workspaceId, status])
+  @@map("playbook_approvals")
+}
+
+// --- CVE Intelligence -----------------------------------------------------------
+
+/// A locally-cached CVE record. `source` records which pluggable provider
+/// populated/last-refreshed it (NVD/CISA_KEV/OSV/GITHUB_ADVISORIES/
+/// VENDOR/MANUAL) — see `docs/architecture/cve-intelligence.md`. No
+/// provider is contacted automatically; `CveIntelligenceService` only
+/// fetches when explicitly asked (manual refresh or an opt-in scheduled
+/// job an operator enables), so a Community Edition deployment with
+/// `CVE_INTELLIGENCE_PROVIDER=none` still has a fully queryable (if empty
+/// until seeded) local cache.
+model CveRecord {
+  cveId       String    @id
+  cvssScore   Float?
+  cvssVector  String?
+  cwe         String?
+  cpeList     Json?
+  epss        Float?
+  description String?
+  references  Json?
+  publishedAt DateTime?
+  source      String
+  cachedAt    DateTime  @default(now())
+
+  matches CveMatch[]
+
+  @@index([cwe])
+  @@map("cve_records")
+}
+
+/// A proposed technology+version -> CVE correlation, produced by
+/// `VulnerabilityMatchingService` from `Technology` rows against the
+/// local `CveRecord` cache via CPE — deliberately not auto-promoted into
+/// a `BugBountyFinding`; a human (or the AI Security Analyst, itself
+/// proposal-only) reviews `confidence`/`evidence` first.
+model CveMatch {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  projectId    String
+  targetId     String?
+  technologyId String?
+  findingId    String?
+  cveId        String
+  confidence   Float
+  evidence     Json?
+  createdAt    DateTime @default(now())
+
+  cve        CveRecord   @relation(fields: [cveId], references: [cveId], onDelete: Cascade)
+  technology Technology? @relation(fields: [technologyId], references: [id], onDelete: SetNull)
+  finding    BugBountyFinding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, cveId])
+  @@index([technologyId])
+  @@map("cve_matches")
+}
+
+// --- Approval gates & Global Security Policy -------------------------------------
+
+/// Deliberately distinct from Module 10's `ApprovalWorkflow`/
+/// `ApprovalRequest` (organization-level, multi-approver, Enterprise-role-
+/// gated governance chains for things like tenant billing changes) — this
+/// is a lightweight, workspace-scoped, single-approver gate for one
+/// specific operation (an AI Investigation step, a large-scale scan, a
+/// potentially destructive command), and it must work identically in a
+/// self-hosted Community Edition deployment with no `Organization` at
+/// all. Reusing Module 10's model here would either force an
+/// Organization to exist (violating the Community Edition guarantee) or
+/// silently repurpose an Enterprise-role field for a workspace-only
+/// concept. See ADR 0016 §5.
+enum SecurityApprovalRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SecurityApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  CANCELLED
+}
+
+model SecurityApprovalRequest {
+  id            String                     @id @default(uuid())
+  workspaceId   String
+  requestedBy   String
+  operationType String
+  riskLevel     SecurityApprovalRiskLevel
+  resourceType  String
+  resourceId    String?
+  reason        String?
+  payload       Json?
+  status        SecurityApprovalStatus     @default(PENDING)
+  decidedBy     String?
+  decisionNote  String?
+  expiresAt     DateTime?
+  createdAt     DateTime                   @default(now())
+  decidedAt     DateTime?
+
+  investigationSteps AiInvestigationStep[]
+
+  @@index([workspaceId, status])
+  @@map("security_approval_requests")
+}
+
+/// One row per workspace (upserted, not created-many) — enforced at the
+/// Scope Engine gate, the ToolRunner/ScannerRunner entry points, and the
+/// Approval Gate service. A workspace with no row here gets the
+/// documented safe defaults (see `global-security-policy.defaults.ts`),
+/// matching the "absence of config means safe default, not unrestricted"
+/// posture `QuotaService` already established in Module 15.
+model GlobalSecurityPolicy {
+  id                    String   @id @default(uuid())
+  workspaceId           String   @unique
+  maxScanRatePerMinute  Int?
+  maxConcurrentJobs     Int?
+  allowedTools          Json?
+  blockedTools          Json?
+  allowedTargetTypes    Json?
+  requireApprovalFor    Json?
+  dataRetentionDays     Int?
+  evidenceRetentionDays Int?
+  aiToolPermissions     Json?
+  pluginPermissions     Json?
+  updatedBy             String
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@map("global_security_policies")
+}
+
+// --- Public sharing -------------------------------------------------------------
+
+enum ShareResourceType {
+  REPORT
+  FINDING
+  EVIDENCE
+  DASHBOARD
+  PROJECT
+}
+
+enum SharePermission {
+  VIEW
+  COMMENT
+}
+
+model ShareLink {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  resourceType   ShareResourceType
+  resourceId     String
+  token          String            @unique
+  passwordHash   String?
+  permission     SharePermission   @default(VIEW)
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  lastAccessedAt DateTime?
+  accessCount    Int               @default(0)
+
+  @@index([workspaceId, resourceType, resourceId])
+  @@map("share_links")
+}
+
+// --- AI Investigation Mode -------------------------------------------------------
+
+/// Module 16 — task #398. Renamed from an earlier PLANNING-first draft
+/// (see git history) to match the spec's explicit 8-state lifecycle
+/// literally: DRAFT (plan being composed) -> AWAITING_APPROVAL (submitted,
+/// SecurityApprovalRequest created) -> APPROVED (approval granted, not yet
+/// started) -> RUNNING -> PAUSED/COMPLETED/FAILED/CANCELLED. APPROVED is
+/// deliberately a distinct state from RUNNING so "approved but nothing
+/// executed yet" is observable — matters because the Scope Engine and
+/// ToolRunner gate is re-checked at RUNNING transition time, not baked
+/// into the approval decision.
+enum AiInvestigationStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  APPROVED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// A controlled-autonomy session: `AiInvestigationOrchestratorService`
+/// composes a plan (reusing Module 11's `AgentOrchestratorService` task
+/// decomposition, never a parallel planner), the plan sits in
+/// `AWAITING_APPROVAL` behind a `SecurityApprovalRequest` until the user
+/// approves it, and every tool-executing step still passes through the
+/// Scope Engine and ToolRunner allowlist exactly like a manually-started
+/// job would — this model records the session, it does not grant it any
+/// bypass.
+model AiInvestigationSession {
+  id                String                  @id @default(uuid())
+  workspaceId       String
+  projectId         String
+  targetId          String
+  researchSessionId String?
+  goal              String
+  status            AiInvestigationStatus   @default(DRAFT)
+  plan              Json?
+  approvalRequestId String?
+  failureReason     String?
+  createdBy         String
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  completedAt       DateTime?
+
+  steps AiInvestigationStep[]
+
+  @@index([workspaceId, status])
+  @@index([targetId])
+  @@map("ai_investigation_sessions")
+}
+
+enum AiInvestigationStepStatus {
+  PENDING
+  AWAITING_APPROVAL
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+model AiInvestigationStep {
+  id                 String                     @id @default(uuid())
+  sessionId          String
+  stepIndex          Int
+  kind               String
+  description        String
+  toolName           String?
+  status             AiInvestigationStepStatus  @default(PENDING)
+  approvalRequestId  String?
+  input              Json?
+  output             Json?
+  errorMessage       String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+
+  session          AiInvestigationSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  approvalRequest  SecurityApprovalRequest? @relation(fields: [approvalRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, stepIndex])
+  @@map("ai_investigation_steps")
+}
+
+// --- AI Memory (researcher memory) ------------------------------------------------
+
+enum ResearcherMemoryKind {
+  PREFERENCE
+  PROJECT_CONTEXT
+  NOTE
+  IMPORTANT_FINDING
+  DECISION
+  CUSTOM_INSTRUCTION
+}
+
+/// The user-facing CRUD surface for "AI Memory" (editable/searchable/
+/// deletable/exportable) — mirrored into `AiMemoryChunk` (sourceType
+/// `RESEARCHER_MEMORY`) on write so it's retrievable by the existing RAG
+/// layer instead of a second retrieval mechanism.
+model ResearcherMemoryEntry {
+  id          String                @id @default(uuid())
+  workspaceId String
+  userId      String
+  kind        ResearcherMemoryKind
+  title       String
+  content     String
+  tags        String[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([workspaceId, userId, kind])
+  @@map("researcher_memory_entries")
+}
+
+// --- Collaboration extensions: watchers & reactions --------------------------------
+
+/// Shared by Watcher/Reaction so both extend to any future entity kind
+/// without a schema change — currently used for BugBountyFinding and
+/// Comment, the two entities Module 9's collaboration layer already
+/// supports comments/mentions/assignments on.
+enum CollaborationEntityType {
+  BUGBOUNTY_FINDING
+  BUG_REPORT
+  COMMENT
+  RESEARCH_SESSION
+}
+
+model Watcher {
+  id         String                  @id @default(uuid())
+  entityType CollaborationEntityType
+  entityId   String
+  userId     String
+  createdAt  DateTime                @default(now())
+
+  @@unique([entityType, entityId, userId])
+  @@index([userId])
+  @@map("watchers")
+}
+
+model Reaction {
+  id         String                  @id @default(uuid())
+  entityType CollaborationEntityType
+  entityId   String
+  userId     String
+  emoji      String
+  createdAt  DateTime                @default(now())
+
+  @@unique([entityType, entityId, userId, emoji])
+  @@index([entityType, entityId])
+  @@map("reactions")
 }

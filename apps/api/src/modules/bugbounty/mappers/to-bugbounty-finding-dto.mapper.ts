@@ -37,5 +37,15 @@ export function toBugBountyFindingDto(
     owaspCategory: finding.owaspCategory,
     mitreAttack: finding.mitreAttack as { id: string; name: string }[] | null,
     cvssBreakdown: finding.cvssBreakdown as CvssVectorComponents | null,
+    // Module 16 — Finding Intelligence (tasks #377-380).
+    cve: finding.cve,
+    epss: finding.epss,
+    cpe: finding.cpe,
+    confidence: finding.confidence,
+    exploitability: finding.exploitability,
+    businessImpact: finding.businessImpact,
+    fingerprint: finding.fingerprint,
+    riskScore: finding.riskScore,
+    riskLevel: finding.riskLevel,
   };
 }

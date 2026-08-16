@@ -41,6 +41,8 @@ import { DetectProgramImportUpdateHandler } from './queries/detect-program-impor
 
 // Asset inventory
 import { AssetInventoryService } from './asset-inventory/asset-inventory.service.js';
+import { FindingFingerprintService } from './finding-intelligence/finding-fingerprint.service.js';
+import { RiskScoringService } from './finding-intelligence/risk-scoring.service.js';
 import { ListAssetInventoryHandler } from './queries/list-asset-inventory.query.js';
 
 // Finding lifecycle
@@ -141,6 +143,18 @@ import { ListNotificationsHandler } from './queries/list-notifications.query.js'
 // Search
 import { SearchBugBountyHandler } from './queries/search-bugbounty.query.js';
 
+// Module 16: Submissions + Rewards (task #385)
+import {
+  CreateSubmissionHandler,
+  UpdateSubmissionStatusHandler,
+} from './commands/submission-lifecycle.commands.js';
+import {
+  GetSubmissionHandler,
+  ListSubmissionsHandler,
+} from './queries/submission.queries.js';
+import { GetRewardAnalyticsHandler } from './queries/get-reward-analytics.query.js';
+import { BugBountySubmissionsController } from './controllers/bugbounty-submissions.controller.js';
+
 // Module 9: CVSS calculator
 import { CalculateCvssHandler } from './queries/calculate-cvss.query.js';
 
@@ -228,6 +242,8 @@ const COMMAND_HANDLERS = [
   CalculateSeverityHandler,
   SuggestAttackPathsHandler,
   SummarizeEngagementHandler,
+  CreateSubmissionHandler,
+  UpdateSubmissionStatusHandler,
 ];
 
 const QUERY_HANDLERS = [
@@ -258,6 +274,9 @@ const QUERY_HANDLERS = [
   SearchBugBountyHandler,
   CalculateCvssHandler,
   GetBugBountyAnalyticsHandler,
+  ListSubmissionsHandler,
+  GetSubmissionHandler,
+  GetRewardAnalyticsHandler,
 ];
 
 /// The HTTP-facing half of Module 6 — BugBountyCoreModule's repositories
@@ -308,12 +327,15 @@ const QUERY_HANDLERS = [
     BugBountyCalendarController,
     BugBountyNotificationsController,
     BugBountySearchController,
+    BugBountySubmissionsController,
     CvssController,
     BugBountyAiAssistantController,
     BugBountyAnalyticsController,
   ],
   providers: [
     AssetInventoryService,
+    FindingFingerprintService,
+    RiskScoringService,
     ReportDraftAssistantService,
     BugBountyAiAssistantService,
     ...COMMAND_HANDLERS,

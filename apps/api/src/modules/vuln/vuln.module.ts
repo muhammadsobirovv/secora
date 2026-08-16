@@ -3,6 +3,7 @@ import { VulnCoreModule } from './vuln-core.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
+import { SecurityModule } from '../security/security.module.js';
 import { CreateVulnScanJobHandler } from './commands/create-vuln-scan-job.command.js';
 import { StopVulnScanJobHandler } from './commands/stop-vuln-scan-job.command.js';
 import { PauseVulnScanJobHandler } from './commands/pause-vuln-scan-job.command.js';
@@ -36,7 +37,7 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
 /// which this module never invokes directly. Mirrors ReconModule
 /// (Module 3) exactly.
 @Module({
-  imports: [VulnCoreModule, WorkspacesModule, ProjectsModule, TargetsModule],
+  imports: [VulnCoreModule, WorkspacesModule, ProjectsModule, TargetsModule, SecurityModule],
   controllers: [
     TargetVulnScanJobsController,
     ProjectVulnScanJobsController,

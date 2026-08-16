@@ -7,7 +7,9 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -122,6 +124,12 @@ export class CreateBugBountyFindingDto implements CreateShape {
   @ValidateNested()
   @Type(() => CvssVectorComponentsDto)
   cvssBreakdown?: CvssVectorComponents;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) @Max(1) confidence?: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() exploitability?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() businessImpact?: string;
 }
 
 export class UpdateBugBountyFindingDto implements UpdateShape {
@@ -190,6 +198,12 @@ export class UpdateBugBountyFindingDto implements UpdateShape {
   @ValidateNested()
   @Type(() => CvssVectorComponentsDto)
   cvssBreakdown?: CvssVectorComponents;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) @Max(1) confidence?: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() exploitability?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() businessImpact?: string;
 }
 
 export class TransitionBugBountyFindingStageDto implements TransitionShape {

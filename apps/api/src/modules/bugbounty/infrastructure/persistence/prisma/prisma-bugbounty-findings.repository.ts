@@ -66,6 +66,16 @@ export class PrismaBugBountyFindingsRepository implements BugBountyFindingsRepos
         ...(input.cvssBreakdown !== undefined
           ? { cvssBreakdown: input.cvssBreakdown as Prisma.InputJsonValue }
           : {}),
+        // Module 16 — Finding Intelligence (tasks #377-380).
+        cve: input.cve ?? null,
+        epss: input.epss ?? null,
+        cpe: input.cpe ?? null,
+        confidence: input.confidence ?? null,
+        exploitability: input.exploitability ?? null,
+        businessImpact: input.businessImpact ?? null,
+        fingerprint: input.fingerprint ?? null,
+        riskScore: input.riskScore ?? null,
+        riskLevel: input.riskLevel ?? null,
       },
     });
     if (input.evidenceIds?.length) {
@@ -150,6 +160,20 @@ export class PrismaBugBountyFindingsRepository implements BugBountyFindingsRepos
         ...(input.cvssBreakdown !== undefined
           ? { cvssBreakdown: input.cvssBreakdown as Prisma.InputJsonValue }
           : {}),
+        // Module 16 — Finding Intelligence (tasks #377-380).
+        ...(input.cve !== undefined ? { cve: input.cve } : {}),
+        ...(input.epss !== undefined ? { epss: input.epss } : {}),
+        ...(input.cpe !== undefined ? { cpe: input.cpe } : {}),
+        ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
+        ...(input.exploitability !== undefined
+          ? { exploitability: input.exploitability }
+          : {}),
+        ...(input.businessImpact !== undefined
+          ? { businessImpact: input.businessImpact }
+          : {}),
+        ...(input.fingerprint !== undefined ? { fingerprint: input.fingerprint } : {}),
+        ...(input.riskScore !== undefined ? { riskScore: input.riskScore } : {}),
+        ...(input.riskLevel !== undefined ? { riskLevel: input.riskLevel } : {}),
       },
     });
   }

@@ -555,6 +555,39 @@ const envSchema = z.object({
   // honest choice until that role exists, not a placeholder to be embarrassed
   // about.
   SUPPORT_INBOX_EMAIL: z.string().email().default('support@pentesthub.ai'),
+
+  // Module 16 — CVE Intelligence (task #394). `none` (the default) means
+  // `CveIntelligenceService` only ever reads its local cache — no
+  // external network call, no API key required, matching the Community
+  // Edition guarantee. Every named provider is a free, publicly
+  // documented feed (NVD/CISA KEV/OSV/GitHub Advisories); `vendor` is a
+  // deployment-specific webhook/URL an operator supplies themselves.
+  CVE_INTELLIGENCE_PROVIDER: z
+    .enum(['none', 'nvd', 'cisa_kev', 'osv', 'github_advisories', 'vendor'])
+    .default('none'),
+  CVE_INTELLIGENCE_REFRESH_INTERVAL_HOURS: z.coerce.number().int().positive().default(24),
+  // Optional — NVD works unauthenticated (5 req/30s); a key raises that to
+  // 50 req/30s. Never required, matching the Community Edition guarantee.
+  NVD_API_KEY: z.string().optional(),
+  // Required only when CVE_INTELLIGENCE_PROVIDER=vendor — the operator's
+  // own CVE feed endpoint, expected to return the same shape as
+  // CveRecordDto per CVE id (see docs/architecture/cve-intelligence.md).
+  CVE_INTELLIGENCE_VENDOR_URL: z.string().optional(),
+
+  // Module 16 — Security news feed (task #396). Off by default; an
+  // operator opts in per-source.
+  SECURITY_NEWS_PROVIDER: z.enum(['none', 'rss']).default('none'),
+  SECURITY_NEWS_FEED_URLS: z.string().optional(),
+
+  // Module 16 — Terminal workspace + safe command execution (task #388).
+  // Bounds every ad-hoc command the same way RECON_JOB_TIMEOUT_SECONDS
+  // already bounds a Recon job — never unbounded.
+  TERMINAL_COMMAND_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(120),
+
+  // Module 16 — Approval gates (task #399). How long an unanswered
+  // SecurityApprovalRequest stays PENDING before AiInvestigationExpiryService
+  // marks it EXPIRED and fails the operation closed (never open).
+  SECURITY_APPROVAL_DEFAULT_EXPIRY_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
