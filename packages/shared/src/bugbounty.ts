@@ -343,6 +343,21 @@ export interface BugBountyFindingDto {
   owaspCategory: OwaspCategory | null;
   mitreAttack: { id: string; name: string }[] | null;
   cvssBreakdown: CvssVectorComponents | null;
+  // --- Module 16 additions: Finding Intelligence (tasks #377-380) ---
+  /// cve/epss/cpe are normally populated by Vulnerability Matching (task
+  /// #395); confidence/exploitability/businessImpact are researcher- or
+  /// AI-Security-Analyst-set narrative fields; fingerprint/riskScore/
+  /// riskLevel are always server-computed (FindingFingerprintService/
+  /// RiskScoringService), never client-settable.
+  cve: string | null;
+  epss: number | null;
+  cpe: string | null;
+  confidence: number | null;
+  exploitability: string | null;
+  businessImpact: string | null;
+  fingerprint: string | null;
+  riskScore: number | null;
+  riskLevel: string | null;
 }
 
 export interface CreateBugBountyFindingRequestDto {
@@ -364,6 +379,12 @@ export interface CreateBugBountyFindingRequestDto {
   owaspCategory?: OwaspCategory;
   mitreAttack?: { id: string; name: string }[];
   cvssBreakdown?: CvssVectorComponents;
+  // Module 16 — task #377. Narrative-only; cve/epss/cpe/fingerprint/
+  // riskScore/riskLevel are server-computed and deliberately not
+  // accepted here (see BugBountyFindingDto's doc comment).
+  confidence?: number;
+  exploitability?: string;
+  businessImpact?: string;
 }
 
 export type UpdateBugBountyFindingRequestDto = Partial<

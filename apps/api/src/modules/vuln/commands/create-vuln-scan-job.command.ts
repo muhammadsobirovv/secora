@@ -25,6 +25,7 @@ import {
   type TargetsRepository,
 } from '../../targets/domain/repositories/targets.repository.interface.js';
 import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
+import { ScopeEngineService } from '../../security/scope-engine.service.js';
 import {
   VULN_SCAN_JOBS_REPOSITORY,
   type VulnScanJobsRepository,
@@ -67,6 +68,7 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
     private readonly vulnScanTemplatesRepository: VulnScanTemplatesRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly eventBus: EventBus,
+    private readonly scopeEngine: ScopeEngineService,
   ) {}
 
   async execute(command: CreateVulnScanJobCommand): Promise<VulnScanJobDto> {
@@ -89,6 +91,23 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         HttpStatus.FORBIDDEN,
       );
     }
+
+    // Module 16 — task #370. Scope Engine gate: refuses to start a Vuln
+    // scan against a target that is OUT_OF_SCOPE (Target.scopeStatus or
+    // any linked program's scope rules) or still PENDING_REVIEW. Mirrors
+    // CreateReconJobHandler's identical gate exactly.
+    await this.scopeEngine.assertExecutionAllowed({
+      userId: command.userId,
+      workspaceId,
+      target: {
+        id: target.id,
+        type: target.type,
+        value: target.value,
+        scopeStatus: target.scopeStatus,
+        projectId: target.projectId,
+      },
+      operationType: 'VULN_SCAN',
+    });
 
     let scanners = command.data.scanners;
     let config = command.data.config ?? null;

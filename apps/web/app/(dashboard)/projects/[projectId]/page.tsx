@@ -3,7 +3,7 @@
 import { Suspense, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FileText, ImageIcon, Plus, Radar, ShieldAlert, Target } from "lucide-react";
+import { FileText, ImageIcon, Layers, Plus, Radar, ShieldAlert, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import { TargetTypeBadge } from "@/features/targets/components/target-type-badge
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { ReconJobList } from "@/features/recon/components/recon-job-list";
 import { VulnScanJobList } from "@/features/vuln/components/vuln-scan-job-list";
+import { useAttackSurface } from "@/features/intelligence/hooks/use-intelligence";
 import { formatDate } from "@/lib/format";
 
 export default function ProjectDetailPage({
@@ -47,7 +48,15 @@ function ProjectDetailContent({
   const { projectId } = use(params);
   const { data: project, isLoading, isError, refetch } = useProject(projectId);
   const tabParam = useSearchParams().get("tab");
-  const initialTab = ["targets", "notes", "evidence", "recon", "vuln", "activity"].includes(tabParam ?? "")
+  const initialTab = [
+    "targets",
+    "notes",
+    "evidence",
+    "recon",
+    "vuln",
+    "attack-surface",
+    "activity",
+  ].includes(tabParam ?? "")
     ? tabParam!
     : "targets";
 
@@ -93,6 +102,7 @@ function ProjectDetailContent({
           <TabsTrigger value="evidence">Evidence</TabsTrigger>
           <TabsTrigger value="recon">Scan History</TabsTrigger>
           <TabsTrigger value="vuln">Vulnerabilities</TabsTrigger>
+          <TabsTrigger value="attack-surface">Attack Surface</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -111,10 +121,55 @@ function ProjectDetailContent({
         <TabsContent value="vuln" className="pt-4">
           <VulnTab projectId={projectId} />
         </TabsContent>
+        <TabsContent value="attack-surface" className="pt-4">
+          <AttackSurfaceTab projectId={projectId} />
+        </TabsContent>
         <TabsContent value="activity" className="pt-4">
           <ActivityTab projectId={projectId} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/// Module 16 — task #375. Read-only aggregate over Asset Graph node
+/// counts + 7-day Change Detection deltas (see AssetGraphService's doc
+/// comment) — nothing here is computed client-side.
+function AttackSurfaceTab({ projectId }: { projectId: string }) {
+  const { data: summary, isLoading } = useAttackSurface(projectId);
+
+  if (isLoading) return <ListSkeleton rows={2} />;
+  if (!summary || summary.totalAssets === 0) {
+    return (
+      <EmptyState
+        icon={Layers}
+        title="No attack surface data yet"
+        description="Run a Recon scan on this project's targets to populate the attack surface."
+      />
+    );
+  }
+
+  const stats: Array<{ label: string; value: number }> = [
+    { label: "Total assets", value: summary.totalAssets },
+    { label: "Live hosts", value: summary.liveHosts },
+    { label: "Open ports", value: summary.openPorts },
+    { label: "HTTP services", value: summary.httpServices },
+    { label: "Technologies", value: summary.technologies },
+    { label: "High-risk assets", value: summary.highRiskAssets },
+    { label: "New (7d)", value: summary.newAssets7d },
+    { label: "Removed (7d)", value: summary.removedAssets7d },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map((stat) => (
+        <Card key={stat.label}>
+          <CardContent className="p-4">
+            <p className="text-2xl font-semibold">{stat.value}</p>
+            <p className="text-xs text-muted-foreground">{stat.label}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

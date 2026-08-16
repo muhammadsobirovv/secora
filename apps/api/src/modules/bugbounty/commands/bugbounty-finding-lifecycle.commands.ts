@@ -39,6 +39,8 @@ import {
   AI_MEMORY_REPOSITORY,
   type AiMemoryRepository,
 } from '../../ai/domain/repositories/ai-memory.repository.interface.js';
+import { FindingFingerprintService } from '../finding-intelligence/finding-fingerprint.service.js';
+import { RiskScoringService } from '../finding-intelligence/risk-scoring.service.js';
 
 /// Builds the text indexed into AiMemoryChunk for Duplicate Detection's
 /// semantic-search half (see check-duplicate-finding.query.ts and ADR
@@ -85,6 +87,8 @@ export class CreateBugBountyFindingHandler implements ICommandHandler<
     private readonly findingsRepository: BugBountyFindingsRepository,
     private readonly memoryService: AiMemoryService,
     private readonly eventBus: EventBus,
+    private readonly fingerprintService: FindingFingerprintService,
+    private readonly riskScoringService: RiskScoringService,
   ) {}
 
   async execute(
@@ -107,6 +111,29 @@ export class CreateBugBountyFindingHandler implements ICommandHandler<
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    // Module 16 — tasks #378/#380. Computed once, up front, so the row
+    // that gets created already carries its dedup fingerprint and risk
+    // score — never a separate "recompute" pass a caller could forget to
+    // trigger.
+    const fingerprint = this.fingerprintService.compute({
+      targetId: command.data.targetId ?? null,
+      endpoint: command.data.endpoint ?? null,
+      vulnType: command.data.vulnType ?? null,
+      cwe: command.data.cwe ?? null,
+      payload: command.data.payload ?? null,
+    });
+    const { riskScore, riskLevel } = this.riskScoringService.score({
+      severity: command.data.severity,
+      cvssScore: command.data.cvssScore ?? null,
+      epss: null,
+      assetCriticality: null,
+      internetExposure: null,
+      confidence: command.data.confidence ?? null,
+      exploitability: command.data.exploitability ?? null,
+      businessImpact: command.data.businessImpact ?? null,
+      historicalActivityScore: null,
+    });
 
     const finding = await this.findingsRepository.create({
       workspaceId,
@@ -132,6 +159,12 @@ export class CreateBugBountyFindingHandler implements ICommandHandler<
       cvssBreakdown: command.data.cvssBreakdown as
         | Record<string, unknown>
         | undefined,
+      confidence: command.data.confidence,
+      exploitability: command.data.exploitability,
+      businessImpact: command.data.businessImpact,
+      fingerprint,
+      riskScore,
+      riskLevel,
     });
 
     this.eventBus.publish(
@@ -185,17 +218,51 @@ export class UpdateBugBountyFindingHandler implements ICommandHandler<
     @Inject(BUGBOUNTY_FINDINGS_REPOSITORY)
     private readonly findingsRepository: BugBountyFindingsRepository,
     private readonly memoryService: AiMemoryService,
+    private readonly fingerprintService: FindingFingerprintService,
+    private readonly riskScoringService: RiskScoringService,
   ) {}
 
   async execute(
     command: UpdateBugBountyFindingCommand,
   ): Promise<BugBountyFindingDto> {
-    await resolveBugBountyFindingForCaller(
+    const { finding: existing } = await resolveBugBountyFindingForCaller(
       this.workspacesRepository,
       this.findingsRepository,
       command.userId,
       command.findingId,
     );
+
+    // Module 16 — tasks #378/#380. Recomputed from the *merged* view
+    // (existing row + this update's changes) so a partial update — e.g.
+    // only patching `severity` — still produces a fingerprint/risk score
+    // consistent with the finding's other fields, not just the fields
+    // this particular request happened to touch.
+    const merged = {
+      targetId: command.data.targetId !== undefined ? command.data.targetId : existing.targetId,
+      endpoint: command.data.endpoint !== undefined ? command.data.endpoint : existing.endpoint,
+      vulnType: command.data.vulnType !== undefined ? command.data.vulnType : existing.vulnType,
+      cwe: command.data.cwe !== undefined ? command.data.cwe : existing.cwe,
+      payload: command.data.payload !== undefined ? command.data.payload : existing.payload,
+      severity: command.data.severity ?? existing.severity,
+      cvssScore: command.data.cvssScore !== undefined ? command.data.cvssScore : existing.cvssScore,
+      confidence: command.data.confidence !== undefined ? command.data.confidence : existing.confidence,
+      exploitability:
+        command.data.exploitability !== undefined ? command.data.exploitability : existing.exploitability,
+      businessImpact:
+        command.data.businessImpact !== undefined ? command.data.businessImpact : existing.businessImpact,
+    };
+    const fingerprint = this.fingerprintService.compute(merged);
+    const { riskScore, riskLevel } = this.riskScoringService.score({
+      severity: merged.severity,
+      cvssScore: merged.cvssScore,
+      epss: existing.epss,
+      assetCriticality: null,
+      internetExposure: null,
+      confidence: merged.confidence,
+      exploitability: merged.exploitability,
+      businessImpact: merged.businessImpact,
+      historicalActivityScore: null,
+    });
 
     const updated = await this.findingsRepository.update(command.findingId, {
       targetId: command.data.targetId,
@@ -216,6 +283,12 @@ export class UpdateBugBountyFindingHandler implements ICommandHandler<
       cvssBreakdown: command.data.cvssBreakdown as
         | Record<string, unknown>
         | undefined,
+      confidence: command.data.confidence,
+      exploitability: command.data.exploitability,
+      businessImpact: command.data.businessImpact,
+      fingerprint,
+      riskScore,
+      riskLevel,
     });
 
     if (command.data.evidenceIds) {

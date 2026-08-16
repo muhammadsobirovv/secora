@@ -80,6 +80,9 @@ import { VulnScanJobPollerService } from './execution/vuln-scan-job-poller.servi
     VULN_SCAN_TEMPLATES_REPOSITORY,
     VulnScanJobExecutionService,
     VulnScanJobPollerService,
+    // Module 16 — Terminal workspace (task #388). Same reasoning as
+    // ReconCoreModule's export of ToolRunnerRegistry.
+    ScannerRunnerRegistry,
   ],
 })
 export class VulnCoreModule {}

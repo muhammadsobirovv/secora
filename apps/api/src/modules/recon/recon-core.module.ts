@@ -105,6 +105,10 @@ import { ReconJobPollerService } from './execution/recon-job-poller.service.js';
     RECON_FINDINGS_REPOSITORY,
     ReconJobExecutionService,
     ReconJobPollerService,
+    // Module 16 — Terminal workspace (task #388). AdHocCommandService
+    // resolves single-tool runs through this exact registry rather than
+    // inventing a second execution path — see that service's doc comment.
+    ToolRunnerRegistry,
   ],
 })
 export class ReconCoreModule {}

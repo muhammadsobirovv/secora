@@ -3,6 +3,7 @@ import { ReconCoreModule } from './recon-core.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
+import { SecurityModule } from '../security/security.module.js';
 import { CreateReconJobHandler } from './commands/create-recon-job.command.js';
 import { CancelReconJobHandler } from './commands/cancel-recon-job.command.js';
 import { RetryReconJobHandler } from './commands/retry-recon-job.command.js';
@@ -24,7 +25,7 @@ import { ReconFindingsController } from './controllers/recon-findings.controller
 /// ReconCoreModule) for where jobs actually execute, which this module
 /// never invokes directly.
 @Module({
-  imports: [ReconCoreModule, WorkspacesModule, ProjectsModule, TargetsModule],
+  imports: [ReconCoreModule, WorkspacesModule, ProjectsModule, TargetsModule, SecurityModule],
   controllers: [
     TargetReconJobsController,
     ProjectReconJobsController,

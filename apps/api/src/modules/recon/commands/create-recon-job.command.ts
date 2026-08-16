@@ -22,6 +22,7 @@ import {
   type TargetsRepository,
 } from '../../targets/domain/repositories/targets.repository.interface.js';
 import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
+import { ScopeEngineService } from '../../security/scope-engine.service.js';
 import {
   RECON_JOBS_REPOSITORY,
   type ReconJobsRepository,
@@ -54,6 +55,7 @@ export class CreateReconJobHandler implements ICommandHandler<
     private readonly reconJobsRepository: ReconJobsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly eventBus: EventBus,
+    private readonly scopeEngine: ScopeEngineService,
   ) {}
 
   async execute(command: CreateReconJobCommand): Promise<ReconJobDto> {
@@ -77,6 +79,24 @@ export class CreateReconJobHandler implements ICommandHandler<
         HttpStatus.FORBIDDEN,
       );
     }
+
+    // Module 16 — task #370. The Scope Engine gate: refuses to create a
+    // Recon job against a target that is explicitly OUT_OF_SCOPE (any
+    // linked program's scope rules, or Target.scopeStatus itself) or
+    // still PENDING_REVIEW. Runs after the demo-workspace check (that's a
+    // coarser, cheaper gate) and before any tool-compatibility work.
+    await this.scopeEngine.assertExecutionAllowed({
+      userId: command.userId,
+      workspaceId,
+      target: {
+        id: target.id,
+        type: target.type,
+        value: target.value,
+        scopeStatus: target.scopeStatus,
+        projectId: target.projectId,
+      },
+      operationType: 'RECON_JOB',
+    });
 
     for (const tool of command.data.tools) {
       if (!isToolCompatibleWithTargetType(tool, target.type)) {

@@ -83,3 +83,16 @@ export * from "./gdpr.js";
 export * from "./gdpr-endpoints.js";
 export * from "./telemetry.js";
 export * from "./i18n.js";
+// --- Module 16 — Global Security Intelligence, Bug Bounty Platform &
+// Collaboration (see docs/adr/0016-*.md) ---
+export * from "./scope-engine.js";
+export * from "./bugbounty-intelligence.js";
+export * from "./bugbounty-submissions.js";
+export * from "./research-session.js";
+export * from "./security-approval.js";
+export * from "./ai-investigation.js";
+export * from "./researcher-memory.js";
+export * from "./collaboration-extensions.js";
+export * from "./terminal-workspace.js";
+export * from "./playbooks.js";
+export * from "./module16-endpoints.js";

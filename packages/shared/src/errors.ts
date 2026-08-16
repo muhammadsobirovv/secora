@@ -232,4 +232,54 @@ export type AppErrorCode =
   | "PLUGIN_INTEGRITY_CHECK_FAILED"
   // Module 15 — demo mode (task #352).
   | "DEMO_MODE_DISABLED"
-  | "DEMO_WORKSPACE_READ_ONLY";
+  | "DEMO_WORKSPACE_READ_ONLY"
+  // Module 16 — Scope Engine + pre-execution validation gate (task #370).
+  // The single most important error code this module introduces: thrown
+  // by every tool-execution entry point (Recon, Vuln, Terminal, AI
+  // Investigation) when the target is not confirmed IN_SCOPE.
+  | "TARGET_OUT_OF_SCOPE"
+  | "TARGET_SCOPE_PENDING_REVIEW"
+  | "SCOPE_AUTHORIZATION_REQUIRED"
+  // Module 16 — Global Security Policy enforcement (task #400).
+  | "SECURITY_POLICY_TOOL_BLOCKED"
+  | "SECURITY_POLICY_TARGET_TYPE_BLOCKED"
+  | "SECURITY_POLICY_SCAN_RATE_EXCEEDED"
+  | "SECURITY_POLICY_CONCURRENCY_EXCEEDED"
+  // Module 16 — Approval gates (task #399).
+  | "APPROVAL_REQUIRED"
+  | "APPROVAL_REQUEST_NOT_FOUND"
+  | "APPROVAL_ALREADY_DECIDED"
+  | "APPROVAL_EXPIRED"
+  // Module 16 — Terminal workspace + safe command execution (task #388).
+  | "COMMAND_TOOL_NOT_ALLOWLISTED"
+  | "COMMAND_EXECUTION_FAILED"
+  | "COMMAND_BLOCKED"
+  | "COMMAND_TARGET_TYPE_NOT_SUPPORTED"
+  | "ADHOC_COMMAND_NOT_FOUND"
+  // Module 16 — Playbooks + Playbook Builder (task #389).
+  | "PLAYBOOK_NOT_FOUND"
+  | "PLAYBOOK_VERSION_NOT_FOUND"
+  | "PLAYBOOK_EXECUTION_NOT_FOUND"
+  | "PLAYBOOK_VALIDATION_FAILED"
+  | "PLAYBOOK_NOT_PUBLISHED"
+  | "PLAYBOOK_APPROVAL_REQUIRED"
+  | "PLAYBOOK_APPROVAL_REJECTED"
+  | "PLAYBOOK_INVALID_STATE_TRANSITION"
+  // Module 16 — Research Session (task #371).
+  | "RESEARCH_SESSION_NOT_FOUND"
+  // Module 16 — Bug Bounty Submissions (task #385).
+  | "SUBMISSION_NOT_FOUND"
+  | "SUBMISSION_INVALID_STATE_TRANSITION"
+  // Module 16 — CVE Intelligence (task #394).
+  | "CVE_INTELLIGENCE_PROVIDER_NOT_CONFIGURED"
+  | "CVE_RECORD_NOT_FOUND"
+  | "CVE_PROVIDER_FETCH_FAILED"
+  // Module 16 — AI Investigation Mode (task #398).
+  | "AI_INVESTIGATION_NOT_FOUND"
+  | "AI_INVESTIGATION_PLAN_NOT_APPROVED"
+  | "AI_INVESTIGATION_INVALID_STATE_TRANSITION"
+  // Module 16 — Public sharing (task #392).
+  | "SHARE_LINK_NOT_FOUND"
+  | "SHARE_LINK_EXPIRED_OR_REVOKED"
+  | "SHARE_LINK_PASSWORD_REQUIRED"
+  | "SHARE_LINK_PASSWORD_INCORRECT";

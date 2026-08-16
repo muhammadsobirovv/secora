@@ -66,6 +66,16 @@ import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
 import { DemoModule } from './modules/demo/demo.module.js';
 import { SupportModule } from './modules/support/support.module.js';
 import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module.js';
+// Module 16 — Global Security Intelligence, Bug Bounty Platform &
+// Collaboration. SecurityModule (Scope Engine/Approval Gates/Global
+// Security Policy) is imported before ReconModule/VulnModule/BugBountyModule
+// since those now depend on it — see docs/adr/0016-*.md.
+import { SecurityModule } from './modules/security/security.module.js';
+import { ResearchSessionModule } from './modules/research-session/research-session.module.js';
+import { IntelligenceModule } from './modules/intelligence/intelligence.module.js';
+import { AiInvestigationModule } from './modules/ai-investigation/ai-investigation.module.js';
+import { TerminalModule } from './modules/terminal/terminal.module.js';
+import { PlaybooksModule } from './modules/playbooks/playbooks.module.js';
 
 @Module({
   imports: [
@@ -121,9 +131,15 @@ import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module
     TagsModule,
     ActivityModule,
     SearchModule,
+    SecurityModule,
+    ResearchSessionModule,
     ReconModule,
     VulnModule,
+    IntelligenceModule,
     AiModule,
+    AiInvestigationModule,
+    TerminalModule,
+    PlaybooksModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this

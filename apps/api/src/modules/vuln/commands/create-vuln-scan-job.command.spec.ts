@@ -7,6 +7,7 @@ import type { TargetsRepository } from '../../targets/domain/repositories/target
 import type { VulnScanJobsRepository } from '../domain/repositories/vuln-scan-jobs.repository.interface.js';
 import type { VulnScanTemplatesRepository } from '../domain/repositories/vuln-scan-templates.repository.interface.js';
 import type { Target, Workspace } from '../../../prisma-types.js';
+import type { ScopeEngineService } from '../../security/scope-engine.service.js';
 import { CreateVulnScanJobCommand, CreateVulnScanJobHandler } from './create-vuln-scan-job.command.js';
 
 function buildTarget(overrides?: Partial<Target>): Target {
@@ -46,7 +47,12 @@ function buildWorkspace(overrides?: Partial<Workspace>): Workspace {
   } as Workspace;
 }
 
-function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
+function buildHandler(opts: {
+  workspace: Workspace;
+  create: jest.Mock;
+  target?: Target;
+  scopeAssert?: jest.Mock;
+}) {
   const workspacesRepository: WorkspacesRepository = {
     create: jest.fn(),
     addMember: jest.fn(),
@@ -60,7 +66,7 @@ function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
     findByIdForWorkspace: jest.fn(async () => ({ id: 'project-1' })) as unknown as ProjectsRepository['findByIdForWorkspace'],
   };
   const targetsRepository: Partial<TargetsRepository> = {
-    findById: jest.fn(async () => buildTarget()) as unknown as TargetsRepository['findById'],
+    findById: jest.fn(async () => opts.target ?? buildTarget()) as unknown as TargetsRepository['findById'],
   };
   const vulnScanJobsRepository: Partial<VulnScanJobsRepository> = {
     create: opts.create as unknown as VulnScanJobsRepository['create'],
@@ -70,6 +76,10 @@ function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
   };
   const configService = { get: jest.fn(() => 1800) } as unknown as ConfigService;
   const eventBus = { publish: jest.fn() } as unknown as EventBus;
+  const assertExecutionAllowed = opts.scopeAssert ?? jest.fn(async () => ({ decision: 'ALLOWED' }));
+  const scopeEngine: Partial<ScopeEngineService> = {
+    assertExecutionAllowed: assertExecutionAllowed as unknown as ScopeEngineService['assertExecutionAllowed'],
+  };
 
   const handler = new CreateVulnScanJobHandler(
     workspacesRepository,
@@ -79,8 +89,9 @@ function buildHandler(opts: { workspace: Workspace; create: jest.Mock }) {
     vulnScanTemplatesRepository as VulnScanTemplatesRepository,
     configService,
     eventBus,
+    scopeEngine as ScopeEngineService,
   );
-  return { handler, vulnScanJobsRepository, eventBus };
+  return { handler, vulnScanJobsRepository, eventBus, assertExecutionAllowed };
 }
 
 describe('CreateVulnScanJobHandler', () => {
@@ -116,5 +127,48 @@ describe('CreateVulnScanJobHandler', () => {
 
     expect(vulnScanJobsRepository.create).toHaveBeenCalledTimes(1);
     expect(result.id).toBe('job-1');
+  });
+
+  // Module 16 — Scope Engine (task #370). Same security regression
+  // coverage as create-recon-job.command.spec.ts — see that file's
+  // comment for why this matters for AI Investigation Mode specifically.
+
+  it('rejects job creation when the Scope Engine denies an out-of-scope target', async () => {
+    const create = jest.fn();
+    const scopeAssert = jest.fn(async () => {
+      throw { code: 'TARGET_OUT_OF_SCOPE', message: 'out of scope' };
+    });
+    const { handler, vulnScanJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      scopeAssert,
+    });
+
+    await expect(
+      handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] })),
+    ).rejects.toMatchObject({ code: 'TARGET_OUT_OF_SCOPE' });
+
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('rejects job creation when the Scope Engine denies a pending-review target', async () => {
+    const create = jest.fn();
+    const scopeAssert = jest.fn(async () => {
+      throw { code: 'TARGET_SCOPE_PENDING_REVIEW', message: 'pending review' };
+    });
+    const { handler, vulnScanJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      target: buildTarget({ scopeStatus: 'PENDING_REVIEW' }),
+      scopeAssert,
+    });
+
+    await expect(
+      handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] })),
+    ).rejects.toMatchObject({ code: 'TARGET_SCOPE_PENDING_REVIEW' });
+
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 });
