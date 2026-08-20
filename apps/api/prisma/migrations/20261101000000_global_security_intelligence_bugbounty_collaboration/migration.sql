@@ -59,6 +59,7 @@ ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_REGISTERED';
 ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_ENABLED';
 ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_DISABLED';
 ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_UNREGISTERED';
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'EXTENSION_INVOKED';
 
 -- ---------------------------------------------------------------------------
 -- Additive columns on pre-existing tables

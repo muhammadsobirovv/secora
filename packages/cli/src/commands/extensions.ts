@@ -1,5 +1,5 @@
 import { EXTENSION_REGISTRY_ENDPOINTS } from '@pentesthub/shared';
-import type { ExtensionDto, RegisterExtensionRequestDto } from '@pentesthub/shared';
+import type { ExtensionDto, ExtensionInvocationResultDto, InvokeExtensionRequestDto, RegisterExtensionRequestDto } from '@pentesthub/shared';
 import { loadConfig } from '../config.js';
 import { buildHttpClient } from '../http.js';
 
@@ -65,4 +65,24 @@ export async function extensionsUnregisterCommand(args: string[]): Promise<void>
   const http = buildHttpClient(loadConfig());
   await http.delete<void>(EXTENSION_REGISTRY_ENDPOINTS.unregister(id));
   console.log(`Unregistered extension ${id}.`);
+}
+
+/// Hardening pass (task #454): the real invocation path — the server
+/// runs ExtensionPermissionEnforcer.assertAuthorized() before ever
+/// contacting the extension's entrypoint.
+export async function extensionsInvokeCommand(args: string[]): Promise<void> {
+  const id = args[0];
+  const permission = flagValue(args, '--permission');
+  if (!id || !permission) {
+    throw new Error('Usage: pentesthub extensions invoke <id> --permission <PERMISSION> [--input \'{"k":"v"}\']');
+  }
+  const inputRaw = flagValue(args, '--input');
+  const body: InvokeExtensionRequestDto = {
+    permission: permission as InvokeExtensionRequestDto['permission'],
+    input: inputRaw ? (JSON.parse(inputRaw) as Record<string, unknown>) : undefined,
+  };
+
+  const http = buildHttpClient(loadConfig());
+  const result = await http.post<ExtensionInvocationResultDto>(EXTENSION_REGISTRY_ENDPOINTS.invoke(id), body);
+  console.log(JSON.stringify(result, null, 2));
 }

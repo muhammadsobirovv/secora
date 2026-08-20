@@ -24,6 +24,13 @@ export class ListWatchersHandler implements IQueryHandler<ListWatchersQuery, Wat
     const watchers = await this.prisma.watcher.findMany({
       where: { entityType: query.entityType, entityId: query.entityId },
       orderBy: { createdAt: 'asc' },
+      // Performance audit hardening: every other list handler built this
+      // module already caps `take` (comments: 100, share links: 200,
+      // researcher memory: 500) — a single entity's watcher count is
+      // naturally bounded by workspace membership, but an explicit cap
+      // keeps this handler consistent with that convention rather than
+      // being the one unbounded findMany in the module.
+      take: 500,
     });
     return watchers.map(toWatcherDto);
   }
@@ -75,6 +82,7 @@ export class ListReactionsHandler implements IQueryHandler<ListReactionsQuery, R
     const reactions = await this.prisma.reaction.findMany({
       where: { entityType: query.entityType, entityId: query.entityId },
       orderBy: { createdAt: 'asc' },
+      take: 500, // Same rationale as ListWatchersHandler above.
     });
     return reactions.map(toReactionDto);
   }

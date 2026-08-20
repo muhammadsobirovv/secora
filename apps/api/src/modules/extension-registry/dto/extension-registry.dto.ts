@@ -4,6 +4,7 @@ import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsObject, IsOptional, IsString,
 import type {
   ExtensionPermission,
   ExtensionType,
+  InvokeExtensionRequestDto as InvokeExtensionShape,
   ListExtensionsQueryDto as ListExtensionsShape,
   RegisterExtensionRequestDto as RegisterExtensionShape,
 } from '@pentesthub/shared';
@@ -53,4 +54,15 @@ export class ListExtensionsQueryParamsDto implements ListExtensionsShape {
   @Transform(({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value))
   @IsBoolean()
   enabled?: boolean;
+}
+
+/// Hardening pass: the real invocation path. `permission` must be one of
+/// the closed EXTENSION_PERMISSIONS vocabulary (same `@IsIn` check as
+/// RegisterExtensionDto.permissions) — the enforcer then checks it was
+/// actually declared by *this* extension at registration time.
+/// `input` is capped in size (JSON-stringified length, checked in the
+/// handler, not here) to bound what gets relayed to an entrypoint.
+export class InvokeExtensionDto implements InvokeExtensionShape {
+  @ApiProperty({ enum: EXTENSION_PERMISSIONS }) @IsIn(EXTENSION_PERMISSIONS) permission!: ExtensionPermission;
+  @ApiPropertyOptional({ type: Object }) @IsOptional() @IsObject() input?: Record<string, unknown>;
 }

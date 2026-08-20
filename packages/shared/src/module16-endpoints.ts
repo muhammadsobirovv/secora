@@ -101,6 +101,10 @@ export const EXTENSION_REGISTRY_ENDPOINTS = {
   enable: (id: string) => `extensions/${id}/enable`,
   disable: (id: string) => `extensions/${id}/disable`,
   unregister: (id: string) => `extensions/${id}`,
+  /// Hardening pass: the real invocation path — POSTs `{ permission,
+  /// input }`, enforced server-side by ExtensionPermissionEnforcer before
+  /// the extension's entrypoint is ever called.
+  invoke: (id: string) => `extensions/${id}/invoke`,
 } as const;
 
 export const SHARE_LINK_ENDPOINTS = {

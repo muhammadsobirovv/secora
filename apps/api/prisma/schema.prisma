@@ -1538,6 +1538,12 @@ enum AuditEventType {
   EXTENSION_ENABLED
   EXTENSION_DISABLED
   EXTENSION_UNREGISTERED
+  // Module 16 — hardening pass: wires ExtensionPermissionEnforcer into a
+  // real invocation path (POST /extensions/:id/invoke). One audit type
+  // covers both outcomes (success/failure recorded in `metadata.ok`)
+  // rather than a pair of INVOKED/INVOCATION_FAILED types, matching how
+  // this enum otherwise favors one type per *action*, not per outcome.
+  EXTENSION_INVOKED
 }
 
 // ---------------------------------------------------------------------------
