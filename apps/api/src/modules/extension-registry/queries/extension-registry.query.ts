@@ -29,6 +29,10 @@ export class ListExtensionsHandler implements IQueryHandler<ListExtensionsQuery,
         enabled: query.filters.enabled ?? undefined,
       },
       orderBy: { registeredAt: 'desc' },
+      // Performance audit hardening: matches the `take` cap convention
+      // every other Module 16 list handler already uses (this one was the
+      // one unbounded findMany found during the audit).
+      take: 200,
     });
     return rows.map(toExtensionDto);
   }

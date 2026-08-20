@@ -87,3 +87,28 @@ func (e *ExtensionsResource) Disable(ctx context.Context, extensionID string) (E
 func (e *ExtensionsResource) Unregister(ctx context.Context, extensionID string) error {
 	return e.http.Delete(ctx, fmt.Sprintf("/extensions/%s", extensionID), nil)
 }
+
+// InvokeExtensionRequest mirrors InvokeExtensionRequestDto.
+type InvokeExtensionRequest struct {
+	Permission string                 `json:"permission"`
+	Input      map[string]interface{} `json:"input,omitempty"`
+}
+
+// ExtensionInvocationResult mirrors ExtensionInvocationResultDto.
+type ExtensionInvocationResult struct {
+	OK         bool        `json:"ok"`
+	StatusCode *int        `json:"statusCode"`
+	DurationMs int         `json:"durationMs"`
+	Body       interface{} `json:"body,omitempty"`
+	Error      string      `json:"error,omitempty"`
+}
+
+// Invoke is the hardening-pass (task #454) real invocation path: the
+// server runs ExtensionPermissionEnforcer.assertAuthorized() before ever
+// contacting the extension's entrypoint. An undeclared Permission or a
+// disabled extension returns an error before any outbound network call.
+func (e *ExtensionsResource) Invoke(ctx context.Context, extensionID string, req InvokeExtensionRequest) (ExtensionInvocationResult, error) {
+	var out ExtensionInvocationResult
+	err := e.http.Post(ctx, fmt.Sprintf("/extensions/%s/invoke", extensionID), req, &out)
+	return out, err
+}

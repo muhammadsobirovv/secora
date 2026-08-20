@@ -1,11 +1,13 @@
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus } from '@nestjs/common';
 import type { AuditEventType } from '../../../prisma-types.js';
-import type { ExtensionDto, RegisterExtensionRequestDto } from '@pentesthub/shared';
+import type { ExtensionDto, ExtensionInvocationResultDto, InvokeExtensionRequestDto, RegisterExtensionRequestDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { ResearcherMemoryWorkspaceResolver } from '../../researcher-memory/researcher-memory-workspace.util.js';
 import { toExtensionDto } from '../mappers/to-extension-dto.mapper.js';
+import { ExtensionPermissionEnforcer } from '../extension-permission-enforcer.util.js';
+import { assertSafeWebhookUrl } from '../../../common/utils/ssrf-guard.util.js';
 
 /// A permissive-but-real semver check (`x.y.z`, optional pre-release/
 /// build metadata) — "declared version" (spec) needs to be parseable and
@@ -184,5 +186,118 @@ export class UnregisterExtensionHandler implements ICommandHandler<UnregisterExt
       version: existing.version,
     });
     await this.prisma.extensionRegistration.delete({ where: { id: existing.id } });
+  }
+}
+
+/// Hardening pass (task #454): the real caller `ExtensionPermissionEnforcer`
+/// was built for but never had. "Invoke" per this registry's disclosed
+/// scope: authorize + relay, not execute — this does not itself run
+/// recon/scanner/agent/workflow-specific logic for each of the seven
+/// `ExtensionType`s (that would require deep integration into
+/// ToolRunner/the Agent framework/the Workflow engine per type, out of
+/// scope for this pass and not silently attempted). Instead it provides
+/// one uniform mechanism every extension type can use identically: a
+/// permission-checked, SSRF-guarded, timeout-bounded HTTP POST to the
+/// extension's own declared `entrypoint`, mirroring
+/// `WebhookDeliveryQueueService.attemptDelivery` (same `assertSafeWebhookUrl`
+/// re-check-on-every-call posture, same `fetch` + `AbortSignal.timeout`
+/// pattern) rather than inventing a second HTTP-egress code path with
+/// different safety properties.
+const INVOKE_TIMEOUT_MS = 10_000;
+const MAX_INPUT_JSON_LENGTH = 100_000; // ~100KB — bounds what gets relayed to an entrypoint.
+
+export class InvokeExtensionCommand implements ICommand {
+  constructor(
+    public readonly userId: string,
+    public readonly extensionId: string,
+    public readonly data: InvokeExtensionRequestDto,
+  ) {}
+}
+
+@CommandHandler(InvokeExtensionCommand)
+export class InvokeExtensionHandler implements ICommandHandler<InvokeExtensionCommand, ExtensionInvocationResultDto> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceResolver: ResearcherMemoryWorkspaceResolver,
+    private readonly permissionEnforcer: ExtensionPermissionEnforcer,
+  ) {}
+
+  async execute(command: InvokeExtensionCommand): Promise<ExtensionInvocationResultDto> {
+    const workspaceId = await this.workspaceResolver.resolve(command.userId);
+    const extension = await findOwnedExtension(this.prisma, command.extensionId, workspaceId);
+
+    // Authorize before anything else touches the network — a disabled
+    // extension or an undeclared permission must never reach
+    // assertSafeWebhookUrl/fetch at all.
+    this.permissionEnforcer.assertAuthorized(extension, command.data.permission);
+
+    const inputJson = JSON.stringify(command.data.input ?? {});
+    if (inputJson.length > MAX_INPUT_JSON_LENGTH) {
+      throw new AppException(
+        'EXTENSION_INVOKE_INPUT_TOO_LARGE',
+        `Invocation input must be at most ${MAX_INPUT_JSON_LENGTH} bytes of JSON.`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Re-checked on every single invocation, not just at registration
+    // time — same DNS-rebinding rationale as the webhook delivery queue's
+    // per-attempt re-check (an entrypoint hostname that resolved safely
+    // at registration time can be re-pointed at a private address later).
+    await assertSafeWebhookUrl(extension.entrypoint);
+
+    const startedAt = Date.now();
+    let result: ExtensionInvocationResultDto;
+    try {
+      const response = await fetch(extension.entrypoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-PentestHub-Extension-Id': extension.id,
+          'X-PentestHub-Extension-Permission': command.data.permission,
+        },
+        body: JSON.stringify({
+          extensionId: extension.id,
+          type: extension.type,
+          capabilities: extension.capabilities,
+          permission: command.data.permission,
+          input: command.data.input ?? {},
+        }),
+        signal: AbortSignal.timeout(INVOKE_TIMEOUT_MS),
+      });
+
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = undefined; // Non-JSON or empty response body — not an error by itself.
+      }
+
+      result = {
+        ok: response.ok,
+        statusCode: response.status,
+        durationMs: Date.now() - startedAt,
+        body,
+        error: response.ok ? undefined : `HTTP ${response.status}`,
+      };
+    } catch (error) {
+      result = {
+        ok: false,
+        statusCode: null,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : 'Unknown error invoking extension entrypoint.',
+      };
+    }
+
+    await recordExtensionAudit(this.prisma, command.userId, extension.id, workspaceId, 'EXTENSION_INVOKED', {
+      name: extension.name,
+      version: extension.version,
+      permission: command.data.permission,
+      ok: result.ok,
+      statusCode: result.statusCode,
+      durationMs: result.durationMs,
+    });
+
+    return result;
   }
 }

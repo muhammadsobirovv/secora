@@ -1,5 +1,49 @@
 # Module 16 Release Notes — Global Security Intelligence, Bug Bounty Platform & Collaboration
 
+## Hardening pass (post-initial-close, task #454-#460)
+
+Per explicit user direction, a second pass closed the one real gap the
+initial security audit disclosed rather than leaving it open:
+`ExtensionPermissionEnforcer` now has a real invocation-time consumer.
+Summary (full detail in the "Extension API Registry" and "Security audit
+summary" sections below, updated in place):
+
+- `POST /extensions/:id/invoke` — a permission-checked, SSRF-guarded,
+  timeout-bounded HTTP relay to an extension's declared `entrypoint`,
+  reusing `assertSafeWebhookUrl` and the `fetch` + `AbortSignal.timeout`
+  pattern from `WebhookDeliveryQueueService` rather than a new egress path.
+- 8 new unit tests covering disabled/undeclared-permission/cross-workspace/
+  unsafe-URL/oversized-input rejection and success/failure result shapes.
+- Schema: `AuditEventType.EXTENSION_INVOKED` added (schema + migration.sql,
+  both edited consistently).
+- Two unbounded `findMany` queries found during a performance pass
+  (`ListWatchersHandler`, `ListReactionsHandler`, `ListExtensionsHandler`)
+  were given explicit `take` caps to match the convention every other
+  Module 16 list handler already followed.
+- `packages/shared`'s `dist/` was stale (missing the `extension-api`/
+  `knowledge-graph` modules from earlier in this session) — rebuilt via
+  `npx tsc`, which is what let `packages/sdk-typescript` typecheck clean
+  for the first time this session (previously blocked by that staleness,
+  not by anything wrong in the SDK source itself).
+- Found, but did **not** fix (pre-existing, predates Module 16, out of this
+  pass's scope): `packages/sdk-typescript/src/resources/plugins.resource.ts`
+  has had the same "named DTO passed where an index-signature `Record` is
+  expected" typecheck error since the Module 10 commit (`357d97f`) that
+  introduced it. `extensions.resource.ts`'s own copy of the same pattern
+  (introduced this session) was fixed with an explicit, documented cast.
+- `prisma`/`jest` CLIs re-checked in this sandbox — same result as every
+  prior check this session: both exist only as broken `.bin` stub scripts
+  (`Cannot find module '.../jest/bin/jest.js'` /
+  `'.../prisma/build/index.js'`), the actual packages were never installed.
+  Not re-litigated further; see "Known gaps" below, unchanged from before
+  this pass.
+- `apps/api/prisma/schema.prisma` re-verified brace-balanced (6261 lines,
+  final depth 0) and `AuditEventType` has no duplicate values; the
+  consolidated `migration.sql` re-verified paren-balanced with its
+  `CREATE TABLE`/`CREATE UNIQUE INDEX`/`ALTER TYPE` statements consistent
+  with the schema — the closest verification possible without a working
+  `prisma` CLI in this sandbox.
+
 ## Features added
 
 **Scope Engine & pre-execution gate** — `ScopeEngine` validates every
@@ -82,7 +126,16 @@ enum, full CRUD (`register`/`list`/`get`/`enable`/`disable`/`unregister`)
 under `/extensions`, an `ExtensionPermissionEnforcer.assertAuthorized()`
 utility for permission-scoped checks, and DTOs with hard caps
 (`@ArrayMaxSize(50)`, `@MaxLength`) on every list/string field accepted from
-extension manifests.
+extension manifests. **Hardening pass**: `POST /extensions/:id/invoke` is
+now that enforcer's real caller — authorize (enabled + permission declared)
+→ SSRF-guard the entrypoint (`assertSafeWebhookUrl`, re-checked every call,
+same DNS-rebinding posture as webhook delivery) → a single, timeout-bounded
+(10s) HTTP POST relaying `{ extensionId, type, capabilities, permission,
+input }` → an `EXTENSION_INVOKED` audit event either way. This is a uniform,
+type-agnostic relay (authorize + relay, not execute) — it does not itself
+run recon/scanner/agent/workflow-specific logic per `ExtensionType`; a
+deeper per-type integration (e.g. feeding a `RECON_PROVIDER` straight into
+`ToolRunner`) remains future work, not implied by this endpoint's existence.
 
 **SDK & CLI** — Knowledge Graph and Extensions resources added to the
 TypeScript SDK (`packages/sdk-typescript`), Python SDK (`sdks/python`), Go
@@ -122,44 +175,56 @@ surfaces for Module 16 and none should be inferred as done.
 - Every "not found" response across new modules stays enumeration-safe
   (identical wording whether an id doesn't exist or belongs to another
   tenant) — the existing platform convention.
-- **Known gap, disclosed rather than fixed silently**:
-  `ExtensionPermissionEnforcer.assertAuthorized()` has **no invocation-time
-  consumer yet** — the registry stores and validates extension manifests
-  (including declared permissions) but nothing in this pass actually invokes
-  a registered extension, so the enforcer is exercised only by its own unit
-  test. This is a real gap, not a false claim of enforcement: no code path
-  in this module currently *executes* an extension, so there is no live
-  authorization bypass today, but the enforcer must be wired into whatever
-  invocation path is built next before extensions can run untrusted code
-  under Module 16's permission model.
+- **Resolved this pass (previously the one disclosed gap)**:
+  `ExtensionPermissionEnforcer.assertAuthorized()` now has a real
+  invocation-time consumer — `InvokeExtensionHandler` /
+  `POST /extensions/:id/invoke`. Verified: disabled extensions and
+  undeclared permissions are rejected *before* `assertSafeWebhookUrl` or
+  `fetch` are ever reached (asserted directly in the unit tests, not just
+  by reading the code); a cross-workspace extension id returns the same
+  enumeration-safe 404 as every other extension-registry endpoint; an
+  unsafe entrypoint URL is rejected before any network call; oversized
+  invocation input (>100KB JSON) is rejected before the URL check even
+  runs. Remaining, disclosed scope limit: this is one generic HTTP-relay
+  invocation path shared by all seven `ExtensionType`s, not seven
+  type-specific integrations into `ToolRunner`/the Agent framework/the
+  Workflow engine — see the Extension API Registry feature entry above.
 - No plaintext secrets found in new code paths; `ShareLink` tokens follow the
   established sha256-of-random-token hashing convention, not reversible
   encryption or plaintext storage.
 
 ## Known gaps
 
-- **`prisma generate` / a real migration run** — not executed in this sandbox
-  (`prisma` CLI physically absent, same disclosed category as every prior
-  module). The consolidated migration SQL
-  (`apps/api/prisma/migrations/20261101000000_global_security_intelligence_bugbounty_collaboration/migration.sql`)
-  must be verified with `prisma migrate diff` against a real database before
-  use.
-- **`apps/api tsc --noEmit`, `jest`, full `apps/api` boot** — not executed
-  this module; the sandbox limitations disclosed in every prior module's
-  release notes (missing `jest`, prior missing root dependencies for
-  `@nestjs/*`/`@prisma/client`) apply unchanged. `packages/shared` and
-  `packages/sdk-typescript` **were** verified clean via `npx tsc --noEmit`.
-  Python SDK files verified via `python3 -m py_compile` (clean).
-- **Go SDK unverifiable** — the Go toolchain is entirely absent from this
-  sandbox (`which go` fails); new Go SDK files are pattern-consistent with
-  the existing Go SDK but not compiled or tested.
-- **`packages/cli` has no installed `node_modules` in this sandbox** — a
-  pre-existing gap discovered (not caused) this module; the new CLI command
-  files could not be typechecked. Disclosed rather than claimed as verified.
-- **Performance audit, full cross-surface test pass, and a dedicated
-  database/migration review were deprioritized for this pass** — the user
-  explicitly chose the order "security audit → documentation → final
-  commit + report" over the original full 18-step sequence; these three
-  items were not executed and are not claimed as done.
+- **`prisma generate` / a real migration run** — still not executed in this
+  sandbox (`prisma` package is missing — only a broken `.bin` stub script
+  resolves — re-confirmed during the hardening pass, unchanged from every
+  prior module). Best-effort substitute performed instead: the schema was
+  confirmed brace-balanced with no duplicate enum values, and
+  `migration.sql` was confirmed paren-balanced with its new
+  `CREATE TABLE`/index/`ALTER TYPE` statements consistent with the schema.
+  The migration must still be verified with `prisma migrate diff` against a
+  real database before use.
+- **`jest`, full `apps/api` boot** — `jest` re-confirmed unavailable this
+  pass (same "stub script, package never installed" result as `prisma`
+  above); the 8 new invoke-path tests exist and are internally consistent
+  (mocked dependencies, explicit assertions on call order and rejected
+  network calls) but were not executed. `packages/shared` and
+  `packages/sdk-typescript` **were** verified clean via `npx tsc --noEmit`
+  this pass (after rebuilding `packages/shared`'s stale `dist/`). Python SDK
+  files verified via `python3 -m py_compile` (clean).
+- **Go SDK unverifiable** — the Go toolchain is still entirely absent from
+  this sandbox; the new `Invoke` method added to `sdks/go/extensions.go`
+  this pass is pattern-consistent with the rest of that file but not
+  compiled or tested.
+- **`packages/cli` still has no installed `node_modules` in this sandbox**
+  — re-confirmed this pass; the new `extensions invoke` CLI command could
+  not be typechecked, same as the rest of the CLI's Module 16 commands.
+- **Pre-existing, unrelated bug found (not fixed, out of scope)**:
+  `packages/sdk-typescript/src/resources/plugins.resource.ts` has a
+  typecheck error (`ListPluginsQueryDto` passed where an index-signature
+  `Record` is expected) dating to the Module 10 commit that introduced it —
+  predates and is unrelated to Module 16. `extensions.resource.ts`'s own
+  instance of the identical pattern (introduced this session) was fixed
+  with an explicit cast; `plugins.resource.ts` was left as found.
 - **Mobile, Desktop Agent, Browser Extension** — see "Explicitly out of
-  scope" above.
+  scope" above; unchanged by the hardening pass.

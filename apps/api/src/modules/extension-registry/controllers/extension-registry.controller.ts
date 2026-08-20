@@ -1,13 +1,15 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import type { ExtensionDto } from '@pentesthub/shared';
+import { Throttle } from '@nestjs/throttler';
+import type { ExtensionDto, ExtensionInvocationResultDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
-import { ListExtensionsQueryParamsDto, RegisterExtensionDto } from '../dto/extension-registry.dto.js';
+import { InvokeExtensionDto, ListExtensionsQueryParamsDto, RegisterExtensionDto } from '../dto/extension-registry.dto.js';
 import {
   DisableExtensionCommand,
   EnableExtensionCommand,
+  InvokeExtensionCommand,
   RegisterExtensionCommand,
   UnregisterExtensionCommand,
 } from '../commands/extension-registry.commands.js';
@@ -62,5 +64,21 @@ export class ExtensionRegistryController {
   @ApiOperation({ summary: 'Unregister (permanently remove) an extension' })
   async unregister(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     await this.commandBus.execute(new UnregisterExtensionCommand(user.id, id));
+  }
+
+  /// Hardening pass (task #454): the real invocation path —
+  /// ExtensionPermissionEnforcer.assertAuthorized() runs before any
+  /// network call. Throttled tighter than the global default (100/60s)
+  /// because every call here makes a real outbound HTTP request to a
+  /// (workspace-controlled but still external) URL.
+  @Post(':id/invoke')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Invoke a registered extension (permission-checked, SSRF-guarded HTTP call to its entrypoint)' })
+  invoke(
+    @Param('id') id: string,
+    @Body() dto: InvokeExtensionDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ExtensionInvocationResultDto> {
+    return this.commandBus.execute(new InvokeExtensionCommand(user.id, id, dto));
   }
 }

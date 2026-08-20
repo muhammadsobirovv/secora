@@ -70,3 +70,27 @@ export interface ListExtensionsQueryDto {
   type?: ExtensionType;
   enabled?: boolean;
 }
+
+/// Hardening pass: the real invocation path `ExtensionPermissionEnforcer`
+/// was built for but had no caller. `permission` names which of the
+/// extension's *declared* permissions this specific call is exercising —
+/// the server rejects the call if the extension hasn't declared it (or is
+/// disabled), rather than trusting the caller's word for what the call
+/// does. `input` is opaque, extension-defined payload forwarded verbatim
+/// to `entrypoint`.
+export interface InvokeExtensionRequestDto {
+  permission: ExtensionPermission;
+  input?: Record<string, unknown>;
+}
+
+/// Result of a synchronous HTTP call to `entrypoint`. `body` is the
+/// entrypoint's raw JSON response (or `undefined` if it didn't return
+/// JSON) — this registry does not interpret or validate it, matching the
+/// registry's own scope (authorize + relay, not execute).
+export interface ExtensionInvocationResultDto {
+  ok: boolean;
+  statusCode: number | null;
+  durationMs: number;
+  body?: unknown;
+  error?: string;
+}
