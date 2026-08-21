@@ -2571,6 +2571,16 @@ enum BugBountyNotificationType {
   // action (the only action kind an automation rule may run unattended,
   // per AutomationRule.requiresApproval's doc comment).
   AUTOMATION_RULE_ALERT
+  // Module 17 — Notification engine extensions (task #482). These three
+  // are raised unconditionally by SocNotificationService's EventBus
+  // subscribers (apps/api/src/modules/soc-notifications/) whenever the
+  // corresponding SOC event fires — independent of whether the workspace
+  // has any AUTOMATION_RULE_ALERT-producing automation rule configured.
+  // See that module's doc comment for why baseline SOC notifications are
+  // not made conditional on automation-rule setup.
+  INCIDENT_CREATED
+  SLA_BREACH
+  THREAT_INDICATOR_MATCH
 }
 
 /// `relatedEntityType`/`relatedEntityId` is a loose reference, same
