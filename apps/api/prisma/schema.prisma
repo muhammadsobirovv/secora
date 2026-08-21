@@ -6770,6 +6770,7 @@ model Incident {
   indicatorLinks  IncidentIndicatorLink[]
   evidenceLinks   IncidentEvidenceLink[]
   sessionLinks    IncidentResearchSessionLink[]
+  investigationSessions IncidentInvestigationSession[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, severity])
@@ -6883,6 +6884,88 @@ model IncidentResearchSessionLink {
 
   @@unique([incidentId, researchSessionId])
   @@map("incident_research_session_links")
+}
+
+// --- AI Investigation Workflow (task #472) — defensive lifecycle extension --------
+
+/// Defensive counterpart to `AiInvestigationSession` (Module 16, offensive
+/// recon/vuln-scan orchestration against a `Target`). This session type
+/// is scoped to an `Incident` instead, and — unlike the offensive
+/// version — every step kind is a read-only investigative action
+/// (AI analysis, threat-intel lookup, correlation review, evidence
+/// review); none of them dispatch a job that mutates external systems or
+/// requires re-checking `ScopeEngineService`/`GlobalSecurityPolicyService`
+/// tool permissions, because no ToolRunner-backed tool is ever invoked.
+/// Same 8-state lifecycle as `AiInvestigationStatus` (kept as a separate
+/// enum so the two lifecycles can diverge independently without
+/// cross-module coupling) and the same reuse of `SecurityApprovalService`
+/// for the approval gate (spec: "AI must NOT execute tools without
+/// permission/approval" — applied here even though the steps are
+/// read-only, so an incident's investigative activity stays auditable
+/// and never silently AI-initiated).
+enum IncidentInvestigationStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  APPROVED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model IncidentInvestigationSession {
+  id                String                       @id @default(uuid())
+  workspaceId       String
+  incidentId        String
+  goal              String
+  status            IncidentInvestigationStatus  @default(DRAFT)
+  plan              Json?
+  approvalRequestId String?
+  failureReason     String?
+  createdBy         String
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  completedAt       DateTime?
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  steps    IncidentInvestigationStep[]
+
+  @@index([workspaceId, incidentId])
+  @@index([workspaceId, status])
+  @@map("incident_investigation_sessions")
+}
+
+enum IncidentInvestigationStepStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+/// `kind` is a plain String (not an enum), mirroring
+/// `AiInvestigationStep.kind` — validated at the service layer against a
+/// fixed allowlist (AI_ANALYSIS/THREAT_INTEL_LOOKUP/CORRELATION_REVIEW/
+/// EVIDENCE_REVIEW/MANUAL_REVIEW) so new read-only step kinds can be
+/// added without a migration, while an AI-proposed kind outside the
+/// allowlist is always downgraded to MANUAL_REVIEW rather than executed.
+model IncidentInvestigationStep {
+  id           String                            @id @default(uuid())
+  sessionId    String
+  stepIndex    Int
+  kind         String
+  description  String
+  status       IncidentInvestigationStepStatus  @default(PENDING)
+  output       Json?
+  errorMessage String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  session IncidentInvestigationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, stepIndex])
+  @@map("incident_investigation_steps")
 }
 
 // --- Remediation tracking & verification (task #477, spec sections 21-22) ------

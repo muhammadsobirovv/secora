@@ -400,6 +400,43 @@ export class IncidentsService {
     return (rows as { findingId: string }[]).map((r) => r.findingId);
   }
 
+  /// Module 17 — task #472 (AI Investigation Workflow). Read-only helper,
+  /// same shape as `listLinkedFindingIds`, so `IncidentInvestigationService`
+  /// can build a THREAT_INTEL_LOOKUP step's evidence without reaching into
+  /// this service's private `linkTables` cast or bypassing the
+  /// workspace-ownership check.
+  async listLinkedIndicatorIds(id: string, workspaceId: string): Promise<string[]> {
+    await this.requireOwnedRow(id, workspaceId);
+    const rows = await this.linkTables.incidentIndicatorLink.findMany({ where: { incidentId: id } });
+    return (rows as { indicatorId: string }[]).map((r) => r.indicatorId);
+  }
+
+  /// Module 17 — task #472 (AI Investigation Workflow). Read-only helper
+  /// backing an EVIDENCE_REVIEW step's evidence-count summary.
+  async listLinkedEvidenceIds(id: string, workspaceId: string): Promise<string[]> {
+    await this.requireOwnedRow(id, workspaceId);
+    const rows = await this.linkTables.incidentEvidenceLink.findMany({ where: { incidentId: id } });
+    return (rows as { evidenceId: string }[]).map((r) => r.evidenceId);
+  }
+
+  /// Module 17 — task #472 (AI Investigation Workflow). Writes the
+  /// previously-unused `APPROVAL` timeline event type when an incident
+  /// investigation plan is approved/denied — makes that decision visible
+  /// on the incident's own timeline, not just inside the investigation
+  /// session record. Append-only, `actorUserId` is always the human
+  /// decider (never null, unlike `appendAiAnalysisEvent` — an approval
+  /// decision is always a human action).
+  async appendApprovalEvent(
+    id: string,
+    workspaceId: string,
+    actorUserId: string,
+    description: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    await this.requireOwnedRow(id, workspaceId);
+    await this.appendTimeline(id, 'APPROVAL', actorUserId, description, metadata);
+  }
+
   /// Module 17 — task #471 (AI SOC Analyst). The ONLY way an AI-generated
   /// analysis touches an Incident: one append-only `AI_ANALYSIS` timeline
   /// row, visible to the team and never mutating `severity`/`status`/any
