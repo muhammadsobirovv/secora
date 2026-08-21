@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThreatIntelModule } from '../threat-intel/threat-intel.module.js';
 import { TechnologyDetectionService } from './technology-detection.service.js';
 import { AssetGraphService } from './asset-graph.service.js';
 import { ChangeDetectionService } from './change-detection.service.js';
@@ -16,7 +17,15 @@ import { CveIntelligenceController } from './controllers/cve-intelligence.contro
 /// global CqrsModule.forRoot() EventBus, see app.module.ts's doc comment
 /// on CQRS wiring), so there's no risk of a circular module dependency
 /// even though this reads Recon's own Prisma tables directly.
+///
+/// Module 17 (task #469) imports `ThreatIntelModule` for exactly one
+/// reason: so `ReconJobCompletedIntelligenceHandler` can inject
+/// `ThreatMatchService` and call it alongside `VulnerabilityMatchingService`
+/// — reusing this module's existing single Recon-completion subscriber
+/// rather than adding a second one (see `ThreatIntelModule`'s own doc
+/// comment). Not circular: `ThreatIntelModule` does not import this module.
 @Module({
+  imports: [ThreatIntelModule],
   controllers: [IntelligenceController, CveIntelligenceController],
   providers: [
     TechnologyDetectionService,

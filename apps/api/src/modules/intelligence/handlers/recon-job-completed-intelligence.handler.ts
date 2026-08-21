@@ -6,6 +6,7 @@ import { AssetGraphService } from '../asset-graph.service.js';
 import { ChangeDetectionService } from '../change-detection.service.js';
 import { FindingCorrelationService } from '../finding-correlation.service.js';
 import { VulnerabilityMatchingService } from '../vulnerability-matching.service.js';
+import { ThreatMatchService } from '../../threat-intel/threat-match.service.js';
 
 /// Module 16 — tasks #372-376. Runs Technology detection, then Asset
 /// Graph rebuild (which reads the freshly-upserted Technology rows), then
@@ -26,6 +27,7 @@ export class ReconJobCompletedIntelligenceHandler
     private readonly changeDetection: ChangeDetectionService,
     private readonly findingCorrelation: FindingCorrelationService,
     private readonly vulnerabilityMatching: VulnerabilityMatchingService,
+    private readonly threatMatch: ThreatMatchService,
   ) {}
 
   async handle(event: ReconJobCompletedEvent): Promise<void> {
@@ -76,8 +78,21 @@ export class ReconJobCompletedIntelligenceHandler
       this.logger.warn(`Vulnerability matching failed for target ${targetId}: ${String(error)}`);
     }
 
+    // Module 17 — task #469. Independent of vulnerability matching (no
+    // read-after-write dependency either direction) — placed alongside it
+    // since both are "derive proposed correlations against this target's
+    // fresh asset graph" steps.
     try {
-      await this.findingCorrelation.runForTarget(event.workspaceId, event.projectId, targetId);
+      await this.threatMatch.runForTarget(event.workspaceId, event.projectId, targetId);
+    } catch (error: unknown) {
+      this.logger.warn(`Threat match correlation failed for target ${targetId}: ${String(error)}`);
+    }
+
+    try {
+      // event.jobId is passed so the Change Intelligence heuristic (task
+      // #464) can scope its ChangeDetectionEvent read to exactly this
+      // run's diff — see FindingCorrelationService.detectChangeIntelligence.
+      await this.findingCorrelation.runForTarget(event.workspaceId, event.projectId, targetId, event.jobId);
     } catch (error: unknown) {
       this.logger.warn(`Finding correlation failed for target ${targetId}: ${String(error)}`);
     }

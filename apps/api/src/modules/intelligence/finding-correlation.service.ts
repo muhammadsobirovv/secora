@@ -43,6 +43,18 @@ function toDto(row: CorrelationInsightRow): CorrelationInsightDto {
 ///      showing a missing security header (CSP/HSTS/X-Frame-Options) on a
 ///      target that also has a URL finding matching a sensitive-looking
 ///      path (/admin, /api, /login, ...).
+///
+/// Module 17 — task #464 (Change Intelligence) adds a fourth heuristic,
+/// `detectChangeIntelligence`, which is different in kind from the three
+/// above: instead of re-evaluating the target's full current state, it
+/// reads only the `ChangeDetectionEvent` rows this specific recon run just
+/// produced (`ChangeDetectionService.diffLatestForTarget`, which already
+/// runs earlier in the same event handler) and flags the ones that
+/// represent newly-appeared attack surface — a new subdomain/asset, or a
+/// newly-opened port. This is "Potential Exposure" in the spec's sense:
+/// not a new scan finding, but a *change* worth an analyst's attention
+/// specifically because it's new, which the three static heuristics above
+/// would silently re-derive every run without ever calling out.
 const SENSITIVE_PORTS: Record<string, string> = {
   '21': 'FTP', '23': 'Telnet', '3389': 'RDP', '6379': 'Redis',
   '9200': 'Elasticsearch', '27017': 'MongoDB', '5432': 'PostgreSQL',
@@ -60,6 +72,7 @@ export class FindingCorrelationService {
     workspaceId: string,
     projectId: string,
     targetId: string,
+    reconJobId?: string,
   ): Promise<number> {
     const insights: Array<{
       kind: string;
@@ -72,6 +85,13 @@ export class FindingCorrelationService {
     insights.push(...(await this.detectExposedServices(targetId)));
     insights.push(...(await this.detectOutdatedTechWithCve(targetId)));
     insights.push(...(await this.detectMissingHeadersOnSensitivePaths(targetId)));
+    // reconJobId is optional so callers that only have a target (e.g. a
+    // future manual "re-run correlation" action) still work — Change
+    // Intelligence simply has nothing to say without a specific run to
+    // diff against.
+    if (reconJobId) {
+      insights.push(...(await this.detectChangeIntelligence(targetId, reconJobId)));
+    }
 
     if (insights.length === 0) return 0;
 
@@ -179,5 +199,62 @@ export class FindingCorrelationService {
         relatedRefs: { missingHeaders: missing, sampleUrls: sensitiveUrls.slice(0, 5).map((u) => u.value) },
       },
     ];
+  }
+
+  /// Module 17 — task #464. Reads only the `ChangeDetectionEvent` rows
+  /// stamped with this specific `reconJobId` (i.e. exactly the diff
+  /// `ChangeDetectionService.diffLatestForTarget` just computed for this
+  /// run — see that service's own `previousJob` lookup) rather than
+  /// re-scanning all recon findings, so this never double-fires for a
+  /// subdomain/port that was already flagged on a prior run. Only
+  /// NEW_SUBDOMAIN and NEW_PORT currently apply — `ChangeDetectionService`
+  /// does not yet emit NEW_ENDPOINT/CHANGED_TECHNOLOGY/etc (see that
+  /// model's enum comment), so this heuristic is honest about only
+  /// covering what actually gets produced today.
+  private async detectChangeIntelligence(targetId: string, reconJobId: string) {
+    const events = await (
+      this.prisma as unknown as {
+        changeDetectionEvent: {
+          findMany: (args: unknown) => Promise<
+            { id: string; changeType: string; entityRef: string }[]
+          >;
+        };
+      }
+    ).changeDetectionEvent.findMany({
+      where: { targetId, reconJobId, changeType: { in: ['NEW_SUBDOMAIN', 'NEW_PORT'] } },
+      take: 200,
+    });
+
+    const out: Array<{ kind: string; title: string; description: string; severity: string | null; relatedRefs: unknown }> = [];
+
+    for (const event of events) {
+      if (event.changeType === 'NEW_SUBDOMAIN') {
+        out.push({
+          kind: 'NEW_ASSET_POTENTIAL_EXPOSURE',
+          title: `New asset discovered: ${event.entityRef}`,
+          description: `${event.entityRef} was not present in the previous scan of this target and represents new attack surface. Review it (ownership, purpose, exposed services) before assuming it's expected.`,
+          severity: 'LOW',
+          relatedRefs: { subdomain: event.entityRef, changeDetectionEventId: event.id },
+        });
+        continue;
+      }
+
+      // NEW_PORT
+      const portNumber = event.entityRef.match(/\d+/)?.[0];
+      const service = portNumber ? SENSITIVE_PORTS[portNumber] : undefined;
+      out.push({
+        kind: 'NEW_SERVICE_POTENTIAL_EXPOSURE',
+        title: service
+          ? `New exposure: ${service} on port ${portNumber} just opened`
+          : `New open port detected: ${event.entityRef}`,
+        description: service
+          ? `Port ${portNumber} (${service}) was closed in the previous scan of this target and is now open — this is a new, potentially unintentional exposure of a service commonly restricted to internal networks. Verify this change was intentional.`
+          : `Port ${event.entityRef} was closed in the previous scan of this target and is now open. Verify this change was intentional and review what's listening on it.`,
+        severity: service ? 'HIGH' : 'MEDIUM',
+        relatedRefs: { port: event.entityRef, changeDetectionEventId: event.id },
+      });
+    }
+
+    return out;
   }
 }

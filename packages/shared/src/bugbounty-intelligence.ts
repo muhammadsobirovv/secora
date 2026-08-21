@@ -14,9 +14,15 @@ export interface TechnologyDto {
   lastSeenAt: string;
 }
 
+// Extended in Module 17 (task #462) with CIDR, API, SERVICE, MOBILE_APP,
+// HOST, CONTAINER, KUBERNETES_RESOURCE to cover the full Security Asset
+// Inventory type set. Extends the existing enum rather than introducing a
+// parallel "SecurityAsset" type — see apps/api prisma schema.prisma
+// AssetGraphNodeType doc-comment for the matching Prisma-side extension.
 export type AssetGraphNodeType =
   | "DOMAIN" | "SUBDOMAIN" | "IP" | "PORT" | "URL" | "ENDPOINT"
-  | "TECHNOLOGY" | "CERTIFICATE" | "ASN" | "CLOUD_ASSET" | "REPOSITORY" | "FINDING";
+  | "TECHNOLOGY" | "CERTIFICATE" | "ASN" | "CLOUD_ASSET" | "REPOSITORY" | "FINDING"
+  | "CIDR" | "API" | "SERVICE" | "MOBILE_APP" | "HOST" | "CONTAINER" | "KUBERNETES_RESOURCE";
 
 export type AssetGraphEdgeType =
   | "RESOLVES_TO" | "CONTAINS" | "HOSTS" | "USES" | "REDIRECTS_TO"
@@ -75,7 +81,10 @@ export interface ChangeDetectionEventDto {
 
 export type CorrelationInsightKind =
   | "OPEN_PORT_EXPOSED_SERVICE" | "OUTDATED_TECH_KNOWN_CVE" | "SUBDOMAIN_TAKEOVER_DANGLING_DNS"
-  | "MISSING_HEADER_SENSITIVE_ENDPOINT" | "AUTH_WEAKNESS_SENSITIVE_API";
+  | "MISSING_HEADER_SENSITIVE_ENDPOINT" | "AUTH_WEAKNESS_SENSITIVE_API"
+  // Module 17 — Change Intelligence (task #464): fired only for facts that
+  // are new since the previous scan (see FindingCorrelationService).
+  | "NEW_ASSET_POTENTIAL_EXPOSURE" | "NEW_SERVICE_POTENTIAL_EXPOSURE";
 
 export interface CorrelationInsightDto {
   id: string;

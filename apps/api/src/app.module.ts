@@ -81,6 +81,16 @@ import { ResearcherMemoryModule } from './modules/researcher-memory/researcher-m
 import { KnowledgeGraphModule } from './modules/knowledge-graph/knowledge-graph.module.js';
 import { ExtensionRegistryModule } from './modules/extension-registry/extension-registry.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
+// Module 17 — Security Operations Center, Threat Intelligence & Autonomous
+// Research Platform (see docs/releases/module-17-release-notes.md once
+// written). Additive-only; nothing above this line was touched.
+import { IncidentsModule } from './modules/incidents/incidents.module.js';
+import { ThreatIntelModule } from './modules/threat-intel/threat-intel.module.js';
+import { MonitoringModule } from './modules/monitoring/monitoring.module.js';
+import { RemediationModule } from './modules/remediation/remediation.module.js';
+import { SlaModule } from './modules/sla/sla.module.js';
+import { RiskModule } from './modules/risk/risk.module.js';
+import { SecurityMetricsModule } from './modules/security-metrics/security-metrics.module.js';
 
 @Module({
   imports: [
@@ -150,6 +160,13 @@ import { RealtimeModule } from './modules/realtime/realtime.module.js';
     KnowledgeGraphModule,
     ExtensionRegistryModule,
     RealtimeModule,
+    IncidentsModule,
+    ThreatIntelModule,
+    MonitoringModule,
+    RemediationModule,
+    SlaModule,
+    RiskModule,
+    SecurityMetricsModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this

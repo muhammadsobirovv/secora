@@ -579,6 +579,37 @@ const envSchema = z.object({
   SECURITY_NEWS_PROVIDER: z.enum(['none', 'rss']).default('none'),
   SECURITY_NEWS_FEED_URLS: z.string().optional(),
 
+  // Module 17 — Threat Intelligence Engine (tasks #465-469). Same shape
+  // and same Community Edition guarantee as CVE_INTELLIGENCE_PROVIDER
+  // above: `none` (default) means `ThreatIntelligenceService` only ever
+  // reads/writes the local `Indicator`/`ThreatActor`/... cache — no
+  // outbound network call, no key required. `cisa_kev`/`nvd`/`osv` reuse
+  // the same free public feeds `CveIntelligenceService` already talks to
+  // (kept as separate config so an operator can enable CVE enrichment
+  // without also enabling indicator ingestion, or vice versa);
+  // `stix_taxii` polls an operator-configured TAXII 2.1 collection;
+  // `vendor` is a deployment-specific feed URL.
+  THREAT_INTEL_PROVIDER: z
+    .enum(['none', 'cisa_kev', 'nvd', 'osv', 'github_advisories', 'stix_taxii', 'vendor'])
+    .default('none'),
+  THREAT_INTEL_REFRESH_INTERVAL_HOURS: z.coerce.number().int().positive().default(24),
+  // Required only when THREAT_INTEL_PROVIDER=stix_taxii — a TAXII 2.1
+  // server root + collection id an operator has already been granted
+  // access to. This platform is a TAXII *client* only; it never stands up
+  // its own TAXII server.
+  THREAT_INTEL_TAXII_SERVER_URL: z.string().optional(),
+  THREAT_INTEL_TAXII_COLLECTION_ID: z.string().optional(),
+  THREAT_INTEL_TAXII_API_KEY: z.string().optional(),
+  // Required only when THREAT_INTEL_PROVIDER=vendor — the operator's own
+  // indicator feed endpoint, expected to return a JSON array of
+  // {type, value, confidence?, description?} objects (see
+  // docs/architecture/threat-intelligence.md).
+  THREAT_INTEL_VENDOR_URL: z.string().optional(),
+  // Bounds how many indicators a single refresh/import call may write in
+  // one request — never unbounded, matching every other bulk-ingest path
+  // in this codebase (Recon findings, STIX bundle import, ...).
+  THREAT_INTEL_MAX_INDICATORS_PER_IMPORT: z.coerce.number().int().positive().default(1000),
+
   // Module 16 — Terminal workspace + safe command execution (task #388).
   // Bounds every ad-hoc command the same way RECON_JOB_TIMEOUT_SECONDS
   // already bounds a Recon job — never unbounded.

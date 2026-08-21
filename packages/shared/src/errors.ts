@@ -299,4 +299,31 @@ export type AppErrorCode =
   | "EXTENSION_ALREADY_REGISTERED"
   | "EXTENSION_MANIFEST_INVALID"
   | "EXTENSION_PERMISSION_NOT_DECLARED"
-  | "EXTENSION_DISABLED_CANNOT_INVOKE";
+  | "EXTENSION_DISABLED_CANNOT_INVOKE"
+  // Module 17 — Continuous Attack Surface Monitoring (task #463).
+  | "MONITORING_JOB_NOT_FOUND"
+  | "MONITORING_JOB_ALREADY_EXISTS"
+  | "MONITORING_JOB_CRON_REQUIRED"
+  // Module 17 — Incident Management (task #470).
+  | "INCIDENT_NOT_FOUND"
+  // Module 17 — Threat Intelligence / Indicator management (tasks #465-469).
+  | "INDICATOR_NOT_FOUND"
+  | "THREAT_ACTOR_NOT_FOUND"
+  | "THREAT_CAMPAIGN_NOT_FOUND"
+  | "THREAT_REPORT_NOT_FOUND"
+  | "THREAT_MATCH_NOT_FOUND"
+  | "THREAT_INTEL_PROVIDER_NOT_CONFIGURED"
+  | "THREAT_INTEL_PROVIDER_FETCH_FAILED"
+  | "THREAT_INTEL_IMPORT_INVALID"
+  // Module 17 — Remediation tracking (task #477).
+  | "REMEDIATION_TASK_NOT_FOUND"
+  | "REMEDIATION_EVIDENCE_LINK_NOT_FOUND"
+  // "verification must require actual evidence" (spec section 22) — thrown
+  // when a caller tries to move a finding to VERIFIED, or a remediation
+  // task to CLOSED for a finding-linked task, without a real Evidence row.
+  | "VERIFICATION_REQUIRES_EVIDENCE"
+  | "REMEDIATION_TASK_CLOSE_REQUIRES_FINDING_VERIFIED"
+  // Module 17 — Risk Engine v2 (task #474/#475).
+  | "RISK_SNAPSHOT_TARGET_REQUIRED"
+  // Module 17 — Automation rules (task #487).
+  | "AUTOMATION_RULE_NOT_FOUND";
