@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type {
   AssetGraphNodeType,
   CreateIncidentRequestDto,
@@ -13,6 +14,7 @@ import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SlaService } from '../sla/sla.service.js';
+import { IncidentCreatedEvent } from './events/incident-created.event.js';
 
 interface IncidentRow {
   id: string;
@@ -101,6 +103,7 @@ export class IncidentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sla: SlaService,
+    private readonly eventBus: EventBus,
   ) {}
 
   private get incidentTable() {
@@ -213,6 +216,17 @@ export class IncidentsService {
       await this.sla.startClock(workspaceId, dto.severity, { incidentId: row.id });
     } catch (error: unknown) {
       this.logger.warn(`Failed to start SLA clock for incident ${row.id}: ${String(error)}`);
+    }
+
+    // Module 17 — task #482 (Notification engine extensions). Published
+    // after the incident row + timeline + audit entry are already
+    // durably committed — a failure to publish (or a downstream
+    // notification handler failure) must never roll back or block
+    // incident creation itself. See IncidentCreatedEvent's doc comment.
+    try {
+      this.eventBus.publish(new IncidentCreatedEvent(workspaceId, row.id, dto.severity, dto.title, userId));
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to publish IncidentCreatedEvent for incident ${row.id}: ${String(error)}`);
     }
 
     return toDto(row);

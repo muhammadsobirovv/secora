@@ -1077,7 +1077,19 @@ export type BugBountyNotificationType =
   | "REPORT_DEADLINE"
   | "REMINDER"
   | "PROGRAM_UPDATE"
-  | "AI_RECOMMENDATION";
+  | "AI_RECOMMENDATION"
+  // Module 10 — Automation Engine (Workflow `notify` step).
+  | "WORKFLOW_ALERT"
+  // Module 15 — AI cost control (task #340).
+  | "AI_BUDGET_ALERT"
+  // Module 17 — Automation rules engine (task #487).
+  | "AUTOMATION_RULE_ALERT"
+  // Module 17 — Notification engine extensions (task #482). Raised
+  // unconditionally by SocNotificationService's EventBus subscribers —
+  // see apps/api/src/modules/soc-notifications/'s doc comments.
+  | "INCIDENT_CREATED"
+  | "SLA_BREACH"
+  | "THREAT_INDICATOR_MATCH";
 
 export interface BugBountyNotificationDto {
   id: string;
