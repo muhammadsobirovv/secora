@@ -26,6 +26,25 @@ export const SECURITY_METRICS_ENDPOINTS = {
   trend: () => "security-metrics/trend",
 } as const;
 
+// Module 17 — task #467 (Indicator management frontend). Shares the
+// `intel` route prefix `ThreatIntelController` already established
+// (see that controller's own doc comment for why it isn't merged with
+// `CveIntelligenceController`'s `cve`/`cve-matches` sub-paths).
+export const THREAT_INTEL_ENDPOINTS = {
+  indicators: () => "intel/indicators",
+  indicator: (id: string) => `intel/indicators/${id}`,
+  setIndicatorStatus: (id: string) => `intel/indicators/${id}/status`,
+  actors: () => "intel/actors",
+  campaigns: () => "intel/campaigns",
+  reports: () => "intel/reports",
+  techniques: () => "intel/techniques",
+  relationships: (objectType: string, objectId: string) => `intel/relationships/${objectType}/${objectId}`,
+  importLogs: () => "intel/import-logs",
+  refresh: () => "intel/refresh",
+  importStix: () => "intel/import/stix",
+  taxiiPoll: () => "intel/taxii/poll",
+} as const;
+
 export const INCIDENT_ENDPOINTS = {
   list: () => "incidents",
   create: () => "incidents",
