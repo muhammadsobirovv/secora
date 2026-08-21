@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { KnowledgeGraphService } from './knowledge-graph.service.js';
 
 /// Module 16 — Knowledge Graph query layer (task #391). Covers the two
@@ -81,5 +82,62 @@ describe('KnowledgeGraphService', () => {
     const path = await service.findPath('workspace-1', 'TARGET', 'target-1', 'TARGET', 'target-1', 3);
 
     expect(path).toEqual([{ node: expect.objectContaining({ id: 'target-1' }), relation: null }]);
+  });
+});
+
+/// Module 17 — task #488 (Multi-tenant security tests). Extends the
+/// Module 16 coverage above to the six node types task #484 added.
+/// `KnowledgeGraphService`'s own doc comment claims graph isolation is
+/// true "by construction": every node resolver threads `workspaceId`
+/// into the underlying table's own `findFirst`, so crossing into
+/// another workspace would require that workspace's id to already be
+/// known — no caller of this service ever supplies one. These tests
+/// verify that claim for a strictly-scoped M17 entity (INCIDENT —
+/// `where: { id, workspaceId }`, no exemption) and a shared-cache M17
+/// entity (THREAT_ACTOR — `OR: [{ workspaceId }, { workspaceId: null }]`,
+/// same posture as `IndicatorsService`).
+describe('KnowledgeGraphService.getNode (task #484 node types — workspace isolation)', () => {
+  function buildService() {
+    const incidentFindFirst = jest.fn<(args: unknown) => Promise<unknown>>();
+    const threatActorFindFirst = jest.fn<(args: unknown) => Promise<unknown>>();
+
+    const prisma = {
+      incident: { findFirst: incidentFindFirst },
+      threatActor: { findFirst: threatActorFindFirst },
+    } as unknown as ConstructorParameters<typeof KnowledgeGraphService>[0];
+
+    const service = new KnowledgeGraphService(prisma);
+    return { service, incidentFindFirst, threatActorFindFirst };
+  }
+
+  it('resolves INCIDENT with a strict workspaceId filter (no shared-cache exemption)', async () => {
+    const { service, incidentFindFirst } = buildService();
+    incidentFindFirst.mockResolvedValue({ id: 'incident-1', title: 'Incident', severity: 'HIGH', projectId: 'p1' });
+
+    await service.getNode('ws-mine', 'INCIDENT', 'incident-1');
+
+    expect(incidentFindFirst).toHaveBeenCalledWith({
+      where: { id: 'incident-1', workspaceId: 'ws-mine' },
+    });
+  });
+
+  it('resolves THREAT_ACTOR with the shared-cache OR scope, not a strict workspaceId filter', async () => {
+    const { service, threatActorFindFirst } = buildService();
+    threatActorFindFirst.mockResolvedValue({ id: 'actor-1', name: 'APT-Example', aliases: [], source: 'MISP' });
+
+    await service.getNode('ws-mine', 'THREAT_ACTOR', 'actor-1');
+
+    expect(threatActorFindFirst).toHaveBeenCalledWith({
+      where: { id: 'actor-1', OR: [{ workspaceId: 'ws-mine' }, { workspaceId: null }] },
+    });
+  });
+
+  it('throws KNOWLEDGE_GRAPH_NODE_NOT_FOUND when the underlying scoped query finds nothing (cross-workspace or missing, indistinguishable)', async () => {
+    const { service, incidentFindFirst } = buildService();
+    incidentFindFirst.mockResolvedValue(null);
+
+    await expect(service.getNode('ws-mine', 'INCIDENT', 'incident-elsewhere')).rejects.toMatchObject({
+      code: 'KNOWLEDGE_GRAPH_NODE_NOT_FOUND',
+    });
   });
 });
