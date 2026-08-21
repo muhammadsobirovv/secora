@@ -41,7 +41,39 @@ export type GlobalSearchResultType =
   | "TASK"
   | "PLUGIN"
   | "WORKFLOW"
-  | "SECURITY_ADVISORY";
+  | "SECURITY_ADVISORY"
+  // Module 17 — Global Search extension (task #483). Composed into
+  // `GlobalSearchHandler` via `SearchSocQuery`/`SearchSocHandler`
+  // (apps/api/src/modules/search/queries/search-soc.query.ts), same
+  // "QueryBus.execute() composition, no direct handler import" pattern
+  // this file's own doc comment above describes for BugBounty/Plugin/
+  // Workflow/SecurityAdvisory.
+  | "INCIDENT"
+  | "ASSET_GRAPH_NODE"
+  | "INDICATOR"
+  | "THREAT_ACTOR"
+  | "THREAT_CAMPAIGN"
+  | "REMEDIATION_TASK";
+
+/// Module 17 — Global Search extension (task #483). Mirrors
+/// `BugBountySearchResultDto`'s shape exactly — `SearchSocHandler`'s own
+/// intermediate result type, before `GlobalSearchHandler` merges it into
+/// `GlobalSearchResultDto` (adding `projectId: null`, same as it already
+/// does for `BugBountySearchResultDto` results).
+export type SocSearchResultType =
+  | "INCIDENT"
+  | "ASSET_GRAPH_NODE"
+  | "INDICATOR"
+  | "THREAT_ACTOR"
+  | "THREAT_CAMPAIGN"
+  | "REMEDIATION_TASK";
+
+export interface SocSearchResultDto {
+  type: SocSearchResultType;
+  id: string;
+  title: string;
+  snippet: string | null;
+}
 
 export interface GlobalSearchResultDto {
   type: GlobalSearchResultType;

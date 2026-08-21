@@ -4,6 +4,7 @@ import { SEARCH_SERVICE } from './domain/search-service.interface.js';
 import { PrismaIlikeSearchService } from './infrastructure/prisma-ilike-search.service.js';
 import { SearchHandler } from './queries/search.query.js';
 import { GlobalSearchHandler } from './queries/global-search.query.js';
+import { SearchSocHandler } from './queries/search-soc.query.js';
 import { SearchController } from './controllers/search.controller.js';
 
 // Module 15 — Global Search unification (task #339). `GlobalSearchHandler`
@@ -20,6 +21,7 @@ import { SearchController } from './controllers/search.controller.js';
     { provide: SEARCH_SERVICE, useClass: PrismaIlikeSearchService },
     SearchHandler,
     GlobalSearchHandler,
+    SearchSocHandler,
   ],
 })
 export class SearchModule {}
