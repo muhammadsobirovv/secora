@@ -18,7 +18,22 @@ export type KnowledgeGraphNodeType =
   | "NOTE"
   | "AI_CONVERSATION"
   | "PLUGIN"
-  | "KNOWLEDGE_DOCUMENT";
+  | "KNOWLEDGE_DOCUMENT"
+  // Module 17 — Knowledge Graph extension (task #484). Same "computed
+  // from existing foreign keys, no separate store" design as every type
+  // above — see KnowledgeGraphService's per-type resolvers. THREAT_ACTOR/
+  // THREAT_CAMPAIGN/INDICATOR relationships route through the existing
+  // ThreatRelationship catalog table (apps/api's threat-intel module);
+  // nothing currently writes rows to it (STIX import doesn't populate
+  // relationships yet), so those three types resolve correctly but may
+  // return no relationships until that data exists — a disclosed
+  // limitation of the underlying data, not this query layer.
+  | "THREAT_ACTOR"
+  | "THREAT_CAMPAIGN"
+  | "INDICATOR"
+  | "INCIDENT"
+  | "REMEDIATION_TASK"
+  | "ASSET_OWNER";
 
 export interface KnowledgeGraphNodeDto {
   type: KnowledgeGraphNodeType;
