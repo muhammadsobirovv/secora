@@ -243,3 +243,24 @@ export interface DecidePlaybookApprovalRequestDto {
   approve: boolean;
   decisionNote?: string;
 }
+
+// --- Defensive Security Playbooks (Module 17, task #473) -------------------
+//
+// Extends this file, doesn't replace anything above it. `Playbook.category`
+// is (and always was) a free-text string — no schema change was needed to
+// add incident-response categories alongside the existing offensive ones
+// (RECON/PENTEST/BUG_BOUNTY/CLOUD/MOBILE). This is a documented convention,
+// not an enforced enum, so a workspace can still name its own categories
+// freely.
+export const INCIDENT_RESPONSE_PLAYBOOK_CATEGORY = "INCIDENT_RESPONSE";
+
+/// Starts an *existing* playbook (built-in or custom) against an Incident
+/// rather than a Target directly. `IncidentPlaybooksService` resolves the
+/// real `Target` from one of the incident's linked assets and delegates to
+/// the unmodified `PlaybookExecutionService.start()` — this DTO carries no
+/// `targetId` because the caller never supplies one for this entry point.
+export interface RunPlaybookAgainstIncidentRequestDto {
+  incidentId: string;
+  playbookId: string;
+  variableValues?: Record<string, unknown>;
+}

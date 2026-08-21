@@ -94,6 +94,7 @@ import { SecurityMetricsModule } from './modules/security-metrics/security-metri
 import { AutomationRulesModule } from './modules/automation-rules/automation-rules.module.js';
 import { AiSocAnalystModule } from './modules/ai-soc-analyst/ai-soc-analyst.module.js';
 import { IncidentInvestigationModule } from './modules/incident-investigation/incident-investigation.module.js';
+import { IncidentPlaybooksModule } from './modules/incident-playbooks/incident-playbooks.module.js';
 
 @Module({
   imports: [
@@ -173,6 +174,7 @@ import { IncidentInvestigationModule } from './modules/incident-investigation/in
     AutomationRulesModule,
     AiSocAnalystModule,
     IncidentInvestigationModule,
+    IncidentPlaybooksModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this
