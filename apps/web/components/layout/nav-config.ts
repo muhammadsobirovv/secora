@@ -56,6 +56,10 @@ export const PRIMARY_NAV: NavItem[] = [
   // page — no such landing page exists yet (actors/campaigns/reports/
   // techniques catalog browsing is out of scope for this task).
   { label: "Threat Intelligence", href: "/intel/indicators", icon: Fingerprint },
+  // Module 17 — task #481. Point-in-time incident/threat-intel/posture
+  // snapshot reports, composed from already-shipped SOC/Intel/Metrics
+  // reads. Supersedes the old FUTURE_NAV "Reports" placeholder below.
+  { label: "Security Reports", href: "/security-reports", icon: FileBarChart },
   // Module 16 — task #371. Groups Recon/Vuln/Findings/Notes/Evidence/
   // Terminal/AI-conversation activity produced during one research
   // engagement, without moving or re-owning any of that data.
@@ -86,7 +90,6 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 export const FUTURE_NAV: NavItem[] = [
-  { label: "Reports", href: "#", icon: FileBarChart, comingSoon: true },
   { label: "CVE Center", href: "#", icon: ShieldCheck, comingSoon: true },
 ];
 
