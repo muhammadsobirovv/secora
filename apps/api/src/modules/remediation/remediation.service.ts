@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type {
   AssetGraphNodeType,
   CreateRemediationTaskRequestDto,
@@ -12,6 +13,7 @@ import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AiMemoryService } from '../ai/memory/ai-memory.service.js';
+import { RemediationTaskClosedEvent } from './events/remediation-task-closed.event.js';
 
 interface RemediationTaskRow {
   id: string;
@@ -98,6 +100,7 @@ export class RemediationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiMemory: AiMemoryService,
+    private readonly eventBus: EventBus,
   ) {}
 
   /// Module 17 — task #485 (AI Memory extension). `RemediationTask` has
@@ -249,6 +252,22 @@ export class RemediationService {
     });
     await this.audit(userId, 'REMEDIATION_TASK_STATUS_CHANGED', { remediationTaskId: id, workspaceId, from: existing.status, to: status });
     await this.syncTaskMemory(row);
+
+    // Module 17 — task #486 (SOC Event Bus wiring). Only on an actual
+    // CLOSED transition — see RemediationTaskClosedEvent's own doc
+    // comment on why this signal means "verified and closed," not just
+    // "status field changed." Best-effort, published after the row is
+    // already durably committed.
+    if (status === 'CLOSED') {
+      try {
+        this.eventBus.publish(
+          new RemediationTaskClosedEvent(workspaceId, row.id, row.findingId, row.incidentId, row.priority),
+        );
+      } catch (error: unknown) {
+        this.logger.warn(`Failed to publish RemediationTaskClosedEvent for task ${row.id}: ${String(error)}`);
+      }
+    }
+
     return toDto(row);
   }
 

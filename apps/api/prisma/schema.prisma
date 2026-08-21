@@ -2596,6 +2596,11 @@ enum BugBountyNotificationType {
   INCIDENT_CREATED
   SLA_BREACH
   THREAT_INDICATOR_MATCH
+  // Module 17 — SOC Event Bus wiring (task #486). Raised by the same
+  // unconditional EventBus-subscriber pattern as the three values above,
+  // on `RemediationTaskClosedEvent` (RemediationService.setStatus →
+  // CLOSED, after the finding-verification guard already passed).
+  REMEDIATION_TASK_CLOSED
 }
 
 /// `relatedEntityType`/`relatedEntityId` is a loose reference, same

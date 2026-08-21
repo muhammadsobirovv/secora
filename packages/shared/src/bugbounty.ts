@@ -1089,7 +1089,9 @@ export type BugBountyNotificationType =
   // see apps/api/src/modules/soc-notifications/'s doc comments.
   | "INCIDENT_CREATED"
   | "SLA_BREACH"
-  | "THREAT_INDICATOR_MATCH";
+  | "THREAT_INDICATOR_MATCH"
+  // Module 17 — SOC Event Bus wiring (task #486).
+  | "REMEDIATION_TASK_CLOSED";
 
 export interface BugBountyNotificationDto {
   id: string;
