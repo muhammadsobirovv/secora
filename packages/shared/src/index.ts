@@ -100,3 +100,4 @@ export * from "./extension-api.js";
 export * from "./realtime.js";
 export * from "./module16-endpoints.js";
 export * from "./soc-threat-intel.js";
+export * from "./automation-rules.js";

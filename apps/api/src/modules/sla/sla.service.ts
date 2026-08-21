@@ -1,7 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type { SlaEventDto, SlaEventType, SlaPolicyDto, VulnFindingSeverity } from '@pentesthub/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PollerLeaseService } from '../../common/concurrency/poller-lease.service.js';
+import { SlaBreachedEvent } from './events/sla-breached.event.js';
 
 interface SlaPolicyRow {
   id: string;
@@ -75,7 +77,10 @@ const LEASE_TTL_MS = 60_000;
 export class SlaService {
   private readonly logger = new Logger(SlaService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   private get eventTable() {
     return (
@@ -209,7 +214,7 @@ export class SlaService {
       );
       if (alreadyHandled) continue;
 
-      await this.eventTable.create({
+      const breachedRow = await this.eventTable.create({
         data: {
           workspaceId: started.workspaceId,
           incidentId: started.incidentId,
@@ -222,6 +227,20 @@ export class SlaService {
         },
       });
       created += 1;
+
+      // Module 17 — task #487 (Automation rules engine). Best-effort:
+      // the SlaEvent row above is the durable record of the breach
+      // regardless of whether this publish succeeds or any rule matches
+      // it, so a failure here is logged, never rethrown, and never
+      // blocks the rest of this bounded scan.
+      try {
+        const policy = await this.prisma.slaPolicy.findUnique({ where: { id: started.policyId } });
+        this.eventBus.publish(
+          new SlaBreachedEvent(started.workspaceId, breachedRow.id, policy?.severity ?? 'MEDIUM', started.incidentId, started.findingId),
+        );
+      } catch (error: unknown) {
+        this.logger.warn(`Failed to publish SlaBreachedEvent for SlaEvent ${breachedRow.id}: ${String(error)}`);
+      }
     }
     return created;
   }
@@ -231,10 +250,12 @@ export class SlaService {
 /// own `OnModuleInit`/`OnModuleDestroy` + `PollerLeaseService.withLease`
 /// pattern (see that service's doc comment for why hand-rolled
 /// `setInterval` was chosen over `@nestjs/schedule`). A detected breach
-/// only persists an `SlaEvent` row today — there is no Notification
-/// Engine (task #482) or Automation rule (task #487) subscriber wired to
-/// it yet; that wiring is explicit future work, not silently assumed
-/// here.
+/// always persists an `SlaEvent` row and now also publishes a
+/// `SlaBreachedEvent` (task #487) that `AutomationRulesModule` subscribes
+/// to — see that event's own doc comment. There is still no dedicated
+/// Notification Engine (task #482) subscriber; an operator who wants a
+/// notification on every breach configures a `NOTIFY`-action automation
+/// rule with `triggerType: 'SLA_BREACH'` in the meantime.
 @Injectable()
 export class SlaBreachCheckerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SlaBreachCheckerService.name);

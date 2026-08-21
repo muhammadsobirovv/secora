@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type { CorrelationInsightDto } from '@pentesthub/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { NewInternetFacingAssetEvent } from './events/new-internet-facing-asset.event.js';
 
 interface CorrelationInsightRow {
   id: string;
@@ -66,7 +68,10 @@ const SENSITIVE_PATH_PATTERN = /\/(admin|api|login|auth|internal|debug|console)\
 export class FindingCorrelationService {
   private readonly logger = new Logger(FindingCorrelationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async runForTarget(
     workspaceId: string,
@@ -105,6 +110,23 @@ export class FindingCorrelationService {
       data: insights.map((i) => ({ workspaceId, projectId, targetId, ...i })),
     });
     this.logger.log(`Recorded ${result.count} correlation insights for target ${targetId}`);
+
+    // Module 17 — task #487 (Automation rules engine). Only the two
+    // Change Intelligence kinds represent genuinely *new* attack surface
+    // (see `detectChangeIntelligence`'s doc comment) — the three static
+    // heuristics above would re-fire this event every single run without
+    // it, which is exactly the noise an unattended automation rule must
+    // not be exposed to. Best-effort: insights are already durably
+    // recorded above regardless of publish outcome.
+    for (const insight of insights) {
+      if (insight.kind !== 'NEW_ASSET_POTENTIAL_EXPOSURE' && insight.kind !== 'NEW_SERVICE_POTENTIAL_EXPOSURE') continue;
+      try {
+        this.eventBus.publish(new NewInternetFacingAssetEvent(workspaceId, targetId, insight.kind, insight.severity, insight.title));
+      } catch (error: unknown) {
+        this.logger.warn(`Failed to publish NewInternetFacingAssetEvent for target ${targetId}: ${String(error)}`);
+      }
+    }
+
     return result.count;
   }
 

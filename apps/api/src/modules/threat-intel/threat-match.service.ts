@@ -1,7 +1,9 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type { AssetGraphNodeType, ThreatMatchAnalystStatus, ThreatMatchDto } from '@pentesthub/shared';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { IndicatorMatchedEvent } from './events/indicator-matched.event.js';
 
 interface AssetNodeRow {
   id: string;
@@ -82,7 +84,10 @@ const INDICATOR_SCAN_LIMIT = 5000;
 export class ThreatMatchService {
   private readonly logger = new Logger(ThreatMatchService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   private get assetRepo() {
     return (this.prisma as unknown as { assetGraphNode: { findMany: (args: unknown) => Promise<AssetNodeRow[]> } }).assetGraphNode;
@@ -193,7 +198,7 @@ export class ThreatMatchService {
       await this.matchRepo.update({ where: { id: existing.id }, data: { confidence, evidence } });
       return;
     }
-    await this.matchRepo.create({
+    const created = await this.matchRepo.create({
       data: {
         workspaceId,
         projectId,
@@ -206,5 +211,15 @@ export class ThreatMatchService {
         evidence,
       },
     });
+
+    // Module 17 — task #487 (Automation rules engine). Only on genuine
+    // creation — see `IndicatorMatchedEvent`'s own doc comment. Best-
+    // effort: the ThreatMatch row above is already durably recorded
+    // either way.
+    try {
+      this.eventBus.publish(new IndicatorMatchedEvent(workspaceId, created.id, indicator.type, confidence, targetId));
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to publish IndicatorMatchedEvent for ThreatMatch ${created.id}: ${String(error)}`);
+    }
   }
 }

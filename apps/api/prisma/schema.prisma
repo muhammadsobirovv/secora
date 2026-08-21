@@ -2567,6 +2567,10 @@ enum BugBountyNotificationType {
   // AiBudgetEnforcerService when a workspace crosses a soft (warning) or
   // hard (blocked) AiBudgetPolicy limit.
   AI_BUDGET_ALERT
+  // Module 17 — Automation rules engine (task #487): raised by a NOTIFY
+  // action (the only action kind an automation rule may run unattended,
+  // per AutomationRule.requiresApproval's doc comment).
+  AUTOMATION_RULE_ALERT
 }
 
 /// `relatedEntityType`/`relatedEntityId` is a loose reference, same
