@@ -95,6 +95,7 @@ import { AutomationRulesModule } from './modules/automation-rules/automation-rul
 import { AiSocAnalystModule } from './modules/ai-soc-analyst/ai-soc-analyst.module.js';
 import { IncidentInvestigationModule } from './modules/incident-investigation/incident-investigation.module.js';
 import { IncidentPlaybooksModule } from './modules/incident-playbooks/incident-playbooks.module.js';
+import { SecurityReportingModule } from './modules/security-reporting/security-reporting.module.js';
 
 @Module({
   imports: [
@@ -175,6 +176,7 @@ import { IncidentPlaybooksModule } from './modules/incident-playbooks/incident-p
     AiSocAnalystModule,
     IncidentInvestigationModule,
     IncidentPlaybooksModule,
+    SecurityReportingModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this

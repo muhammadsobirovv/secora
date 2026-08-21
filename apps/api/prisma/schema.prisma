@@ -7227,3 +7227,50 @@ model AutomationRuleExecutionLog {
   @@index([ruleId, createdAt])
   @@map("automation_rule_execution_logs")
 }
+
+// --- Security Reporting (task #481, spec section 24 — Report Builder) ------------
+//
+// Deliberately a NEW, workspace-scoped model rather than an extension of
+// either existing report generator:
+//   - `BugReport` is structurally bug-bounty-only — `programId` is a
+//     required, cascading FK to `BugBountyProgram`, and its renderer
+//     (`renderBugReportTemplate`) is typed to `{BugReport, BugBountyProgram,
+//     BugBountyFinding}`. Attaching Incident/Indicator/RemediationTask
+//     content there would mean adding a polymorphic source discriminator
+//     to a Module 6/9 model this session must not rewrite.
+//   - `EnterpriseReport` is the closer structural cousin (a JSON-content
+//     snapshot, no per-report template), but it's Organization-scoped
+//     (`organizationId`) — Enterprise Edition's tenant concept. Building
+//     SOC reporting only on top of it would make it a paid-tier-only
+//     feature, violating the Community Edition guarantee. `SecurityReport`
+//     copies its shape (JSON content blob, no rendering pipeline needed
+//     yet) but keys off `workspaceId` only, so a Community Edition
+//     workspace (no Organization) can generate one.
+// Content is a computed JSON snapshot built by composing the *existing*
+// Incidents/SLA/Remediation/ThreatIntel/SecurityMetrics services — no
+// duplicated aggregation logic, matching this session's "extend, don't
+// rewrite" + "reuse existing report infrastructure" constraints applied
+// at the pattern level (JSON-snapshot report) rather than the model level
+// (a Module 6-owned table).
+
+enum SecurityReportType {
+  INCIDENT_SUMMARY
+  THREAT_INTEL_SUMMARY
+  POSTURE_SUMMARY
+}
+
+model SecurityReport {
+  id            String             @id @default(uuid())
+  workspaceId   String
+  type          SecurityReportType
+  title         String
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  contentJson   Json
+  generatedBy   String?
+  generatedByAi Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+
+  @@index([workspaceId, type, createdAt])
+  @@map("security_reports")
+}
