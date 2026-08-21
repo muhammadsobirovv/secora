@@ -123,6 +123,10 @@ export interface CreateIndicatorRequestDto {
   expiresAt?: string;
 }
 
+export interface UpdateIndicatorStatusRequestDto {
+  status: IndicatorStatus;
+}
+
 export interface ThreatActorDto {
   id: string;
   workspaceId: string | null;

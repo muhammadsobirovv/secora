@@ -22,6 +22,7 @@ import {
   TerminalSquare,
   Workflow,
   Gauge,
+  Fingerprint,
 } from "lucide-react";
 
 export interface NavItem {
@@ -44,6 +45,11 @@ export const PRIMARY_NAV: NavItem[] = [
   // Module 17 — task #476. Landing view over the already-shipped
   // Remediation (#477) and Security Metrics (#479) reads.
   { label: "Exposure Management", href: "/exposure", icon: Gauge },
+  // Module 17 — task #467. Indicator management. Points at the more
+  // specific /intel/indicators route rather than a bare /intel landing
+  // page — no such landing page exists yet (actors/campaigns/reports/
+  // techniques catalog browsing is out of scope for this task).
+  { label: "Threat Intelligence", href: "/intel/indicators", icon: Fingerprint },
   // Module 16 — task #371. Groups Recon/Vuln/Findings/Notes/Evidence/
   // Terminal/AI-conversation activity produced during one research
   // engagement, without moving or re-owning any of that data.
