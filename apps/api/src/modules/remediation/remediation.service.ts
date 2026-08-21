@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import type {
   AssetGraphNodeType,
   CreateRemediationTaskRequestDto,
@@ -11,6 +11,7 @@ import type {
 import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { AiMemoryService } from '../ai/memory/ai-memory.service.js';
 
 interface RemediationTaskRow {
   id: string;
@@ -92,7 +93,32 @@ function toEvidenceLinkDto(row: RemediationEvidenceLinkRow): RemediationEvidence
 /// subject to this guard — there is no finding whose claim needs proving.
 @Injectable()
 export class RemediationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(RemediationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiMemory: AiMemoryService,
+  ) {}
+
+  /// Module 17 — task #485 (AI Memory extension). `RemediationTask` has
+  /// no title column (see `toDto`'s own synthesis of a display title) —
+  /// reused verbatim here rather than a second synthesis rule. Same
+  /// replace-on-every-call semantics as `IncidentsService.syncIncidentMemory`.
+  private async syncTaskMemory(row: RemediationTaskRow): Promise<void> {
+    const title = `${row.priority} remediation — ${row.owner ?? row.team ?? 'unassigned'}`;
+    try {
+      await this.aiMemory.indexContent({
+        workspaceId: row.workspaceId,
+        projectId: row.projectId,
+        sourceType: 'REMEDIATION_TASK',
+        sourceId: row.id,
+        content: `${title}\n\n${row.notes ?? ''}`.trim(),
+        metadata: { priority: row.priority, status: row.status, findingId: row.findingId, incidentId: row.incidentId },
+      });
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to index AI memory for remediation task ${row.id}: ${String(error)}`);
+    }
+  }
 
   private get taskTable() {
     return (
@@ -145,6 +171,7 @@ export class RemediationService {
       },
     });
     await this.audit(userId, 'REMEDIATION_TASK_CREATED', { remediationTaskId: row.id, workspaceId, findingId: dto.findingId ?? null });
+    await this.syncTaskMemory(row);
     return toDto(row);
   }
 
@@ -191,6 +218,7 @@ export class RemediationService {
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
       },
     });
+    await this.syncTaskMemory(row);
     return toDto(row);
   }
 
@@ -220,6 +248,7 @@ export class RemediationService {
       data: { status, closedAt: status === 'CLOSED' ? new Date() : existing.closedAt },
     });
     await this.audit(userId, 'REMEDIATION_TASK_STATUS_CHANGED', { remediationTaskId: id, workspaceId, from: existing.status, to: status });
+    await this.syncTaskMemory(row);
     return toDto(row);
   }
 
