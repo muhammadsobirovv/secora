@@ -326,4 +326,6 @@ export type AppErrorCode =
   // Module 17 — Risk Engine v2 (task #474/#475).
   | "RISK_SNAPSHOT_TARGET_REQUIRED"
   // Module 17 — Automation rules (task #487).
-  | "AUTOMATION_RULE_NOT_FOUND";
+  | "AUTOMATION_RULE_NOT_FOUND"
+  | "AUTOMATION_RULE_ACTION_INVALID"
+  | "AUTOMATION_APPROVAL_NOT_AUTOMATION_RULE";

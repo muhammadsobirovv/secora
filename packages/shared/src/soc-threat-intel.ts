@@ -506,30 +506,10 @@ export interface RiskScoreV2ResultDto {
   factors: RiskFactorsV2Dto;
 }
 
-// --- Automation rules ----------------------------------------------------------
-
-export type AutomationRuleTriggerType = "KEV_MATCH" | "INDICATOR_MATCH" | "SLA_BREACH" | "NEW_INTERNET_FACING_ASSET" | "CUSTOM";
-export type AutomationRuleStatus = "ENABLED" | "DISABLED";
-
-/// `requiresApproval` defaults true — an automation rule whose action
-/// invokes a tool or launches a playbook is routed through the existing
-/// SecurityApprovalService/ScopeEngine exactly like a manual trigger
-/// would be. Only pure notification-only actions may run without an
-/// approval gate, and that is a server-side action-kind check, not
-/// something a client can request by clearing this flag.
-export interface AutomationRuleDto {
-  id: string;
-  workspaceId: string;
-  name: string;
-  description: string | null;
-  triggerType: AutomationRuleTriggerType;
-  triggerConfig: Record<string, unknown>;
-  actionConfig: Record<string, unknown>;
-  status: AutomationRuleStatus;
-  requiresApproval: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+// --- Automation rules -----------------------------------------------------------
+// Moved to automation-rules.ts (task #487) — that file has the full,
+// typed `AutomationRuleActionConfig` union (`NOTIFY`/`CREATE_INCIDENT`/
+// `CREATE_REMEDIATION_TASK`) this placeholder didn't have yet.
 
 // --- Security Metrics (task #479) -----------------------------------------------
 //
