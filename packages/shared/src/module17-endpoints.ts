@@ -60,3 +60,10 @@ export const INCIDENT_ENDPOINTS = {
   linkResearchSession: (id: string) => `incidents/${id}/links/research-sessions`,
   aiAnalysis: (id: string) => `incidents/${id}/ai-analysis`,
 } as const;
+
+// Module 17 — task #480 (SOC dashboard + Executive Security dashboard).
+export const SLA_ENDPOINTS = {
+  policies: () => "sla/policies",
+  upsertPolicy: () => "sla/policies",
+  events: () => "sla/events",
+} as const;
