@@ -14,6 +14,13 @@ export const KNOWLEDGE_GRAPH_NODE_TYPES: KnowledgeGraphNodeType[] = [
   'AI_CONVERSATION',
   'PLUGIN',
   'KNOWLEDGE_DOCUMENT',
+  // Module 17 — task #484.
+  'THREAT_ACTOR',
+  'THREAT_CAMPAIGN',
+  'INDICATOR',
+  'INCIDENT',
+  'REMEDIATION_TASK',
+  'ASSET_OWNER',
 ];
 
 export class KnowledgeGraphSearchQueryParamsDto {

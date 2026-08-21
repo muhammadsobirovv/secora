@@ -25,6 +25,45 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 export class KnowledgeGraphService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /// Module 17 — task #484. Every M16/M17 model here predates the
+  /// sandbox's generated `@prisma/client` (see `IncidentsService`'s doc
+  /// comment for the precedent) — direct casts, same as every other
+  /// service that reads these tables.
+  private get socTables() {
+    return this.prisma as unknown as {
+      threatActor: {
+        findFirst: (args: unknown) => Promise<{ id: string; name: string; aliases: string[]; source: string } | null>;
+        findMany: (args: unknown) => Promise<Array<{ id: string; name: string }>>;
+      };
+      threatCampaign: {
+        findFirst: (args: unknown) => Promise<{ id: string; name: string; source: string } | null>;
+        findMany: (args: unknown) => Promise<Array<{ id: string; name: string }>>;
+      };
+      indicator: {
+        findFirst: (args: unknown) => Promise<{ id: string; value: string; type: string; status: string } | null>;
+        findMany: (args: unknown) => Promise<Array<{ id: string; value: string }>>;
+      };
+      incident: {
+        findFirst: (args: unknown) => Promise<{ id: string; title: string; severity: string; projectId: string } | null>;
+        findMany: (args: unknown) => Promise<Array<{ id: string; title: string }>>;
+      };
+      remediationTask: {
+        findFirst: (args: unknown) => Promise<{ id: string; priority: string; owner: string | null; team: string | null; status: string; findingId: string | null; incidentId: string | null } | null>;
+        findMany: (args: unknown) => Promise<Array<{ id: string; priority: string; owner: string | null; team: string | null; status: string }>>;
+      };
+      assetOwnership: {
+        findFirst: (args: unknown) => Promise<{ id: string; targetId: string; owner: string | null; team: string | null; businessCriticality: string } | null>;
+      };
+      threatRelationship: {
+        findMany: (args: unknown) => Promise<Array<{ sourceType: string; sourceId: string; targetType: string; targetId: string; relationType: string }>>;
+      };
+      incidentFindingLink: { findMany: (args: unknown) => Promise<Array<{ findingId: string }>> };
+      incidentEvidenceLink: { findMany: (args: unknown) => Promise<Array<{ evidenceId: string }>> };
+      incidentIndicatorLink: { findMany: (args: unknown) => Promise<Array<{ indicatorId: string }>> };
+      incidentAssetLink: { findMany: (args: unknown) => Promise<Array<{ targetId: string }>> };
+    };
+  }
+
   async getNode(workspaceId: string, type: KnowledgeGraphNodeType, id: string): Promise<KnowledgeGraphNodeDto> {
     const node = await this.resolveNode(workspaceId, type, id);
     if (!node) {
@@ -69,6 +108,18 @@ export class KnowledgeGraphService {
       case 'AI_CONVERSATION':
       case 'PLUGIN':
         return [];
+      case 'THREAT_ACTOR':
+        return this.threatRelationshipEdges(workspaceId, 'ACTOR', id);
+      case 'THREAT_CAMPAIGN':
+        return this.threatRelationshipEdges(workspaceId, 'CAMPAIGN', id);
+      case 'INDICATOR':
+        return this.indicatorRelationships(workspaceId, id);
+      case 'INCIDENT':
+        return this.incidentRelationships(workspaceId, id);
+      case 'REMEDIATION_TASK':
+        return this.remediationTaskRelationships(workspaceId, id);
+      case 'ASSET_OWNER':
+        return this.assetOwnerRelationships(workspaceId, id);
       default: {
         const exhaustive: never = type;
         return exhaustive;
@@ -197,6 +248,39 @@ export class KnowledgeGraphService {
       });
       results.push(...matches.map((m) => ({ type: 'CVE' as const, id: m.cveId, label: m.cveId, score: 1 })));
     }
+    // Module 17 — task #484. INCIDENT/REMEDIATION_TASK/ASSET_OWNER filter
+    // by `workspaceId` alone (workspace-owned rows). THREAT_ACTOR/
+    // THREAT_CAMPAIGN/INDICATOR use the same shared-cache
+    // `OR: [{workspaceId},{workspaceId:null}]` scoping their own
+    // resolveNode/getRelationships branches above use.
+    if (!wantedTypes || wantedTypes.has('INCIDENT')) {
+      const rows = await this.socTables.incident.findMany({
+        where: { workspaceId, title: insensitive },
+        take: perTypeLimit,
+      });
+      results.push(...rows.map((r) => ({ type: 'INCIDENT' as const, id: r.id, label: r.title, score: 1 })));
+    }
+    if (!wantedTypes || wantedTypes.has('THREAT_ACTOR')) {
+      const rows = await this.socTables.threatActor.findMany({
+        where: { OR: [{ workspaceId }, { workspaceId: null }], name: insensitive },
+        take: perTypeLimit,
+      });
+      results.push(...rows.map((r) => ({ type: 'THREAT_ACTOR' as const, id: r.id, label: r.name, score: 1 })));
+    }
+    if (!wantedTypes || wantedTypes.has('THREAT_CAMPAIGN')) {
+      const rows = await this.socTables.threatCampaign.findMany({
+        where: { OR: [{ workspaceId }, { workspaceId: null }], name: insensitive },
+        take: perTypeLimit,
+      });
+      results.push(...rows.map((r) => ({ type: 'THREAT_CAMPAIGN' as const, id: r.id, label: r.name, score: 1 })));
+    }
+    if (!wantedTypes || wantedTypes.has('INDICATOR')) {
+      const rows = await this.socTables.indicator.findMany({
+        where: { OR: [{ workspaceId }, { workspaceId: null }], value: insensitive },
+        take: perTypeLimit,
+      });
+      results.push(...rows.map((r) => ({ type: 'INDICATOR' as const, id: r.id, label: r.value, score: 1 })));
+    }
 
     return results.slice(0, limit);
   }
@@ -253,6 +337,48 @@ export class KnowledgeGraphService {
           include: { plugin: true },
         });
         return row ? { type, id: row.id, label: row.plugin.name, subtitle: row.enabled ? 'enabled' : 'disabled' } : null;
+      }
+      // Module 17 — task #484. Indicator/ThreatActor/ThreatCampaign are
+      // cache-shaped (nullable `workspaceId` — see their own schema doc
+      // comments): a private import (`workspaceId` set) or the shared
+      // community cache (`workspaceId: null`) both resolve here, same
+      // `OR: [{ workspaceId }, { workspaceId: null }]` scoping every
+      // other threat-intel read in this codebase uses.
+      case 'THREAT_ACTOR': {
+        const row = await this.socTables.threatActor.findFirst({ where: { id, OR: [{ workspaceId }, { workspaceId: null }] } });
+        return row ? { type, id: row.id, label: row.name, subtitle: row.aliases.join(', ') || row.source } : null;
+      }
+      case 'THREAT_CAMPAIGN': {
+        const row = await this.socTables.threatCampaign.findFirst({ where: { id, OR: [{ workspaceId }, { workspaceId: null }] } });
+        return row ? { type, id: row.id, label: row.name, subtitle: row.source } : null;
+      }
+      case 'INDICATOR': {
+        const row = await this.socTables.indicator.findFirst({ where: { id, OR: [{ workspaceId }, { workspaceId: null }] } });
+        return row ? { type, id: row.id, label: row.value, subtitle: row.type, metadata: { status: row.status } } : null;
+      }
+      case 'INCIDENT': {
+        const row = await this.socTables.incident.findFirst({ where: { id, workspaceId } });
+        return row ? { type, id: row.id, label: row.title, subtitle: row.severity } : null;
+      }
+      case 'REMEDIATION_TASK': {
+        const row = await this.socTables.remediationTask.findFirst({ where: { id, workspaceId } });
+        if (!row) return null;
+        return {
+          type,
+          id: row.id,
+          label: `${row.priority} remediation — ${row.owner ?? row.team ?? 'unassigned'}`,
+          subtitle: row.status,
+        };
+      }
+      case 'ASSET_OWNER': {
+        const row = await this.socTables.assetOwnership.findFirst({ where: { id, workspaceId } });
+        if (!row) return null;
+        return {
+          type,
+          id: row.id,
+          label: row.owner ?? row.team ?? 'Unassigned owner',
+          subtitle: row.businessCriticality,
+        };
       }
       default: {
         const exhaustive: never = type;
@@ -357,6 +483,169 @@ export class KnowledgeGraphService {
       ...(finding ? [rel('about_finding', { type: 'FINDING', id: finding.id, label: finding.title })] : []),
       ...(report ? [rel('about_report', { type: 'REPORT', id: report.id, label: report.title })] : []),
     ];
+  }
+
+  /// Module 17 — task #484. Shared by THREAT_ACTOR/THREAT_CAMPAIGN —
+  /// walks the `ThreatRelationship` catalog table both directions
+  /// (`objectType`/`objectId` may appear as either `sourceType`/
+  /// `sourceId` or `targetType`/`targetId` on a given row), same
+  /// bidirectional read `ThreatIntelCatalogService.listRelationships`
+  /// already does. Only ACTOR/CAMPAIGN/INDICATOR are mapped to KG node
+  /// types below — a REPORT- or TECHNIQUE-typed relationship endpoint is
+  /// skipped rather than modeled as a node, matching this pass's scope
+  /// (ThreatReport/ThreatTechnique aren't KG node types).
+  private async threatRelationshipEdges(
+    workspaceId: string,
+    objectType: 'ACTOR' | 'CAMPAIGN',
+    objectId: string,
+  ): Promise<KnowledgeGraphRelationshipDto[]> {
+    const rows = await this.socTables.threatRelationship.findMany({
+      where: {
+        OR: [
+          { sourceType: objectType, sourceId: objectId, OR: [{ workspaceId }, { workspaceId: null }] },
+          { targetType: objectType, targetId: objectId, OR: [{ workspaceId }, { workspaceId: null }] },
+        ],
+      },
+      take: 50,
+    });
+
+    const results: KnowledgeGraphRelationshipDto[] = [];
+    for (const row of rows) {
+      const other = row.sourceType === objectType && row.sourceId === objectId
+        ? { type: row.targetType, id: row.targetId }
+        : { type: row.sourceType, id: row.sourceId };
+      const kgType = mapThreatObjectType(other.type);
+      if (!kgType) continue;
+      const node = await this.resolveNode(workspaceId, kgType, other.id);
+      if (node) results.push(rel(row.relationType, node));
+    }
+    return results;
+  }
+
+  private async indicatorRelationships(workspaceId: string, indicatorId: string): Promise<KnowledgeGraphRelationshipDto[]> {
+    const indicator = await this.socTables.indicator.findFirst({ where: { id: indicatorId, OR: [{ workspaceId }, { workspaceId: null }] } });
+    if (!indicator) return [];
+
+    const [threatEdges, incidentLinks] = await Promise.all([
+      this.threatRelationshipEdgesForIndicator(workspaceId, indicatorId),
+      this.socTables.incidentIndicatorLink.findMany({ where: { indicatorId } }),
+    ]);
+    const incidentNodes = await Promise.all(
+      incidentLinks.map((link) => this.resolveIncidentAcrossWorkspace(workspaceId, link)),
+    );
+    return [...threatEdges, ...incidentNodes.filter((n): n is KnowledgeGraphRelationshipDto => n != null)];
+  }
+
+  /// `threatRelationshipEdges` above is typed to only accept `'ACTOR' |
+  /// 'CAMPAIGN'` as the *queried* object type (matching its two KG
+  /// callers); Indicator needs the identical bidirectional-lookup logic
+  /// against the same table with `objectType: 'INDICATOR'`, so this is a
+  /// thin sibling rather than loosening that type for one extra caller.
+  private async threatRelationshipEdgesForIndicator(workspaceId: string, indicatorId: string): Promise<KnowledgeGraphRelationshipDto[]> {
+    const rows = await this.socTables.threatRelationship.findMany({
+      where: {
+        OR: [
+          { sourceType: 'INDICATOR', sourceId: indicatorId, OR: [{ workspaceId }, { workspaceId: null }] },
+          { targetType: 'INDICATOR', targetId: indicatorId, OR: [{ workspaceId }, { workspaceId: null }] },
+        ],
+      },
+      take: 50,
+    });
+    const results: KnowledgeGraphRelationshipDto[] = [];
+    for (const row of rows) {
+      const other = row.sourceType === 'INDICATOR' && row.sourceId === indicatorId
+        ? { type: row.targetType, id: row.targetId }
+        : { type: row.sourceType, id: row.sourceId };
+      const kgType = mapThreatObjectType(other.type);
+      if (!kgType) continue;
+      const node = await this.resolveNode(workspaceId, kgType, other.id);
+      if (node) results.push(rel(row.relationType, node));
+    }
+    return results;
+  }
+
+  private async resolveIncidentAcrossWorkspace(
+    workspaceId: string,
+    link: { indicatorId: string },
+  ): Promise<KnowledgeGraphRelationshipDto | null> {
+    // `IncidentIndicatorLink` has no `workspaceId` of its own — the
+    // Incident it joins to is the workspace-scoped side, so re-resolve
+    // through it (list all incidents that link this indicator, then
+    // filter to ones in-workspace) rather than trusting the link row.
+    const incidentRow = await this.socTables.incident.findFirst({
+      where: { workspaceId, indicatorLinks: { some: { indicatorId: link.indicatorId } } },
+    });
+    if (!incidentRow) return null;
+    return rel('referenced_by', { type: 'INCIDENT', id: incidentRow.id, label: incidentRow.title });
+  }
+
+  private async incidentRelationships(workspaceId: string, incidentId: string): Promise<KnowledgeGraphRelationshipDto[]> {
+    const [findingLinks, evidenceLinks, indicatorLinks, assetLinks, remediationTasks] = await Promise.all([
+      this.socTables.incidentFindingLink.findMany({ where: { incidentId } }),
+      this.socTables.incidentEvidenceLink.findMany({ where: { incidentId } }),
+      this.socTables.incidentIndicatorLink.findMany({ where: { incidentId } }),
+      this.socTables.incidentAssetLink.findMany({ where: { incidentId } }),
+      this.socTables.remediationTask.findMany({ where: { workspaceId, incidentId } }),
+    ]);
+
+    const [findings, evidence, indicators, targets] = await Promise.all([
+      Promise.all(findingLinks.map((l) => this.prisma.bugBountyFinding.findFirst({ where: { id: l.findingId, workspaceId, deletedAt: null } }))),
+      Promise.all(evidenceLinks.map((l) => this.prisma.evidence.findFirst({ where: { id: l.evidenceId, deletedAt: null, project: { workspaceId } } }))),
+      Promise.all(indicatorLinks.map((l) => this.socTables.indicator.findFirst({ where: { id: l.indicatorId, OR: [{ workspaceId }, { workspaceId: null }] } }))),
+      Promise.all(assetLinks.map((l) => this.prisma.target.findFirst({ where: { id: l.targetId, project: { workspaceId } } }))),
+    ]);
+
+    return [
+      ...findings.filter((f): f is NonNullable<typeof f> => f != null).map((f) => rel('has_finding', { type: 'FINDING', id: f.id, label: f.title })),
+      ...evidence.filter((e): e is NonNullable<typeof e> => e != null).map((e) => rel('has_evidence', { type: 'EVIDENCE', id: e.id, label: e.title })),
+      ...indicators.filter((i): i is NonNullable<typeof i> => i != null).map((i) => rel('linked_indicator', { type: 'INDICATOR', id: i.id, label: i.value })),
+      ...targets.filter((t): t is NonNullable<typeof t> => t != null).map((t) => rel('affects_target', { type: 'TARGET', id: t.id, label: t.value })),
+      ...remediationTasks.map((t) => rel('has_remediation', {
+        type: 'REMEDIATION_TASK',
+        id: t.id,
+        label: `${t.priority} remediation — ${t.owner ?? t.team ?? 'unassigned'}`,
+      })),
+    ];
+  }
+
+  private async remediationTaskRelationships(workspaceId: string, taskId: string): Promise<KnowledgeGraphRelationshipDto[]> {
+    const task = await this.socTables.remediationTask.findFirst({ where: { id: taskId, workspaceId } });
+    if (!task) return [];
+    const [finding, incident] = await Promise.all([
+      task.findingId ? this.prisma.bugBountyFinding.findFirst({ where: { id: task.findingId, workspaceId, deletedAt: null } }) : Promise.resolve(null),
+      task.incidentId ? this.socTables.incident.findFirst({ where: { id: task.incidentId, workspaceId } }) : Promise.resolve(null),
+    ]);
+    return [
+      ...(finding ? [rel('remediates_finding', { type: 'FINDING', id: finding.id, label: finding.title })] : []),
+      ...(incident ? [rel('remediates_incident', { type: 'INCIDENT', id: incident.id, label: incident.title })] : []),
+    ];
+  }
+
+  private async assetOwnerRelationships(workspaceId: string, ownershipId: string): Promise<KnowledgeGraphRelationshipDto[]> {
+    const ownership = await this.socTables.assetOwnership.findFirst({ where: { id: ownershipId, workspaceId } });
+    if (!ownership) return [];
+    const target = await this.prisma.target.findFirst({ where: { id: ownership.targetId, project: { workspaceId } } });
+    return target ? [rel('owns_target', { type: 'TARGET', id: target.id, label: target.value })] : [];
+  }
+}
+
+/// Module 17 — task #484. `ThreatRelationship.sourceType`/`targetType`
+/// are free-text (no shared enum exists — see this module's own doc
+/// comment on why nothing currently writes rows here), so this maps the
+/// handful of object-type strings this KG extension understands onto
+/// `KnowledgeGraphNodeType`; anything else (e.g. a future REPORT/
+/// TECHNIQUE relationship) is deliberately left unmapped rather than
+/// guessed at.
+function mapThreatObjectType(objectType: string): KnowledgeGraphNodeType | null {
+  switch (objectType) {
+    case 'ACTOR':
+      return 'THREAT_ACTOR';
+    case 'CAMPAIGN':
+      return 'THREAT_CAMPAIGN';
+    case 'INDICATOR':
+      return 'INDICATOR';
+    default:
+      return null;
   }
 }
 
