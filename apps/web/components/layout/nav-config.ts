@@ -23,6 +23,8 @@ import {
   Workflow,
   Gauge,
   Fingerprint,
+  Siren,
+  LineChart,
 } from "lucide-react";
 
 export interface NavItem {
@@ -42,6 +44,10 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Recon", href: "/recon", icon: Radar },
   { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert },
   { label: "Bug Bounty", href: "/bugbounty", icon: Bug },
+  // Module 17 — task #480. Analyst-facing triage view — distinct from
+  // Executive Security below (posture-level KPIs for leadership).
+  { label: "SOC", href: "/soc", icon: Siren },
+  { label: "Executive Security", href: "/executive-security", icon: LineChart },
   // Module 17 — task #476. Landing view over the already-shipped
   // Remediation (#477) and Security Metrics (#479) reads.
   { label: "Exposure Management", href: "/exposure", icon: Gauge },
