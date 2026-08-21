@@ -6,6 +6,7 @@ import {
   IncidentCreatedNotificationHandler,
   SlaBreachNotificationHandler,
   IndicatorMatchNotificationHandler,
+  RemediationTaskClosedNotificationHandler,
 } from './handlers/soc-notification.handlers.js';
 
 /// Module 17 — task #482 (Notification engine extensions). No `CqrsModule`
@@ -30,6 +31,7 @@ import {
     IncidentCreatedNotificationHandler,
     SlaBreachNotificationHandler,
     IndicatorMatchNotificationHandler,
+    RemediationTaskClosedNotificationHandler,
   ],
   exports: [SocNotificationService],
 })
