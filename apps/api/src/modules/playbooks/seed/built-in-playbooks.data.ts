@@ -139,4 +139,46 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybookDefinition[] = [
       { type: 'EVIDENCE_COLLECTION', label: 'Save findings as evidence', config: { title: 'Mobile Assessment output' } },
     ]),
   },
+
+  // --- Module 17 — Defensive Security Playbooks (task #473) --------------
+  // These two are the platform's first `INCIDENT_RESPONSE`-category
+  // playbooks, meant to be started via `IncidentPlaybooksService
+  // .runAgainstIncident()` (which resolves a Target from the incident's
+  // own linked assets) rather than picked as a bare Target-based run.
+  // Deliberately use ONLY the engine's read-only/advisory step types
+  // (SCOPE_VALIDATION/EVIDENCE_COLLECTION/APPROVAL/NOTIFICATION/
+  // AI_ANALYSIS) — never RECON/PORT_SCAN/VULNERABILITY_SCAN/etc., which
+  // dispatch to `AdHocCommandService`'s offensive tool-execution path and
+  // have no place in an incident-response runbook. NOTIFICATION and
+  // AI_ANALYSIS steps inherit the same disclosed-thin-stub behavior
+  // documented on `PlaybookExecutionService` — they record what would
+  // have been sent/analyzed rather than actually calling a delivery
+  // channel or AI provider, exactly as they already do for every other
+  // playbook that uses them.
+  {
+    name: 'Phishing Response',
+    description: 'Contain a reported phishing email: preserve evidence, notify the security team, and require human approval before any containment action is recorded as taken.',
+    category: 'INCIDENT_RESPONSE',
+    graph: linearGraph([
+      { type: 'TARGET', label: 'Affected asset', config: {} },
+      { type: 'SCOPE_VALIDATION', label: 'Confirm affected asset is in scope', config: {} },
+      { type: 'EVIDENCE_COLLECTION', label: 'Preserve phishing email / headers as evidence', config: { title: 'Phishing Response — reported email' } },
+      { type: 'NOTIFICATION', label: 'Notify security team', config: { message: 'Phishing report under investigation.' } },
+      { type: 'APPROVAL', label: 'Approve containment action (e.g. block sender domain, reset credentials)', config: {} },
+      { type: 'EVIDENCE_COLLECTION', label: 'Record containment action taken', config: { title: 'Phishing Response — containment record' } },
+    ]),
+  },
+  {
+    name: 'Ransomware Containment',
+    description: 'Initial containment steps for a suspected ransomware incident: require human approval before isolation, preserve evidence, and notify stakeholders.',
+    category: 'INCIDENT_RESPONSE',
+    graph: linearGraph([
+      { type: 'TARGET', label: 'Affected asset', config: {} },
+      { type: 'SCOPE_VALIDATION', label: 'Confirm affected asset is in scope', config: {} },
+      { type: 'APPROVAL', label: 'Approve isolating the affected host from the network', config: {} },
+      { type: 'EVIDENCE_COLLECTION', label: 'Record isolation action and observed indicators', config: { title: 'Ransomware Containment — isolation record' } },
+      { type: 'NOTIFICATION', label: 'Notify incident response stakeholders', config: { message: 'Suspected ransomware — host isolated, investigation underway.' } },
+      { type: 'AI_ANALYSIS', label: 'Summarize incident so far for the response team', config: {} },
+    ]),
+  },
 ];

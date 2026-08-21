@@ -419,6 +419,36 @@ export class IncidentsService {
     return (rows as { evidenceId: string }[]).map((r) => r.evidenceId);
   }
 
+  /// Module 17 — task #473 (Defensive Security Playbooks). Read-only
+  /// helper `IncidentPlaybooksService` uses to resolve a real `Target` to
+  /// run an existing (Module 16, unmodified) playbook against — a
+  /// playbook execution always needs a `Target`, and an Incident's own
+  /// linked assets (`IncidentAssetLink.targetId`) are the only place that
+  /// target can honestly come from. Deduplicated: the same Target may be
+  /// linked via multiple asset-graph nodes.
+  async listLinkedAssetTargetIds(id: string, workspaceId: string): Promise<string[]> {
+    await this.requireOwnedRow(id, workspaceId);
+    const rows = await this.linkTables.incidentAssetLink.findMany({ where: { incidentId: id } });
+    const targetIds = (rows as { targetId: string }[]).map((r) => r.targetId);
+    return Array.from(new Set(targetIds));
+  }
+
+  /// Module 17 — task #473 (Defensive Security Playbooks). Writes the
+  /// previously-unused `PLAYBOOK_EXECUTED` timeline event type when
+  /// `IncidentPlaybooksService` starts a playbook run against this
+  /// incident — makes the run visible on the incident's own timeline,
+  /// same pattern as `appendApprovalEvent`.
+  async appendPlaybookExecutionEvent(
+    id: string,
+    workspaceId: string,
+    actorUserId: string,
+    description: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    await this.requireOwnedRow(id, workspaceId);
+    await this.appendTimeline(id, 'PLAYBOOK_EXECUTED', actorUserId, description, metadata);
+  }
+
   /// Module 17 — task #472 (AI Investigation Workflow). Writes the
   /// previously-unused `APPROVAL` timeline event type when an incident
   /// investigation plan is approved/denied — makes that decision visible

@@ -6771,6 +6771,7 @@ model Incident {
   evidenceLinks   IncidentEvidenceLink[]
   sessionLinks    IncidentResearchSessionLink[]
   investigationSessions IncidentInvestigationSession[]
+  playbookLinks   IncidentPlaybookLink[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, severity])
@@ -6791,6 +6792,11 @@ enum IncidentTimelineEventType {
   APPROVAL
   CONTAINMENT
   RESOLUTION
+  /// Module 17 — task #473 (Defensive Security Playbooks). Written by
+  /// `IncidentPlaybooksService` when a playbook run is started against
+  /// this incident — never by the Playbook engine itself, which has no
+  /// knowledge of incidents (see `IncidentPlaybookLink`'s doc comment).
+  PLAYBOOK_EXECUTED
 }
 
 /// Append-only (spec section 13: "must be immutable/auditable") — no
@@ -6966,6 +6972,37 @@ model IncidentInvestigationStep {
 
   @@unique([sessionId, stepIndex])
   @@map("incident_investigation_steps")
+}
+
+// --- Defensive Security Playbooks (task #473) — extends the Module 16 -----------
+// -- Playbook engine, never rewrites it: `IncidentPlaybookLink` is a pure join --
+// -- table recording that a `PlaybookExecution` (Module 16's existing execution --
+// -- engine, entirely untouched by this task) was run in the context of an -----
+// -- Incident. `PlaybookExecution` itself has no `incidentId` column and no ----
+// -- knowledge that Incidents exist — `IncidentPlaybooksService` resolves a ----
+// -- real `Target` from the incident's linked assets (`IncidentAssetLink`) and --
+// -- calls the existing `PlaybookExecutionService.start()` unmodified, then ----
+// -- records the link here and appends one `PLAYBOOK_EXECUTED` timeline event. --
+
+/// See doc comment above. `executionId` deliberately has no formal Prisma
+/// relation to `PlaybookExecution` (plain String, like
+/// `AutomationRuleExecutionLog.approvalRequestId` elsewhere in this
+/// schema) — avoids adding a back-relation array to a Module 16 model,
+/// keeping this task's changes additive-only from that model's
+/// perspective.
+model IncidentPlaybookLink {
+  id          String   @id @default(uuid())
+  incidentId  String
+  executionId String
+  playbookId  String
+  linkedBy    String?
+  linkedAt    DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, executionId])
+  @@index([executionId])
+  @@map("incident_playbook_links")
 }
 
 // --- Remediation tracking & verification (task #477, spec sections 21-22) ------
