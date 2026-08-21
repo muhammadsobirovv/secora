@@ -1,6 +1,6 @@
 import { HttpStatus, Inject } from '@nestjs/common';
 import { IQuery, IQueryHandler, QueryBus, QueryHandler } from '@nestjs/cqrs';
-import type { GlobalSearchResultDto, GlobalSearchResultType, SearchResultDto, BugBountySearchResultDto } from '@pentesthub/shared';
+import type { GlobalSearchResultDto, GlobalSearchResultType, SearchResultDto, BugBountySearchResultDto, SocSearchResultDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../../workspaces/domain/repositories/workspaces.repository.interface.js';
 import { SearchQuery } from './search.query.js';
 import { SearchBugBountyQuery } from '../../bugbounty/queries/search-bugbounty.query.js';
+import { SearchSocQuery } from './search-soc.query.js';
 
 const PER_TYPE_LIMIT = 10;
 const SNIPPET_LENGTH = 160;
@@ -47,6 +48,13 @@ export class GlobalSearchQuery implements IQuery {
 /// Community Edition callers. `SecurityAdvisory` has no scoping at all —
 /// it's public information about marketplace plugins, matched globally.
 ///
+/// Module 17 — Global Search extension (task #483) added a third
+/// composed handler the same way: `SearchSocHandler` covers Incident/
+/// AssetGraphNode/Indicator/ThreatActor/ThreatCampaign/RemediationTask
+/// — see that handler's own doc comment for scoping notes (threat-intel
+/// entities use the existing nullable-`workspaceId` "shared cache"
+/// pattern, not a new one).
+///
 /// Known follow-up, not done in this pass: migrating the web/mobile
 /// clients from `/search` + `/bugbounty/search` onto this single
 /// `/search/global` endpoint is a frontend change outside this backend
@@ -75,11 +83,14 @@ export class GlobalSearchHandler implements IQueryHandler<GlobalSearchQuery, Glo
     }
     const contains = { contains: q, mode: 'insensitive' as const };
 
-    const [foundationResults, bugBountyResults, plugins, workflows, advisories] = await Promise.all([
+    const [foundationResults, bugBountyResults, socResults, plugins, workflows, advisories] = await Promise.all([
       this.queryBus.execute<SearchQuery, SearchResultDto[]>(new SearchQuery(query.userId, q)),
       this.queryBus.execute<SearchBugBountyQuery, BugBountySearchResultDto[]>(
         new SearchBugBountyQuery(query.userId, q),
       ),
+      // Module 17 — Global Search extension (task #483). Same
+      // QueryBus.execute() composition as the two lines above.
+      this.queryBus.execute<SearchSocQuery, SocSearchResultDto[]>(new SearchSocQuery(query.userId, q)),
       workspace.organizationId
         ? this.prisma.plugin.findMany({
             where: {
@@ -111,6 +122,7 @@ export class GlobalSearchHandler implements IQueryHandler<GlobalSearchQuery, Glo
     const results: GlobalSearchResultDto[] = [
       ...foundationResults.map((r): GlobalSearchResultDto => ({ ...r, type: r.type as GlobalSearchResultType })),
       ...bugBountyResults.map((r): GlobalSearchResultDto => ({ ...r, projectId: null, type: r.type as GlobalSearchResultType })),
+      ...socResults.map((r): GlobalSearchResultDto => ({ ...r, projectId: null, type: r.type as GlobalSearchResultType })),
       ...plugins.map((p): GlobalSearchResultDto => ({
         type: 'PLUGIN',
         id: p.id,
