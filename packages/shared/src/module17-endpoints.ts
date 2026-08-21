@@ -74,3 +74,11 @@ export const SECURITY_REPORT_ENDPOINTS = {
   generate: () => "security-reports",
   report: (id: string) => `security-reports/${id}`,
 } as const;
+
+// Module 17 — task #489 (REST API). Backs `SocController`'s single
+// composed `/soc/dashboard` route — see that controller's own doc
+// comment on why it exists as a thin aggregation over
+// Incidents/SLA/Indicators/SecurityMetrics rather than a new data source.
+export const SOC_ENDPOINTS = {
+  dashboard: () => "soc/dashboard",
+} as const;
