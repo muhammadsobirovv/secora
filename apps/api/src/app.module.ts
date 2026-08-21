@@ -92,6 +92,7 @@ import { SlaModule } from './modules/sla/sla.module.js';
 import { RiskModule } from './modules/risk/risk.module.js';
 import { SecurityMetricsModule } from './modules/security-metrics/security-metrics.module.js';
 import { AutomationRulesModule } from './modules/automation-rules/automation-rules.module.js';
+import { AiSocAnalystModule } from './modules/ai-soc-analyst/ai-soc-analyst.module.js';
 
 @Module({
   imports: [
@@ -169,6 +170,7 @@ import { AutomationRulesModule } from './modules/automation-rules/automation-rul
     RiskModule,
     SecurityMetricsModule,
     AutomationRulesModule,
+    AiSocAnalystModule,
     BugBountyModule,
     // Module 9 — Bug Bounty Operating System: Collaboration/Automation/
     // Notifications-channels/Public API. Additive-only; nothing above this
