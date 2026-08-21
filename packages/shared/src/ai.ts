@@ -37,7 +37,17 @@ export type AiMemorySourceType =
   // comment in schema.prisma.
   | "KNOWLEDGE_BASE_REFERENCE"
   | "AGENT_TASK_OUTPUT"
-  | "ORCHESTRATION_RUN";
+  | "ORCHESTRATION_RUN"
+  // Module 16 addition — was missing from this shared union even though
+  // present in the Prisma enum since task #397; ResearcherMemoryService
+  // has always passed the literal string through untyped-checked call
+  // sites. Restored here rather than left as a pre-existing gap.
+  | "RESEARCHER_MEMORY"
+  // Module 17 additions (task #485) — see the matching AiMemorySourceType
+  // enum comment in schema.prisma.
+  | "INCIDENT"
+  | "REMEDIATION_TASK"
+  | "RISK_ASSESSMENT";
 
 /// Every provider the abstraction supports (AI Provider Architecture).
 /// Phase 1 ships all five as structurally-complete adapters; which ones are

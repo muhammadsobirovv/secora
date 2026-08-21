@@ -14,6 +14,7 @@ import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SlaService } from '../sla/sla.service.js';
+import { AiMemoryService } from '../ai/memory/ai-memory.service.js';
 import { IncidentCreatedEvent } from './events/incident-created.event.js';
 
 interface IncidentRow {
@@ -104,7 +105,33 @@ export class IncidentsService {
     private readonly prisma: PrismaService,
     private readonly sla: SlaService,
     private readonly eventBus: EventBus,
+    private readonly aiMemory: AiMemoryService,
   ) {}
+
+  /// Module 17 — task #485 (AI Memory extension). Mirrors this incident's
+  /// current title/description/severity/status into the existing
+  /// `AiMemoryChunk` RAG store under sourceType INCIDENT, sourceId =
+  /// incidentId — replaces (not appends) the chunk set on every call,
+  /// same as `ResearcherMemoryEntry`'s indexContent-on-update pattern, so
+  /// re-indexing after a status/assignment change keeps the memory
+  /// current rather than accumulating stale copies. Best-effort: never
+  /// blocks or fails the caller's own state change — `AiMemoryService`
+  /// already no-ops quietly when no embedding provider is configured
+  /// (Community Edition without BYOK).
+  private async syncIncidentMemory(row: IncidentRow): Promise<void> {
+    try {
+      await this.aiMemory.indexContent({
+        workspaceId: row.workspaceId,
+        projectId: row.projectId,
+        sourceType: 'INCIDENT',
+        sourceId: row.id,
+        content: `${row.title}\n\n${row.description}\n\nSeverity: ${row.severity}\nStatus: ${row.status}`,
+        metadata: { severity: row.severity, status: row.status, assigneeId: row.assigneeId },
+      });
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to index AI memory for incident ${row.id}: ${String(error)}`);
+    }
+  }
 
   private get incidentTable() {
     return (
@@ -229,6 +256,11 @@ export class IncidentsService {
       this.logger.warn(`Failed to publish IncidentCreatedEvent for incident ${row.id}: ${String(error)}`);
     }
 
+    // Module 17 — task #485 (AI Memory extension). Best-effort, after the
+    // incident row is already durably committed — see
+    // `syncIncidentMemory`'s own doc comment.
+    await this.syncIncidentMemory(row);
+
     return toDto(row);
   }
 
@@ -309,6 +341,10 @@ export class IncidentsService {
       }
     }
 
+    // Module 17 — task #485. Re-index so a status change (e.g. RESOLVED)
+    // is reflected in what semantic search recalls about this incident.
+    await this.syncIncidentMemory(row);
+
     return toDto(row);
   }
 
@@ -339,10 +375,32 @@ export class IncidentsService {
   }
 
   async addNote(id: string, workspaceId: string, userId: string, description: string): Promise<IncidentTimelineEventDto> {
-    await this.requireOwnedRow(id, workspaceId);
+    const incident = await this.requireOwnedRow(id, workspaceId);
     const row = await this.timelineTable.create({
       data: { incidentId: id, eventType: 'COMMENT', actorUserId: userId, description, metadata: null },
     });
+
+    // Module 17 — task #485 (AI Memory extension — "analyst context").
+    // Indexed as its own source (sourceId `${incidentId}:note:${row.id}`,
+    // distinct from `syncIncidentMemory`'s `${incidentId}` source) so an
+    // analyst's free-text observation is individually recallable by
+    // semantic search rather than only living inside the incident's own
+    // summary chunk, which only ever reflects current state (title/
+    // description/severity/status), not the running discussion.
+    // Best-effort, matching every other AI-memory call site in this file.
+    try {
+      await this.aiMemory.indexContent({
+        workspaceId,
+        projectId: incident.projectId,
+        sourceType: 'INCIDENT',
+        sourceId: `${id}:note:${row.id}`,
+        content: description,
+        metadata: { incidentId: id, actorUserId: userId, kind: 'analyst_note' },
+      });
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to index AI memory for incident note ${row.id}: ${String(error)}`);
+    }
+
     return toTimelineDto(row);
   }
 

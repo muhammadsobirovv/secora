@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { SlaModule } from '../sla/sla.module.js';
+import { AiCoreModule } from '../ai/ai-core.module.js';
 import { IncidentsService } from './incidents.service.js';
 import { IncidentsController } from './controllers/incidents.controller.js';
 
@@ -10,8 +11,15 @@ import { IncidentsController } from './controllers/incidents.controller.js';
 /// Also imports `SlaModule` (task #478) so `IncidentsService` can start/
 /// resolve SLA clocks directly — one-directional import, `SlaModule`
 /// never imports this one back, so there's no circular dependency.
+///
+/// Also imports `AiCoreModule` (task #485 — AI Memory extension) so
+/// `IncidentsService` can inject `AiMemoryService` and mirror incident
+/// summaries + analyst notes into the existing RAG store, the same
+/// "import the owning module, inject the service directly" pattern
+/// `ResearcherMemoryModule` established — see `IncidentsService`'s own
+/// doc comment.
 @Module({
-  imports: [WorkspacesModule, SlaModule],
+  imports: [WorkspacesModule, SlaModule, AiCoreModule],
   controllers: [IncidentsController],
   providers: [IncidentsService],
   exports: [IncidentsService],

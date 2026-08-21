@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type {
   AssetGraphNodeType,
   BusinessCriticality,
@@ -10,6 +10,7 @@ import type {
 } from '@pentesthub/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RiskScoringService } from '../bugbounty/finding-intelligence/risk-scoring.service.js';
+import { AiMemoryService } from '../ai/memory/ai-memory.service.js';
 
 interface RiskFactorSnapshotRow {
   id: string;
@@ -96,9 +97,12 @@ function toSnapshotDto(row: RiskFactorSnapshotRow): RiskFactorSnapshotDto {
 /// answerable from any past row, not just the latest one.
 @Injectable()
 export class RiskEngineV2Service {
+  private readonly logger = new Logger(RiskEngineV2Service.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly baseScoring: RiskScoringService,
+    private readonly aiMemory: AiMemoryService,
   ) {}
 
   private get snapshotTable() {
@@ -201,6 +205,35 @@ export class RiskEngineV2Service {
         computedBy: computedBy ?? null,
       },
     });
+
+    // Module 17 — task #485 (AI Memory extension — "risk context").
+    // `RiskFactorSnapshot` is append-only history (see this class's own
+    // doc comment), so each row gets its own sourceId — never re-indexed
+    // or replaced under a shared id the way `IncidentsService`/
+    // `RemediationService` do, since a past snapshot's score is a fact
+    // about that point in time, not a "current state" that later
+    // supersedes it. Best-effort, same posture as every other AI-memory
+    // call site.
+    try {
+      const targetLabel = target.findingId
+        ? `finding ${target.findingId}`
+        : `${target.assetNodeType ?? 'asset'} ${target.assetRefId ?? ''}`.trim();
+      const factorSummary = Object.entries(result.factors)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${String(v)}`)
+        .join(', ');
+      await this.aiMemory.indexContent({
+        workspaceId,
+        projectId: null,
+        sourceType: 'RISK_ASSESSMENT',
+        sourceId: row.id,
+        content: `Risk score ${result.riskScore} (${result.riskTier}) for ${targetLabel} — recommended priority ${result.recommendedPriority}.\nFactors: ${factorSummary}`,
+        metadata: { riskScore: result.riskScore, riskTier: result.riskTier, findingId: target.findingId ?? null },
+      });
+    } catch (error: unknown) {
+      this.logger.warn(`Failed to index AI memory for risk snapshot ${row.id}: ${String(error)}`);
+    }
+
     return toSnapshotDto(row);
   }
 

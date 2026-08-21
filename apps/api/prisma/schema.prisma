@@ -1699,6 +1699,21 @@ enum AiMemorySourceType {
   // is retrievable by the existing similarity search rather than a
   // second, parallel retrieval mechanism.
   RESEARCHER_MEMORY
+  // Module 17 additions (task #485 — AI Memory extension, spec section
+  // 36 applied to SOC context). Same "feed the one RAG store" reasoning
+  // as every addition above: INCIDENT covers an incident's own summary
+  // plus each analyst free-text note (IncidentsService.addNote) as a
+  // separate chunked source, so "what did the analyst say about this
+  // incident" is answerable by the same similarity search AiChatService
+  // already uses. REMEDIATION_TASK mirrors a task's owner/priority/notes.
+  // RISK_ASSESSMENT mirrors each immutable RiskFactorSnapshot (never
+  // re-indexed under the same sourceId, since a snapshot is append-only
+  // history, not a mutable "current" record — see that model's own doc
+  // comment) so "why was this scored this way" stays semantically
+  // searchable across a finding/asset's full scoring history.
+  INCIDENT
+  REMEDIATION_TASK
+  RISK_ASSESSMENT
 }
 
 /// One chat thread. `provider`/`model` are captured per-conversation (not
