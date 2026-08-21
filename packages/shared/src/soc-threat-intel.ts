@@ -568,3 +568,35 @@ export interface SecurityMetricsTrendPointDto {
   slaComplianceRate: number | null;
   slaEventsResolved: number;
 }
+
+// --- SOC Dashboard aggregation (task #489) -----------------------------------
+
+/// Module 17 — REST API task #489. A single composed read for the `/soc`
+/// dashboard, backing what `apps/web/app/(dashboard)/soc/page.tsx`
+/// already computes client-side from three separate calls
+/// (`useIncidents`/`useSlaEvents`/`useIndicators`) — this endpoint does
+/// the same composition server-side via `SocService`, which calls
+/// `IncidentsService.listForWorkspace`/`SlaService.listEventsForWorkspace`/
+/// `IndicatorsService.listForWorkspace`/`SecurityMetricsService.summary`
+/// directly rather than re-querying Prisma, so there is exactly one
+/// implementation of each figure. The frontend is NOT required to switch
+/// to this endpoint in this pass (that's a separate frontend migration,
+/// same "existing endpoint remains source of truth until migrated"
+/// posture `GlobalSearchQuery`'s own doc comment established) — this
+/// exists so `/soc` is a real, documented, Swagger-visible backend route
+/// as the task title requires, and so CLI/SDK/mobile/desktop clients
+/// have one call to make instead of four.
+export interface SocDashboardSummaryDto {
+  workspaceId: string;
+  openIncidentsCount: number;
+  criticalOpenIncidentsCount: number;
+  recentIncidents: IncidentDto[];
+  breachedSlaEventsCount: number;
+  recentBreachedSlaEvents: SlaEventDto[];
+  activeIndicatorsCount: number;
+  /// Null when `SecurityMetricsService.summary` has no qualifying data
+  /// in the window (same "no fabricated figures" posture that DTO
+  /// already documents) — never a substitute/estimated value.
+  metrics: SecurityMetricsSummaryDto | null;
+  computedAt: string;
+}
