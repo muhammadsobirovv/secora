@@ -335,4 +335,6 @@ export type AppErrorCode =
   | "INCIDENT_INVESTIGATION_INVALID_STATE_TRANSITION"
   | "INCIDENT_INVESTIGATION_APPROVAL_NOT_INCIDENT_INVESTIGATION"
   // Module 17 — Defensive Security Playbooks (task #473).
-  | "INCIDENT_PLAYBOOK_NO_LINKED_ASSET";
+  | "INCIDENT_PLAYBOOK_NO_LINKED_ASSET"
+  // Module 17 — Security Reporting extensions / Report Builder (task #481).
+  | "SECURITY_REPORT_NOT_FOUND";

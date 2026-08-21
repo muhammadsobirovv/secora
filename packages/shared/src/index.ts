@@ -103,4 +103,5 @@ export * from "./soc-threat-intel.js";
 export * from "./automation-rules.js";
 export * from "./ai-soc-analyst.js";
 export * from "./incident-investigation.js";
+export * from "./security-reporting.js";
 export * from "./module17-endpoints.js";

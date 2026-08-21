@@ -67,3 +67,10 @@ export const SLA_ENDPOINTS = {
   upsertPolicy: () => "sla/policies",
   events: () => "sla/events",
 } as const;
+
+// Module 17 — task #481 (Security Reporting extensions / Report Builder).
+export const SECURITY_REPORT_ENDPOINTS = {
+  list: () => "security-reports",
+  generate: () => "security-reports",
+  report: (id: string) => `security-reports/${id}`,
+} as const;
