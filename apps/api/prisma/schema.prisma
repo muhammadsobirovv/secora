@@ -647,6 +647,11 @@ enum TargetEnvironment {
   PRODUCTION
   STAGING
   DEVELOPMENT
+  // Module 17 — Security Asset Ownership (task #3) asks for a dedicated
+  // TEST value distinct from DEVELOPMENT; additive, no existing value's
+  // meaning changes. Reused directly by AssetOwnership.environment below
+  // instead of a second environment enum.
+  TEST
   UNKNOWN
 }
 
@@ -784,6 +789,11 @@ model Evidence {
   // VulnFinding's fixed six categories.
   bugBountyFindingLinks BugBountyFindingEvidence[]
   bugReportLinks        BugReportEvidence[]
+  // Module 17 — Incident/Remediation evidence (tasks #470/#477): reuse
+  // this same Evidence store via join tables rather than a second
+  // evidence mechanism.
+  incidentLinks         IncidentEvidenceLink[]
+  remediationLinks      RemediationEvidenceLink[]
 
   @@index([projectId])
   @@index([targetId])
@@ -806,6 +816,10 @@ enum AttachableType {
   // (Nothing should be duplicated).
   KNOWLEDGE_BASE_NOTE
   BUG_REPORT
+  // Module 17 — Incident evidence (task #470/#14): lets incidents use the
+  // existing generic Attachment mechanism for raw files, same as every
+  // other attachable entity above — no second file-attachment path.
+  INCIDENT
 }
 
 /// No DB-level FK to the attached-to row (attachableType/attachableId is a
@@ -1544,6 +1558,28 @@ enum AuditEventType {
   // rather than a pair of INVOKED/INVOCATION_FAILED types, matching how
   // this enum otherwise favors one type per *action*, not per outcome.
   EXTENSION_INVOKED
+  // Module 17 — SOC/Threat Intelligence/Incident/Remediation/Automation.
+  // A curated set (one per major mutating action family, not one per CRUD
+  // verb per model — same "audit the decision, not every field write"
+  // posture as every prior module's additions to this enum).
+  INDICATOR_CREATED
+  INDICATOR_IMPORTED
+  INDICATOR_EXPIRED
+  INDICATOR_DISABLED
+  THREAT_INTEL_IMPORT_REJECTED
+  THREAT_MATCH_CREATED
+  THREAT_MATCH_STATUS_CHANGED
+  INCIDENT_CREATED
+  INCIDENT_STATUS_CHANGED
+  INCIDENT_ASSIGNED
+  ASSET_OWNERSHIP_CHANGED
+  REMEDIATION_TASK_CREATED
+  REMEDIATION_TASK_STATUS_CHANGED
+  FINDING_VERIFICATION_STATUS_CHANGED
+  SLA_POLICY_CHANGED
+  AUTOMATION_RULE_CREATED
+  AUTOMATION_RULE_EXECUTED
+  AUTOMATION_RULE_BLOCKED
 }
 
 // ---------------------------------------------------------------------------
@@ -2118,6 +2154,19 @@ model BugBountyFinding {
   /// changes (severity/cvss/epss/confidence/...), never hand-edited.
   riskScore       Float?
   riskLevel       String?
+  // --- Module 17 additions (additive only) — Remediation Verification
+  // (task #477, spec section 22). Deliberately distinct from `stage`
+  // (the bug-bounty-platform submission workflow, e.g. NEW/TRIAGED/
+  // REPORTED) — this tracks whether a *fix* has actually been proven,
+  // not whether the finding itself has been triaged/reported. Changing
+  // `verificationStatus` to VERIFIED must never happen just because a
+  // user set it — the service layer requires `verificationEvidenceId` to
+  // point at a real `Evidence` row before that transition is allowed
+  // (spec: "verification must require actual evidence").
+  verificationStatus     FindingVerificationStatus @default(OPEN)
+  verificationEvidenceId String?
+  verifiedBy             String?
+  verifiedAt              DateTime?
 
   workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -3896,6 +3945,10 @@ model SlaPolicy {
   createdAt      DateTime             @default(now())
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Module 17 — SLA Engine (task #478): the persisted event log
+  // (started/breached/resolved) that didn't exist when this policy model
+  // was originally added as a read-time-only Analytics input.
+  events       SlaEvent[]
 
   @@unique([organizationId, workspaceId, severity])
   @@map("sla_policies")
@@ -5468,6 +5521,22 @@ enum AssetGraphNodeType {
   CLOUD_ASSET
   REPOSITORY
   FINDING
+  // Module 17 — Security Asset Inventory (task #462). The spec's asset
+  // type list (DOMAIN/SUBDOMAIN/IP/CIDR/URL/API/PORT/SERVICE/CERTIFICATE/
+  // CLOUD_RESOURCE/REPOSITORY/MOBILE_APP/HOST/CONTAINER/
+  // KUBERNETES_RESOURCE) overlaps almost entirely with this existing
+  // enum (CLOUD_ASSET already covers CLOUD_RESOURCE, ASN/CERTIFICATE
+  // already exist) — extending it here rather than introducing a second,
+  // parallel "SecurityAsset" model with its own type enum, per the
+  // explicit "do not duplicate graph infrastructure" instruction. Only
+  // the genuinely new types are added.
+  CIDR
+  API
+  SERVICE
+  MOBILE_APP
+  HOST
+  CONTAINER
+  KUBERNETES_RESOURCE
 }
 
 /// A refreshable *cache* of the asset relationship graph, not a new source
@@ -5538,6 +5607,22 @@ enum ChangeDetectionEventType {
   CHANGED_TLS_CERTIFICATE
   CHANGED_DNS
   CHANGED_SCOPE
+  // Module 17 — Continuous Attack Surface Monitoring (task #463). The
+  // spec's "AttackSurfaceEvent" is, in every respect that matters
+  // (workspace/project/target-scoped, one row per detected change,
+  // previous/new value pair, `detectedAt`), the same shape as this
+  // pre-existing `ChangeDetectionEvent` model from Module 16 — reused
+  // directly rather than building a second, parallel change-event model.
+  // CLOSED_PORT/CHANGED_TLS_CERTIFICATE/CHANGED_DNS/CHANGED_HTTP_HEADERS
+  // above already cover CLOSED_PORT/CERTIFICATE_CHANGE/DNS_CHANGE/
+  // HTTP_CHANGE from the spec's list; only the genuinely new distinction
+  // (a whole asset appearing/disappearing, not just its subdomain form;
+  // an explicit new/removed technology rather than only "changed") is
+  // added below.
+  NEW_ASSET
+  REMOVED_ASSET
+  NEW_TECHNOLOGY
+  REMOVED_TECHNOLOGY
 }
 
 /// Written by `ChangeDetectionService.diff()` whenever a Recon job
@@ -5569,6 +5654,16 @@ enum CorrelationInsightKind {
   SUBDOMAIN_TAKEOVER_DANGLING_DNS
   MISSING_HEADER_SENSITIVE_ENDPOINT
   AUTH_WEAKNESS_SENSITIVE_API
+  // Module 17 — Change Intelligence (task #464). Unlike the five kinds
+  // above (which re-evaluate a target's *current* full state on every
+  // recon completion), these two are driven specifically by fresh
+  // `ChangeDetectionEvent` rows from the run that just completed — i.e.
+  // "this wasn't just found, it's NEW since the last scan", which is the
+  // signal an attack-surface-monitoring analyst actually needs distinct
+  // from a static correlation. See `FindingCorrelationService
+  // .detectChangeIntelligence`.
+  NEW_ASSET_POTENTIAL_EXPOSURE
+  NEW_SERVICE_POTENTIAL_EXPOSURE
 }
 
 /// Output of `CorrelationEngineService` — a proposed insight linking two
@@ -5901,10 +5996,23 @@ model CveRecord {
   publishedAt DateTime?
   source      String
   cachedAt    DateTime  @default(now())
+  // Module 17 — Threat Intelligence (task #466). The spec's
+  // "ThreatVulnerability" entity is CVE-plus-exploitation-context — since
+  // this platform already has a global CVE cache (`CveRecord`, populated
+  // from the same class of feeds: NVD/vendor advisories), extending it
+  // with CISA KEV fields here is the reuse call, rather than a second,
+  // parallel vulnerability-cache model that would need its own CVE-id
+  // join back to this one. `isKnownExploited` is Risk Engine v2's single
+  // highest-signal boolean input (task #474).
+  isKnownExploited  Boolean   @default(false)
+  kevAddedAt        DateTime?
+  kevDueDate        DateTime?
+  kevRansomwareUse  String?
 
   matches CveMatch[]
 
   @@index([cwe])
+  @@index([isKnownExploited])
   @@map("cve_records")
 }
 
@@ -6232,6 +6340,10 @@ enum CollaborationEntityType {
   BUG_REPORT
   COMMENT
   RESEARCH_SESSION
+  // Module 17 — Incident Management (task #470): incidents reuse the
+  // existing Watcher/Reaction/Comment collaboration layer instead of a
+  // parallel incident-comments mechanism.
+  INCIDENT
 }
 
 model Watcher {
@@ -6257,4 +6369,737 @@ model Reaction {
   @@unique([entityType, entityId, userId, emoji])
   @@index([entityType, entityId])
   @@map("reactions")
+}
+
+// =============================================================================
+// Module 17 — Security Operations Center, Threat Intelligence & Autonomous
+// Research Platform. Builds on Module 16's Asset Graph / Change Detection /
+// Correlation Engine / Risk Scoring / AI Investigation Mode / Approval Gates
+// rather than duplicating them — see the doc comments on each extended enum
+// above (AssetGraphNodeType, ChangeDetectionEventType, CollaborationEntityType,
+// AttachableType, CveRecord) for the specific reuse decisions. New models
+// below are the genuinely new domain: asset ownership, continuous-monitoring
+// policy, the global threat-intelligence cache, its workspace-scoped
+// correlation (ThreatMatch — same "global cache + workspace-scoped match"
+// shape as CveRecord/CveMatch above), incidents, remediation, SLA, Risk
+// Engine v2's factor history, and automation rules.
+// =============================================================================
+
+// --- Asset Ownership (task #462, spec section 3) --------------------------------
+
+enum BusinessCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Deliberately NOT a column on `AssetGraphNode` — that model is a
+/// rebuildable *cache* (`AssetGraphService.rebuild()` deletes and
+/// recreates every row for a target on every rebuild; see its own doc
+/// comment), so ownership metadata living there would be silently wiped
+/// on the next recon scan. This table is keyed instead by the same
+/// stable business identity `AssetGraphNode` uses for its own dedup
+/// (`targetId` + `nodeType` + `refId`), so ownership survives graph
+/// rebuilds even though the `AssetGraphNode.id` backing it does not.
+/// `environment` reuses `TargetEnvironment` (extended with `TEST` above)
+/// rather than a second environment enum.
+model AssetOwnership {
+  id                  String              @id @default(uuid())
+  workspaceId         String
+  targetId            String
+  nodeType            AssetGraphNodeType
+  refId               String
+  owner               String?
+  team                String?
+  department          String?
+  contact             String?
+  environment         TargetEnvironment   @default(UNKNOWN)
+  businessCriticality BusinessCriticality @default(MEDIUM)
+  createdBy           String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([targetId, nodeType, refId])
+  @@index([workspaceId, businessCriticality])
+  @@map("asset_ownerships")
+}
+
+// --- Continuous Attack Surface Monitoring (task #463, spec section 4) -----------
+
+enum MonitoringTrigger {
+  SCHEDULED
+  MANUAL
+  EVENT_TRIGGERED
+}
+
+enum MonitoringJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// A *policy* row, not an execution engine — `ContinuousMonitoringService`
+/// resolves a due `MonitoringJob` into the exact same `ReconJob`/
+/// `JobQueue`/`ToolRunner` path a manually-started recon scan already
+/// uses (see spec section 4's own instruction not to build a second
+/// execution engine), then hands the completed scan to the existing
+/// `ChangeDetectionService.diff()` — `lastReconJobId` is a loose
+/// (non-relation) pointer to the `ReconJob` that produced the most
+/// recent `ChangeDetectionEvent` batch for this policy, mirroring the
+/// loose-reference convention `Attachment.attachableId` already
+/// established for polymorphic/optional back-references.
+model MonitoringJob {
+  id             String               @id @default(uuid())
+  workspaceId    String
+  projectId      String
+  targetId       String
+  trigger        MonitoringTrigger    @default(SCHEDULED)
+  cronExpression String?
+  enabled        Boolean              @default(true)
+  status         MonitoringJobStatus  @default(PENDING)
+  lastReconJobId String?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdBy      String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([targetId, trigger])
+  @@index([workspaceId, enabled, nextRunAt])
+  @@map("monitoring_jobs")
+}
+
+// --- Threat Intelligence — global cache (task #466, spec sections 6-9) ----------
+//
+// `workspaceId` is nullable and deliberately means two different things,
+// mirroring `CveRecord`'s existing "global, shared, no workspace column"
+// posture for public feed data while still giving multi-tenant isolation
+// to private data:
+//   - `workspaceId: null`  -> public feed data (CISA KEV, NVD, OSV, GitHub
+//     Advisories, and any other feed sourced from public/shared
+//     `ThreatIntelSourceType`s) — visible to every workspace, the same way
+//     `CveRecord` already is. This is correct sharing, not a leak: the
+//     same CVE-2024-xxxx or the same CISA KEV entry IS the same public
+//     fact regardless of which workspace looks it up.
+//   - `workspaceId: <uuid>` -> private data (an operator's own STIX/TAXII
+//     feed, a manual import, workspace-specific research) — visible only
+//     to that workspace. Every query in this domain filters
+//     `WHERE workspaceId = :callerWorkspaceId OR workspaceId IS NULL`,
+//     never bare `findMany()` — this is the mechanism the multi-tenant
+//     isolation tests (task #488) exercise against.
+
+enum IndicatorType {
+  IP
+  DOMAIN
+  URL
+  HASH
+  EMAIL
+  CVE
+  CPE
+  ASN
+  CERTIFICATE
+  FILE
+  MALWARE_FAMILY
+}
+
+enum IndicatorStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
+model ThreatActor {
+  id          String    @id @default(uuid())
+  workspaceId String?
+  name        String
+  aliases     String[]
+  description String?
+  source      String
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  tags        String[]
+  cachedAt    DateTime  @default(now())
+
+  @@index([workspaceId, name])
+  @@map("threat_actors")
+}
+
+model ThreatCampaign {
+  id          String    @id @default(uuid())
+  workspaceId String?
+  name        String
+  description String?
+  source      String
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  tags        String[]
+  cachedAt    DateTime  @default(now())
+
+  @@index([workspaceId, name])
+  @@map("threat_campaigns")
+}
+
+/// The core threat-intel primitive. `confidence` (0-1) and `source` are
+/// always shown alongside `value` wherever this is rendered (spec section
+/// 8's explicit "do not automatically treat an indicator as malicious
+/// solely because it exists in a feed") — display logic, not something
+/// enforced by the schema, but the fields exist specifically to make that
+/// display possible.
+model Indicator {
+  id          String           @id @default(uuid())
+  workspaceId String?
+  type        IndicatorType
+  value       String
+  status      IndicatorStatus  @default(ACTIVE)
+  confidence  Float            @default(0.5)
+  source      String
+  description String?
+  firstSeenAt DateTime         @default(now())
+  lastSeenAt  DateTime         @default(now())
+  expiresAt   DateTime?
+  tags        String[]
+  createdBy   String?
+  cachedAt    DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  matches ThreatMatch[]
+
+  @@unique([workspaceId, type, value])
+  @@index([type, status])
+  @@index([workspaceId, status])
+  @@map("indicators")
+}
+
+model ThreatReport {
+  id          String    @id @default(uuid())
+  workspaceId String?
+  title       String
+  summary     String
+  source      String
+  url         String?
+  publishedAt DateTime?
+  tags        String[]
+  cachedAt    DateTime  @default(now())
+
+  @@index([workspaceId, publishedAt])
+  @@map("threat_reports")
+}
+
+/// `externalId` is the technique's id in whatever taxonomy it came from
+/// (e.g. MITRE ATT&CK "T1190") — free text, not an enum, same rationale
+/// as `BugBountyFinding.capec` (the taxonomy is externally maintained and
+/// changes independently of this schema).
+model ThreatTechnique {
+  id          String   @id @default(uuid())
+  workspaceId String?
+  externalId  String
+  name        String
+  description String?
+  tactic      String?
+  source      String
+  cachedAt    DateTime @default(now())
+
+  @@unique([workspaceId, externalId])
+  @@map("threat_techniques")
+}
+
+/// A generic, polymorphic edge between any two threat-intel objects
+/// (actor->campaign, campaign->indicator, indicator->technique, etc.) —
+/// STIX's own relationship model is exactly this shape (typed edges
+/// between arbitrarily-typed objects), so `sourceType`/`targetType` are
+/// free-text type discriminators (e.g. "THREAT_ACTOR", "INDICATOR") and
+/// `relationType` is free-text too (STIX relationship names like
+/// "uses"/"attributed-to"/"indicates" are numerous and externally
+/// standardized) rather than closed enums — same "loose reference, not a
+/// DB-level relation" posture `Attachment.attachableId` already
+/// established for a table that needs to point at more parent types than
+/// a real FK can express.
+model ThreatRelationship {
+  id           String   @id @default(uuid())
+  workspaceId  String?
+  sourceType   String
+  sourceId     String
+  targetType   String
+  targetId     String
+  relationType String
+  confidence   Float    @default(0.5)
+  source       String
+  createdAt    DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@map("threat_relationships")
+}
+
+enum ThreatIntelSourceType {
+  CISA_KEV
+  NVD
+  OSV
+  GITHUB_ADVISORIES
+  VENDOR_ADVISORY
+  STIX_TAXII
+  OPERATOR_FEED
+  MANUAL_IMPORT
+}
+
+enum ThreatIntelImportStatus {
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+/// One row per import run (scheduled public-feed sync or a workspace's
+/// own manual/STIX-TAXII upload) — `rejectedCount`/`rejectionSample`
+/// exist specifically so a malformed/malicious feed payload (spec section
+/// 38: "threat intelligence input must be treated as untrusted data")
+/// leaves an audit trail of what was refused, not just what succeeded.
+model ThreatIntelImportLog {
+  id              String                   @id @default(uuid())
+  workspaceId     String?
+  sourceType      ThreatIntelSourceType
+  status          ThreatIntelImportStatus
+  importedCount   Int                      @default(0)
+  rejectedCount   Int                      @default(0)
+  rejectionSample Json?
+  errorSummary    String?
+  importedBy      String?
+  startedAt       DateTime                 @default(now())
+  finishedAt      DateTime?
+
+  @@index([workspaceId, sourceType, startedAt])
+  @@map("threat_intel_import_logs")
+}
+
+// --- Threat Intelligence correlation (task #469, spec section 10) --------------
+//
+// `ThreatMatch` is this domain's `CveMatch` equivalent: the workspace-
+// scoped correlation of a global `Indicator` against something this
+// workspace owns (an asset, a finding). Always workspace-scoped —
+// unlike `Indicator` above, a match is never shared across tenants.
+
+enum ThreatMatchAnalystStatus {
+  NEW
+  UNDER_REVIEW
+  CONFIRMED
+  FALSE_POSITIVE
+  IGNORED
+}
+
+/// Deliberately does not imply compromise (spec section 10: "do NOT
+/// automatically declare compromise") — `analystStatus` starts at `NEW`
+/// and only a human (or the AI SOC Analyst, itself proposal-only per
+/// section 15) moves it to `CONFIRMED`.
+model ThreatMatch {
+  id             String                   @id @default(uuid())
+  workspaceId    String
+  projectId      String?
+  targetId       String?
+  indicatorId    String
+  assetNodeType  AssetGraphNodeType?
+  assetRefId     String?
+  findingId      String?
+  confidence     Float
+  source         String
+  evidence       Json?
+  analystStatus  ThreatMatchAnalystStatus @default(NEW)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, analystStatus])
+  @@index([indicatorId])
+  @@index([targetId])
+  @@map("threat_matches")
+}
+
+// --- Incident Management (task #470, spec sections 11-14) -----------------------
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  CONTAINMENT
+  ERADICATION
+  RECOVERY
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// `severityFactors` stores the explainability breakdown spec section 12
+/// requires (impact/confidence/asset criticality/exploitability/exposure/
+/// threat-intel relevance) as structured JSON rather than six separate
+/// nullable columns — matches the `mitreAttack`/`cvssBreakdown` precedent
+/// on `BugBountyFinding` (descriptive, not filtered/queried at scale).
+/// Never an opaque AI-only score (section 12) — the AI SOC Analyst
+/// (task #471) proposes values for this breakdown, it does not compute a
+/// hidden number.
+model Incident {
+  id          String           @id @default(uuid())
+  workspaceId String
+  projectId   String
+  title       String
+  description String
+  severity    IncidentSeverity
+  status      IncidentStatus   @default(OPEN)
+  severityFactors Json?
+  reporterId  String
+  assigneeId  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+
+  timeline        IncidentTimelineEvent[]
+  assetLinks      IncidentAssetLink[]
+  findingLinks    IncidentFindingLink[]
+  indicatorLinks  IncidentIndicatorLink[]
+  evidenceLinks   IncidentEvidenceLink[]
+  sessionLinks    IncidentResearchSessionLink[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, severity])
+  @@index([assigneeId])
+  @@map("incidents")
+}
+
+enum IncidentTimelineEventType {
+  CREATED
+  FINDING_LINKED
+  INDICATOR_LINKED
+  ASSET_LINKED
+  EVIDENCE_ADDED
+  COMMENT
+  STATUS_CHANGED
+  ASSIGNMENT_CHANGED
+  AI_ANALYSIS
+  APPROVAL
+  CONTAINMENT
+  RESOLUTION
+}
+
+/// Append-only (spec section 13: "must be immutable/auditable") — no
+/// `updatedAt`, and application code must never `update()`/`delete()` a
+/// row here, only `create()`. Enforced at the service layer (Prisma
+/// itself has no immutability constraint), same posture as
+/// `AuditEvent`/`ActivityEvent` elsewhere in this schema.
+model IncidentTimelineEvent {
+  id          String                     @id @default(uuid())
+  incidentId  String
+  eventType   IncidentTimelineEventType
+  actorUserId String?
+  description String
+  metadata    Json?
+  createdAt   DateTime                   @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+  @@map("incident_timeline_events")
+}
+
+model IncidentAssetLink {
+  id         String             @id @default(uuid())
+  incidentId String
+  targetId   String
+  nodeType   AssetGraphNodeType
+  refId      String
+  linkedBy   String?
+  linkedAt   DateTime           @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, targetId, nodeType, refId])
+  @@map("incident_asset_links")
+}
+
+model IncidentFindingLink {
+  id         String   @id @default(uuid())
+  incidentId String
+  findingId  String
+  linkedBy   String?
+  linkedAt   DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, findingId])
+  @@map("incident_finding_links")
+}
+
+model IncidentIndicatorLink {
+  id          String   @id @default(uuid())
+  incidentId  String
+  indicatorId String
+  linkedBy    String?
+  linkedAt    DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, indicatorId])
+  @@map("incident_indicator_links")
+}
+
+/// Links an existing `Evidence` row (never a second evidence store — spec
+/// section 14: "reuse existing Evidence infrastructure") to an incident.
+/// A join table rather than a direct FK on `Evidence` because `Evidence`
+/// is already project/target-scoped and one piece of evidence can
+/// legitimately be relevant to more than one incident.
+model IncidentEvidenceLink {
+  id         String   @id @default(uuid())
+  incidentId String
+  evidenceId String
+  linkedBy   String?
+  linkedAt   DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, evidenceId])
+  @@map("incident_evidence_links")
+}
+
+model IncidentResearchSessionLink {
+  id                String   @id @default(uuid())
+  incidentId        String
+  researchSessionId String
+  linkedBy          String?
+  linkedAt          DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, researchSessionId])
+  @@map("incident_research_session_links")
+}
+
+// --- Remediation tracking & verification (task #477, spec sections 21-22) ------
+
+enum RemediationStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  READY_FOR_VERIFICATION
+  VERIFIED
+  CLOSED
+}
+
+enum RemediationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model RemediationTask {
+  id            String              @id @default(uuid())
+  workspaceId   String
+  projectId     String
+  findingId     String?
+  incidentId    String?
+  assetNodeType AssetGraphNodeType?
+  assetRefId    String?
+  owner         String?
+  team          String?
+  priority      RemediationPriority @default(MEDIUM)
+  dueDate       DateTime?
+  status        RemediationStatus   @default(OPEN)
+  notes         String?
+  createdBy     String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  closedAt      DateTime?
+
+  evidenceLinks RemediationEvidenceLink[]
+
+  @@index([workspaceId, status])
+  @@index([findingId])
+  @@index([incidentId])
+  @@map("remediation_tasks")
+}
+
+model RemediationEvidenceLink {
+  id                String   @id @default(uuid())
+  remediationTaskId String
+  evidenceId        String
+  linkedBy          String?
+  linkedAt          DateTime @default(now())
+
+  remediationTask RemediationTask @relation(fields: [remediationTaskId], references: [id], onDelete: Cascade)
+  evidence        Evidence        @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([remediationTaskId, evidenceId])
+  @@map("remediation_evidence_links")
+}
+
+/// Spec section 22's own finding-verification lifecycle (OPEN ->
+/// FIXED_CLAIMED -> VERIFICATION -> VERIFIED -> CLOSED) is distinct in
+/// meaning from `RemediationStatus` above (that's the remediation *task's*
+/// project-management state; this is the *finding's* own claim-then-prove
+/// state) and distinct from `BugBountyFindingStage` (the bug-bounty
+/// platform-submission workflow) — added as new columns on
+/// `BugBountyFinding` rather than a new model, following the same
+/// additive-columns precedent as this model's existing `cve`/`epss`/
+/// `cvssBreakdown` fields from Module 16. See the field additions on
+/// `BugBountyFinding` below.
+enum FindingVerificationStatus {
+  OPEN
+  FIXED_CLAIMED
+  VERIFICATION
+  VERIFIED
+  CLOSED
+}
+
+// --- SLA Engine (task #478, spec section 23) -------------------------------------
+//
+// A `SlaPolicy` model already exists (Module 10 — Advanced Analytics),
+// keyed by `(organizationId, workspaceId, severity: VulnFindingSeverity)`
+// with `targetHours` — it already IS the "workspace-specific SLA policy"
+// spec section 23 asks for, computed at read time against
+// `BugBountyFinding` timestamps by the Analytics module (see that
+// model's own doc comment). Reused as-is here rather than duplicated;
+// `Incident.severity` (`IncidentSeverity`, 4 levels) maps 1:1 onto
+// `VulnFindingSeverity`'s LOW/MEDIUM/HIGH/CRITICAL at the service layer
+// when an incident's SLA clock starts (incidents never use the fifth,
+// finding-only `INFO` level). What genuinely doesn't exist yet — and is
+// new here — is a *persisted event log* of SLA clocks actually
+// starting/breaching/resolving; the existing policy was deliberately
+// read-time-only ("no new finding-level storage needed"), which doesn't
+// give the Notification Engine (task #482) or SOC Event Bus (task #486)
+// anything to subscribe to. `SlaEvent` closes that gap without touching
+// the existing `SlaPolicy` model or its Analytics consumer.
+
+enum SlaEventType {
+  STARTED
+  BREACHED
+  RESOLVED
+}
+
+model SlaEvent {
+  id          String       @id @default(uuid())
+  workspaceId String
+  incidentId  String?
+  findingId   String?
+  policyId    String
+  eventType   SlaEventType
+  dueAt       DateTime
+  occurredAt  DateTime?
+  breached    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  policy SlaPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, breached])
+  @@index([incidentId])
+  @@index([findingId])
+  @@map("sla_events")
+}
+
+// --- Risk Engine v2 (task #474, spec sections 18-19) -----------------------------
+
+enum RiskTier {
+  INFORMATIONAL
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Append-only history (spec section 18: "do not silently replace
+/// previous scores") — `RiskScoringService`'s existing synchronous
+/// `score()` method (Module 16, task #380) is unchanged and still used
+/// for the immediate "what would this score" preview; this table is
+/// where a persisted, timestamped snapshot goes whenever that score is
+/// actually recorded against a finding/asset, so risk history is a query
+/// (`ORDER BY computedAt DESC LIMIT 1` for "current", full list for
+/// "trend") rather than a single mutable column that silently loses its
+/// prior value. `factors` stores every input the transparent formula
+/// used (cvss/epss/kev/assetCriticality/exposure/technologyConfidence/
+/// findingConfidence/threatIntelSignal/exploitability/businessImpact/
+/// ageDays/remediationStatus) so "why did this score this way" (spec
+/// section 19) is always answerable from this one row.
+model RiskFactorSnapshot {
+  id            String              @id @default(uuid())
+  workspaceId   String
+  findingId     String?
+  assetNodeType AssetGraphNodeType?
+  assetRefId    String?
+  riskScore     Float
+  riskTier      RiskTier
+  factors       Json
+  computedBy    String?
+  computedAt    DateTime            @default(now())
+
+  @@index([workspaceId, findingId, computedAt])
+  @@index([workspaceId, assetNodeType, assetRefId, computedAt])
+  @@map("risk_factor_snapshots")
+}
+
+// --- Automation rules (task #487, spec section 32) --------------------------------
+
+enum AutomationRuleTriggerType {
+  KEV_MATCH
+  INDICATOR_MATCH
+  SLA_BREACH
+  NEW_INTERNET_FACING_ASSET
+  CUSTOM
+}
+
+enum AutomationRuleStatus {
+  ENABLED
+  DISABLED
+}
+
+/// `requiresApproval` defaults `true` deliberately — spec section 32 is
+/// explicit that automation "must still pass permission/scope/approval/
+/// policy" and "no rule may bypass security controls"; a rule whose
+/// action would invoke a tool or launch a playbook is routed through the
+/// existing `SecurityApprovalService`/`ScopeEngine` exactly like a
+/// manually-triggered action would be, never a shortcut around them. Pure
+/// notification-only actions (e.g. "SLA breached -> notify owner") are
+/// the one class of action safe to run without an approval gate, and a
+/// rule author can only turn `requiresApproval` off by explicitly
+/// selecting a notification-only action kind in `actionConfig` — enforced
+/// in the service layer, not the schema.
+model AutomationRule {
+  id               String                    @id @default(uuid())
+  workspaceId      String
+  name             String
+  description      String?
+  triggerType      AutomationRuleTriggerType
+  triggerConfig    Json
+  actionConfig     Json
+  status           AutomationRuleStatus      @default(ENABLED)
+  requiresApproval Boolean                   @default(true)
+  createdBy        String
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  executions AutomationRuleExecutionLog[]
+
+  @@index([workspaceId, triggerType, status])
+  @@map("automation_rules")
+}
+
+model AutomationRuleExecutionLog {
+  id          String   @id @default(uuid())
+  ruleId      String
+  workspaceId String
+  triggeredBy String
+  outcome     String
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId, createdAt])
+  @@map("automation_rule_execution_logs")
 }

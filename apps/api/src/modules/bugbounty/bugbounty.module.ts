@@ -341,5 +341,12 @@ const QUERY_HANDLERS = [
     ...COMMAND_HANDLERS,
     ...QUERY_HANDLERS,
   ],
+  // Module 17 — task #474 (Risk Engine v2). Only `RiskScoringService` is
+  // exported (the base v1 transparent scoring formula) so the new
+  // `RiskModule` can inject and layer v2 factors on top of it rather than
+  // duplicating the formula — see `RiskEngineV2Service`'s own doc comment
+  // for why this is "extend, don't replace". Nothing else in this large,
+  // working module is touched.
+  exports: [RiskScoringService],
 })
 export class BugBountyModule {}
