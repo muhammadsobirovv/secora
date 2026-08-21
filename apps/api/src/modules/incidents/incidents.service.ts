@@ -388,4 +388,38 @@ export class IncidentsService {
     });
     await this.appendTimeline(id, 'AI_ANALYSIS', userId, `Linked research session ${sessionId}.`, { sessionId });
   }
+
+  /// Module 17 — task #471 (AI SOC Analyst). Read-only helper so
+  /// `AiSocAnalystService` can gather this incident's linked findings as
+  /// evidence without duplicating the `incidentFindingLink` cast pattern
+  /// or bypassing the workspace-ownership check every other method here
+  /// enforces.
+  async listLinkedFindingIds(id: string, workspaceId: string): Promise<string[]> {
+    await this.requireOwnedRow(id, workspaceId);
+    const rows = await this.linkTables.incidentFindingLink.findMany({ where: { incidentId: id } });
+    return (rows as { findingId: string }[]).map((r) => r.findingId);
+  }
+
+  /// Module 17 — task #471 (AI SOC Analyst). The ONLY way an AI-generated
+  /// analysis touches an Incident: one append-only `AI_ANALYSIS` timeline
+  /// row, visible to the team and never mutating `severity`/`status`/any
+  /// other Incident field. `AiSocAnalystService` returns its full
+  /// analysis (including a *suggested* severity) directly to the caller
+  /// — applying that suggestion is a separate, human-initiated action
+  /// through this service's existing (non-AI) update paths, never done
+  /// automatically here. This is what "AI must not change severity
+  /// without audit" (spec constraint) means in practice: the AI's
+  /// opinion is recorded, not enacted.
+  async appendAiAnalysisEvent(
+    id: string,
+    workspaceId: string,
+    description: string,
+    metadata: Record<string, unknown>,
+  ): Promise<string> {
+    await this.requireOwnedRow(id, workspaceId);
+    const row = await this.timelineTable.create({
+      data: { incidentId: id, eventType: 'AI_ANALYSIS', actorUserId: null, description, metadata },
+    });
+    return row.id;
+  }
 }
