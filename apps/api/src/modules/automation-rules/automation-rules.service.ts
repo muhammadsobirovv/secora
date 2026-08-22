@@ -157,7 +157,20 @@ export class AutomationRulesService {
   /// the DTO layer (a discriminated union keyed by `kind`) — see
   /// `CreateAutomationRuleDto`'s own doc comment for why it's here
   /// instead.
-  private validateActionConfig(actionConfig: unknown): AutomationRuleActionConfig {
+  ///
+  /// Security review (task #492): originally only checked field
+  /// *presence/type*, not *ownership* — a rule author could point
+  /// `CREATE_INCIDENT`/`CREATE_REMEDIATION_TASK` at an arbitrary foreign
+  /// `projectId`, or point `NOTIFY` at an arbitrary `userId` who is not
+  /// even a member of this workspace (spamming/harassing any user in the
+  /// system with attacker-controlled title/body once the rule fires).
+  /// Now async and workspace-scoped: validates `projectId` belongs to
+  /// `workspaceId` (same idiom as `IncidentsService.create`/
+  /// `RemediationService.create`, fixed in the same review pass) and
+  /// `userId` is an actual member of `workspaceId` before the rule can
+  /// be saved at all — fails fast at rule-creation time rather than at
+  /// first trigger.
+  private async validateActionConfig(actionConfig: unknown, workspaceId: string): Promise<AutomationRuleActionConfig> {
     if (
       !actionConfig ||
       typeof actionConfig !== 'object' ||
@@ -177,22 +190,43 @@ export class AutomationRulesService {
       }
     };
     switch (cfg.kind) {
-      case 'NOTIFY':
+      case 'NOTIFY': {
         requireString('userId');
         requireString('title');
-        break;
-      case 'CREATE_INCIDENT':
-        requireString('projectId');
-        requireString('title');
-        requireString('description');
-        if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(cfg.severity as string)) {
-          throw new AppException('AUTOMATION_RULE_ACTION_INVALID', 'actionConfig.severity must be LOW|MEDIUM|HIGH|CRITICAL.', HttpStatus.BAD_REQUEST);
+        const member = await this.prisma.workspaceMember.findFirst({
+          where: { workspaceId, userId: cfg.userId as string },
+          select: { id: true },
+        });
+        if (!member) {
+          throw new AppException(
+            'AUTOMATION_RULE_ACTION_INVALID',
+            'actionConfig.userId must be a member of this workspace.',
+            HttpStatus.BAD_REQUEST,
+          );
         }
         break;
-      case 'CREATE_REMEDIATION_TASK':
+      }
+      case 'CREATE_INCIDENT':
+      case 'CREATE_REMEDIATION_TASK': {
         requireString('projectId');
-        requireString('notes');
+        if (cfg.kind === 'CREATE_INCIDENT') {
+          requireString('title');
+          requireString('description');
+          if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(cfg.severity as string)) {
+            throw new AppException('AUTOMATION_RULE_ACTION_INVALID', 'actionConfig.severity must be LOW|MEDIUM|HIGH|CRITICAL.', HttpStatus.BAD_REQUEST);
+          }
+        } else {
+          requireString('notes');
+        }
+        const project = await this.prisma.project.findFirst({
+          where: { id: cfg.projectId as string, workspaceId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!project) {
+          throw new AppException('AUTOMATION_RULE_ACTION_INVALID', 'actionConfig.projectId must belong to this workspace.', HttpStatus.BAD_REQUEST);
+        }
         break;
+      }
       default:
         break;
     }
@@ -200,7 +234,7 @@ export class AutomationRulesService {
   }
 
   async create(workspaceId: string, userId: string, dto: CreateAutomationRuleRequestDto): Promise<AutomationRuleDto> {
-    const actionConfig = this.validateActionConfig(dto.actionConfig);
+    const actionConfig = await this.validateActionConfig(dto.actionConfig, workspaceId);
     const row = await this.ruleTable.create({
       data: {
         workspaceId,
@@ -244,7 +278,7 @@ export class AutomationRulesService {
 
   async update(id: string, workspaceId: string, dto: UpdateAutomationRuleRequestDto): Promise<AutomationRuleDto> {
     await this.requireOwnedRow(id, workspaceId);
-    const actionConfig = dto.actionConfig !== undefined ? this.validateActionConfig(dto.actionConfig) : undefined;
+    const actionConfig = dto.actionConfig !== undefined ? await this.validateActionConfig(dto.actionConfig, workspaceId) : undefined;
     const row = await this.ruleTable.update({
       where: { id },
       data: {
