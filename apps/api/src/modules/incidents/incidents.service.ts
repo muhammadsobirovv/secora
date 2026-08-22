@@ -212,6 +212,22 @@ export class IncidentsService {
     userId: string,
     dto: CreateIncidentRequestDto,
   ): Promise<IncidentDto> {
+    // Security review (task #492): `dto.projectId` is client-supplied and
+    // was previously written straight into the row with no ownership
+    // check — a caller who knew/guessed a foreign workspace's projectId
+    // could create an Incident pointing at it, and downstream readers
+    // that key off `incident.projectId` (e.g. AiSocAnalystService's
+    // CorrelationInsight lookup) would then leak that other workspace's
+    // data. Same `project.findFirst({ id, workspaceId, deletedAt: null })`
+    // idiom already established in RemediationService.linkEvidence.
+    const project = await this.prisma.project.findFirst({
+      where: { id: dto.projectId, workspaceId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new AppException('PROJECT_NOT_FOUND', 'Project not found.', HttpStatus.NOT_FOUND);
+    }
+
     const row = await this.incidentTable.create({
       data: {
         workspaceId,

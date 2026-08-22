@@ -156,6 +156,16 @@ export class RemediationService {
   }
 
   async create(workspaceId: string, userId: string, dto: CreateRemediationTaskRequestDto): Promise<RemediationTaskDto> {
+    // Security review (task #492): same cross-workspace projectId gap as
+    // IncidentsService.create — validate ownership before writing the row.
+    const project = await this.prisma.project.findFirst({
+      where: { id: dto.projectId, workspaceId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new AppException('PROJECT_NOT_FOUND', 'Project not found.', HttpStatus.NOT_FOUND);
+    }
+
     const row = await this.taskTable.create({
       data: {
         workspaceId,
