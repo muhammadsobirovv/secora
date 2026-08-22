@@ -2,8 +2,9 @@
 // REST API. It covers the same v1 resource scope as the TypeScript
 // (packages/sdk-typescript) and Python (sdks/python) SDKs: Auth,
 // Organizations, the Distributed Job System, the Plugin registry/
-// installations, Integrations, and (Module 16) the Knowledge Graph query
-// layer and Extension API registry.
+// installations, Integrations, (Module 16) the Knowledge Graph query
+// layer and Extension API registry, and (Module 17, task #491) the
+// SOC/Assets/Threat-Intel/Incidents/Remediation/Risk/SLA surfaces.
 //
 // It has zero third-party dependencies — built entirely on net/http and
 // encoding/json from the standard library — following the same
@@ -47,6 +48,13 @@ type Client struct {
 	Integrations    *IntegrationsResource
 	KnowledgeGraph  *KnowledgeGraphResource
 	Extensions      *ExtensionsResource
+	Soc             *SocResource
+	Assets          *AssetsResource
+	ThreatIntel     *ThreatIntelResource
+	Incidents       *IncidentsResource
+	Remediation     *RemediationResource
+	Risk            *RiskResource
+	Sla             *SlaResource
 }
 
 // New constructs a Client from Options.
@@ -68,6 +76,13 @@ func New(opts Options) *Client {
 		Integrations:    &IntegrationsResource{http: httpClient},
 		KnowledgeGraph:  &KnowledgeGraphResource{http: httpClient},
 		Extensions:      &ExtensionsResource{http: httpClient},
+		Soc:             &SocResource{http: httpClient},
+		Assets:          &AssetsResource{http: httpClient},
+		ThreatIntel:     &ThreatIntelResource{http: httpClient},
+		Incidents:       &IncidentsResource{http: httpClient},
+		Remediation:     &RemediationResource{http: httpClient},
+		Risk:            &RiskResource{http: httpClient},
+		Sla:             &SlaResource{http: httpClient},
 	}
 }
 
