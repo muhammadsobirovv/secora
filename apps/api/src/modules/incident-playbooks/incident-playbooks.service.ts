@@ -119,15 +119,24 @@ export class IncidentPlaybooksService {
   /// read path.
   async listForIncident(incidentId: string, workspaceId: string): Promise<PlaybookExecutionDto[]> {
     await this.incidents.getForWorkspace(incidentId, workspaceId);
-    const links = await this.linkTable.findMany({ where: { incidentId }, orderBy: { linkedAt: 'desc' } });
+    // Task #494 (M17 performance pass): this query had no `take` — an
+    // incident with a long history of playbook runs would pull every
+    // link row ever created, then walk them one at a time with a
+    // sequential `await` per row (two round trips each: the execution
+    // itself, then its steps). Capped at the same 50-item "recent
+    // history" bound used elsewhere in this module cluster, and the
+    // per-link reads are now issued concurrently via `Promise.all`
+    // instead of serially — same DB load, far less wall-clock time.
+    const links = await this.linkTable.findMany({ where: { incidentId }, orderBy: { linkedAt: 'desc' }, take: 50 });
 
-    const out: PlaybookExecutionDto[] = [];
-    for (const link of links) {
-      const execution = await this.executionsRepository.findExecutionByIdForWorkspace(link.executionId, workspaceId);
-      if (!execution) continue;
-      const steps = await this.executionsRepository.listExecutionSteps(execution.id);
-      out.push(toPlaybookExecutionDto(execution, steps));
-    }
-    return out;
+    const resolved = await Promise.all(
+      links.map(async (link) => {
+        const execution = await this.executionsRepository.findExecutionByIdForWorkspace(link.executionId, workspaceId);
+        if (!execution) return null;
+        const steps = await this.executionsRepository.listExecutionSteps(execution.id);
+        return toPlaybookExecutionDto(execution, steps);
+      }),
+    );
+    return resolved.filter((dto): dto is PlaybookExecutionDto => dto !== null);
   }
 }
