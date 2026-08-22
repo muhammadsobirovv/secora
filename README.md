@@ -172,6 +172,36 @@ Turborepo + pnpm workspaces:
     health-diagnostics,error-handling,support-system,demo-mode,i18n,
     onboarding}.md`,
     `PRIVACY.md`, `docs/compliance/gdpr-readiness.md`
+16. **Global Security Intelligence, Bug Bounty Platform & Collaboration** —
+    a pre-execution `ScopeEngine` gate, Research Sessions with recon/
+    technology/asset-graph intelligence, deterministic Finding
+    fingerprinting + a correlation-based Risk Engine, CVE enrichment +
+    vulnerability matching, controlled-autonomy AI Investigation Mode
+    behind a generic Approval Gate, Bug Bounty submissions with reward
+    tracking, a Safe (allowlisted, sandboxed) Terminal, visual Playbooks,
+    Collaboration extensions (Watchers/Reactions), a real-time SSE
+    gateway, Public Sharing (share links), a Knowledge Graph query layer,
+    long-term AI Memory, and an Extension API Registry with a permission-
+    checked, SSRF-guarded invocation endpoint.
+    `docs/releases/module-16-release-notes.md`
+17. **Security Operations Center, Threat Intelligence & Autonomous
+    Research Platform** — Continuous Attack Surface Monitoring +
+    change-intelligence correlation, a Threat Intelligence engine (public
+    feed adapters, STIX/TAXII import with bounded/sanitized parsing, an
+    exact-value Threat Matching correlation engine), full Incident
+    Management (lifecycle, timeline, evidence/indicator/asset linking) with
+    an advisory-only AI SOC Analyst and a defensive AI Investigation
+    Workflow — both gated behind the existing Approval mechanism and both
+    fencing untrusted evidence/threat-intel text before it ever reaches a
+    prompt, Defensive Security Playbooks, Risk Engine v2 (persisted,
+    explainable score history), Remediation tracking with an
+    evidence-backed verification workflow, an SLA Engine (policy +
+    persisted breach event log), an Automation Rules engine (workspace-
+    scoped ownership checks on every action target, approval-gated for
+    anything beyond a plain notification), and SOC/Executive dashboards —
+    plus Knowledge Graph, AI Memory, Global Search, and CLI/SDK (TS/Python/
+    Go) extensions covering the whole surface.
+    `docs/releases/module-17-release-notes.md`
 
 Modules 3-6's compute-heavy pieces are being migrated to the Desktop
 Agent per the local-first architecture above — see the migration docs
