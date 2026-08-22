@@ -16,6 +16,7 @@ import { IndicatorsService } from '../threat-intel/indicators.service.js';
 import { SecurityApprovalService } from '../security/security-approval.service.js';
 import { AiProviderRegistryService } from '../ai/providers/ai-provider-registry.service.js';
 import { collectStreamedCompletion } from '../ai/providers/collect-stream.util.js';
+import { fenceUntrusted, UNTRUSTED_CONTENT_PROMPT_RULE } from '../../common/utils/ai-prompt-fencing.util.js';
 
 const STEP_KINDS: IncidentInvestigationStepKind[] = [
   'AI_ANALYSIS',
@@ -375,6 +376,12 @@ export class IncidentInvestigationService {
       }
       case 'CORRELATION_REVIEW': {
         const incident = await this.incidents.getForWorkspace(session.incidentId, workspaceId);
+        // Task #493: same cross-tenant gap task #492 fixed in
+        // AiSocAnalystService — `CorrelationInsight` has its own
+        // `workspaceId` column; filtering by `projectId` alone would leak
+        // a foreign workspace's insight titles into this step's output if
+        // an Incident ever referenced a foreign projectId. Defense-in-
+        // depth alongside the `IncidentsService.create` ownership check.
         const insights = await (
           this.prisma as unknown as {
             correlationInsight: {
@@ -382,7 +389,7 @@ export class IncidentInvestigationService {
             };
           }
         ).correlationInsight.findMany({
-          where: { projectId: incident.projectId },
+          where: { projectId: incident.projectId, workspaceId },
           orderBy: { createdAt: 'desc' },
           take: MAX_LOOKUP_ITEMS,
         });
@@ -432,6 +439,13 @@ export class IncidentInvestigationService {
       `Respond with ONLY a JSON array (no markdown, no prose) of at most ${MAX_PLAN_STEPS} steps, each shaped exactly as:`,
       '{"kind":"AI_ANALYSIS"|"THREAT_INTEL_LOOKUP"|"CORRELATION_REVIEW"|"EVIDENCE_REVIEW"|"MANUAL_REVIEW","description":"short human-readable description"}',
       'Every step kind you propose must be one of the five listed above — do not invent new kinds. Every step is read-only: none of them execute any tool or mutate any external system.',
+      // Task #493: `goal` is free text from `StartIncidentInvestigationRequestDto`
+      // — same-workspace-authenticated-user text, not cross-tenant data, but
+      // still unconstrained free text interpolated straight into the prompt.
+      // Fenced and rule-explained for consistency with every other AI-prompt
+      // builder in this module, not because a same-tenant caller attacking
+      // their own investigation plan is a meaningful threat on its own.
+      UNTRUSTED_CONTENT_PROMPT_RULE,
     ].join('\n');
 
     const raw = await collectStreamedCompletion(
@@ -440,7 +454,7 @@ export class IncidentInvestigationService {
         model: provider.getDefaultModel(credential),
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: goal },
+          { role: 'user', content: fenceUntrusted(goal) },
         ],
         maxTokens: 500,
         temperature: 0.2,

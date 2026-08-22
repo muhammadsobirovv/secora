@@ -8,6 +8,15 @@ import type {
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
+/// Task #493 (AI security — prompt-injection boundaries for untrusted
+/// threat-intel content): `description` (and, for other threat-intel
+/// models, `summary`/`aliases`) is free text this platform did not
+/// author — pulled from a threat-intel provider or a workspace's own
+/// STIX/TAXII import. No AI-prompt builder in this codebase currently
+/// reads it, but if one ever does, it MUST wrap it with `fenceUntrusted`
+/// from `common/utils/ai-prompt-fencing.util.ts` before interpolating it
+/// into a prompt — see that file's doc comment for the full trust
+/// boundary this platform draws around threat-intel content.
 interface IndicatorRow {
   id: string;
   workspaceId: string | null;
