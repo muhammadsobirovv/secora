@@ -837,13 +837,24 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > project's actual module history was judged a separate, larger task and was
 > not attempted as part of Module 16's documentation pass. For authoritative
 > per-module status, see `docs/releases/module-{N}-release-notes.md` for
-> Modules 2, 4, 5 (phase 1 & 2), 6, 9, 10, 11, 12, 13, 14, 15, and 16 — the
-> most recent, which covers Global Security Intelligence, the Bug Bounty
+> Modules 2, 4, 5 (phase 1 & 2), 6, 9, 10, 11, 12, 13, 14, 15, 16, and 17 —
+> the most recent, which covers Global Security Intelligence, the Bug Bounty
 > platform (submissions/rewards, Safe Terminal, Playbooks, Risk Engine, CVE
 > matching), and Collaboration (Watchers/Reactions, a real-time SSE gateway,
 > Public Sharing, Knowledge Graph queries, AI Memory, and an Extension API
 > Registry). Mobile, Desktop Agent, and Browser Extension updates for Module
 > 16 were explicitly deferred by user decision and are not part of it.
+> Module 17 (`docs/releases/module-17-release-notes.md`) covers the
+> Security Operations Center — attack surface monitoring, a Community
+> Edition-friendly Threat Intelligence Engine (public-feed adapter + manual
+> STIX/TAXII import), Incident Management with an AI-assisted investigation
+> workflow, Remediation tracking, an SLA Engine, Risk Engine v2, and the
+> composed SOC/Executive Security dashboards — again reusing the existing
+> EventBus, graph, Evidence, execution-engine, report, and search
+> infrastructure rather than duplicating any of it. See also
+> `docs/soc.md`, `docs/threat-intelligence.md`, `docs/incidents.md`,
+> `docs/remediation.md`, `docs/risk.md`, and `docs/sla.md` for per-surface
+> detail.
 
 > **Local-first migration status** (2026-07-16): per the Local-First Core
 > Principle above, Modules 3-6 as described in this list still execute
