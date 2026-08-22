@@ -6558,6 +6558,12 @@ model ThreatActor {
   cachedAt    DateTime  @default(now())
 
   @@index([workspaceId, name])
+  // Task #495 (database review): `listActors` (threat-intel-catalog.service.ts)
+  // orders by `lastSeenAt DESC` — the pre-existing `[workspaceId, name]` index
+  // exists for the import upsert's `findFirst({workspaceId, name})` lookup and
+  // doesn't serve this read path. Additive index, does not replace the
+  // existing one.
+  @@index([workspaceId, lastSeenAt])
   @@map("threat_actors")
 }
 
@@ -6573,6 +6579,9 @@ model ThreatCampaign {
   cachedAt    DateTime  @default(now())
 
   @@index([workspaceId, name])
+  // Task #495: same rationale as `ThreatActor.@@index([workspaceId, lastSeenAt])`
+  // above — `listCampaigns` orders by `lastSeenAt DESC`.
+  @@index([workspaceId, lastSeenAt])
   @@map("threat_campaigns")
 }
 
@@ -6746,7 +6755,13 @@ model ThreatMatch {
 
   @@index([workspaceId, analystStatus])
   @@index([indicatorId])
-  @@index([targetId])
+  // Task #495: `listMatchesForTarget` (threat-match.service.ts) does
+  // `where: { targetId }, orderBy: { confidence: 'desc' }` — widens the
+  // pre-existing lone `[targetId]` index to `[targetId, confidence]`,
+  // which still serves every plain `targetId`-only lookup (leftmost-
+  // prefix match) while also covering the sort column, so the old
+  // single-column index is redundant and dropped rather than duplicated.
+  @@index([targetId, confidence])
   @@map("threat_matches")
 }
 
@@ -6806,6 +6821,14 @@ model Incident {
   @@index([workspaceId, status])
   @@index([workspaceId, severity])
   @@index([assigneeId])
+  // Task #495: `IncidentsService.listForWorkspace` filters by
+  // `workspaceId` + optional `projectId` and always orders by
+  // `createdAt DESC` — neither is covered by the status/severity
+  // composites above, so the filterless-or-projectId-only case (and the
+  // ownership-check reverse lookups other M17 services do by
+  // workspaceId+projectId) falls back to a full workspace scan + sort.
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, createdAt])
   @@map("incidents")
 }
 
@@ -7077,6 +7100,11 @@ model RemediationTask {
   @@index([workspaceId, status])
   @@index([findingId])
   @@index([incidentId])
+  // Task #495: same gap as `Incident` above — `RemediationService
+  // .listForWorkspace` filters by workspaceId + optional projectId and
+  // orders by `createdAt DESC`.
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, createdAt])
   @@map("remediation_tasks")
 }
 
@@ -7154,6 +7182,16 @@ model SlaEvent {
   @@index([workspaceId, breached])
   @@index([incidentId])
   @@index([findingId])
+  // Task #495: `SlaService.checkForBreaches` — called from
+  // `SlaBreachCheckerService`'s poll loop, so this runs on every tick,
+  // not just on a user request — does
+  // `where: { eventType: 'STARTED', dueAt: { lt: now } }, orderBy: { dueAt: 'asc' }`.
+  // None of the existing indexes cover `eventType`/`dueAt` at all; a
+  // frequently-polled scan is exactly the query this platform's own
+  // "no unbounded queries" performance principle (task #494) means to
+  // catch, so it gets a dedicated index rather than relying on the
+  // `take: 200` cap alone to keep it cheap.
+  @@index([eventType, dueAt])
   @@map("sla_events")
 }
 
