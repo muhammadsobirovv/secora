@@ -35,12 +35,14 @@ function indicatorRow(overrides: Record<string, unknown> = {}) {
 function buildService() {
   const findUnique = jest.fn<(args: unknown) => Promise<unknown>>();
   const update = jest.fn<(args: unknown) => Promise<unknown>>();
+  const auditCreate = jest.fn<(args: unknown) => Promise<unknown>>();
   const prisma = {
     indicator: { findUnique, update },
+    auditEvent: { create: auditCreate },
   } as unknown as ConstructorParameters<typeof IndicatorsService>[0];
 
   const service = new IndicatorsService(prisma);
-  return { service, findUnique, update };
+  return { service, findUnique, update, auditCreate };
 }
 
 describe('IndicatorsService.getForWorkspace (workspace isolation)', () => {
@@ -84,7 +86,7 @@ describe('IndicatorsService.setStatus (write path — no shared-cache exemption)
     const { service, findUnique, update } = buildService();
     findUnique.mockResolvedValue(indicatorRow({ workspaceId: 'ws-someone-elses' }));
 
-    await expect(service.setStatus('indicator-1', 'ws-mine', 'DISABLED')).rejects.toMatchObject({
+    await expect(service.setStatus('indicator-1', 'ws-mine', 'user-1', 'DISABLED')).rejects.toMatchObject({
       code: 'INDICATOR_NOT_FOUND',
     });
     expect(update).not.toHaveBeenCalled();
@@ -94,9 +96,35 @@ describe('IndicatorsService.setStatus (write path — no shared-cache exemption)
     const { service, findUnique, update } = buildService();
     findUnique.mockResolvedValue(indicatorRow({ workspaceId: null }));
 
-    await expect(service.setStatus('indicator-1', 'ws-mine', 'DISABLED')).rejects.toMatchObject({
+    await expect(service.setStatus('indicator-1', 'ws-mine', 'user-1', 'DISABLED')).rejects.toMatchObject({
       code: 'INDICATOR_NOT_FOUND',
     });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('IndicatorsService.setStatus — audit logging (task #499 final review fix)', () => {
+  it('writes an INDICATOR_DISABLED audit event when disabling the caller\'s own indicator', async () => {
+    const { service, findUnique, update, auditCreate } = buildService();
+    findUnique.mockResolvedValue(indicatorRow({ workspaceId: 'ws-mine' }));
+    update.mockResolvedValue(indicatorRow({ workspaceId: 'ws-mine', status: 'DISABLED' }));
+
+    await service.setStatus('indicator-1', 'ws-mine', 'user-1', 'DISABLED');
+
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userId: 'user-1', type: 'INDICATOR_DISABLED' }) }),
+    );
+  });
+
+  it('writes an INDICATOR_EXPIRED audit event when expiring the caller\'s own indicator', async () => {
+    const { service, findUnique, update, auditCreate } = buildService();
+    findUnique.mockResolvedValue(indicatorRow({ workspaceId: 'ws-mine' }));
+    update.mockResolvedValue(indicatorRow({ workspaceId: 'ws-mine', status: 'EXPIRED' }));
+
+    await service.setStatus('indicator-1', 'ws-mine', 'user-1', 'EXPIRED');
+
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userId: 'user-1', type: 'INDICATOR_EXPIRED' }) }),
+    );
   });
 });

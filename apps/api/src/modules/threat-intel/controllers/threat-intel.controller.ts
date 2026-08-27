@@ -102,7 +102,7 @@ export class ThreatIntelController {
     @Body() dto: UpdateIndicatorStatusDto,
   ): Promise<IndicatorDto> {
     const workspaceId = await this.resolveWorkspaceId(user.id);
-    return this.indicators.setStatus(id, workspaceId, dto.status);
+    return this.indicators.setStatus(id, workspaceId, user.id, dto.status);
   }
 
   @Get('actors')
@@ -188,6 +188,6 @@ export class ThreatIntelController {
     @Body() dto: UpdateThreatMatchStatusDto,
   ): Promise<ThreatMatchDto> {
     const workspaceId = await this.resolveWorkspaceId(user.id);
-    return this.threatMatch.setAnalystStatus(id, workspaceId, dto.analystStatus);
+    return this.threatMatch.setAnalystStatus(id, workspaceId, user.id, dto.analystStatus);
   }
 }

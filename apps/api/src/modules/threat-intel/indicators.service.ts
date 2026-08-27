@@ -5,6 +5,7 @@ import type {
   IndicatorStatus,
   IndicatorType,
 } from '@pentesthub/shared';
+import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -85,6 +86,19 @@ export class IndicatorsService {
     ).indicator;
   }
 
+  /// Task #499 (final review — "confirm AuditLog mandatory everywhere"):
+  /// the schema already defines `INDICATOR_CREATED`/`INDICATOR_IMPORTED`/
+  /// `INDICATOR_EXPIRED`/`INDICATOR_DISABLED`/`THREAT_INTEL_IMPORT_REJECTED`
+  /// specifically for this service's write paths (`schema.prisma` lines
+  /// 1565-1569), but no code here ever wrote one — the enum values existed
+  /// without a caller. Fixed by mirroring `RemediationService.audit`'s
+  /// best-effort `prisma.auditEvent.create` helper exactly.
+  private async audit(userId: string, type: AuditEventType, metadata: Record<string, unknown>): Promise<void> {
+    await this.prisma.auditEvent.create({
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+    });
+  }
+
   async createManual(
     workspaceId: string,
     userId: string,
@@ -113,6 +127,7 @@ export class IndicatorsService {
         lastSeenAt: new Date(),
       },
     });
+    await this.audit(userId, 'INDICATOR_CREATED', { indicatorId: row.id, workspaceId, type: dto.type, value: dto.value });
     return toDto(row);
   }
 
@@ -149,12 +164,17 @@ export class IndicatorsService {
   /// (`workspaceId: null`) row can never be disabled/expired through this
   /// path (that's an operator/provider-ingestion concern, not a single
   /// workspace's), same isolation posture `getForWorkspace` enforces.
-  async setStatus(id: string, workspaceId: string, status: IndicatorStatus): Promise<IndicatorDto> {
+  async setStatus(id: string, workspaceId: string, userId: string, status: IndicatorStatus): Promise<IndicatorDto> {
     const row = await this.repo.findUnique({ where: { id } });
     if (!row || row.workspaceId !== workspaceId) {
       throw new AppException('INDICATOR_NOT_FOUND', 'Indicator not found.', HttpStatus.NOT_FOUND);
     }
     const updated = await this.repo.update({ where: { id }, data: { status } });
+    if (status === 'DISABLED') {
+      await this.audit(userId, 'INDICATOR_DISABLED', { indicatorId: id, workspaceId });
+    } else if (status === 'EXPIRED') {
+      await this.audit(userId, 'INDICATOR_EXPIRED', { indicatorId: id, workspaceId });
+    }
     return toDto(updated);
   }
 

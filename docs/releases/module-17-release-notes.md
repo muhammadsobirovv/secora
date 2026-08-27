@@ -196,6 +196,67 @@ the failures rather than re-stating them unchanged:
   should be able to run all four cleanly; this is disclosed as a
   sandbox limitation, not swept under a "PASSED".
 
+## Final review (task #499)
+
+TODO/FIXME/stub sweep across every M17 module directory: clean, zero
+matches. Confirmed the gating infrastructure the standing spec requires
+is wired everywhere it needs to be: `SecurityApprovalService` gates
+`AutomationRulesService` (every action beyond a plain `NOTIFY`) and
+`IncidentInvestigationService` (every autonomous investigation step);
+`AiSocAnalystService` correctly has none — it is read-only/advisory
+(one method, `analyzeIncident`, never writes anything), so there is
+nothing for a gate to gate. Every M17 controller resolves `workspaceId`
+server-side from the authenticated caller (`resolveWorkspaceId`), with
+one deliberate, documented exception:
+`ThreatIntelController`'s global-catalog reads (`actors`/`campaigns`/
+`reports`/`techniques`) and `POST /intel/refresh` operate on the shared
+public cache by design, the same posture `CveIntelligenceController`
+(Module 16) already established — `refresh` is rate-limited
+(6/min) since any authenticated user can trigger it.
+
+Went value-by-value through the schema's M17 `AuditEventType` additions
+against the services that should write them, rather than assuming
+"the enum exists" meant "someone calls it." Found and fixed three real
+gaps — the enum value existed, nothing ever wrote it:
+
+- `IndicatorsService.createManual`/`setStatus` wrote no audit event at
+  all for `INDICATOR_CREATED`/`INDICATOR_DISABLED`/`INDICATOR_EXPIRED`.
+  Fixed by adding a `private audit()` helper (identical pattern to
+  `RemediationService.audit`) and calling it from both methods.
+  `setStatus` gained a `userId` parameter to attribute the event to.
+- `ThreatMatchService.setAnalystStatus` (an analyst manually re-triaging
+  a match) wrote no `THREAT_MATCH_STATUS_CHANGED` event. Fixed the same
+  way; also gained a `userId` parameter. Left `upsertMatch` (the
+  automated correlation write, no human actor, potentially thousands of
+  rows per scan) deliberately unaudited via the generic mechanism — see
+  that method's new doc comment for why the `ThreatMatch.evidence` JSON
+  already serves as its audit record, matching
+  `VulnerabilityMatchingService`'s existing `CveMatch` precedent.
+- `SlaService.upsertPolicy` wrote no `SLA_POLICY_CHANGED` event despite
+  being a security-relevant config change (SLA targets drive breach
+  detection). Fixed the same way; gained a `userId` parameter.
+
+Each fix's controller call site was updated, each fix's existing spec
+file was updated for the new parameter and given a dedicated audit-log
+test, and all 8 touched files were re-verified with
+`ts.transpileModule()` (0 errors).
+
+Considered and left as-is, disclosed rather than fixed:
+`INDICATOR_IMPORTED`/`THREAT_INTEL_IMPORT_REJECTED` are unused because
+`StixTaxiiService` already writes a more detailed, structured,
+queryable audit trail to `ThreatIntelImportLog` (status/counts/
+rejection sample) for every import — a generic `AuditEvent` on top
+would be redundant, not missing coverage.
+`AUTOMATION_RULE_EXECUTED`/`AUTOMATION_RULE_BLOCKED` are unused for the
+identical reason (`AutomationRuleExecutionLog`). `AUTOMATION_RULE_CREATED`
+and `ASSET_OWNERSHIP_CHANGED` are genuinely unused with no equivalent
+domain-specific log backing them — `AssetOwnership` in particular has
+no write path (create/update) anywhere in this codebase yet, which
+reads as a scope gap from task #462 (schema shipped, service didn't)
+rather than a missing audit call. Not fixed in this pass — building a
+new CRUD surface belongs to a feature task, not a final-review pass —
+and carried forward to the final report's technical-debt list.
+
 ## Known gaps
 
 - **`prisma` CLI is broken in this sandbox** — confirmed this pass:

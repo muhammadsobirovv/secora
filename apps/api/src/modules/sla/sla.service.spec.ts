@@ -15,16 +15,20 @@ function buildService() {
   const slaEventCreate = jest.fn<(args: unknown) => Promise<Record<string, unknown>>>();
   const slaEventFindMany = jest.fn<(args: unknown) => Promise<Record<string, unknown>[]>>();
   const slaPolicyFindFirst = jest.fn<(args: unknown) => Promise<Record<string, unknown> | null>>();
+  const slaPolicyCreate = jest.fn<(args: unknown) => Promise<Record<string, unknown>>>();
+  const slaPolicyUpdate = jest.fn<(args: unknown) => Promise<Record<string, unknown>>>();
+  const auditCreate = jest.fn<(args: unknown) => Promise<unknown>>();
 
   const prisma = {
     slaEvent: { create: slaEventCreate, findMany: slaEventFindMany },
-    slaPolicy: { findFirst: slaPolicyFindFirst },
+    slaPolicy: { findFirst: slaPolicyFindFirst, create: slaPolicyCreate, update: slaPolicyUpdate },
+    auditEvent: { create: auditCreate },
   } as unknown as ConstructorParameters<typeof SlaService>[0];
 
   const eventBus = { publish: jest.fn() } as unknown as ConstructorParameters<typeof SlaService>[1];
 
   const service = new SlaService(prisma, eventBus);
-  return { service, slaEventCreate, slaEventFindMany, slaPolicyFindFirst };
+  return { service, slaEventCreate, slaEventFindMany, slaPolicyFindFirst, slaPolicyCreate, slaPolicyUpdate, auditCreate };
 }
 
 describe('SlaService.startClock (Community Edition guarantee)', () => {
@@ -110,6 +114,34 @@ describe('SlaService.resolveClock (breach determination)', () => {
     await service.resolveClock('ws-1', { incidentId: 'incident-1' });
 
     expect(slaEventCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('SlaService.upsertPolicy — audit logging (task #499 final review fix)', () => {
+  it('writes an SLA_POLICY_CHANGED audit event when creating a new policy', async () => {
+    const { service, slaPolicyFindFirst, slaPolicyCreate, auditCreate } = buildService();
+    slaPolicyFindFirst.mockResolvedValue(null);
+    slaPolicyCreate.mockResolvedValue({ id: 'policy-new', organizationId: null, workspaceId: 'ws-1', severity: 'HIGH', targetHours: 4, createdAt: new Date() });
+
+    await service.upsertPolicy('ws-1', 'user-1', 'HIGH', 4);
+
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userId: 'user-1', type: 'SLA_POLICY_CHANGED' }) }),
+    );
+  });
+
+  it('writes an SLA_POLICY_CHANGED audit event when updating an existing policy', async () => {
+    const { service, slaPolicyFindFirst, slaPolicyUpdate, auditCreate } = buildService();
+    slaPolicyFindFirst.mockResolvedValue({ id: 'policy-1', organizationId: null, workspaceId: 'ws-1', severity: 'HIGH', targetHours: 4, createdAt: new Date() });
+    slaPolicyUpdate.mockResolvedValue({ id: 'policy-1', organizationId: null, workspaceId: 'ws-1', severity: 'HIGH', targetHours: 8, createdAt: new Date() });
+
+    await service.upsertPolicy('ws-1', 'user-1', 'HIGH', 8);
+
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: 'user-1', type: 'SLA_POLICY_CHANGED', metadata: expect.objectContaining({ previousTargetHours: 4, targetHours: 8 }) }),
+      }),
+    );
   });
 });
 
