@@ -130,6 +130,72 @@ silent no-op); the one built-in feed adapter (CISA KEV) is free and
 requires no API key; manual/local import via STIX bundle or the
 `POST /intel/indicators` endpoint works with zero external dependency.
 
+## Verification loop (task #498)
+
+Re-attempted every check task #495/#496 had left as BLOCKED BY
+ENVIRONMENT, plus two checks that hadn't been run yet, and root-caused
+the failures rather than re-stating them unchanged:
+
+- **`packages/shared` — PASSED, for real.** Both `tsc --noEmit` and a
+  full `tsc` emit build completed cleanly (exit 0, JS output produced)
+  against the M17 additions (`ai.ts`, `bugbounty.ts`,
+  `knowledge-graph.ts`, `module17-endpoints.ts`, `soc-threat-intel.ts`).
+  This package has no `@nestjs/*` dependency, so it isn't affected by
+  the `apps/api` finding below — this is a genuine, complete,
+  type-checked pass, not a substitute.
+- **All 40 Module 17 files (`apps/api` + `packages/shared`) — PASSED
+  real syntax validation.** `ts.transpileModule()` (the actual
+  TypeScript parser) reported zero syntax errors across every new or
+  modified file from tasks #492-#497.
+- **`apps/api` full `tsc --noEmit` — completed (did not time out this
+  time) but is not usable as a signal, and here is why.** It reports
+  ~2,574 errors, the overwhelming majority `Cannot find module
+  '@nestjs/...'` / `'@opentelemetry/...'` / similar. Traced the root
+  cause: `apps/api/node_modules/@nestjs/common` resolves (via symlink)
+  to a pnpm-store directory that has some subfolders
+  (`decorators/`, `interfaces/`, `services/`, etc.) but **no
+  `package.json` and no root `index.js`/`index.d.ts`** — the package
+  was never fully installed, the exact same defect class already
+  confirmed for `prisma` and `jest` in tasks #495/#496, now confirmed
+  to extend to `@nestjs/common` and, by inference, the rest of the
+  `@nestjs` family every module in this codebase depends on. This is
+  a sandbox-wide dependency-installation defect, not specific to
+  Module 17 and not fixable from application code.
+  Spot-checked the four non-"Cannot find module" errors that touched
+  Module 17 files, to rule out a real bug hiding in the noise — all
+  four are downstream artifacts of the same defect, not code bugs:
+  `AuditEventType` "missing" `INCIDENT_CREATED`/`INCIDENT_STATUS_CHANGED`/
+  `INCIDENT_ASSIGNED` (all three are present in `schema.prisma` at
+  lines 1572-1574 — the generated Prisma client is stale, same root
+  cause as the broken `prisma` CLI); `IncidentTimelineEventType`
+  "missing" `PLAYBOOK_EXECUTED` (present at line 6852, same stale-client
+  cause); `PrismaClient` "missing" `.slaPolicy` (the `SlaPolicy` model
+  exists at line 3973, same cause, and this one is in
+  `enterprise-analytics`/`enterprise-reporting`, pre-existing code
+  Module 17 never touched); `AppException` "missing" `.message` (it
+  extends `HttpException extends Error`, which trivially has
+  `.message` — the error only appears because `HttpException` itself
+  can't resolve from the broken `@nestjs/common`). None of the four is
+  a real defect.
+- **`eslint` is also broken in this sandbox — new finding this pass.**
+  `./node_modules/.bin/eslint --version` fails with `Cannot find module
+  '@eslint-community/eslint-utils'`; that package does not exist
+  anywhere under `node_modules/.pnpm` in this sandbox. Same defect
+  class as `prisma`/`jest`/`@nestjs/common` above. No lint pass was
+  possible for any file in this session, Module 17 or otherwise.
+- **`prisma`/`jest` CLIs re-confirmed broken**, unchanged from
+  tasks #495/#496 — re-checked rather than assumed still-broken;
+  same empty/incomplete pnpm-store package directories found again.
+- **Net assessment**: the syntax of every Module 17 file is confirmed
+  valid, and the one part of the change set with a working toolchain
+  (`packages/shared`) type-checks and builds cleanly. `apps/api`'s
+  type-correctness and the 7 new spec files' pass/fail status remain
+  genuinely unverified in this sandbox — not because the code is
+  suspect, but because `tsc`, `eslint`, `jest`, and `prisma` are all
+  broken installs here. A environment with a working `pnpm install`
+  should be able to run all four cleanly; this is disclosed as a
+  sandbox limitation, not swept under a "PASSED".
+
 ## Known gaps
 
 - **`prisma` CLI is broken in this sandbox** — confirmed this pass:
@@ -150,9 +216,16 @@ requires no API key; manual/local import via STIX bundle or the
   valid TypeScript; does not confirm assertions pass, mocks are wired
   correctly, or cross-file types resolve) — disclosed as the best
   available substitute, not equivalent to a real test run.
-- A full-program `tsc --noEmit` typecheck of `apps/api` was not
-  completed in this sandbox (consistent with prior modules' findings —
-  the check times out before completing on a codebase this size).
+- A full-program `tsc --noEmit` typecheck of `apps/api` **did complete**
+  in this pass (unlike earlier modules' timeout reports) but is not a
+  usable signal here — see "Verification loop" above: it surfaces
+  ~2,574 errors that trace back to `@nestjs/common` and most of its
+  sibling packages being incomplete pnpm-store installs (missing
+  `package.json`/entry points), the same defect class as `prisma` and
+  `jest`. `eslint` is broken the same way (missing
+  `@eslint-community/eslint-utils`). `packages/shared`, which has no
+  `@nestjs` dependency, typechecks and builds cleanly and is a genuine
+  PASSED result.
 - The Go toolchain remains absent from this sandbox (consistent with
   prior modules) — `packages/sdk-go`'s Module 17 additions were written
   and reviewed but not compiled in this pass.
