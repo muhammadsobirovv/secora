@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { SlaEventDto, SlaEventType, SlaPolicyDto, VulnFindingSeverity } from '@pentesthub/shared';
+import type { AuditEventType } from '../../prisma-types.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PollerLeaseService } from '../../common/concurrency/poller-lease.service.js';
 import { SlaBreachedEvent } from './events/sla-breached.event.js';
@@ -114,12 +115,30 @@ export class SlaService {
   /// kind of edge case that bit `ThreatActor`/`ThreatCampaign` upserts
   /// earlier this module (see `threat-intel-catalog.service.ts`'s doc
   /// comment on that fix) — avoided here the same way.
-  async upsertPolicy(workspaceId: string, severity: VulnFindingSeverity, targetHours: number): Promise<SlaPolicyDto> {
+  async upsertPolicy(workspaceId: string, userId: string, severity: VulnFindingSeverity, targetHours: number): Promise<SlaPolicyDto> {
     const existing = await this.prisma.slaPolicy.findFirst({ where: { organizationId: null, workspaceId, severity } });
     const row = existing
       ? await this.prisma.slaPolicy.update({ where: { id: existing.id }, data: { targetHours } })
       : await this.prisma.slaPolicy.create({ data: { organizationId: null, workspaceId, severity, targetHours } });
+    // Task #499 (final review — "confirm AuditLog mandatory everywhere"):
+    // `SLA_POLICY_CHANGED` already existed in the schema's AuditEventType
+    // enum for exactly this write, but nothing called it. A workspace's
+    // SLA targets are a security-relevant config surface (they drive
+    // breach detection and the SOC dashboard) — fixed to match every
+    // other config-changing write path in this module.
+    await this.audit(userId, 'SLA_POLICY_CHANGED', {
+      workspaceId,
+      severity,
+      targetHours,
+      previousTargetHours: existing?.targetHours ?? null,
+    });
     return toPolicyDto(row);
+  }
+
+  private async audit(userId: string, type: AuditEventType, metadata: Record<string, unknown>): Promise<void> {
+    await this.prisma.auditEvent.create({
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+    });
   }
 
   async startClock(workspaceId: string, severity: VulnFindingSeverity, entity: { incidentId?: string; findingId?: string }): Promise<void> {

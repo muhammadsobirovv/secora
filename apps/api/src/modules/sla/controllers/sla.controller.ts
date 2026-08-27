@@ -43,7 +43,7 @@ export class SlaController {
   @ApiOperation({ summary: 'Create or update this workspace SLA policy for a severity level' })
   async upsertPolicy(@CurrentUser() user: RequestUser, @Body() dto: UpsertSlaPolicyDto): Promise<SlaPolicyDto> {
     const workspaceId = await this.resolveWorkspaceId(user.id);
-    return this.sla.upsertPolicy(workspaceId, dto.severity, dto.targetHours);
+    return this.sla.upsertPolicy(workspaceId, user.id, dto.severity, dto.targetHours);
   }
 
   @Get('events')

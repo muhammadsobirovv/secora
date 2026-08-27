@@ -22,6 +22,8 @@ function buildService() {
   const threatMatchUpdate = jest.fn<(args: unknown) => Promise<Record<string, unknown>>>();
   const threatMatchFindUnique = jest.fn<(args: unknown) => Promise<Record<string, unknown> | null>>();
 
+  const auditCreate = jest.fn<(args: unknown) => Promise<unknown>>();
+
   const prisma = {
     assetGraphNode: { findMany: assetGraphNodeFindMany },
     indicator: { findMany: indicatorFindMany },
@@ -32,12 +34,13 @@ function buildService() {
       findUnique: threatMatchFindUnique,
       findMany: jest.fn<(args: unknown) => Promise<Record<string, unknown>[]>>(),
     },
+    auditEvent: { create: auditCreate },
   } as unknown as ConstructorParameters<typeof ThreatMatchService>[0];
 
   const eventBus = { publish: jest.fn() } as unknown as ConstructorParameters<typeof ThreatMatchService>[1];
 
   const service = new ThreatMatchService(prisma, eventBus);
-  return { service, assetGraphNodeFindMany, indicatorFindMany, threatMatchFindFirst, threatMatchCreate, threatMatchFindUnique, threatMatchUpdate };
+  return { service, assetGraphNodeFindMany, indicatorFindMany, threatMatchFindFirst, threatMatchCreate, threatMatchFindUnique, threatMatchUpdate, auditCreate };
 }
 
 describe('ThreatMatchService.runForTarget', () => {
@@ -83,9 +86,25 @@ describe('ThreatMatchService.setAnalystStatus (workspace isolation)', () => {
     const { service, threatMatchFindUnique, threatMatchUpdate } = buildService();
     threatMatchFindUnique.mockResolvedValue({ id: 'match-1', workspaceId: 'ws-someone-elses' });
 
-    await expect(service.setAnalystStatus('match-1', 'ws-mine', 'CONFIRMED')).rejects.toMatchObject({
+    await expect(service.setAnalystStatus('match-1', 'ws-mine', 'user-1', 'CONFIRMED')).rejects.toMatchObject({
       code: 'THREAT_MATCH_NOT_FOUND',
     });
     expect(threatMatchUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThreatMatchService.setAnalystStatus — audit logging (task #499 final review fix)', () => {
+  it('writes a THREAT_MATCH_STATUS_CHANGED audit event when an analyst re-triages their own workspace\'s match', async () => {
+    const { service, threatMatchFindUnique, threatMatchUpdate, auditCreate } = buildService();
+    threatMatchFindUnique.mockResolvedValue({ id: 'match-1', workspaceId: 'ws-mine', analystStatus: 'NEW' });
+    threatMatchUpdate.mockResolvedValue({ id: 'match-1', workspaceId: 'ws-mine', analystStatus: 'CONFIRMED' });
+
+    await service.setAnalystStatus('match-1', 'ws-mine', 'user-1', 'CONFIRMED');
+
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: 'user-1', type: 'THREAT_MATCH_STATUS_CHANGED' }),
+      }),
+    );
   });
 });

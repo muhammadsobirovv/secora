@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { AssetGraphNodeType, ThreatMatchAnalystStatus, ThreatMatchDto } from '@pentesthub/shared';
+import type { AuditEventType } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { IndicatorMatchedEvent } from './events/indicator-matched.event.js';
@@ -163,15 +164,40 @@ export class ThreatMatchService {
     return rows.map(toDto);
   }
 
-  async setAnalystStatus(id: string, workspaceId: string, status: ThreatMatchAnalystStatus): Promise<ThreatMatchDto> {
+  /// Task #499 (final review — "confirm AuditLog mandatory everywhere"):
+  /// this is the one write path in this service with a human actor (see
+  /// `upsertMatch`'s doc comment for why automated correlation writes
+  /// deliberately do NOT get a generic `AuditEvent` — no `userId` to
+  /// attribute it to, and the `ThreatMatch.evidence` JSON already is that
+  /// audit record). An analyst re-triaging a match is a real user action
+  /// the schema already has `THREAT_MATCH_STATUS_CHANGED` for; nothing
+  /// wrote one until this fix.
+  async setAnalystStatus(id: string, workspaceId: string, userId: string, status: ThreatMatchAnalystStatus): Promise<ThreatMatchDto> {
     const row = await this.matchRepo.findUnique({ where: { id } });
     if (!row || row.workspaceId !== workspaceId) {
       throw new AppException('THREAT_MATCH_NOT_FOUND', 'Threat match not found.', HttpStatus.NOT_FOUND);
     }
     const updated = await this.matchRepo.update({ where: { id }, data: { analystStatus: status } });
+    await this.audit(userId, 'THREAT_MATCH_STATUS_CHANGED', { threatMatchId: id, workspaceId, from: row.analystStatus, to: status });
     return toDto(updated);
   }
 
+  private async audit(userId: string, type: AuditEventType, metadata: Record<string, unknown>): Promise<void> {
+    await this.prisma.auditEvent.create({
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+    });
+  }
+
+  /// No generic `AuditEvent` write here on purpose (task #499 final
+  /// review considered and rejected this): this runs from an event
+  /// handler with no authenticated human actor, `AuditEvent.userId` is
+  /// non-optional, and writing one row per candidate match (potentially
+  /// thousands per recon scan) would be audit-log noise, not signal. The
+  /// `ThreatMatch` row itself — `evidence`, `confidence`, `createdAt` —
+  /// already is the durable record of why this match exists, same
+  /// posture `VulnerabilityMatchingService`'s `CveMatch` already
+  /// established. Contrast `setAnalystStatus` below, which has a real
+  /// human actor and does audit.
   private async upsertMatch(
     workspaceId: string,
     projectId: string,
