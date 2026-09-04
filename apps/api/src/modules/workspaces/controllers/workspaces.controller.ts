@@ -70,7 +70,11 @@ export class WorkspacesController {
   }
 
   @Post('avatar')
-  @UseInterceptors(FileInterceptor('file'))
+  // Module 18 — task #513 (file/storage security audit). Same fix as the
+  // Attachments controllers: enforce the size cap at Multer/Busboy level
+  // so an oversized upload is aborted mid-stream instead of fully
+  // buffered before the existing `file.size` check below runs.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_AVATAR_SIZE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a workspace avatar image' })
   async uploadAvatar(

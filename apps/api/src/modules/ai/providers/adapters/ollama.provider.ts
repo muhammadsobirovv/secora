@@ -22,6 +22,22 @@ import {
 /// Phase 1 — this is the no-key default path: a workspace with no cloud
 /// key configured falls back to Ollama, per the spec's "default to Ollama
 /// if no key" rule).
+///
+/// Module 18 — task #514 (SSRF/network security centralization),
+/// deliberate exception, not an oversight: `credential.baseUrl` is
+/// intentionally allowed to point at a private/internal address (that's
+/// the entire point — a self-hosted Ollama instance on the same network,
+/// or `localhost` for a single-machine deployment) and is NOT run through
+/// `assertSafeWebhookUrl`, unlike every user-URL outbound call elsewhere
+/// in this codebase. This is acceptable because a workspace's own BYOK AI
+/// credential is workspace-owner-configured, trusted configuration (the
+/// same trust level as `AI_OLLAMA_BASE_URL` itself, an operator env var),
+/// not attacker- or low-privilege-user-controlled input — closer to the
+/// "operator already trusts this" tier the TAXII/vendor-feed URLs (env-
+/// var configured) are in than to the webhook/workflow-URL tier that gets
+/// the SSRF guard. If BYOK credential configuration is ever opened up to
+/// a lower-trust role than workspace owner, this exception needs
+/// revisiting.
 @Injectable()
 export class OllamaProvider implements AiProvider {
   readonly name = 'OLLAMA' as const;

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   MessageEvent,
   NotFoundException,
   Param,
@@ -30,6 +31,15 @@ import { ListOrchestrationRunsQuery } from '../queries/list-orchestration-runs.q
 import { ExplainOrchestrationRunQuery } from '../queries/explain-orchestration-run.query.js';
 import { AgentOrchestrationStreamHubService } from '../orchestrator/agent-orchestration-stream-hub.service.js';
 import { AgentOrchestratorService } from '../orchestrator/agent-orchestrator.service.js';
+import {
+  AGENT_ORCHESTRATION_REPOSITORY,
+  type AgentOrchestrationRepository,
+} from '../domain/repositories/agent-orchestration.repository.interface.js';
+import {
+  resolveOrchestrationRunForCaller,
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../agent-authorization.util.js';
 
 /// Module 11 — Controllers + Swagger + module wiring + events (task #236).
 /// The Master AI Orchestrator's HTTP surface — previously only reachable
@@ -49,6 +59,13 @@ export class AgentRunsController {
     private readonly queryBus: QueryBus,
     private readonly streamHub: AgentOrchestrationStreamHubService,
     private readonly orchestrator: AgentOrchestratorService,
+    // Module 18 — task #517 (SSE hardening). Both added solely so
+    // stream() below can authorize the connection — see that method's
+    // comment.
+    @Inject(AGENT_ORCHESTRATION_REPOSITORY)
+    private readonly orchestrationRepository: AgentOrchestrationRepository,
+    @Inject(WORKSPACES_REPOSITORY)
+    private readonly workspacesRepository: WorkspacesRepository,
   ) {}
 
   @Get()
@@ -105,29 +122,67 @@ export class AgentRunsController {
     return this.queryBus.execute(new ExplainOrchestrationRunQuery(user.id, runId));
   }
 
+  // Module 18 — task #517 (SSE hardening audit). Previously had no
+  // @CurrentUser() at all — `runId` came straight from the route param
+  // with zero ownership check, unlike every sibling REST endpoint in this
+  // same controller (get/cancel/retry/explain all thread user.id through
+  // their query/command). Any authenticated user who knew/guessed another
+  // workspace's runId got that workspace's live orchestration stream (via
+  // the unscoped `streamHub.get()` Map lookup) or its terminal
+  // status/error (via the unscoped `orchestrator.getRun()`). Now
+  // authorizes via the same resolveOrchestrationRunForCaller() the sibling
+  // GetOrchestrationRunQuery handler already uses, before ever touching
+  // the stream hub or orchestrator with the caller-supplied runId.
   @Sse(':runId/stream')
   @ApiOperation({ summary: 'Live SSE stream of an orchestration run in progress' })
-  stream(@Param('runId') runId: string): Observable<MessageEvent> {
-    const active = this.streamHub.get(runId);
-    if (active) {
-      return active.subject.asObservable().pipe(map((event) => ({ data: event })));
-    }
-
+  stream(
+    @Param('runId') runId: string,
+    @CurrentUser() user: RequestUser,
+  ): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
-      void this.orchestrator.getRun(runId).then((run) => {
-        if (!run) {
-          subscriber.error(new NotFoundException('Orchestration run not found'));
-          return;
-        }
-        const event: OrchestrationStreamEvent =
-          run.status === 'FAILED'
-            ? { type: 'run_failed', message: run.errorMessage ?? 'Run failed.' }
-            : run.status === 'CANCELLED'
-              ? { type: 'cancelled' }
-              : { type: 'run_completed', run };
-        subscriber.next({ data: event });
-        subscriber.complete();
-      });
+      let cancelled = false;
+      let innerSubscription: { unsubscribe(): void } | undefined;
+
+      void resolveOrchestrationRunForCaller(
+        this.orchestrationRepository,
+        this.workspacesRepository,
+        user.id,
+        runId,
+      )
+        .then(() => {
+          if (cancelled) return;
+
+          const active = this.streamHub.get(runId);
+          if (active) {
+            innerSubscription = active.subject
+              .asObservable()
+              .pipe(map((event) => ({ data: event })))
+              .subscribe(subscriber);
+            return;
+          }
+
+          void this.orchestrator.getRun(runId).then((run) => {
+            if (cancelled) return;
+            if (!run) {
+              subscriber.error(new NotFoundException('Orchestration run not found'));
+              return;
+            }
+            const event: OrchestrationStreamEvent =
+              run.status === 'FAILED'
+                ? { type: 'run_failed', message: run.errorMessage ?? 'Run failed.' }
+                : run.status === 'CANCELLED'
+                  ? { type: 'cancelled' }
+                  : { type: 'run_completed', run };
+            subscriber.next({ data: event });
+            subscriber.complete();
+          });
+        })
+        .catch((error: unknown) => subscriber.error(error));
+
+      return () => {
+        cancelled = true;
+        innerSubscription?.unsubscribe();
+      };
     });
   }
 }

@@ -193,16 +193,32 @@ export abstract class PromptDrivenAgent extends BaseAgent {
   /// reuse — renders prior tasks' outputs as short labeled blocks so a
   /// downstream agent (e.g. Report Writer reading Web + API agent output)
   /// has real context instead of starting from nothing.
+  ///
+  /// Module 18 — task #515 (AI safety hardening). `u.output` is an
+  /// upstream agent's own output — which in a multi-agent pipeline (e.g.
+  /// a Recon/Web agent's output feeding a Report Writer agent) can itself
+  /// contain scan-derived, attacker-influenced text (an HTTP response
+  /// body, a page title). This used to `JSON.stringify` it straight into
+  /// the prompt with no fencing at all, even though this same file
+  /// already fences tool-call results via `injectionGuard.wrapAsData`
+  /// just above — an inconsistency this task closes by applying the same
+  /// treatment here.
   protected formatUpstreamContext(input: AgentExecutionInput): string {
     if (input.upstreamContext.length === 0) return '';
     const blocks = input.upstreamContext.map((u) => {
       const body = u.output ? JSON.stringify(u.output) : '(no output)';
-      return `[${u.agentType}] ${u.title}\n${body}`;
+      return this.injectionGuard.wrapAsData(`${u.agentType} — ${u.title}`, body);
     });
     return `\n\nContext from earlier steps in this run:\n${blocks.join('\n\n')}`;
   }
 
+  /// Module 18 — task #515. `input.input` is task-specific input handed
+  /// to this agent run — for a user- or automation-triggered task this
+  /// can carry free text the caller controls (e.g. a target/finding
+  /// reference or instructions supplied when the task was created).
+  /// Same fencing as `formatUpstreamContext` above, for the same reason.
   protected formatTaskInput(input: AgentExecutionInput): string {
-    return input.input ? JSON.stringify(input.input) : '(no additional input)';
+    if (!input.input) return '(no additional input)';
+    return this.injectionGuard.wrapAsData('task input', JSON.stringify(input.input));
   }
 }

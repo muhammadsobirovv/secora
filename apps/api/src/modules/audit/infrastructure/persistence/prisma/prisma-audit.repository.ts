@@ -6,6 +6,7 @@ import type {
   RecordAuditEventInput,
 } from '../../../domain/audit.repository.interface.js';
 import type { AuditEvent, Prisma } from '../../../../../prisma-types.js';
+import { getRequestId } from '../../../../../observability/request-context.js';
 
 @Injectable()
 export class PrismaAuditRepository implements AuditRepository {
@@ -14,6 +15,11 @@ export class PrismaAuditRepository implements AuditRepository {
   ) {}
 
   async record(input: RecordAuditEventInput): Promise<void> {
+    // Module 18 — task #505. Default from the active request's correlation
+    // id when the caller didn't supply one explicitly — see
+    // RecordAuditEventInput.requestId's doc comment. undefined outside an
+    // HTTP request context (e.g. a background job writing its own audit
+    // trail), which is fine: the column is nullable for exactly that case.
     await this.txHost.tx.auditEvent.create({
       data: {
         userId: input.userId,
@@ -21,6 +27,7 @@ export class PrismaAuditRepository implements AuditRepository {
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
         metadata: input.metadata as Prisma.InputJsonValue | undefined,
+        requestId: input.requestId ?? getRequestId(),
       },
     });
   }

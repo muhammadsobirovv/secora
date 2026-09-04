@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ThreatIntelModule } from '../threat-intel/threat-intel.module.js';
+import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { TechnologyDetectionService } from './technology-detection.service.js';
 import { AssetGraphService } from './asset-graph.service.js';
 import { ChangeDetectionService } from './change-detection.service.js';
@@ -25,7 +26,12 @@ import { CveIntelligenceController } from './controllers/cve-intelligence.contro
 /// rather than adding a second one (see `ThreatIntelModule`'s own doc
 /// comment). Not circular: `ThreatIntelModule` does not import this module.
 @Module({
-  imports: [ThreatIntelModule],
+  // Module 18 — task #508 (IDOR sweep). WorkspacesModule added so
+  // CveIntelligenceController can resolve the caller's own workspaceId
+  // for its cve-matches/:targetId route (see that controller's doc
+  // comment) — same DI shape ThreatIntelModule already uses for its own
+  // sibling controller.
+  imports: [ThreatIntelModule, WorkspacesModule],
   controllers: [IntelligenceController, CveIntelligenceController],
   providers: [
     TechnologyDetectionService,

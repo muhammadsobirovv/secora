@@ -45,6 +45,15 @@ import {
   AI_MESSAGES_REPOSITORY,
   type AiMessagesRepository,
 } from '../domain/repositories/ai-messages.repository.interface.js';
+import {
+  AI_CONVERSATIONS_REPOSITORY,
+  type AiConversationsRepository,
+} from '../domain/repositories/ai-conversations.repository.interface.js';
+import {
+  resolveAiMessageForCaller,
+  WORKSPACES_REPOSITORY,
+  type WorkspacesRepository,
+} from '../ai-authorization.util.js';
 import { toAiMessageDto } from '../mappers/to-ai-message-dto.mapper.js';
 import type { AiChatStreamEvent } from '../chat/ai-chat-stream-event.js';
 
@@ -63,6 +72,13 @@ export class AiConversationsController {
     private readonly streamHub: AiChatStreamHubService,
     @Inject(AI_MESSAGES_REPOSITORY)
     private readonly messagesRepository: AiMessagesRepository,
+    // Module 18 — task #517 (SSE hardening). Both added solely so
+    // streamMessage() below can authorize the connection — see that
+    // method's comment.
+    @Inject(AI_CONVERSATIONS_REPOSITORY)
+    private readonly conversationsRepository: AiConversationsRepository,
+    @Inject(WORKSPACES_REPOSITORY)
+    private readonly workspacesRepository: WorkspacesRepository,
   ) {}
 
   @Get()
@@ -236,6 +252,29 @@ export class AiConversationsController {
   /// (or the hub entry expired), falls back to emitting the persisted
   /// message once as a single terminal event — see
   /// AiChatStreamHubService's doc comment for the single-process caveat.
+  // Module 18 — task #512 (rate limiting audit). No dedicated limit on new
+  // *connection attempts* to this endpoint before — only the send/branch/
+  // regenerate/continue endpoints above that actually start generation
+  // were throttled. This doesn't cap concurrent *open* streams (the
+  // Throttler only sees the initial request, not a long-lived SSE
+  // connection's lifetime — capping concurrent opens would need a
+  // separate in-memory/Redis counter, out of proportion to this audit),
+  // but it does bound how fast a client can open/reconnect streams,
+  // which is the cheap-to-fix half of the gap the audit found here.
+  // Module 18 — task #517 (SSE hardening audit). Previously had no
+  // @CurrentUser() at all — `messageId` came straight from the query
+  // string with zero ownership check, so any authenticated user who
+  // supplied any workspace's messageId got that workspace's live
+  // assistant-message token stream (via the unscoped `streamHub.get()`
+  // Map lookup) or its persisted final content/error (via the unscoped
+  // `messagesRepository.findById()`) — a real cross-workspace data leak,
+  // the AI-chat equivalent of the same gap fixed on
+  // AgentRunsController.stream() in this same phase. Now authorizes via
+  // the same resolveAiMessageForCaller() every other message-touching
+  // command/query in this module already goes through (see
+  // GetAiConversationQuery), before ever touching the stream hub or
+  // repository with the caller-supplied messageId.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Sse(':conversationId/messages/stream')
   @ApiOperation({
     summary: 'Live SSE stream of one assistant message being generated',
@@ -243,32 +282,56 @@ export class AiConversationsController {
   streamMessage(
     @Param('conversationId') conversationId: string,
     @Query('messageId') messageId: string,
+    @CurrentUser() user: RequestUser,
   ): Observable<MessageEvent> {
-    const active = this.streamHub.get(messageId);
-    if (active) {
-      return active.subject
-        .asObservable()
-        .pipe(map((event) => ({ data: event })));
-    }
-
     return new Observable<MessageEvent>((subscriber) => {
-      void this.messagesRepository.findById(messageId).then((message) => {
-        if (!message) {
-          subscriber.error(new NotFoundException('Message not found'));
-          return;
-        }
-        const event: AiChatStreamEvent =
-          message.status === 'FAILED'
-            ? {
-                type: 'error',
-                message: message.errorMessage ?? 'Generation failed',
-              }
-            : message.status === 'CANCELLED'
-              ? { type: 'cancelled' }
-              : { type: 'done', message: toAiMessageDto(message) };
-        subscriber.next({ data: event });
-        subscriber.complete();
-      });
+      let cancelled = false;
+      let innerSubscription: { unsubscribe(): void } | undefined;
+
+      void resolveAiMessageForCaller(
+        this.conversationsRepository,
+        this.messagesRepository,
+        this.workspacesRepository,
+        user.id,
+        messageId,
+      )
+        .then(({ message, conversation }) => {
+          if (cancelled) return;
+          // Defense in depth: the route's own :conversationId must match
+          // the message's actual conversation, not just belong to the
+          // same workspace as the caller.
+          if (conversation.id !== conversationId) {
+            subscriber.error(new NotFoundException('Message not found'));
+            return;
+          }
+
+          const active = this.streamHub.get(messageId);
+          if (active) {
+            innerSubscription = active.subject
+              .asObservable()
+              .pipe(map((event) => ({ data: event })))
+              .subscribe(subscriber);
+            return;
+          }
+
+          const event: AiChatStreamEvent =
+            message.status === 'FAILED'
+              ? {
+                  type: 'error',
+                  message: message.errorMessage ?? 'Generation failed',
+                }
+              : message.status === 'CANCELLED'
+                ? { type: 'cancelled' }
+                : { type: 'done', message: toAiMessageDto(message) };
+          subscriber.next({ data: event });
+          subscriber.complete();
+        })
+        .catch((error: unknown) => subscriber.error(error));
+
+      return () => {
+        cancelled = true;
+        innerSubscription?.unsubscribe();
+      };
     });
   }
 }

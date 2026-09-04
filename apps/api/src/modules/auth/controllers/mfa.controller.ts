@@ -46,6 +46,11 @@ export class MfaController {
   }
 
   @ApiBearerAuth()
+  // Module 18 — task #512 (rate limiting audit). Accepts a guessable TOTP
+  // code; was relying on the global 100/min/IP default only. Same 5/min
+  // budget as the `challenge` endpoint below, which guards the identical
+  // "guess a 6-digit code" surface.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('confirm')
   @ApiOperation({
     summary: 'Confirm MFA setup with a TOTP code — returns backup codes',
@@ -80,6 +85,12 @@ export class MfaController {
   }
 
   @ApiBearerAuth()
+  // Module 18 — task #512 (rate limiting audit). Accepts a TOTP or backup
+  // code; a bearer token alone doesn't bound the guess space (backup
+  // codes in particular are the kind of secondary secret this endpoint
+  // should assume an attacker with a stolen/leaked access token would
+  // try to brute-force). Same 5/min budget as `challenge`/`confirm`.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('disable')
   @ApiOperation({
