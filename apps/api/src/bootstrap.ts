@@ -1,11 +1,38 @@
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { BadRequestException, ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import type { Express, Request, Response } from 'express';
+import type { ValidationError } from 'class-validator';
 import type { EnvConfig } from './config/env.validation.js';
 import { requestIdMiddleware } from './observability/request-id.middleware.js';
+
+/// Module 18 — task #504 (Global error handling, Phase 2). Flattens
+/// class-validator's recursive `ValidationError[]` (one entry per invalid
+/// property, each with a `constraints` map and, for nested DTOs, its own
+/// `children`) into the flat `{field, message}[]` shape `ApiErrorResponse
+/// .details` carries — walking `children` so a nested property like
+/// `address.zipCode` is reported as one entry with a dotted path instead of
+/// being dropped or requiring the caller to recurse themselves.
+function flattenValidationErrors(
+  errors: ValidationError[],
+  parentPath = '',
+): Array<{ field: string; message: string }> {
+  const out: Array<{ field: string; message: string }> = [];
+  for (const error of errors) {
+    const path = parentPath ? `${parentPath}.${error.property}` : error.property;
+    if (error.constraints) {
+      for (const message of Object.values(error.constraints)) {
+        out.push({ field: path, message });
+      }
+    }
+    if (error.children && error.children.length > 0) {
+      out.push(...flattenValidationErrors(error.children, path));
+    }
+  }
+  return out;
+}
 
 /// Shared between main.ts and the e2e test bootstrap so tests exercise the
 /// exact same global pipes/CORS/Swagger config as production, not a
@@ -104,6 +131,22 @@ export function configureApp(app: INestApplication): void {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      // Module 18 — task #504. Without this, class-validator's structured
+      // per-field errors get discarded by Nest's default factory, which
+      // joins every constraint message into one opaque string. Throwing a
+      // BadRequestException with this exact shape ({code, message,
+      // details}) lets HttpExceptionFilter (common/filters/
+      // http-exception.filter.ts) recognize and pass the structured
+      // `details` array straight through into ApiErrorResponse, instead of
+      // going through its generic HttpException/'HTTP_ERROR' branch.
+      exceptionFactory: (errors: ValidationError[]) => {
+        const details = flattenValidationErrors(errors);
+        return new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          message: 'Request validation failed.',
+          details,
+        });
+      },
     }),
   );
 }

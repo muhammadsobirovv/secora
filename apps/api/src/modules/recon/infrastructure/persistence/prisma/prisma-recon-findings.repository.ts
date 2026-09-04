@@ -73,6 +73,22 @@ export class PrismaReconFindingsRepository implements ReconFindingsRepository {
     });
   }
 
+  /// Module 18 — task #516 (API performance audit). This previously had no
+  /// `take` at all — genuinely unbounded, unlike its sibling
+  /// PrismaVulnFindingsRepository.list() (Module 4), which has always
+  /// capped at `filter.limit ?? 200`. That gap mattered here specifically:
+  /// URL/subdomain-producing tools (Katana, gau, waybackurls) routinely
+  /// emit thousands of findings per target, and — since findings dedupe
+  /// and accumulate across re-scans via the (targetId, type, dedupKey)
+  /// unique constraint rather than being replaced — a target scanned
+  /// repeatedly over time only grows this set, never shrinks it. Neither
+  /// of this method's two callers (TargetReconFindingsController,
+  /// RECON jobs controller's per-job findings route) currently exposes a
+  /// client-controllable limit — see the ListReconFindingsFilter.limit
+  /// comment — so this applies the same 200-row default
+  /// PrismaVulnFindingsRepository already uses, closing the unbounded
+  /// case without inventing a new public pagination contract in this
+  /// phase.
   list(filter: ListReconFindingsFilter): Promise<ReconFinding[]> {
     return this.txHost.tx.reconFinding.findMany({
       where: {
@@ -83,6 +99,7 @@ export class PrismaReconFindingsRepository implements ReconFindingsRepository {
         ...(filter.type ? { type: filter.type } : {}),
       },
       orderBy: { lastSeenAt: 'desc' },
+      take: filter.limit ?? 200,
     });
   }
 

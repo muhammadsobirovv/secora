@@ -1,5 +1,7 @@
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { EnvConfig } from '../../../config/env.validation.js';
 import type {
   ClaimJobRequestDto,
   CompleteJobRequestDto,
@@ -13,6 +15,7 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 import { resolveOrganizationMembership } from '../../enterprise/organization-membership.util.js';
 import { toDistributedJobDto } from '../mappers/to-distributed-job-dto.mapper.js';
 import { PRIORITY_ORDER } from '../job-scheduling.util.js';
+import { getRequestId } from '../../../observability/request-context.js';
 
 // ---------------------------------------------------------------------------
 // Enqueue
@@ -45,6 +48,8 @@ export class EnqueueDistributedJobHandler
         maxAttempts: command.data.maxAttempts ?? 3,
         scheduledFor: command.data.scheduledFor ? new Date(command.data.scheduledFor) : undefined,
         createdBy: command.userId,
+        // Module 18 — task #505 (Request correlation/traceability).
+        requestId: getRequestId(),
       },
     });
     await this.prisma.jobEvent.create({ data: { jobId: job.id, type: 'QUEUED' } });
@@ -193,7 +198,10 @@ export class FailDistributedJobCommand implements ICommand {
 
 @CommandHandler(FailDistributedJobCommand)
 export class FailDistributedJobHandler implements ICommandHandler<FailDistributedJobCommand, DistributedJobDto> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService<EnvConfig, true>,
+  ) {}
 
   async execute(command: FailDistributedJobCommand): Promise<DistributedJobDto> {
     const job = await this.prisma.distributedJob.findUnique({ where: { id: command.jobId } });
@@ -203,10 +211,31 @@ export class FailDistributedJobHandler implements ICommandHandler<FailDistribute
     const attempts = job.attempts + 1;
     const willRetry = attempts < job.maxAttempts;
 
+    // Module 18 — task #510 (job queue hardening). `status: 'QUEUED'` used
+    // to leave `scheduledFor` untouched, which for most jobs means null —
+    // immediately re-claimable by `ClaimNextJobsHandler`'s
+    // `scheduledFor: null OR <= now()` filter, so a job that fails fast
+    // and repeatably (bad payload, unreachable dependency) would tight-
+    // loop through its `maxAttempts` budget instead of backing off.
+    // Same exponential-backoff formula `InMemoryQueueService`/
+    // `RedisQueueService` already use for their own retry path
+    // (`retryBaseDelayMs * 2 ** (attempts - 1)`), applied here via
+    // `scheduledFor` since that's the field `ClaimNextJobsHandler` already
+    // reads to decide claimability — no new column needed.
+    const retryBaseDelayMs = this.configService.get('QUEUE_DEFAULT_RETRY_BASE_DELAY_MS', { infer: true });
+    const retryDelayMs = retryBaseDelayMs * 2 ** (attempts - 1);
+
     const updated = await this.prisma.distributedJob.update({
       where: { id: job.id },
       data: willRetry
-        ? { status: 'QUEUED', attempts, lastError: command.data.error, workerId: null, startedAt: null }
+        ? {
+            status: 'QUEUED',
+            attempts,
+            lastError: command.data.error,
+            workerId: null,
+            startedAt: null,
+            scheduledFor: new Date(Date.now() + retryDelayMs),
+          }
         : { status: 'FAILED', attempts, lastError: command.data.error, finishedAt: new Date() },
     });
     await this.prisma.jobEvent.create({

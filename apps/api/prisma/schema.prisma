@@ -928,6 +928,14 @@ model ReconJob {
   cancelRequestedAt DateTime?
   error             String?
   requestedBy       String
+  // Module 18 — task #505 (Request correlation/traceability). The
+  // X-Request-Id of the HTTP request that created this job, captured at
+  // creation time via getRequestId() (see CreateReconJobHandler) so a
+  // worker-process log line for this job can be correlated back to the API
+  // request that queued it, even though the worker never re-establishes
+  // the original AsyncLocalStorage context. Nullable — populated on a
+  // best-effort basis; never a security/authorization signal.
+  requestId         String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -1026,6 +1034,11 @@ model ReconFinding {
   @@index([jobId])
   @@index([targetId, type])
   @@index([projectId])
+  // Module 18 — task #508 (database reliability review). workspaceId-only
+  // list/count queries (e.g. workspace-wide finding totals/dashboards) had
+  // no covering index — every other filter here already does via the
+  // indexes above.
+  @@index([workspaceId])
   @@map("recon_findings")
 }
 
@@ -1180,6 +1193,8 @@ model VulnScanJob {
   pausedAt          DateTime?
   error             String?
   requestedBy       String
+  // Module 18 — task #505. Same purpose/rationale as ReconJob.requestId.
+  requestId         String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -1445,6 +1460,26 @@ enum Theme {
 
 /// userId is nullable + SetNull on delete so audit history survives account
 /// deletion (a deleted account's history is still worth keeping).
+/// Module 18 — task #519 (audit log integrity sweep). Confirmed
+/// append-only in practice: a full sweep of apps/api/src found zero
+/// `auditEvent.update`/`.delete`/`.updateMany`/`.deleteMany` calls
+/// anywhere, and the one retention/pruning job in the codebase
+/// (DataRetentionEnforcerService) has no `AuditEvent` case in its
+/// resourceType switch, so nothing ever deletes rows here. That said,
+/// disclosed known limitation (not fixed this phase): there is no
+/// tamper-evidence field (a `previousHash`/`hash`-chain column, or a
+/// signature) that would let an operator detect a row altered or deleted
+/// out-of-band via direct DB access, bypassing the application entirely —
+/// this table is exactly as tamper-resistant as the database's own access
+/// controls and backups, no more. A correct fix would add a hash-chain
+/// column (each row's hash covering its own fields plus the previous
+/// row's hash) plus a periodic verification job that walks the chain and
+/// alerts on a break — a real feature addition (schema migration, a
+/// backfill strategy for existing rows, a new scheduled job, and
+/// operational docs), out of proportion to a single audit phase and not
+/// verifiable end-to-end in this sandbox (no DB access to test a
+/// migration/backfill against real data). Tracked as a concrete
+/// follow-up in docs/operations/ (Phase 29).
 model AuditEvent {
   id        String         @id @default(uuid())
   userId    String?
@@ -1453,11 +1488,20 @@ model AuditEvent {
   userAgent String
   metadata  Json?
   createdAt DateTime       @default(now())
+  // Module 18 — task #505 (Request correlation/traceability). The
+  // X-Request-Id of the HTTP request that produced this event, when one
+  // was active — PrismaAuditRepository.record() defaults this from
+  // observability/request-context.ts's getRequestId() so existing callers
+  // don't each need to pass it explicitly. Nullable: some audit events are
+  // written from background job/worker code paths with no active HTTP
+  // request context.
+  requestId String?
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([type])
+  @@index([requestId])
   @@map("audit_events")
 }
 
@@ -1503,6 +1547,17 @@ enum AuditEventType {
   INTEGRATION_CONNECTED
   INTEGRATION_DISCONNECTED
   WORKER_NODE_REGISTERED
+  // Module 18 — task #519 (audit log integrity sweep), disclosed known
+  // gap: this value has never had a writer anywhere in apps/api/src since
+  // it was added (Module 9) — API key rotation, the closest existing
+  // "secret rotation" action, deliberately logs API_KEY_REVOKED with
+  // metadata.reason: 'rotated' instead (see api-keys.commands.ts's
+  // RotateApiKeyHandler). Kept rather than removed since deleting an enum
+  // value is a breaking schema change for a value that may still be
+  // referenced by historical rows or external tooling; left orphaned
+  // rather than wired to a guessed call site, since which action this was
+  // originally meant to cover (BYOK credential rotation? encryption key
+  // rotation?) isn't recoverable from the code as it stands.
   SECRET_ROTATED
   // Module 15 additions — additive only, existing values/behavior unchanged.
   // Privacy controls (task #342).
@@ -3522,6 +3577,12 @@ model DistributedJob {
   startedAt      DateTime?
   finishedAt     DateTime?
   createdBy      String?
+  // Module 18 — task #505. Same purpose/rationale as ReconJob.requestId —
+  // a dedicated column (rather than folding it into `payload`) so it's
+  // queryable/indexable without a job-type-specific JSON path, and every
+  // job type gets correlation for free without each `type` handler having
+  // to remember to put it in its own payload shape.
+  requestId      String?
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
@@ -3531,6 +3592,11 @@ model DistributedJob {
 
   @@index([status, priority, scheduledFor])
   @@index([workerId])
+  // Module 18 — task #508 (database reliability review). Workspace/
+  // organization-scoped job listings (Admin Console job history, per-
+  // workspace usage views) had no covering index.
+  @@index([workspaceId])
+  @@index([organizationId])
   @@map("distributed_jobs")
 }
 
@@ -3940,6 +4006,10 @@ model EnterpriseReport {
   generator    User?         @relation("EnterpriseReportGenerator", fields: [generatedBy], references: [id])
 
   @@index([organizationId, type, createdAt])
+  // Module 18 — task #508 (database reliability review). Workspace-scoped
+  // report listings (a workspace without an organizationId, e.g.
+  // Community Edition) previously had no covering index.
+  @@index([workspaceId, type, createdAt])
   @@map("enterprise_reports")
 }
 
@@ -3961,6 +4031,13 @@ model ReportSchedule {
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Module 18 — task #508 (database reliability review). Had no index at
+  // all besides the PK — both the scheduler's "find schedules due to run"
+  // sweep (active + nextRunAt) and per-workspace schedule listings scanned
+  // the full table.
+  @@index([active, nextRunAt])
+  @@index([workspaceId])
+  @@index([organizationId])
   @@map("report_schedules")
 }
 
@@ -4055,7 +4132,7 @@ enum BackupTrigger {
 /// verification job both read from). `organizationId` is nullable
 /// because a Community Edition single-tenant deployment can trigger a
 /// full-system backup with no `Organization` in scope at all — see
-/// `docs/deploy/backup-guide.md`.
+/// `docs/operations/backup-recovery.md` (Module 18 task #522).
 model BackupRun {
   id             String          @id @default(uuid())
   organizationId String?
@@ -4219,6 +4296,10 @@ model Workflow {
 
   @@index([organizationId, enabled])
   @@index([triggerType, enabled, nextRunAt])
+  // Module 18 — task #508 (database reliability review). Workspace-scoped
+  // workflow listings (a workspace without an organizationId) had no
+  // covering index.
+  @@index([workspaceId, enabled])
   @@map("workflows")
 }
 
@@ -4653,6 +4734,9 @@ model PromptTestRun {
   createdAt             DateTime            @default(now())
 
   @@index([promptTemplateId, createdAt])
+  // Module 18 — task #508 (database reliability review). Per-workspace
+  // test-run history/listing had no covering index.
+  @@index([workspaceId, createdAt])
   @@map("prompt_test_runs")
 }
 
@@ -5432,6 +5516,9 @@ model SupportTicket {
 
   @@index([userId])
   @@index([status])
+  // Module 18 — task #508 (database reliability review). Per-workspace
+  // ticket listing had no covering index.
+  @@index([workspaceId])
   @@map("support_tickets")
 }
 
@@ -5772,6 +5859,13 @@ model Submission {
   @@index([workspaceId, status])
   @@index([programId])
   @@index([findingId])
+  // Module 18 — task #508 (database reliability review). `externalId` (the
+  // platform's own report ID) had no uniqueness constraint — re-importing/
+  // re-syncing the same external submission could create a duplicate row.
+  // Safe with a nullable column: Postgres treats each NULL as distinct in
+  // a unique index, so draft submissions that don't have an externalId
+  // yet never collide with each other.
+  @@unique([workspaceId, platform, externalId])
   @@map("bugbounty_submissions")
 }
 
@@ -6674,6 +6768,10 @@ model ThreatRelationship {
 
   @@index([sourceType, sourceId])
   @@index([targetType, targetId])
+  // Module 18 — task #508 (database reliability review). Per-workspace
+  // relationship listing had no covering index (global rows use
+  // workspaceId: null, same convention as Indicator).
+  @@index([workspaceId])
   @@map("threat_relationships")
 }
 
@@ -7293,6 +7391,9 @@ model AutomationRuleExecutionLog {
   rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([ruleId, createdAt])
+  // Module 18 — task #508 (database reliability review). Per-workspace
+  // execution-log listing had no covering index.
+  @@index([workspaceId, createdAt])
   @@map("automation_rule_execution_logs")
 }
 

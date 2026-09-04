@@ -28,6 +28,7 @@ export class PrismaReconJobsRepository implements ReconJobsRepository {
         requestedBy: input.requestedBy,
         timeoutSeconds: input.timeoutSeconds,
         maxRetries: input.maxRetries,
+        requestId: input.requestId,
         toolRuns: {
           create: input.tools.map((tool) => ({ tool })),
         },

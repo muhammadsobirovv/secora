@@ -6,6 +6,12 @@ import { PollerLeaseService } from '../../../common/concurrency/poller-lease.ser
 
 const LEASE_NAME = 'workflow-runner';
 const LEASE_TTL_MS = 90_000; // 1.5x the 60s tick interval — see PollerLeaseService's doc comment.
+// Module 18 — task #510 (job queue hardening). See
+// ScheduledJobRunnerService's identical constant for the full rationale:
+// `PollerLeaseService` doesn't renew its lease mid-tick, so a batch of up
+// to 50 due workflows/resumes that runs long could overlap with a second
+// replica's next tick. Per-row CAS claims below close that window.
+const CLAIM_IN_FLIGHT_MS = 5 * 60_000;
 
 /// Minute-tick poller — the same hand-rolled `setInterval` +
 /// `OnModuleInit`/`OnModuleDestroy` shape as `ScheduledJobRunnerService`,
@@ -57,6 +63,16 @@ export class WorkflowRunnerService implements OnModuleInit, OnModuleDestroy {
       take: 50,
     });
     for (const workflow of due) {
+      // Module 18 — task #510. Same per-row CAS claim as
+      // ScheduledJobRunnerService.runTick() — see its comment for the
+      // full race this closes (two replicas both starting a WorkflowRun
+      // for the same due workflow if a tick outlives the lease TTL).
+      const claim = await this.prisma.workflow.updateMany({
+        where: { id: workflow.id, nextRunAt: workflow.nextRunAt },
+        data: { nextRunAt: new Date(Date.now() + CLAIM_IN_FLIGHT_MS) },
+      });
+      if (claim.count === 0) continue;
+
       try {
         const run = await this.prisma.workflowRun.create({
           data: { workflowId: workflow.id, status: 'PENDING', triggeredBy: null },
@@ -78,6 +94,22 @@ export class WorkflowRunnerService implements OnModuleInit, OnModuleDestroy {
       take: 50,
     });
     for (const run of due) {
+      // Module 18 — task #510. `WorkflowExecutorService.resume()` itself
+      // reads the run, checks `pausedAtStepKey`, then writes
+      // `pausedAtStepKey: null, resumeAt: null` — a plain read-then-write
+      // with no guard, so two replicas racing on the same due run could
+      // both pass its check before either writes and both advance past
+      // the paused step (a duplicate side-effecting step execution, worse
+      // than a duplicate scan — this could be a webhook call, an AI
+      // request, or a write to another system). CAS-claim the run here,
+      // before calling into the executor at all, so only one caller ever
+      // reaches `resume()` for a given due `resumeAt`.
+      const claim = await this.prisma.workflowRun.updateMany({
+        where: { id: run.id, resumeAt: run.resumeAt, pausedAtStepKey: run.pausedAtStepKey },
+        data: { resumeAt: new Date(Date.now() + CLAIM_IN_FLIGHT_MS) },
+      });
+      if (claim.count === 0) continue;
+
       try {
         await this.executor.resume(run.id);
       } catch (error) {

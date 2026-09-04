@@ -37,6 +37,7 @@ export class PrismaVulnScanJobsRepository implements VulnScanJobsRepository {
         requestedBy: input.requestedBy,
         timeoutSeconds: input.timeoutSeconds,
         maxRetries: input.maxRetries,
+        requestId: input.requestId,
         toolRuns: {
           create: input.scanners.map((scanner) => ({ scanner })),
         },

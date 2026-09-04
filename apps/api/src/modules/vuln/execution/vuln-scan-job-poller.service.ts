@@ -154,9 +154,20 @@ export class VulnScanJobPollerService {
         `Recovering orphaned vuln scan job ${job.id} (dead worker)`,
       );
       if (job.retryCount < job.maxRetries) {
+        // Module 18 — task #510 (job queue hardening). Same fix as
+        // ReconJobPollerService's sibling orphan-sweep path — was an
+        // immediate `nextAttemptAt: new Date()`, now reuses
+        // `VulnScanJobExecutionService.retryOrFail()`'s own exponential-
+        // backoff + jitter formula so a repeatedly-crashing job doesn't
+        // tight-loop through its retry budget.
+        const baseDelay = this.configService.get('VULN_JOB_RETRY_BASE_DELAY_MS', { infer: true });
+        const maxDelay = this.configService.get('VULN_JOB_RETRY_MAX_DELAY_MS', { infer: true });
+        const retryCount = job.retryCount + 1;
+        const backoff = Math.min(baseDelay * 2 ** retryCount, maxDelay);
+        const jitter = Math.random() * 2000;
         await this.jobsRepository.scheduleRetry(job.id, {
-          retryCount: job.retryCount + 1,
-          nextAttemptAt: new Date(),
+          retryCount,
+          nextAttemptAt: new Date(Date.now() + backoff + jitter),
           error:
             'Worker process lost while job was running (heartbeat timeout).',
         });

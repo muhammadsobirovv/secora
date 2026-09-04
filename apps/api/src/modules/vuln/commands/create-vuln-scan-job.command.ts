@@ -37,6 +37,7 @@ import {
 import { isScannerCompatibleWithTargetType } from '../scanner-runners/scanner-target-compatibility.js';
 import { toVulnScanJobDto } from '../mappers/to-vuln-scan-job-dto.mapper.js';
 import { VulnScanJobCreatedEvent } from '../events/vuln-scan-job-events.js';
+import { getRequestId } from '../../../observability/request-context.js';
 
 export class CreateVulnScanJobCommand implements ICommand {
   constructor(
@@ -157,6 +158,7 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       maxRetries: this.configService.get('VULN_JOB_MAX_RETRIES', {
         infer: true,
       }),
+      requestId: getRequestId(),
     });
 
     this.eventBus.publish(

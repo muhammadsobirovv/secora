@@ -136,6 +136,26 @@ import { SocModule } from './modules/soc/soc.module.js';
     }),
     // Modest global default; individual auth routes override with a
     // stricter @Throttle(...) (see auth.module.ts once built).
+    //
+    // Module 18 — task #512 (rate limiting audit), disclosed known gap:
+    // no `storage` option is passed here, so `ThrottlerModule` uses its
+    // default in-process `Map` — every replica in a Module 14 horizontally-
+    // scaled deployment tracks its own independent hit counts. In practice
+    // this means the *real* effective limit for any given client is this
+    // number multiplied by however many API replicas are behind the load
+    // balancer, not the number configured here — the same class of gap the
+    // public-API-key guard (`api-key-auth.guard.ts`) already discloses for
+    // its own in-memory sliding-window limiter. A correct fix needs a
+    // shared `ThrottlerStorage` implementation backed by the `REDIS_URL`
+    // this codebase already uses for `RedisCacheService`/`RedisQueueService`
+    // (either the `@nestjs/throttler-storage-redis` package, a new
+    // dependency, or a hand-rolled `ThrottlerStorage` over the existing
+    // `ioredis` client) — deferred rather than hand-written blind, since
+    // this sandbox can neither install a new package nor compile-check a
+    // hand-rolled implementation against the installed `@nestjs/throttler`
+    // version (see this module's Phase 8 job-queue-hardening notes for the
+    // same "don't fabricate an unverifiable implementation" judgment call).
+    // Tracked as a concrete follow-up in docs/operations/ (Phase 29).
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     ProvidersModule,

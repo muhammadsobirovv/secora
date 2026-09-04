@@ -13,6 +13,7 @@ import { getByPath, evaluateCondition } from '../workflow-context.util.js';
 import { withSpan } from '../../../observability/tracing.js';
 import { MetricsRegistryService } from '../../observability/metrics-registry.service.js';
 import { WorkflowRunFinishedEvent, WorkflowRunStartedEvent } from '../events/workflow-run-events.js';
+import { assertSafeWebhookUrl } from '../../../common/utils/ssrf-guard.util.js';
 
 interface StepResult {
   output?: unknown;
@@ -209,7 +210,20 @@ export class WorkflowExecutorService {
         output: (run.contextJson as Prisma.InputJsonValue) ?? {},
       },
     });
-    this.metrics.workflowRunsTotal.inc({ workflowId: run.workflowId, status: status.toLowerCase() });
+    // Module 18 — task #520 (metrics/observability abstraction audit).
+    // `workflowId` used to be a label here — a free-form per-record UUID,
+    // not a closed enum, unlike every other label this metrics registry
+    // uses elsewhere (see MetricsRegistryService's own doc comment on
+    // `mcpToolInvocationsTotal`: "deliberately low-cardinality... never a
+    // free-form id"). Since this Counter's series Map never evicts
+    // entries, every distinct workflow ever run left a permanent new
+    // Prometheus time series for the life of the process — unbounded
+    // cardinality AND an unbounded in-memory leak. `status` alone is the
+    // closed-enum label this metric actually needs; a per-workflow
+    // success/failure breakdown belongs in a query against WorkflowRun
+    // (which already has workflowId+status columns), not a Prometheus
+    // label.
+    this.metrics.workflowRunsTotal.inc({ status: status.toLowerCase() });
     // Event Bus (task #284) — "Workflow Finished".
     this.eventBus.publish(
       new WorkflowRunFinishedEvent(run.id, run.workflowId, run.workflow.workspaceId, run.workflow.organizationId, status),
@@ -427,6 +441,21 @@ export class WorkflowExecutorService {
         const bodyField = step.params.bodyField as string | undefined;
         const body = bodyField ? getByPath(context, bodyField) : undefined;
         if (!url) throw new Error('webhook_call step requires params.url.');
+
+        // Module 18 — task #514 (SSRF/network security centralization).
+        // `step.params.url` comes straight from the workflow's
+        // `definitionJson`, which any workspace member able to author a
+        // workflow controls — this was the most severe of the gaps this
+        // phase's audit found, since unlike a delivery-only webhook this
+        // step's response body flows back into `output.body` (up to 10KB)
+        // and is readable by later steps: a full SSRF *read* primitive
+        // (point at 169.254.169.254 or an internal admin endpoint, then
+        // route the response into an `export`/`notification` step),
+        // not just a blind POST. Re-checked on every run for the same
+        // DNS-rebinding reason `assertSafeWebhookUrl`'s own doc comment
+        // explains — a workflow can run on a schedule, long after the URL
+        // was authored.
+        await assertSafeWebhookUrl(url);
 
         const response = await fetch(url, {
           method,

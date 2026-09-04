@@ -7,6 +7,7 @@ import type { NotificationChannelConfig } from '../../../prisma-types.js';
 import { decryptChannelConfigSecrets } from '../notification-channel-config-crypto.util.js';
 import { MAIL_SERVICE } from '../../../common/providers/tokens.js';
 import type { MailService } from '../../../common/providers/mail/mail-service.interface.js';
+import { assertSafeWebhookUrl } from '../../../common/utils/ssrf-guard.util.js';
 
 interface DeliveryResult {
   delivered: boolean;
@@ -137,6 +138,19 @@ export class NotificationDispatcherService {
     const cfg = config.config as { webhookUrl?: string };
     if (!cfg.webhookUrl) return { delivered: false, error: 'No webhookUrl configured.' };
 
+    // Module 18 — task #514 (SSRF/network security centralization). This
+    // was calling `fetch()` on a user-supplied URL with zero SSRF check —
+    // the exact class of gap `assertSafeWebhookUrl` (Module 15, task
+    // #344) already exists to close for the outbound-Webhook module; this
+    // channel-notification path is a second, independently-reachable way
+    // to point the API server's egress at an internal address
+    // (169.254.169.254, RFC1918, etc.) that had been missed. Re-checked
+    // on every delivery (not just once at channel-config time) for the
+    // same DNS-rebinding reason the guard's own doc comment explains.
+    // Thrown `AppException` is caught by `deliverToChannel`'s try/catch
+    // above and surfaces as a normal delivery failure, not a crash.
+    await assertSafeWebhookUrl(cfg.webhookUrl);
+
     const text = body ? `**${title}**\n${body}` : title;
     const response = await fetch(cfg.webhookUrl, {
       method: 'POST',
@@ -189,6 +203,10 @@ export class NotificationDispatcherService {
   private async deliverToCustomApi(config: ChannelDeliveryInput, title: string, body: string | null): Promise<DeliveryResult> {
     const cfg = config.config as { endpoint?: string; headers?: Record<string, string> };
     if (!cfg.endpoint) return { delivered: false, error: 'No endpoint configured.' };
+
+    // Module 18 — task #514. Same fix and rationale as
+    // deliverToWebhookShapedChannel above.
+    await assertSafeWebhookUrl(cfg.endpoint);
 
     const response = await fetch(cfg.endpoint, {
       method: 'POST',

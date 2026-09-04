@@ -30,6 +30,7 @@ import {
 import { isToolCompatibleWithTargetType } from '../tool-runners/tool-target-compatibility.js';
 import { toReconJobDto } from '../mappers/to-recon-job-dto.mapper.js';
 import { ReconJobCreatedEvent } from '../events/recon-job-events.js';
+import { getRequestId } from '../../../observability/request-context.js';
 
 export class CreateReconJobCommand implements ICommand {
   constructor(
@@ -119,6 +120,7 @@ export class CreateReconJobHandler implements ICommandHandler<
       maxRetries: this.configService.get('RECON_JOB_MAX_RETRIES', {
         infer: true,
       }),
+      requestId: getRequestId(),
     });
 
     this.eventBus.publish(
