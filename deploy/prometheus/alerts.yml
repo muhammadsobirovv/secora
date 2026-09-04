@@ -20,7 +20,7 @@ groups:
           severity: warning
         annotations:
           summary: "PentestHub AI API 5xx rate above 5%"
-          description: "More than 5% of HTTP responses over the last 5 minutes were 5xx. Check apps/api logs (structured JSON, correlation IDs — see docs/deployment/logging.md) for the failing route."
+          description: "More than 5% of HTTP responses over the last 5 minutes were 5xx. Check apps/api logs (structured JSON, correlation IDs — see docs/operations/alerting-and-observability.md) for the failing route."
 
       - alert: PentestHubHighRequestLatency
         expr: |

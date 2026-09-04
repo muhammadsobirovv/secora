@@ -216,6 +216,14 @@ interface UseVulnScanJobLogsResult {
 /// SSE read, not EventSource) — see that hook's comment for why: the
 /// browser's native EventSource can't attach the Bearer JWT this endpoint
 /// requires.
+///
+/// Module 18 — task #525 (Phase 23: frontend reliability audit). Same
+/// bounded exponential-backoff auto-reconnect added here as in
+/// useReconJobLogs — see that hook's doc comment for the full rationale
+/// (including why the AI chat/agent orchestration streams deliberately do
+/// NOT get the same treatment in this phase).
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScanJobLogsResult {
   const [logs, setLogs] = React.useState<VulnScanJobLogDto[]>([]);
   const [connected, setConnected] = React.useState(false);
@@ -226,6 +234,8 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
     const controller = new AbortController();
     setLogs([]);
     setError(null);
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function run(): Promise<void> {
       try {
@@ -241,6 +251,8 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
           throw new Error(`Log stream failed with status ${response.status}`);
         }
         setConnected(true);
+        setError(null);
+        attempt = 0; // A successful connect resets the backoff counter.
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -267,16 +279,30 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
             }
           }
         }
+        // Normal terminal-state close (see streamLogs()'s doc comment on
+        // the backend) — reached via `break`, not `catch`, so no
+        // reconnect is attempted.
       } catch (err) {
         if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : "Log stream disconnected.");
+        const message = err instanceof Error ? err.message : "Log stream disconnected.";
+        if (attempt < MAX_RECONNECT_ATTEMPTS) {
+          attempt += 1;
+          setError(`${message} — reconnecting (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})…`);
+          const delayMs = 1000 * 2 ** (attempt - 1);
+          retryTimer = setTimeout(() => void run(), delayMs);
+          return;
+        }
+        setError(`${message} — gave up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts.`);
       } finally {
         setConnected(false);
       }
     }
 
     void run();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [jobId, enabled]);
 
   return { logs, connected, error };

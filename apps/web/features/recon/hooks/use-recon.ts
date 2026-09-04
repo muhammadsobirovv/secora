@@ -134,6 +134,27 @@ interface UseReconJobLogsResult {
 /// Events framing is "data: <payload>" lines terminated by a blank line;
 /// NestJS's @Sse() decorator JSON-serializes each MessageEvent.data, so
 /// each block's payload is parsed as a ReconJobLogDto.
+///
+/// Module 18 — task #525 (Phase 23: frontend reliability audit). Before
+/// this change, a dropped connection (a network blip, or the exact
+/// no-heartbeat-during-quiet-polling gap this project's own Module 18
+/// Phase 15 disclosed on the backend side — see
+/// recon-jobs.controller.ts's streamLogs() doc comment — being timed out
+/// by an idle intermediary proxy) left `connected: false` and `error` set
+/// permanently: nothing tried again, so a still-running job's log view
+/// would silently stop updating until the user navigated away and back.
+/// This adds a bounded exponential-backoff auto-reconnect (5 attempts,
+/// 1s/2s/4s/8s/16s) around the same `run()` logic — safe to add here
+/// because this stream's state is a simple append-only log array with no
+/// mid-message resume semantics to get wrong (unlike the AI chat/agent
+/// orchestration streams in use-ai.ts/use-agent.ts, which this same audit
+/// found have the identical no-reconnect gap but were deliberately left
+/// alone: a naive reconnect there risks duplicating or corrupting
+/// in-progress streamed AI content in a way that can't be verified
+/// without a running browser in this sandbox — tracked as a disclosed
+/// follow-up in docs/operations/, not silently left undocumented).
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 export function useReconJobLogs(jobId: string, enabled: boolean): UseReconJobLogsResult {
   const [logs, setLogs] = React.useState<ReconJobLogDto[]>([]);
   const [connected, setConnected] = React.useState(false);
@@ -144,6 +165,8 @@ export function useReconJobLogs(jobId: string, enabled: boolean): UseReconJobLog
     const controller = new AbortController();
     setLogs([]);
     setError(null);
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function run(): Promise<void> {
       try {
@@ -159,6 +182,8 @@ export function useReconJobLogs(jobId: string, enabled: boolean): UseReconJobLog
           throw new Error(`Log stream failed with status ${response.status}`);
         }
         setConnected(true);
+        setError(null);
+        attempt = 0; // A successful connect resets the backoff counter.
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -167,6 +192,7 @@ export function useReconJobLogs(jobId: string, enabled: boolean): UseReconJobLog
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
+
           buffer += decoder.decode(value, { stream: true });
 
           const blocks = buffer.split("\n\n");
@@ -185,16 +211,31 @@ export function useReconJobLogs(jobId: string, enabled: boolean): UseReconJobLog
             }
           }
         }
+        // The server closes the stream normally once the job reaches a
+        // terminal state (see streamLogs()'s existing terminal-event
+        // logic) — reaching here via `break` (not `catch`) is that
+        // intentional, non-error close, so no reconnect is attempted.
       } catch (err) {
         if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : "Log stream disconnected.");
+        const message = err instanceof Error ? err.message : "Log stream disconnected.";
+        if (attempt < MAX_RECONNECT_ATTEMPTS) {
+          attempt += 1;
+          setError(`${message} — reconnecting (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})…`);
+          const delayMs = 1000 * 2 ** (attempt - 1);
+          retryTimer = setTimeout(() => void run(), delayMs);
+          return;
+        }
+        setError(`${message} — gave up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts.`);
       } finally {
         setConnected(false);
       }
     }
 
     void run();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [jobId, enabled]);
 
   return { logs, connected, error };
