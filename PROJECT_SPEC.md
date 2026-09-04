@@ -855,6 +855,20 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/soc.md`, `docs/threat-intelligence.md`, `docs/incidents.md`,
 > `docs/remediation.md`, `docs/risk.md`, and `docs/sla.md` for per-surface
 > detail.
+> Module 18 (`docs/releases/module-18-release-notes.md`) adds no product
+> features — it is a production-hardening, observability, and reliability
+> pass across Modules 1-17: request correlation, structured logging,
+> health/readiness endpoints, job-queue race/idempotency fixes, SSRF/
+> rate-limiting/file-storage security audits, AI prompt-injection
+> regression tests, SSE hardening, Prometheus metrics + Alertmanager
+> config, backup/recovery documentation, frontend security headers, a
+> dependency audit, CLI/SDK/Desktop/Mobile reliability fixes, new
+> security-critical and disaster-recovery regression tests, and a final
+> grep-based security sweep. See that release-notes file's "Known gaps"
+> section for every issue this module found and disclosed rather than
+> fixed, including a project-history integrity finding: `packages/sdk-python`
+> and `packages/sdk-go`, despite being reported complete in earlier
+> module task histories, do not actually exist in this repository.
 
 > **Local-first migration status** (2026-07-16): per the Local-First Core
 > Principle above, Modules 3-6 as described in this list still execute
