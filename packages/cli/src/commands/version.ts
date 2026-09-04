@@ -55,7 +55,22 @@ export async function updateCommand(): Promise<void> {
 
   let latest: string;
   try {
-    const response = await fetch(`${registryUrl}/@pentesthub/cli/latest`);
+    // Module 18 — task #526 (Phase 24). Before this, a hung/unresponsive
+    // registry (misconfigured private mirror, dead network) left this
+    // `fetch()` with no bound at all, so `pentesthub update` could hang
+    // indefinitely — the same class of gap just fixed in the SDK's
+    // `HttpClient` (see http-client.ts's `timeoutMs` option), applied
+    // here with the same `AbortController` mechanism since this command
+    // doesn't go through `HttpClient` at all (it's a direct registry
+    // fetch, not a PentestHub AI API call).
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    let response: Response;
+    try {
+      response = await fetch(`${registryUrl}/@pentesthub/cli/latest`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!response.ok) {
       throw new Error(`Registry responded ${response.status}`);
     }
