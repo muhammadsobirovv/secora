@@ -8,6 +8,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiConsumes,
@@ -64,7 +65,24 @@ export class ProjectAttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // Module 18 — task #512 (rate limiting audit). No dedicated limit on
+  // any of these four upload routes before — relied on the global
+  // 100/min/IP default despite each call reading up to 25MB into memory
+  // and writing to storage. Same 15/min budget across all four
+  // controllers in this file.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  // Module 18 — task #513 (file/storage security audit). `requireFile()`
+  // below rejected an oversized file only *after* Multer had already
+  // buffered the entire upload into memory — the 25MB cap was a
+  // correctness check, not a DoS guard. Passing `limits.fileSize` here
+  // makes Busboy (Multer's underlying parser) abort the stream once it
+  // exceeds the cap, before the rest of the body is ever read into
+  // memory. The resulting `MulterError` isn't an `AppException`, so it
+  // surfaces through the global exception filter's generic-error branch
+  // (Phase 2) rather than a clean `400` with this file's specific
+  // message — an acceptable trade-off for closing the memory-exhaustion
+  // vector; `requireFile()`'s own check remains as a defensive backstop.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Attach a file to a project' })
   upload(
@@ -107,7 +125,21 @@ export class TargetAttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // Module 18 — task #512. See ProjectAttachmentsController.upload's
+  // comment above.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  // Module 18 — task #513 (file/storage security audit). `requireFile()`
+  // below rejected an oversized file only *after* Multer had already
+  // buffered the entire upload into memory — the 25MB cap was a
+  // correctness check, not a DoS guard. Passing `limits.fileSize` here
+  // makes Busboy (Multer's underlying parser) abort the stream once it
+  // exceeds the cap, before the rest of the body is ever read into
+  // memory. The resulting `MulterError` isn't an `AppException`, so it
+  // surfaces through the global exception filter's generic-error branch
+  // (Phase 2) rather than a clean `400` with this file's specific
+  // message — an acceptable trade-off for closing the memory-exhaustion
+  // vector; `requireFile()`'s own check remains as a defensive backstop.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Attach a file to a target' })
   upload(
@@ -148,7 +180,21 @@ export class NoteAttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // Module 18 — task #512. See ProjectAttachmentsController.upload's
+  // comment above.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  // Module 18 — task #513 (file/storage security audit). `requireFile()`
+  // below rejected an oversized file only *after* Multer had already
+  // buffered the entire upload into memory — the 25MB cap was a
+  // correctness check, not a DoS guard. Passing `limits.fileSize` here
+  // makes Busboy (Multer's underlying parser) abort the stream once it
+  // exceeds the cap, before the rest of the body is ever read into
+  // memory. The resulting `MulterError` isn't an `AppException`, so it
+  // surfaces through the global exception filter's generic-error branch
+  // (Phase 2) rather than a clean `400` with this file's specific
+  // message — an acceptable trade-off for closing the memory-exhaustion
+  // vector; `requireFile()`'s own check remains as a defensive backstop.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Attach a file to a note' })
   upload(
@@ -191,7 +237,21 @@ export class EvidenceAttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // Module 18 — task #512. See ProjectAttachmentsController.upload's
+  // comment above.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  // Module 18 — task #513 (file/storage security audit). `requireFile()`
+  // below rejected an oversized file only *after* Multer had already
+  // buffered the entire upload into memory — the 25MB cap was a
+  // correctness check, not a DoS guard. Passing `limits.fileSize` here
+  // makes Busboy (Multer's underlying parser) abort the stream once it
+  // exceeds the cap, before the rest of the body is ever read into
+  // memory. The resulting `MulterError` isn't an `AppException`, so it
+  // surfaces through the global exception filter's generic-error branch
+  // (Phase 2) rather than a clean `400` with this file's specific
+  // message — an acceptable trade-off for closing the memory-exhaustion
+  // vector; `requireFile()`'s own check remains as a defensive backstop.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Attach a file to an evidence item' })
   upload(

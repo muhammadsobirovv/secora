@@ -159,13 +159,23 @@ export class BackupService {
   /// database sizes a self-hosted pentesting workspace actually reaches;
   /// a very large multi-tenant hosted deployment should prefer its
   /// managed Postgres provider's own native backup/PITR feature over
-  /// this application-level dump (see docs/deploy/disaster-recovery-guide.md).
+  /// this application-level dump (see docs/operations/backup-recovery.md,
+  /// Module 18 task #522).
   private async runDatabaseBackup(
     organizationId: string | null,
     encrypt: boolean,
   ): Promise<{ storageKey: string; sizeBytes: number; checksumSha256: string; encrypted: boolean }> {
     const pgDumpBin = this.configService.get('BACKUP_PG_DUMP_BIN', { infer: true });
     const databaseUrl = this.configService.get('DATABASE_URL', { infer: true });
+    // Module 18 — task #511 (tool execution hardening audit). This is the
+    // one `child_process.spawn` call site in apps/api outside the
+    // ToolRunner/ScannerRunner registries (confirmed via full-codebase
+    // grep). Deliberately not routed through ScopeEngine/ToolRunner: this
+    // isn't "run a tool against a target" (no Target, no user-supplied
+    // command/args — both `pgDumpBin` and `databaseUrl` are admin/env
+    // config, array-argv, never shell-interpolated), it's an operator-
+    // triggered DB backup with no scope concept. Confirmed as the correct,
+    // intentional exception to the single-authoritative-path invariant.
     const dumpBuffer = await new Promise<Buffer>((resolve, reject) => {
       const child = spawn(pgDumpBin, ['--dbname', databaseUrl, '--format=custom', '--no-owner', '--no-privileges']);
       const chunks: Buffer[] = [];
@@ -194,8 +204,8 @@ export class BackupService {
   /// never includes actual secret *values* (JWT signing keys, encryption
   /// keys, provider API keys); those live in the deployment's own
   /// secrets manager/`.env` and are the operator's responsibility to back
-  /// up through that channel (see docs/deploy/security-guide.md's
-  /// Secrets Management section) — this backup exists so "what was this
+  /// up through that channel (see docs/security/secrets-management.md) —
+  /// this backup exists so "what was this
   /// deployment configured to do" is recoverable even if the operator's
   /// own `.env` history isn't.
   private async runConfigurationBackup(
@@ -288,8 +298,9 @@ export class BackupService {
   /// NOT attempt a real `pg_restore` into a scratch database (that
   /// requires a second Postgres instance/schema this application has no
   /// business provisioning on its own) — see
-  /// docs/deploy/disaster-recovery-guide.md's Recovery Testing section
-  /// for the documented manual procedure.
+  /// docs/operations/backup-recovery.md's Recovery Testing section (and
+  /// deploy/installer/recovery-test.sh, which does exactly that against a
+  /// scratch database) for the documented, automatable procedure.
   async verify(organizationId: string | null, id: string): Promise<BackupRunDto> {
     const run = await this.prisma.backupRun.findFirst({ where: { id, organizationId } });
     if (!run || !run.storageKey || !run.checksumSha256) {

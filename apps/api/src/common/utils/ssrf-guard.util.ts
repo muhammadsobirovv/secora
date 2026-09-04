@@ -27,6 +27,30 @@ import { AppException } from '../exceptions/app.exception.js';
 /// rebinding. Deliberately does NOT try to be a general-purpose "is this a
 /// safe URL for anything" checker — it only covers what this codebase's
 /// webhook delivery paths need (http/https egress).
+///
+/// Module 18 — task #514 (SSRF/network security centralization),
+/// disclosed known limitations found while auditing every call site for
+/// consistency (not fixed this phase — both need touching every existing
+/// call site's actual `fetch()` and are a bigger, riskier change to make
+/// unverified in this sandbox than adding the guard to the two call
+/// sites that were missing it entirely):
+///   1. No port check — an internal service listening on a non-standard
+///      port behind an otherwise-public IP passes.
+///   2. TOCTOU / redirect gap — this function's DNS lookup and the
+///      caller's subsequent `fetch(url)` are two separate operations, not
+///      one atomic "resolve once, connect to that pinned address" call.
+///      A hostname that resolves safely at check time could re-resolve to
+///      a private IP by connect time (the classic DNS-rebinding race this
+///      function's per-delivery re-check already narrows but doesn't
+///      close), and a 302/301 redirect from an allowed host to an
+///      internal address is followed by `fetch` with no re-check at all,
+///      since `fetch` handles redirects internally. A hardened version
+///      would resolve once, pass `dns.lookup`'s result via Node's
+///      `fetch(url, { dispatcher: new Agent({ connect: { lookup: ... } })
+///      })` (undici) to pin the connection to the checked address, and set
+///      `redirect: 'manual'` to re-validate each hop instead of trusting
+///      `fetch`'s automatic redirect-follow.
+/// Tracked as a concrete follow-up in docs/operations/ (Phase 29).
 
 const PRIVATE_IPV4_CIDRS: Array<{ base: number[]; bits: number }> = [
   { base: [0, 0, 0, 0], bits: 8 }, // "this" network

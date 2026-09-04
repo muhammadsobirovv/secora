@@ -1,5 +1,6 @@
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { AppException } from '../../../common/exceptions/app.exception.js';
 import type {
   SuggestAttackPathsRequestDto,
   SuggestAttackPathsResultDto,
@@ -22,7 +23,12 @@ import {
   TARGETS_REPOSITORY,
   type TargetsRepository,
 } from '../../targets/domain/repositories/targets.repository.interface.js';
+import {
+  PROJECTS_REPOSITORY,
+  type ProjectsRepository,
+} from '../../projects/domain/repositories/projects.repository.interface.js';
 import { resolveWorkspaceForCaller } from '../authorization.util.js';
+import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
 import { BugBountyAiAssistantService } from '../ai/bugbounty-ai-assistant.service.js';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +54,8 @@ export class SuggestAttackPathsHandler
     private readonly findingsRepository: BugBountyFindingsRepository,
     @Inject(TARGETS_REPOSITORY)
     private readonly targetsRepository: TargetsRepository,
+    @Inject(PROJECTS_REPOSITORY)
+    private readonly projectsRepository: ProjectsRepository,
     private readonly assistant: BugBountyAiAssistantService,
   ) {}
 
@@ -65,9 +73,33 @@ export class SuggestAttackPathsHandler
           workspace.id,
         )
       : null;
-    const target = command.data.targetId
-      ? await this.targetsRepository.findById(command.data.targetId)
-      : null;
+    // Module 18 — task #508 (IDOR sweep). Was a bare `findById(targetId)`
+    // with no ownership check — a caller could supply another workspace's
+    // targetId and have its value fed straight into the AI attack-path
+    // suggestion flow. Reuse the same enumeration-safe resolver every other
+    // Target-scoped command uses; not-found/not-owned is swallowed to a
+    // `null` target (same as this handler's pre-existing findingId/
+    // programId lookups elsewhere in this file) rather than surfaced as an
+    // error, since targetId here is optional supplementary context, not a
+    // required resource reference.
+    let target: { value: string } | null = null;
+    if (command.data.targetId) {
+      try {
+        target = (
+          await resolveTargetForCaller(
+            this.workspacesRepository,
+            this.projectsRepository,
+            this.targetsRepository,
+            command.userId,
+            command.data.targetId,
+          )
+        ).target;
+      } catch (err) {
+        if (!(err instanceof AppException) || err.code !== 'TARGET_NOT_FOUND') {
+          throw err;
+        }
+      }
+    }
 
     const result = await this.assistant.suggestAttackPaths({
       workspaceId: workspace.id,

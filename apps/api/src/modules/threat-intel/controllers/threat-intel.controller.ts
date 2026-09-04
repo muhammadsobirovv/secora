@@ -176,8 +176,15 @@ export class ThreatIntelController {
 
   @Get('threat-matches/:targetId')
   @ApiOperation({ summary: "List a target's proposed threat-intel matches (never auto-confirmed — see analystStatus/evidence)" })
-  matchesForTarget(@Param('targetId') targetId: string): Promise<ThreatMatchDto[]> {
-    return this.threatMatch.listMatchesForTarget(targetId);
+  async matchesForTarget(
+    @CurrentUser() user: RequestUser,
+    @Param('targetId') targetId: string,
+  ): Promise<ThreatMatchDto[]> {
+    // Module 18 — task #508 (IDOR sweep). Was missing the workspace
+    // resolution every other route in this controller does — a caller
+    // could enumerate another workspace's targetId and read its matches.
+    const workspaceId = await this.resolveWorkspaceId(user.id);
+    return this.threatMatch.listMatchesForTarget(targetId, workspaceId);
   }
 
   @Patch('threat-matches/:id/status')

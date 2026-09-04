@@ -23,6 +23,12 @@ import { FindingCorrelationService } from '../finding-correlation.service.js';
 /// access to it elsewhere in the UI; a stricter per-route ownership check
 /// is listed as a disclosed gap in the Module 16 security review (task
 /// #407) alongside the same pattern in Module 6/9's asset endpoints.
+/// Re-confirmed still open by the Module 18 Phase 6 database/IDOR review
+/// (task #508), which fixed the narrower, previously-*undisclosed* sibling
+/// gaps in `ThreatMatchService`/`VulnerabilityMatchingService`
+/// (`listMatchesForTarget`) but scoped this controller's four routes out
+/// as a larger, pre-existing architectural decision — see Module 18's
+/// Phase 29 documentation for the full disclosure and remediation plan.
 @ApiTags('intelligence')
 @ApiBearerAuth()
 @Controller('assets')

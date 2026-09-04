@@ -509,17 +509,33 @@ export class KnowledgeGraphService {
       take: 50,
     });
 
-    const results: KnowledgeGraphRelationshipDto[] = [];
-    for (const row of rows) {
-      const other = row.sourceType === objectType && row.sourceId === objectId
-        ? { type: row.targetType, id: row.targetId }
-        : { type: row.sourceType, id: row.sourceId };
-      const kgType = mapThreatObjectType(other.type);
-      if (!kgType) continue;
-      const node = await this.resolveNode(workspaceId, kgType, other.id);
-      if (node) results.push(rel(row.relationType, node));
-    }
-    return results;
+    // Module 18 — task #516 (API performance audit). Each row here needs
+    // its own resolveNode() call (1-2 queries depending on node type — the
+    // CVE branch does two), so this is still one query per row rather than
+    // a single batched lookup: resolveNode is a shared per-type dispatcher
+    // used by several single-node call sites elsewhere in this service
+    // (resolveIncidentAcrossWorkspace, getNode, etc.), and restructuring it
+    // into a batch-by-type resolver to fully eliminate the N+1 is a bigger
+    // change than fits this phase, unverifiable end-to-end without
+    // compilation in this sandbox. Running the up-to-50 lookups
+    // concurrently via Promise.all rather than sequentially in a for-await
+    // loop (the previous shape) still meaningfully cuts wall-clock latency
+    // — this is exactly the path findPath's bounded BFS calls once per
+    // frontier node up to depth 4, so sequential round-trips here were
+    // compounding badly. Tracked as a concrete follow-up in
+    // docs/operations/ (Phase 29) for the full batch-resolver rewrite.
+    const resolved = await Promise.all(
+      rows.map(async (row) => {
+        const other = row.sourceType === objectType && row.sourceId === objectId
+          ? { type: row.targetType, id: row.targetId }
+          : { type: row.sourceType, id: row.sourceId };
+        const kgType = mapThreatObjectType(other.type);
+        if (!kgType) return null;
+        const node = await this.resolveNode(workspaceId, kgType, other.id);
+        return node ? rel(row.relationType, node) : null;
+      }),
+    );
+    return resolved.filter((r): r is KnowledgeGraphRelationshipDto => r != null);
   }
 
   private async indicatorRelationships(workspaceId: string, indicatorId: string): Promise<KnowledgeGraphRelationshipDto[]> {
@@ -551,17 +567,20 @@ export class KnowledgeGraphService {
       },
       take: 50,
     });
-    const results: KnowledgeGraphRelationshipDto[] = [];
-    for (const row of rows) {
-      const other = row.sourceType === 'INDICATOR' && row.sourceId === indicatorId
-        ? { type: row.targetType, id: row.targetId }
-        : { type: row.sourceType, id: row.sourceId };
-      const kgType = mapThreatObjectType(other.type);
-      if (!kgType) continue;
-      const node = await this.resolveNode(workspaceId, kgType, other.id);
-      if (node) results.push(rel(row.relationType, node));
-    }
-    return results;
+    // Module 18 — task #516. Same fix, same rationale, as the identical
+    // loop in threatRelationshipEdges() above — see that method's comment.
+    const resolved = await Promise.all(
+      rows.map(async (row) => {
+        const other = row.sourceType === 'INDICATOR' && row.sourceId === indicatorId
+          ? { type: row.targetType, id: row.targetId }
+          : { type: row.sourceType, id: row.sourceId };
+        const kgType = mapThreatObjectType(other.type);
+        if (!kgType) return null;
+        const node = await this.resolveNode(workspaceId, kgType, other.id);
+        return node ? rel(row.relationType, node) : null;
+      }),
+    );
+    return resolved.filter((r): r is KnowledgeGraphRelationshipDto => r != null);
   }
 
   private async resolveIncidentAcrossWorkspace(

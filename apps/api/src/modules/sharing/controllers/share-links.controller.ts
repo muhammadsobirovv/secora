@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { IsOptional, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import type { Request } from 'express';
 import type { ShareLinkDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
@@ -39,23 +40,40 @@ export class ShareLinksController {
     return this.queryBus.execute(new ListShareLinksQuery(user.id, query.workspaceId));
   }
 
+  // Module 18 — task #518 (public sharing security audit). @Req() added
+  // to thread the real requester IP into the audit trail — previously
+  // hardcoded '0.0.0.0' in the command handler, unlike
+  // PublicShareController's access() route, which already did this
+  // correctly.
   @Post()
   @ApiOperation({ summary: 'Create a share link for a Report/Finding/Evidence/Dashboard/Project you can access' })
-  create(@Body() dto: CreateShareLinkDto, @CurrentUser() user: RequestUser): Promise<ShareLinkDto> {
-    return this.commandBus.execute(new CreateShareLinkCommand(user.id, dto));
+  create(
+    @Body() dto: CreateShareLinkDto,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
+  ): Promise<ShareLinkDto> {
+    return this.commandBus.execute(new CreateShareLinkCommand(user.id, dto, req.ip ?? '0.0.0.0'));
   }
 
   @Post(':id/revoke')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a share link immediately' })
-  async revoke(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
-    await this.commandBus.execute(new RevokeShareLinkCommand(user.id, id));
+  async revoke(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
+  ): Promise<void> {
+    await this.commandBus.execute(new RevokeShareLinkCommand(user.id, id, req.ip ?? '0.0.0.0'));
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Alias for revoke (DELETE semantics)' })
-  async remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
-    await this.commandBus.execute(new RevokeShareLinkCommand(user.id, id));
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
+  ): Promise<void> {
+    await this.commandBus.execute(new RevokeShareLinkCommand(user.id, id, req.ip ?? '0.0.0.0'));
   }
 }

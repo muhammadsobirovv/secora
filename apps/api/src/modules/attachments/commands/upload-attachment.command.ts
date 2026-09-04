@@ -127,7 +127,24 @@ export class UploadAttachmentHandler implements ICommandHandler<
       workspace.id,
     );
 
-    const key = `workspaces/${workspace.id}/${command.attachableType.toLowerCase()}/${command.attachableId}/${Date.now()}-${command.fileName}`;
+    // Module 18 — task #513 (file/storage security audit). Was
+    // `${Date.now()}-${command.fileName}` — the client-supplied
+    // `originalname` went straight into the storage key with zero
+    // sanitization. `LocalDiskStorageService` resolves that key via
+    // `join(STORAGE_DIR, key)`, and Node's `path.join` normalizes `..`
+    // segments across the *whole* joined string rather than confining
+    // them to the caller-supplied portion — a filename like
+    // `../../../../etc/cron.d/evil` (or a Windows-deployment equivalent)
+    // could write outside `.storage/` entirely. Strip the filename down to
+    // its safe basename (no path separators, no leading dots) before it
+    // ever reaches a storage key; the *original* name the user typed is
+    // still preserved verbatim in the `fileName` column below for display/
+    // download purposes — only the on-disk/S3 key changes.
+    const safeFileNameSegment = command.fileName
+      .replace(/[/\\]/g, '_')
+      .replace(/^\.+/, '_')
+      .slice(-200) || 'file';
+    const key = `workspaces/${workspace.id}/${command.attachableType.toLowerCase()}/${command.attachableId}/${Date.now()}-${safeFileNameSegment}`;
     const { url } = await this.storageService.upload(
       key,
       command.fileBuffer,

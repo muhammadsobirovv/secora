@@ -12,6 +12,7 @@ import { AiProviderRegistryService } from '../../ai/providers/ai-provider-regist
 import { collectStreamedCompletion } from '../../ai/providers/collect-stream.util.js';
 import type { BugBountyFinding, BugBountyProgram } from '../../../prisma-types.js';
 import { calculateCvss } from '../cvss/cvss-calculator.util.js';
+import { fenceUntrusted, UNTRUSTED_CONTENT_PROMPT_RULE } from '../../../common/utils/ai-prompt-fencing.util.js';
 
 function isValidProviderName(value: string | undefined): value is AiProviderName {
   return !!value && (AI_PROVIDER_NAMES as string[]).includes(value);
@@ -74,7 +75,19 @@ export class BugBountyAiAssistantService {
         maxTokens: this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', { infer: true }),
         temperature: opts.temperature ?? 0.3,
         messages: [
-          { role: 'system', content: systemPrompt },
+          // Module 18 — task #515 (AI safety hardening). Every one of
+          // this service's 9 public methods calls `complete()` and most
+          // pass `findingContext()`-derived text (below) — analyst/
+          // scan-derived free text (title, description, endpoint,
+          // payload) — as part of the user prompt. Appending this rule
+          // here, once, guarantees every current AND future method
+          // consistently gets the "fenced content is data, not
+          // instructions" framing without each of the 9 system-prompt
+          // strings needing to remember to add it individually — same
+          // centralization argument `ai-prompt-fencing.util.ts`'s own
+          // doc comment makes. Harmless on calls with no fenced content
+          // in the user prompt (summarizeEngagement's non-finding text).
+          { role: 'system', content: `${systemPrompt} ${UNTRUSTED_CONTENT_PROMPT_RULE}` },
           { role: 'user', content: userPrompt },
         ],
       },
@@ -84,14 +97,25 @@ export class BugBountyAiAssistantService {
   }
 
   private findingContext(finding: BugBountyFinding): string {
+    // Module 18 — task #515 (AI safety hardening). `title`/`description`/
+    // `endpoint`/`payload` are analyst-typed or scan/target-response-
+    // derived free text — exactly the "attacker-influenced content
+    // reaching an AI prompt" category `fenceUntrusted` exists for (see
+    // its doc comment), but this file predated that Module 17 convention
+    // and was never retrofitted until now. `severity`/`vulnType`/`cwe`/
+    // `cvssScore`/`cvssVector` are platform-controlled enum/numeric
+    // fields, not free text, and are left unfenced for prompt
+    // readability. `complete()` above appends
+    // `UNTRUSTED_CONTENT_PROMPT_RULE` to every system prompt, so the
+    // model is always told what these fences mean.
     const lines = [
-      `Title: ${finding.title}`,
+      `Title: ${fenceUntrusted(finding.title)}`,
       `Severity: ${finding.severity}`,
-      `Description: ${finding.description}`,
+      `Description: ${fenceUntrusted(finding.description)}`,
     ];
     if (finding.vulnType) lines.push(`Vulnerability type: ${finding.vulnType}`);
-    if (finding.endpoint) lines.push(`Endpoint: ${finding.endpoint}`);
-    if (finding.payload) lines.push(`Payload: ${finding.payload}`);
+    if (finding.endpoint) lines.push(`Endpoint: ${fenceUntrusted(finding.endpoint)}`);
+    if (finding.payload) lines.push(`Payload: ${fenceUntrusted(finding.payload)}`);
     if (finding.cwe) lines.push(`CWE: ${finding.cwe}`);
     if (finding.cvssScore != null) lines.push(`CVSS: ${finding.cvssScore} ${finding.cvssVector ?? ''}`.trim());
     return lines.join('\n');

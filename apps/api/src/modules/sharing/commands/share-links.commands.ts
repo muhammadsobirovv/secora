@@ -34,6 +34,12 @@ export class CreateShareLinkCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly data: CreateShareLinkRequestDto,
+    // Module 18 — task #518 (public sharing security audit). Previously
+    // recordAudit() below hardcoded '0.0.0.0' instead of the real
+    // requester IP, unlike PublicShareController's access() route (the
+    // one path an outsider actually hits), which already threads
+    // req.ip through correctly — an inconsistency this closes.
+    public readonly ipAddress: string = '0.0.0.0',
   ) {}
 }
 
@@ -79,15 +85,20 @@ export class CreateShareLinkHandler implements ICommandHandler<CreateShareLinkCo
       },
     });
 
-    await this.recordAudit(command.userId, shareLink.id, resource.workspaceId);
+    await this.recordAudit(command.userId, shareLink.id, resource.workspaceId, command.ipAddress);
 
     return toShareLinkDto(shareLink, rawToken);
   }
 
-  private async recordAudit(userId: string, shareLinkId: string, workspaceId: string): Promise<void> {
+  private async recordAudit(
+    userId: string,
+    shareLinkId: string,
+    workspaceId: string,
+    ipAddress: string,
+  ): Promise<void> {
     const type: AuditEventType = 'SHARE_LINK_CREATED';
     await this.prisma.auditEvent.create({
-      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata: { shareLinkId, workspaceId } },
+      data: { userId, type, ipAddress, userAgent: 'api', metadata: { shareLinkId, workspaceId } },
     });
   }
 }
@@ -99,6 +110,9 @@ export class RevokeShareLinkCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly shareLinkId: string,
+    // Module 18 — task #518. Same reasoning as CreateShareLinkCommand
+    // above.
+    public readonly ipAddress: string = '0.0.0.0',
   ) {}
 }
 
@@ -122,7 +136,7 @@ export class RevokeShareLinkHandler implements ICommandHandler<RevokeShareLinkCo
       data: {
         userId: command.userId,
         type,
-        ipAddress: '0.0.0.0',
+        ipAddress: command.ipAddress,
         userAgent: 'api',
         metadata: { shareLinkId: shareLink.id, workspaceId: shareLink.workspaceId },
       },

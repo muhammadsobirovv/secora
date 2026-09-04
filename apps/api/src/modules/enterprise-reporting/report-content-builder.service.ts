@@ -101,14 +101,31 @@ export class ReportContentBuilderService {
 
     let slaCompliance: EnterpriseReportContent['slaCompliance'] = null;
     if (slaPolicies.length > 0) {
+      // Module 18 — task #516 (API performance audit). This used to issue
+      // one `findMany` per SLA policy row — an org can have multiple
+      // policies sharing the same severity (an org-wide policy plus a
+      // per-workspace override, per the `@@unique([organizationId,
+      // workspaceId, severity])` constraint on SlaPolicy), so that could
+      // even re-fetch the identical finding set more than once. A single
+      // query for every severity referenced by any policy, grouped in
+      // memory, produces the exact same per-policy evaluation with one
+      // round-trip instead of N.
+      const severities = [...new Set(slaPolicies.map((p) => p.severity))];
+      const findingsBySeverity = await this.prisma.bugBountyFinding.findMany({
+        where: { ...workspaceWhere, severity: { in: severities }, stage: { in: ['RESOLVED', 'CLOSED'] } },
+        select: { severity: true, createdAt: true, updatedAt: true },
+      });
+      const grouped = new Map<string, { createdAt: Date; updatedAt: Date }[]>();
+      for (const finding of findingsBySeverity) {
+        const bucket = grouped.get(finding.severity);
+        if (bucket) bucket.push(finding);
+        else grouped.set(finding.severity, [finding]);
+      }
+
       let evaluated = 0;
       let withinTarget = 0;
       for (const policy of slaPolicies) {
-        const findingsForSeverity = await this.prisma.bugBountyFinding.findMany({
-          where: { ...workspaceWhere, severity: policy.severity, stage: { in: ['RESOLVED', 'CLOSED'] } },
-          select: { createdAt: true, updatedAt: true },
-        });
-        for (const finding of findingsForSeverity) {
+        for (const finding of grouped.get(policy.severity) ?? []) {
           evaluated += 1;
           const hours = (finding.updatedAt.getTime() - finding.createdAt.getTime()) / (1000 * 60 * 60);
           if (hours <= policy.targetHours) withinTarget += 1;

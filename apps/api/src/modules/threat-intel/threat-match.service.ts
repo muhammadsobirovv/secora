@@ -159,8 +159,14 @@ export class ThreatMatchService {
     return written;
   }
 
-  async listMatchesForTarget(targetId: string): Promise<ThreatMatchDto[]> {
-    const rows = await this.matchRepo.findMany({ where: { targetId }, orderBy: { confidence: 'desc' }, take: 200 });
+  /// Module 18 — task #508 (IDOR sweep). `workspaceId` is now mandatory
+  /// and filtered on in the same `where` clause as `targetId` — previously
+  /// this queried by `targetId` alone, so any authenticated caller could
+  /// enumerate another workspace's `targetId` values and read its
+  /// threat-intel match confidence/evidence. Same fail-closed shape as
+  /// `setAnalystStatus` just below.
+  async listMatchesForTarget(targetId: string, workspaceId: string): Promise<ThreatMatchDto[]> {
+    const rows = await this.matchRepo.findMany({ where: { targetId, workspaceId }, orderBy: { confidence: 'desc' }, take: 200 });
     return rows.map(toDto);
   }
 

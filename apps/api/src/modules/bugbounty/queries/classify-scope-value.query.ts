@@ -14,10 +14,15 @@ import {
   type TargetsRepository,
 } from '../../targets/domain/repositories/targets.repository.interface.js';
 import {
+  PROJECTS_REPOSITORY,
+  type ProjectsRepository,
+} from '../../projects/domain/repositories/projects.repository.interface.js';
+import {
   BUGBOUNTY_PROGRAMS_REPOSITORY,
   type BugBountyProgramsRepository,
 } from '../domain/repositories/bugbounty-programs.repository.interface.js';
 import { resolveBugBountyProgramForCaller } from '../authorization.util.js';
+import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
 import { classifyScopeValue } from '../scope/classify-scope-value.util.js';
 
 export class ClassifyScopeValueQuery implements IQuery {
@@ -45,6 +50,8 @@ export class ClassifyScopeValueHandler implements IQueryHandler<
     private readonly workspacesRepository: WorkspacesRepository,
     @Inject(TARGETS_REPOSITORY)
     private readonly targetsRepository: TargetsRepository,
+    @Inject(PROJECTS_REPOSITORY)
+    private readonly projectsRepository: ProjectsRepository,
     @Inject(BUGBOUNTY_PROGRAMS_REPOSITORY)
     private readonly programsRepository: BugBountyProgramsRepository,
   ) {}
@@ -61,14 +68,19 @@ export class ClassifyScopeValueHandler implements IQueryHandler<
 
     let value = query.data.value;
     if (!value && query.data.targetId) {
-      const target = await this.targetsRepository.findById(query.data.targetId);
-      if (!target) {
-        throw new AppException(
-          'TARGET_NOT_FOUND',
-          'Target not found.',
-          HttpStatus.NOT_FOUND,
-        );
-      }
+      // Module 18 — task #508 (IDOR sweep). Was a bare `findById(targetId)`
+      // with no ownership check — a caller could supply another
+      // workspace's targetId and have its value classified/returned via
+      // this program's scope rules. Reuse the same enumeration-safe
+      // resolver every other Target-scoped command uses; not-found and
+      // not-owned both surface as the same TARGET_NOT_FOUND either way.
+      const { target } = await resolveTargetForCaller(
+        this.workspacesRepository,
+        this.projectsRepository,
+        this.targetsRepository,
+        query.userId,
+        query.data.targetId,
+      );
       value = target.value;
     }
     if (!value) {

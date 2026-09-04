@@ -13,6 +13,7 @@ import {
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import type { LoginResponseDto } from '@pentesthub/shared';
 import { Public } from '../../../common/decorators/public.decorator.js';
@@ -53,6 +54,11 @@ export class OAuthController {
 
   @Public()
   @UseGuards(AuthGuard('google'))
+  // Module 18 — task #512. Terminal, token-issuing step of the OAuth
+  // flow — bound it so a captured/replayed callback URL can't be
+  // hammered. Looser than login/exchange's 5/min since this also carries
+  // real multi-user-behind-one-NAT traffic during a normal sign-in burst.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('google/callback')
   @ApiExcludeEndpoint()
   async googleCallback(
@@ -73,6 +79,8 @@ export class OAuthController {
 
   @Public()
   @UseGuards(AuthGuard('github'))
+  // Module 18 — task #512. Same rationale as googleCallback above.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('github/callback')
   @ApiExcludeEndpoint()
   async githubCallback(
@@ -83,6 +91,12 @@ export class OAuthController {
   }
 
   @Public()
+  // Module 18 — task #512 (rate limiting audit). Fully public, POSTs a
+  // one-time code for real tokens — was relying on the global 100/min/IP
+  // default only. Same 5/min budget as the password-based auth endpoints
+  // (login/register) guard the equivalent "exchange a secret for tokens"
+  // surface.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('exchange')
   @ApiOperation({ summary: 'Exchange a one-time OAuth code for tokens' })

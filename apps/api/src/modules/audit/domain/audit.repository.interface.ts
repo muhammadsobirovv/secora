@@ -6,6 +6,13 @@ export interface RecordAuditEventInput {
   ipAddress: string;
   userAgent: string;
   metadata?: Record<string, unknown>;
+  /// Module 18 — task #505 (Request correlation/traceability). Optional —
+  /// PrismaAuditRepository.record() defaults this from
+  /// observability/request-context.ts's getRequestId() when the caller
+  /// doesn't supply one, so most callers never need to pass it explicitly.
+  /// Pass it explicitly only when recording an event outside the request
+  /// that logically caused it (rare).
+  requestId?: string;
 }
 
 export interface AuditRepository {
