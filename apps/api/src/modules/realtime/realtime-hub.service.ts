@@ -16,6 +16,22 @@ import type { RealtimeEvent } from '@pentesthub/shared';
 /// the same `CacheModule`/`QueueProvider` abstraction layer Module 14
 /// already introduced for exactly this class of problem) instead of an
 /// in-memory Map.
+///
+/// Module 18 — task #517 (SSE hardening audit), disclosed known
+/// limitation (not fixed this phase): `workspaceStreams` entries are
+/// never removed once created, so every distinct workspace that has ever
+/// opened a stream keeps one `Subject` alive for the process's lifetime.
+/// This is bounded by workspace count (not by connection or reconnect
+/// count — per-connection RxJS subscriptions to a given workspace's
+/// Subject are torn down correctly on disconnect, see
+/// RealtimeController's own subscribe/unsubscribe handling), so it's a
+/// slow, small per-workspace leak rather than an unbounded one. A correct
+/// fix would need a subscriber-refcount check (RxJS's Subject exposes
+/// `observed`) to delete an entry once its last subscriber disconnects,
+/// which risks a race against a new subscriber arriving in the same tick
+/// — not safely verifiable without running the test suite in this
+/// sandbox. Tracked as a concrete follow-up in docs/operations/ (Phase
+/// 29).
 @Injectable()
 export class RealtimeHubService {
   private readonly workspaceStreams = new Map<string, Subject<RealtimeEvent>>();

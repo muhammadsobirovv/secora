@@ -31,9 +31,19 @@ export function getStoredRefreshToken(): string | null {
 /// authorization boundary is still the API's JWT validation, this is a
 /// UX nicety only (see docs/adr/0002-workspace-foundation-module.md,
 /// Decision 4).
+///
+/// Module 18 — task #523 (Phase 21 security headers audit). `Secure` is
+/// appended conditionally rather than hardcoded: `location.protocol` is
+/// `'https:'` in every real deployment, but hardcoding `Secure`
+/// unconditionally would make this cookie silently never get set during
+/// local `http://localhost` development (browsers refuse to store a
+/// `Secure` cookie over a plain-HTTP origin) — this was a genuinely
+/// missing attribute before this change (grepped this file and found no
+/// `Secure` anywhere), not something previously guarded some other way.
 export function persistRefreshToken(token: string): void {
   window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
-  document.cookie = `${SESSION_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+  const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${SESSION_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax${secure}`;
 }
 
 export function clearStoredRefreshToken(): void {

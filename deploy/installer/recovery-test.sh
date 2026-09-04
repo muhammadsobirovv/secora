@@ -15,8 +15,8 @@
 # archive that still passes a checksum on the bytes it did write).
 #
 # Run this periodically (e.g. weekly, via cron or a scheduled CI job) —
-# see docs/deployment/DISASTER_RECOVERY.md for the recommended cadence
-# and what a failing run means operationally.
+# see docs/operations/backup-recovery.md (Module 18 task #522) for the
+# recommended cadence and what a failing run means operationally.
 #
 # Usage:
 #   ./deploy/installer/recovery-test.sh --api-url http://localhost:3000 --token "$API_TOKEN"
