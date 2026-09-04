@@ -8,6 +8,14 @@ import { PollerLeaseService } from '../../../common/concurrency/poller-lease.ser
 
 const LEASE_NAME = 'scheduled-job-runner';
 const LEASE_TTL_MS = 90_000; // 1.5x the 60s tick interval — see PollerLeaseService's doc comment.
+// Module 18 — task #510. How far past "now" the per-job CAS claim below
+// pushes `nextRunAt` while `runJob()` is in flight — comfortably longer
+// than any single job's expected dispatch time (these are thin
+// dispatchers, see this file's class doc comment) but short enough that a
+// job whose `runJob()` call throws before reaching its own `nextRunAt`
+// write (an unexpected crash mid-dispatch, not the try/catch'd `dispatch()`
+// failure path, which always reaches the write) isn't stuck un-due for long.
+const CLAIM_IN_FLIGHT_MS = 5 * 60_000;
 
 /// Executes one ScheduledJob's `kind`-specific action and records a
 /// ScheduledJobRun. This is intentionally a thin dispatcher, not a real
@@ -64,6 +72,27 @@ export class ScheduledJobRunnerService implements OnModuleInit, OnModuleDestroy 
       take: 50,
     });
     for (const job of due) {
+      // Module 18 — task #510 (job queue hardening). `PollerLeaseService`
+      // guards against two replicas *starting* a tick at the same moment,
+      // but it doesn't renew the lease mid-tick (see its own doc comment
+      // — this is a deliberate simplicity tradeoff, not an oversight) —
+      // if this tick's 50-job batch takes longer than the lease's TTL, a
+      // second replica's next interval could acquire the lease and start
+      // its own `runTick()` while this one is still mid-batch, and both
+      // would see the same not-yet-updated `nextRunAt` for whichever jobs
+      // this replica hasn't reached yet. A per-job optimistic-concurrency
+      // claim (compare-and-swap on the exact `nextRunAt` value just read)
+      // closes that window without touching the lease mechanism itself:
+      // whichever replica's `updateMany` lands first "claims" the job by
+      // nudging it out of the due window; the loser's `count` is 0 and it
+      // skips — same "atomic conditional update, check the count" idiom
+      // `ClaimNextJobsHandler` (distributed-jobs.commands.ts) already uses.
+      const claim = await this.prisma.scheduledJob.updateMany({
+        where: { id: job.id, nextRunAt: job.nextRunAt },
+        data: { nextRunAt: new Date(Date.now() + CLAIM_IN_FLIGHT_MS) },
+      });
+      if (claim.count === 0) continue;
+
       try {
         await this.runJob(job.id);
       } catch (error) {

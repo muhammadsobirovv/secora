@@ -20,6 +20,9 @@ export interface CreateVulnScanJobInput {
   requestedBy: string;
   timeoutSeconds: number;
   maxRetries: number;
+  /// Module 18 — task #505 (Request correlation/traceability). Same
+  /// purpose as CreateReconJobInput.requestId.
+  requestId?: string;
 }
 
 export interface ListVulnScanJobsFilter {

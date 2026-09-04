@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { AdHocCommandDto, TerminalCommandDefinitionDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
@@ -39,6 +40,17 @@ export class TerminalController {
   }
 
   @Post('commands')
+  // Module 18 — task #512 (rate limiting audit). Authenticated, but every
+  // call reaches `AdHocCommandService.execute()` which — for SAFE-
+  // classified tools — runs a real external tool/scanner process against
+  // a target. `ScopeEngine`/`GlobalSecurityPolicy` gate *whether* a given
+  // call is allowed, not *how many* calls a user can fire per minute; was
+  // relying on the global 100/min/IP default only, which is far too
+  // generous for something that spawns a subprocess per call. IP-scoped
+  // like the rest of this codebase's `@Throttle` usage (no custom
+  // per-user tracker exists yet — see the global `ThrottlerModule`
+  // registration in app.module.ts for that broader, disclosed gap).
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @ApiOperation({ summary: 'Run (or request approval for) a Terminal command against a target' })
   run(
     @Body() dto: RunAdHocCommandDto,

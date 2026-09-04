@@ -109,6 +109,13 @@ export class VulnScanJobsController {
     return this.queryBus.execute(new ListVulnFindingsQuery(user.id, { jobId }));
   }
 
+  // Module 18 — task #517 (SSE hardening audit), disclosed known
+  // limitation, same as the identical shape in
+  // ReconJobsController.streamLogs — see that method's comment. Not
+  // duplicated in full here to avoid drift; the same "no data written
+  // during a quiet poll stretch → idle-proxy risk, and Nest's @Sse() has
+  // no raw-comment-frame hook to fix it safely" reasoning applies
+  // verbatim.
   @Sse(':jobId/logs/stream')
   @ApiOperation({ summary: 'Live log stream for a running job (SSE)' })
   async streamLogs(

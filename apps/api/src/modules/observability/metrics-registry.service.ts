@@ -107,6 +107,32 @@ class Histogram {
 /// App-wide singleton registry (one instance via Nest's default
 /// singleton provider scope) — `HttpMetricsInterceptor` writes to it on
 /// every request, `MetricsController` reads it on every scrape.
+///
+/// Module 18 — task #520 (metrics/observability abstraction audit),
+/// disclosed known limitations (not fixed this phase — each is a real
+/// feature addition, not a bug fix, and none is safely verifiable
+/// end-to-end without running the app/scraper in this sandbox):
+///  1. HealthController's liveness/readiness checks (database/queue/
+///     storage reachability) are never surfaced here as Prometheus gauges
+///     (e.g. `up{component="database"}`) — an Alertmanager rule (Module
+///     14's configs) can't page on a dependency outage via the metrics
+///     pipeline today, only via an external orchestrator's own probe
+///     tooling hitting `/health/ready` directly. Wiring this in cleanly
+///     means extracting HealthController's inline check logic into a
+///     shared, reusable method both controllers call (to avoid two
+///     divergent copies of the same DB/queue/storage probes) and making
+///     this registry's render path async to accommodate the real
+///     round-trip that entails.
+///  2. Metrics, structured logs (structured-logger.service.ts), and OTel
+///     traces (tracing.ts) are three disjoint systems — no exemplars on
+///     histograms, no trace-id-as-metric-label, and `withSpan()` is only
+///     wired into two of the roughly seven surfaces this registry
+///     instruments (workflow execution, webhook delivery).
+///  3. Only Counter/Histogram exist as reusable primitives — there's no
+///     Gauge type, so `renderProcessMetrics()` below hand-builds gauge
+///     text rather than registering typed Gauge instances the way the
+///     counters/histograms above are registered.
+/// Tracked as concrete follow-ups in docs/operations/ (Phase 29).
 @Injectable()
 export class MetricsRegistryService {
   readonly httpRequestsTotal = new Counter('pentesthub_http_requests_total', 'Total HTTP requests processed.');

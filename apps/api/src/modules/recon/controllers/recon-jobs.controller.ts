@@ -86,6 +86,26 @@ export class ReconJobsController {
     );
   }
 
+  // Module 18 — task #517 (SSE hardening audit), disclosed known
+  // limitation (not fixed this phase): if `poll()` below finds zero new
+  // log rows for a stretch (a long-running scan producing no output for
+  // several poll cycles), literally nothing is written to the response
+  // for that whole stretch — an idle reverse proxy/load balancer sitting
+  // in front of this API could silently drop the connection. The
+  // frontend's manual SSE parser (useReconJobLogs, use-recon.ts) already
+  // anticipates a keep-alive and safely no-ops on any block with no
+  // `data:` line — but that's specifically a raw SSE *comment* frame
+  // (`: ping\n\n`), which Nest's `@Sse()` decorator has no hook for: every
+  // value this Observable emits gets JSON-serialized onto a `data:` line
+  // by Nest itself. A malformed non-ReconJobLogDto `data:` payload would
+  // NOT be safely ignored — the frontend does `JSON.parse(...) as
+  // ReconJobLogDto` unconditionally and pushes it straight into the
+  // rendered log list. A correct fix means bypassing `@Sse()` for this
+  // one route (inject `@Res()`, set the SSE headers and write raw comment
+  // lines by hand, same as this decorator does internally) — a bigger
+  // change to this route's shape than fits this phase, and not something
+  // this sandbox can verify end-to-end without running the server.
+  // Tracked as a concrete follow-up in docs/operations/ (Phase 29).
   @Sse(':jobId/logs/stream')
   @ApiOperation({ summary: 'Live log stream for a running job (SSE)' })
   async streamLogs(

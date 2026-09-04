@@ -22,4 +22,12 @@ export interface ApiErrorResponse {
   /// absent for the small number of failures that occur before that
   /// (e.g. a malformed request the body parser itself rejects).
   requestId?: string;
+  /// Module 18 — task #504 (Global error handling / Phase 2). Present only
+  /// for structured validation failures (code `VALIDATION_FAILED`) — one
+  /// entry per invalid field, so a form can highlight the exact field
+  /// instead of the caller having to string-match a flattened message.
+  /// Every other error keeps `details` absent; this never carries raw
+  /// values the caller submitted (only the field path + a human-readable
+  /// constraint description), so it's safe to log/display as-is.
+  details?: Array<{ field: string; message: string }>;
 }

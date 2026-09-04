@@ -30,7 +30,11 @@ async function bootstrap(): Promise<void> {
   // events an operator most wants to search. `createApplicationContext`
   // accepts the same `logger` option `NestFactory.create` does.
   const app = await NestFactory.createApplicationContext(WorkerModule, {
-    logger: new StructuredLoggerService(),
+    // Module 18 — task #506. Explicit 'worker' service tag so a shared log
+    // aggregator can tell this process's lines apart from the API
+    // process's (both otherwise defaulted to the same LOG_LEVEL/LOG_FORMAT
+    // env vars and would be indistinguishable once shipped off-box).
+    logger: new StructuredLoggerService(undefined, undefined, 'worker'),
   });
   const logger = new Logger('Worker');
   // Module 14 — Auto Update: logs the running version at boot, same

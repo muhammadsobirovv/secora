@@ -1,5 +1,6 @@
 import { LoggerService, LogLevel } from '@nestjs/common';
 import { getRequestId } from './request-context.js';
+import { redactSensitiveData } from './log-redaction.util.js';
 
 /// A single-file, dependency-free structured logger implementing
 /// NestJS's `LoggerService` interface, passed to `NestFactory.create`
@@ -60,13 +61,29 @@ export class StructuredLoggerService implements LoggerService {
   /// other behavior (level filtering, correlation ids, stderr/stdout
   /// routing) is identical between the two formats.
   private readonly pretty: boolean;
+  /// Module 18 — task #506 (Structured logging + secret redaction). Which
+  /// OS process emitted this line — `'api'` (main.ts, HTTP requests) or
+  /// `'worker'` (worker.main.ts, background job execution). Both
+  /// processes read the same database and can interleave in a shared log
+  /// aggregator; without this, a worker-process crash-recovery log line
+  /// was indistinguishable from an API-process one once shipped off-box.
+  private readonly service: string;
+  /// `NODE_ENV` at the moment this logger was constructed — included on
+  /// every line so a log aggregator ingesting dev/staging/prod streams
+  /// into one index can filter by environment without relying on
+  /// per-index routing being configured correctly upstream.
+  private readonly environment: string;
 
   constructor(
     configuredLogLevel = process.env.LOG_LEVEL ?? 'info',
     logFormat = process.env.LOG_FORMAT ?? 'json',
+    service = 'api',
+    environment = process.env.NODE_ENV ?? 'development',
   ) {
     this.threshold = LEVEL_RANK[mapConfiguredLevel(configuredLogLevel)];
     this.pretty = logFormat === 'pretty';
+    this.service = service;
+    this.environment = environment;
   }
 
   log(message: unknown, ...optionalParams: unknown[]): void {
@@ -104,14 +121,31 @@ export class StructuredLoggerService implements LoggerService {
     const rest = optionalParams.length > 0 ? optionalParams.slice(0, -1) : [];
 
     const requestId = getRequestId();
+    // Module 18 — task #506. Redact before this line ever reaches
+    // JSON.stringify/renderPretty — message can be a plain object (some
+    // call sites log `logger.log({event, userId, ...})` rather than a
+    // string), and `rest`/optionalParams can be anything a caller passed,
+    // including — accidentally — a DTO with a password/token field still
+    // attached. See log-redaction.util.ts for the exact key list and
+    // recursion behavior.
+    const safeMessage =
+      message instanceof Error
+        ? message.message
+        : typeof message === 'object' && message !== null
+          ? redactSensitiveData(message)
+          : message;
+    const safeRest = rest.map((item) => redactSensitiveData(item));
+
     const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       level,
-      message: message instanceof Error ? message.message : message,
+      service: this.service,
+      environment: this.environment,
+      message: safeMessage,
       ...(message instanceof Error ? { stack: message.stack } : {}),
       ...(typeof context === 'string' ? { context } : {}),
       ...(requestId ? { requestId } : {}),
-      ...(rest.length > 0 ? { details: rest } : {}),
+      ...(safeRest.length > 0 ? { details: safeRest } : {}),
     };
 
     const line = this.pretty ? this.renderPretty(entry) : JSON.stringify(entry);

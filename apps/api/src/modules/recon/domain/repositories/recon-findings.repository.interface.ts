@@ -22,6 +22,13 @@ export interface ListReconFindingsFilter {
   projectId?: string;
   jobId?: string;
   type?: ReconFindingType;
+  /// Module 18 — task #516 (API performance audit). Optional so existing
+  /// callers (both controllers currently construct this filter with no
+  /// pagination concept at all — see PrismaReconFindingsRepository.list's
+  /// own comment) keep compiling unchanged; the repository applies a safe
+  /// default when this is omitted rather than requiring every call site
+  /// to be updated in this phase.
+  limit?: number;
 }
 
 /// Deduplication is this repository's upsert, not separate application

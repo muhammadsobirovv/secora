@@ -8,6 +8,7 @@ import type { ReconJobsRepository } from '../domain/repositories/recon-jobs.repo
 import type { Target, Workspace } from '../../../prisma-types.js';
 import type { ScopeEngineService } from '../../security/scope-engine.service.js';
 import { CreateReconJobCommand, CreateReconJobHandler } from './create-recon-job.command.js';
+import * as requestContext from '../../../observability/request-context.js';
 
 function buildTarget(overrides?: Partial<Target>): Target {
   return {
@@ -195,5 +196,20 @@ describe('CreateReconJobHandler', () => {
         target: expect.objectContaining({ id: 'target-1', scopeStatus: 'IN_SCOPE' }),
       }),
     );
+  });
+
+  // Module 18 — task #505 (Request correlation/traceability).
+  it('stamps the created job with the active request-context requestId, so a worker-process log line for this job can be correlated back to the request that queued it', async () => {
+    jest.spyOn(requestContext, 'getRequestId').mockReturnValue('req-recon-abc');
+    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const { handler } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+    });
+
+    await handler.execute(new CreateReconJobCommand('user-1', 'target-1', { tools: ['NMAP'] }));
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'req-recon-abc' }));
+    jest.restoreAllMocks();
   });
 });

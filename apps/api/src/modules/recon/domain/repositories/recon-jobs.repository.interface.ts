@@ -15,6 +15,10 @@ export interface CreateReconJobInput {
   requestedBy: string;
   timeoutSeconds: number;
   maxRetries: number;
+  /// Module 18 — task #505 (Request correlation/traceability). The
+  /// X-Request-Id of the creating HTTP request, if any — see
+  /// ReconJob.requestId's schema doc comment.
+  requestId?: string;
 }
 
 export interface ListReconJobsFilter {
