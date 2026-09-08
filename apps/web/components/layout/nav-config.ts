@@ -25,6 +25,7 @@ import {
   Fingerprint,
   Siren,
   LineChart,
+  CreditCard,
 } from "lucide-react";
 
 export interface NavItem {
@@ -79,6 +80,9 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Agent Copilot", href: "/agent", icon: Sparkles },
   { label: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
   { label: "Activity", href: "/activity", icon: Activity },
+  // Module 19 — task #332. Plan comparison/upgrade picker — organization
+  // billing management itself lives at /settings/billing.
+  { label: "Pricing", href: "/pricing", icon: CreditCard },
   // Module 14 — Admin Console infrastructure dashboard (task #314). See
   // ClusterOverviewService's doc comment for why this has no additional
   // role gate beyond normal authentication yet.
