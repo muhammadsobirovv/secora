@@ -20,10 +20,19 @@ export class InvoiceService {
     @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProvider,
   ) {}
 
+  /// Module 19 baseline audit (#408 — targeted performance pass, not a
+  /// Module 18 repeat): this previously had no `take` limit, so
+  /// `BillingService.getSummary()` — called on every `/billing` and
+  /// `/settings/billing` page load — would return every invoice an
+  /// organization has ever had. Capped at 50 (most recent first, which
+  /// this query already orders by); a dedicated invoice-history page
+  /// with real pagination is real, deferred scope if a deployment needs
+  /// to browse past the most recent 50.
   async listInvoices(organizationId: string): Promise<InvoiceDto[]> {
     const invoices = await this.prisma.invoice.findMany({
       where: { organizationId },
       orderBy: { issuedAt: 'desc' },
+      take: 50,
     });
     return invoices.map(toInvoiceDto);
   }
