@@ -27,7 +27,9 @@ type Options struct {
 	// AccessToken on every request.
 	APIKey string
 	// HTTPClient overrides the underlying *http.Client (timeouts,
-	// transport, proxying, etc.). Defaults to http.DefaultClient.
+	// transport, proxying, etc.). Defaults to a client with a 30s request
+	// timeout (see defaultRequestTimeout in http_client.go) — not
+	// http.DefaultClient, which has no timeout at all.
 	HTTPClient *http.Client
 	// OnTokenRefreshed is called whenever the client obtains or updates
 	// its access token, so callers can persist it (e.g. to a keychain or

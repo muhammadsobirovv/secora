@@ -10,7 +10,20 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
+
+// defaultRequestTimeout bounds every request made by a Client constructed
+// without an explicit HTTPClient. Reconciliation checkpoint (post-Module-18):
+// http.DefaultClient has no timeout at all, so a hung connection (dead
+// network, an unresponsive deployment) would previously await indefinitely —
+// the exact same defect class Module 18 task #526 fixed in the TypeScript
+// SDK's HttpClient (see packages/sdk-typescript/src/http-client.ts's
+// DEFAULT_TIMEOUT_MS) and that the Python SDK's HttpClient already avoided
+// via its own timeout=30.0 default (sdks/python/pentesthub_ai/http_client.py).
+// 30s matches both for consistency. A caller that needs a different value
+// still can via HttpClientOptions.HTTPClient / Options.HTTPClient.
+const defaultRequestTimeout = 30 * time.Second
 
 // TokenRefreshedFunc is invoked whenever the client establishes or updates
 // its access token (e.g. after Auth.Login or a manual SetAccessToken call),
@@ -47,7 +60,7 @@ type HttpClient struct {
 func NewHttpClient(opts HttpClientOptions) *HttpClient {
 	client := opts.HTTPClient
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: defaultRequestTimeout}
 	}
 	return &HttpClient{
 		baseURL:          strings.TrimRight(opts.BaseURL, "/"),
