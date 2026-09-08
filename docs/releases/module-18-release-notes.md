@@ -216,16 +216,26 @@ external call site (`ToolRunner`, AI provider adapters, webhook
 dispatch) and honored by each provider — a cross-cutting change out of
 proportion to any single phase's scope.
 
-**A significant project-history integrity gap: `packages/sdk-python`
-and `packages/sdk-go` do not exist** (Phase 22). Despite many prior
-tasks across this project's history (Module 16's #402, Module 17's
-#491, among others) reporting Python/Go SDK work as complete, only
-`packages/sdk-typescript` is actually present in the repository. This is
-recorded here as a factual finding from Module 18's dependency audit,
-not resolved unilaterally — it is a decision point for the project
-owner: build the two missing SDKs as real follow-up work, or correct the
-historical record. `.github/dependabot.yml` correctly has no `pip`/
-`gomod` entries, since neither ecosystem has files in this repo to scan.
+**CORRECTED post-Module-18: Phase 22's "Python/Go SDKs don't exist" finding was a false negative.** A dedicated reconciliation checkpoint
+(`docs/reviews/0021-post-m18-sdk-reconciliation.md`) found both SDKs
+alive, real, and at full resource parity with the TypeScript SDK — at
+`sdks/python` and `sdks/go`, not `packages/sdk-python`/`packages/sdk-go`.
+Phase 22 checked only the `packages/sdk-*` path convention and, finding
+nothing there, wrongly concluded the SDKs were absent rather than
+searching for them elsewhere. Module 16's #402/#429 and Module 17's #491
+reported this work accurately; Phase 22's audit was the error, not the
+task history. Two small, real, previously-undisclosed issues were found
+and fixed during reconciliation: the Go SDK's `HttpClient` used
+`http.DefaultClient`, which has no timeout at all (same defect class as
+this module's own TypeScript SDK fix below — corrected to a 30s default);
+and `.github/dependabot.yml` genuinely was missing `pip`/`gomod` entries
+for `sdks/python`/`sdks/go` (added). Both SDK READMEs' "Scope (v1)"
+sections were also stale (still describing the pre-Module-16 5-resource
+list despite the code already having all 14) and have been corrected.
+See the reconciliation doc for the full audit, including a real,
+passing Python test run (`python3 -m unittest tests.test_client -v` —
+5/5 tests passed in-sandbox) and the Go toolchain's continued
+unavailability in this sandbox (consistent with every prior module).
 
 ## Verification
 

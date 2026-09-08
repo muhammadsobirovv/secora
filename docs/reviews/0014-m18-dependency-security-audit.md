@@ -25,27 +25,39 @@ truth once this repository is pushed to GitHub with Actions enabled.
 
 ## Findings
 
-### 1. A significant, previously undisclosed gap: the Python and Go SDKs referenced across the task history do not exist
+### 1. CORRECTED (post-Module-18 reconciliation): this finding was a false negative — the Python and Go SDKs do exist, at `sdks/python` and `sdks/go`
 
-While tracing every ecosystem this monorepo should have a Dependabot
-entry for, `packages/sdk-python` and `packages/sdk-go` were checked and
-confirmed **not to exist** — not empty stubs, not present under a
-different path, simply absent. `packages/sdk-typescript` (`@pentesthub/sdk`)
-is the only SDK package that actually exists in the repository today.
+**Original Phase 22 text, preserved for the record:** "While tracing
+every ecosystem this monorepo should have a Dependabot entry for,
+`packages/sdk-python` and `packages/sdk-go` were checked and confirmed
+not to exist — not empty stubs, not present under a different path,
+simply absent. `packages/sdk-typescript` (`@pentesthub/sdk`) is the only
+SDK package that actually exists in the repository today." That
+conclusion was wrong, and the error was methodological: this audit
+checked exactly one path convention (`packages/sdk-*`, the pnpm-workspace
+pattern the TypeScript SDK uses) and, on finding nothing there, concluded
+the SDKs were absent — without searching for them under any other path.
 
-This matters for a dependency audit specifically because `.github/dependabot.yml`
-has no `pip` or `gomod` ecosystem entries — which is *correct*, not a gap,
-given neither ecosystem has any files in this repo to scan. But it also
-means every prior task in this project's history that reported "Python
-SDK tests" or "Go SDK build + test" as complete, or "SDK update
-(TypeScript/Python/Go)" as complete, reported on work that was not
-actually present in the codebase this audit inspected. This is disclosed
-here as a factual finding from this audit pass, not editorialized further
-— it is recorded in full for Phase 29's consolidated documentation pass,
-and is a decision point for the project owner (build the two missing SDKs
-as real follow-up work, or correct the historical record) rather than
-something this audit phase should silently paper over or unilaterally
-resolve by fabricating two SDKs from scratch.
+A dedicated post-Module-18 reconciliation pass (`docs/reviews/0021-post-m18-sdk-reconciliation.md`)
+found both SDKs alive and well at `sdks/python` and `sdks/go` — outside
+`packages/` entirely, which is in fact the *correct* convention here:
+`pnpm-workspace.yaml` only globs `apps/*` and `packages/*`, so a Python
+or Go package placed under `packages/` would be silently swept into pnpm
+tooling that can't build it. `sdks/` has held both SDKs since Modules
+7-10 (`git log --diff-filter=A -- sdks/python/pentesthub_ai/client.py`
+resolves to commit `357d97f`, "Modules 7-10: Desktop Agent, Browser
+Extension, Bug Bounty OS, Enterprise Platform"), and both were extended
+correctly in Module 16 (task #429) and Module 17 (task #491) — 14
+resource classes each, verified field-for-field identical in scope to
+the TypeScript SDK's own 14. Every prior task that reported "Python SDK
+tests," "Go SDK build + test," or "SDK update (TypeScript/Python/Go)" as
+complete was reporting accurately; this Phase 22 audit was the one link
+in the chain that was wrong, not the underlying task history.
+
+This also means `.github/dependabot.yml` having no `pip`/`gomod`
+ecosystem entries, described below as "correct, not a gap," was itself
+based on the same false premise — see the reconciliation doc for the
+corrected assessment of that specific point.
 
 ### 2. `apps/api` dependency review — no concerns
 
@@ -86,16 +98,20 @@ on recent major versions. Nothing here prompted a closer look beyond what
 `cargo-audit` (already wired into `security-scan.yml`) would catch
 automatically.
 
-### 5. Dependabot ecosystem coverage — verified complete for what actually exists
+### 5. CORRECTED (post-Module-18 reconciliation): Dependabot coverage was NOT complete — `pip`/`gomod` entries for `sdks/python`/`sdks/go` were missing
 
-Re-checked `.github/dependabot.yml` against the actual monorepo layout
-(not the aspirational one implied by task history): `npm` (root — covers
-`apps/api`, `apps/web`, and every real package under `packages/*`
-including `sdk-typescript`, via the single pnpm-workspace lockfile),
-`cargo` (`apps/desktop/src-tauri`), `pub` (`apps/mobile`), `docker`
-(`apps/api`, `apps/web`), and `github-actions`. This is complete coverage
-of every ecosystem that has files in this repository today. No entry
-needs to be added or removed as a result of this audit.
+**Original Phase 22 text, preserved for the record:** "Re-checked
+`.github/dependabot.yml` against the actual monorepo layout (not the
+aspirational one implied by task history): `npm` (root...), `cargo`
+(`apps/desktop/src-tauri`), `pub` (`apps/mobile`), `docker` (`apps/api`,
+`apps/web`), and `github-actions`. This is complete coverage of every
+ecosystem that has files in this repository today. No entry needs to be
+added or removed as a result of this audit." This inherited the same
+false premise as Finding #1 above (that `sdks/python`/`sdks/go` don't
+exist) and was therefore also wrong — `pip`/`gomod` entries for
+`sdks/python`/`sdks/go` were genuinely missing. Both were added during
+the post-Module-18 reconciliation checkpoint; see
+`docs/reviews/0021-post-m18-sdk-reconciliation.md`.
 
 ## Verdict
 
