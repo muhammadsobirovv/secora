@@ -12,12 +12,18 @@ const ALERT_DEDUPE_WINDOW_MS = 60 * 60 * 1000;
 /// Module 15 — AI cost control (task #340). The synchronous, pre-call
 /// counterpart to `QuotaService` — see `AiBudgetPolicy`'s doc comment in
 /// schema.prisma for why this is a separate table/service rather than a
-/// `QuotaPolicy` variant. `check()` is meant to be called from
-/// `AiChatService.runGeneration()` (and equivalent Agent SDK / Script
-/// Engine `ai.invoke` call sites, not yet wired — disclosed follow-up)
-/// right after provider/model resolution and before the first token is
-/// streamed; `recordUsage()` is meant to be called right after a
-/// generation completes and real token counts are known.
+/// `QuotaPolicy` variant. `check()` is called from
+/// `AiChatService.runGeneration()` right after provider/model resolution
+/// and before the first token is streamed; `recordUsage()` is called
+/// right after a generation completes and real token counts are known
+/// (both confirmed wired — see `ai-chat.service.ts` lines ~336, ~435).
+/// Module 19 reconciliation note: this doc comment previously claimed
+/// the `AiChatService` wiring itself was "not yet wired" — that was
+/// stale by the time of the Module 19 baseline audit; only the Agent
+/// SDK / Script Engine `ai.invoke` call sites remain genuinely unwired
+/// to this enforcer (confirmed by grep — `budgetEnforcer` has exactly
+/// one consumer module today). That remains real, disclosed follow-up
+/// scope, not yet built.
 ///
 /// Scope resolution mirrors `QuotaService.resolveLimit()`: USER ->
 /// WORKSPACE -> ORGANIZATION -> PLAN, most-specific-explicit-row-wins,
