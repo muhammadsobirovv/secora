@@ -866,9 +866,34 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > security-critical and disaster-recovery regression tests, and a final
 > grep-based security sweep. See that release-notes file's "Known gaps"
 > section for every issue this module found and disclosed rather than
-> fixed, including a project-history integrity finding: `packages/sdk-python`
-> and `packages/sdk-go`, despite being reported complete in earlier
-> module task histories, do not actually exist in this repository.
+> fixed.
+>
+> **Post-Module-18 reconciliation checkpoint** (2026-09-08,
+> `docs/reviews/0021-post-m18-sdk-reconciliation.md`): Module 18's
+> dependency audit (Phase 22) had claimed `packages/sdk-python` and
+> `packages/sdk-go` "do not actually exist in this repository," despite
+> earlier module task histories (Module 16's #402/#429, Module 17's
+> #491) reporting Python/Go SDK work as complete. A dedicated audit
+> against the repository itself (not against prior reports) found that
+> claim was wrong: both SDKs exist, complete and at full 14-resource
+> parity with the TypeScript SDK, at `sdks/python` and `sdks/go` — a
+> different path than the one Phase 22 checked, established since
+> Modules 7-10. The earlier module task histories were accurate; Phase
+> 22's audit methodology (checking one path convention and concluding
+> absence without searching further) was the error, and has been
+> corrected in place in `docs/reviews/0014-m18-dependency-security-audit.md`
+> and `docs/releases/module-18-release-notes.md` rather than silently
+> rewritten. Two small, real, previously-undisclosed gaps were found and
+> fixed during this checkpoint: the Go SDK's HTTP transport had no
+> request timeout (`http.DefaultClient`, same defect class Module 18 had
+> already fixed in the TypeScript SDK — corrected to a 30s default,
+> unverified by `go build`/`go test` since the Go toolchain remains
+> unavailable in this sandbox, consistent with every prior module); and
+> `.github/dependabot.yml` was missing `pip`/`gomod` entries for the two
+> SDKs (added). Both SDKs' READMEs had a stale pre-Module-16 "Scope (v1)"
+> list (corrected). The Python SDK was verified for real in this pass:
+> `python3 -m compileall` clean, and `python3 -m unittest
+> tests.test_client -v` — 5/5 tests genuinely passed in this sandbox.
 
 > **Local-first migration status** (2026-07-16): per the Local-First Core
 > Principle above, Modules 3-6 as described in this list still execute
