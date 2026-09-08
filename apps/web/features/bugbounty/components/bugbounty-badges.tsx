@@ -7,25 +7,40 @@ import type {
   ScopeClassification,
 } from "@pentesthub/shared";
 
+/// Module 19 baseline audit fix: `BugBountyFindingStage` gained `DRAFT`/
+/// `INFORMATIVE`/`ACCEPTED`/`REJECTED` (Module 16 — task #382, "Finding
+/// validation workflow states") but this component was never updated to
+/// match — `apps/web`'s typecheck was failing on this file (TS2739,
+/// "missing the following properties") before this fix, unrelated to any
+/// Module 19 change. Found via a `tsc --noEmit` run during the Module 19
+/// baseline audit's verification pass.
 const STAGE_CLASS: Record<BugBountyFindingStage, string> = {
+  DRAFT: "border-border text-muted-foreground",
   NEW: "border-border text-muted-foreground",
   TRIAGED: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
   VERIFIED: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
   REPORTED: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
   DUPLICATE: "border-border bg-muted text-muted-foreground",
+  INFORMATIVE: "border-border bg-muted text-muted-foreground",
+  ACCEPTED: "border-success/30 bg-success/10 text-success dark:text-success",
   NEED_MORE_INFO: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
+  REJECTED: "border-destructive/30 bg-destructive/10 text-destructive",
   RESOLVED: "border-success/30 bg-success/10 text-success dark:text-success",
   CLOSED: "border-border text-muted-foreground",
   ARCHIVED: "border-border text-muted-foreground",
 };
 
 const STAGE_LABEL: Record<BugBountyFindingStage, string> = {
+  DRAFT: "Draft",
   NEW: "New",
   TRIAGED: "Triaged",
   VERIFIED: "Verified",
   REPORTED: "Reported",
   DUPLICATE: "Duplicate",
+  INFORMATIVE: "Informative",
+  ACCEPTED: "Accepted",
   NEED_MORE_INFO: "Need more info",
+  REJECTED: "Rejected",
   RESOLVED: "Resolved",
   CLOSED: "Closed",
   ARCHIVED: "Archived",
@@ -90,16 +105,24 @@ export function BugBountyProgramStatusBadge({
   );
 }
 
+/// Module 19 baseline audit fix: same class of bug as
+/// `STAGE_CLASS`/`STAGE_LABEL` above — `ScopeClassification` gained
+/// `REVIEW_NEEDED`/`DEPRECATED` (Module 9) but this Record was never
+/// updated.
 const SCOPE_CLASS: Record<ScopeClassification, string> = {
   IN_SCOPE: "border-success/30 bg-success/10 text-success dark:text-success",
   OUT_OF_SCOPE: "border-destructive/30 bg-destructive/10 text-destructive",
   UNKNOWN: "border-border text-muted-foreground",
+  REVIEW_NEEDED: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
+  DEPRECATED: "border-border bg-muted text-muted-foreground",
 };
 
 const SCOPE_LABEL: Record<ScopeClassification, string> = {
   IN_SCOPE: "In scope",
   OUT_OF_SCOPE: "Out of scope",
   UNKNOWN: "Unknown",
+  REVIEW_NEEDED: "Review needed",
+  DEPRECATED: "Deprecated",
 };
 
 export function ScopeClassificationBadge({
