@@ -1301,3 +1301,60 @@ Package manager: pnpm (workspaces). Task runner: Turborepo (`build`, `lint`,
 > `docs/architecture/{stripe-webhook,feature-flags,release-engineering,
 > health-diagnostics,error-handling,support-system,demo-mode,i18n,
 > onboarding}.md`, `PRIVACY.md`, and `docs/compliance/gdpr-readiness.md`.
+
+## Module 19 — Product Completion, Monetization & Launch Readiness (2026-09-09)
+
+A baseline-audit-first pass, not a rebuild: the Module 19 brief asked for
+a "complete, launch-ready monetization foundation," and the baseline
+audit found that foundation already existed in production-quality form
+from Module 15 — `Plan`/`Subscription`/`Invoice`/`PaymentMethod`/
+`UsageCounter`/`QuotaPolicy`/`FeatureFlag`/`AiModelPricing`/
+`AiBudgetPolicy` schema, `BillingService`/`EntitlementService`/
+`QuotaService`/`UsageService`/`SubscriptionService`/`InvoiceService`/
+`AiBudgetEnforcerService`, a provider-neutral `PaymentProvider` interface
+(Stripe/Manual/Null adapters), and a real, signature-verified Stripe
+webhook controller. The one clear, bounded, previously-tracked gap
+(task #332) was that none of it had a frontend: this module built
+`apps/web/lib/api/{organizations,billing}.ts`, `features/{organizations,billing}/*`
+hooks and components, and three pages — `/pricing`, `/settings/billing`,
+`/settings/usage` — all honest about Community Edition / no-organization
+/ provider-not-configured / past-due / canceled states, with zero fake
+payment-success screens (the only "success" state a page can show is a
+real `BillingCheckoutSessionDto.checkoutUrl` redirect or an immediate
+plan change for `NONE`/`MANUAL` providers). A full historical-backlog
+reconciliation (`docs/reviews/0022-module-19-backlog-reconciliation.md`)
+resolved two stale tracker entries (#132, #436 — work existed under
+different ticket numbers and was never flipped) and disclosed one
+genuine ticket-reassignment ambiguity: #386/#387 ("Research analytics
+extensions" / "Security research notebook") were later reused by a
+different task (#425, Public Sharing) for real, shipped work — the
+originally-titled features were never built and aren't currently
+planned, which is recorded as OBSOLETE rather than silently marked done.
+Two small, real, previously-undisclosed defects were found and fixed
+during the audit: `billing-endpoints.ts` had every path missing its
+leading `/` (would have produced a malformed URL the moment a frontend
+consumer used it — none existed before this module) and
+`bugbounty-badges.tsx`'s `BugBountyFindingStage`/`ScopeClassification`
+badge maps had never been updated for states Module 16/9 added,
+a real `tsc` compile error unrelated to Module 19 itself. A dedicated
+security review (`docs/reviews/0023-module-19-monetization-security-review.md`)
+found no IDOR, no client-controlled pricing, and no usage-fabrication
+path; it also disclosed two pre-existing, not-fixed-in-this-pass
+architectural limitations — Stripe webhook event *ordering* (not
+signature/replay) is unguarded, and quota check-then-act has a
+concurrency race — both scoped, real follow-up work. By deliberate
+decision, no separate AI-credit ledger
+(`AICreditBalance`/`AICreditTransaction`) was built on top of the
+already-functioning `AiBudgetPolicy`/`UsageCounter` system, per the
+project's standing anti-duplication rule. `apps/api` jest and a real
+boot/health-check attempt remain **VERIFICATION_BLOCKED** in this
+sandbox — three genuine, disclosed `pnpm install` attempts (full
+monorepo, `--filter web...`, `--filter api...`) each hit the tool's
+~170s call cap with only single-digit-to-low-tens of packages
+downloaded/added, and a background/detached install does not persist
+across tool calls here — measured throughput (~1 package per 10-15s
+against a 500-1500-package graph) makes full completion infeasible
+within this session, not merely slow. See
+`docs/reviews/0022-module-19-backlog-reconciliation.md`,
+`docs/reviews/0023-module-19-monetization-security-review.md`, and
+`docs/releases/module-19-release-notes.md` for full detail.
