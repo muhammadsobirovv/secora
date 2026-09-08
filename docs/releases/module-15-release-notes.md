@@ -87,10 +87,16 @@ versions synchronized to the module-tracking scheme for the first time.
   `packages/shared`) rather than a compiler pass; a full `pnpm install &&
   pnpm turbo run build lint check-types test` must be run on a normal
   machine before this module ships.
-- **Billing UI** (`/billing`, `/pricing`, `/settings/billing`) is not yet
-  built — `SubscriptionDto`/`PlanDto`/`InvoiceDto` and their endpoints
-  exist and are usable from any client, but no web page renders them
-  yet. Tracked separately, not part of Module 15's completion scope.
+- **RESOLVED in Module 19.** ~~**Billing UI** (`/billing`, `/pricing`,
+  `/settings/billing`) is not yet built — `SubscriptionDto`/`PlanDto`/
+  `InvoiceDto` and their endpoints exist and are usable from any client,
+  but no web page renders them yet. Tracked separately, not part of
+  Module 15's completion scope.~~ Built in Module 19 (task #332):
+  `/pricing`, `/settings/billing`, `/settings/usage` — see
+  `docs/reviews/0022-module-19-backlog-reconciliation.md` and the
+  Module 19 final report for exact routes and known limitations (no
+  public/logged-out pricing page; single-organization assumption for
+  users in more than one organization).
 - **Feature flags admin UI** — `FeatureFlagsService`/`FeatureFlagsController`
   (`GET/POST /feature-flags`, `POST /feature-flags/overrides`, `GET
   /feature-flags/evaluate`) and a web `useFeatureFlags()`/`useFeatureFlag()`
