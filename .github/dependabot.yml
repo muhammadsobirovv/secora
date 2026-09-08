@@ -93,6 +93,40 @@ updates:
       - "supply-chain"
       - "docker"
 
+  # Official Python SDK (sdks/python) — added during the post-Module-18
+  # SDK reconciliation checkpoint. This package was missing a Dependabot
+  # entry because an earlier audit (Module 18 Phase 22) incorrectly
+  # reported it as not existing in the repository at all — it does, and
+  # has since Modules 7-10; see docs/reviews/0021-post-m18-sdk-reconciliation.md.
+  # `sdks/python/pyproject.toml` currently declares zero runtime
+  # dependencies (stdlib-only `urllib.request` transport) and one dev
+  # dependency (`pytest`), so this entry has little to do today but keeps
+  # the ecosystem covered as soon as that changes.
+  - package-ecosystem: "pip"
+    directory: "/sdks/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "sdk"
+
+  # Official Go SDK (sdks/go) — same post-Module-18 reconciliation as the
+  # pip entry above. `sdks/go/go.mod` currently declares zero
+  # dependencies (stdlib-only `net/http`/`encoding/json` transport), so
+  # this entry also has little to do today but keeps the ecosystem
+  # covered as soon as that changes.
+  - package-ecosystem: "gomod"
+    directory: "/sdks/go"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+      - "sdk"
+
   # The GitHub Actions themselves (e.g. actions/checkout, docker/build-push-action,
   # sigstore/cosign-installer) are part of the supply chain too — an
   # attacker who compromises a pinned Action version can run arbitrary
