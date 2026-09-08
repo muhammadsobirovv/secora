@@ -11,6 +11,24 @@ import { toPlanDto } from './mappers/to-billing-dto.mapper.js';
 /// `InvoiceService`/`QuotaService` into the single `BillingSummaryDto`
 /// `/billing` and `/settings/billing` render from, so the frontend needs
 /// exactly one round-trip to draw the whole page.
+///
+/// Module 19 baseline audit note (#408): `getSummary()` calls
+/// `InvoiceService.sync()` synchronously on every invocation for a
+/// `BillingProviderKind.STRIPE` organization — i.e. on every
+/// `/billing`/`/settings/billing` page load, not on a background
+/// poller. `InvoiceService.sync()`'s own doc comment already says this
+/// plainly ("called on-demand ... when the billing page loads"); this
+/// note exists because an earlier version of this file's comment
+/// implied otherwise ("the billing UI never makes a live provider call
+/// on every page load"), which was inaccurate for the STRIPE path and
+/// has been corrected here. This means a Stripe-billed organization's
+/// billing page latency includes two live Stripe API calls plus a
+/// sequential per-invoice/per-payment-method DB upsert loop — real,
+/// disclosed, deferred follow-up scope (a background sync job, as
+/// `InvoiceService.sync()`'s comment already anticipates) rather than
+/// restructured in this pass, since it cannot be verified against a
+/// real Stripe account in this environment (see the Module 19 final
+/// report's Security/Verification sections).
 @Injectable()
 export class BillingService {
   constructor(
