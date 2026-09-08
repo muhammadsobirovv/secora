@@ -79,11 +79,22 @@ client := pentesthub.New(pentesthub.Options{
 ## Scope (v1)
 
 Auth, Organizations, the Distributed Job System, the Plugin registry/
-installations, and Integrations — the same v1 subset the TypeScript and
-Python SDKs and the GraphQL API cover. OAuth redirect flows and the
-worker-facing job claim/complete/fail routes are intentionally not
-wrapped (see doc comments in `distributed_jobs.go` and
-`integrations.go`).
+installations, Integrations, (Module 16) the Knowledge Graph query layer
+and Extension API registry, and (Module 17) SOC/Assets/Threat-Intel/
+Incidents/Remediation/Risk/SLA — the same v1 subset the TypeScript and
+Python SDKs cover (`client.go`'s `Client` struct lists all fourteen
+resources). OAuth redirect flows, the worker-facing job claim/complete/
+fail routes, and the five incident `link-*` mutations are intentionally
+not wrapped (see doc comments in `distributed_jobs.go`, `integrations.go`,
+and `incidents.go`). This is a deliberately scoped subset of the full
+REST API — Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and
+Billing are out of scope for all three official SDKs today, not a
+Go-specific gap.
+
+*Note: this README previously described the pre-Module-16 scope (5
+resources) even though `client.go` already had all 14 wired — updated
+during the post-Module-18 SDK reconciliation checkpoint to match the
+actual code.*
 
 ## Testing
 
@@ -128,3 +139,17 @@ Message}`) as the already-verified TypeScript and Python SDKs, and was
 written by directly cross-referencing `packages/shared/src/*-endpoints.ts`
 and the corresponding NestJS controllers, so it should compile and pass
 cleanly — but this has not been runtime-confirmed.
+
+**Post-Module-18 reconciliation checkpoint note:** a prior Module 18 audit
+pass (`docs/reviews/0014-m18-dependency-security-audit.md`) incorrectly
+reported this SDK as not existing in the repository — it checked
+`packages/sdk-go` specifically and did not search for the actual location
+(`sdks/go`, established since Modules 7-10). That claim has been
+corrected; see `docs/reviews/0021-post-m18-sdk-reconciliation.md` for the
+full audit. During the same checkpoint, `HttpClient`'s default transport
+was changed from `http.DefaultClient` (no timeout at all) to a client
+with a 30s timeout, matching the TypeScript SDK's own Module 18 fix and
+the Python SDK's pre-existing default — a real, previously-undisclosed
+reliability gap, not a compile-blocking change. The Go-toolchain-
+unavailable limitation above is still unresolved and still applies to
+this fix.

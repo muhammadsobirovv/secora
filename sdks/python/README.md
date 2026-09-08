@@ -44,8 +44,22 @@ client = PentestHubClient(base_url="https://api.your-company.com", api_key=os.en
 ## Scope (v1)
 
 Auth, Organizations, the Distributed Job System, the Plugin registry/
-installations, and Integrations — the same v1 subset the TypeScript SDK
-and GraphQL API cover.
+installations, Integrations, (Module 16) the Knowledge Graph query layer
+and Extension API registry, and (Module 17) SOC/Assets/Threat-Intel/
+Incidents/Remediation/Risk/SLA — the same v1 subset the TypeScript and Go
+SDKs cover (`client.py`'s `PentestHubClient` wires all fourteen
+resources). This is a deliberately scoped subset of the full REST API —
+Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and Billing are out
+of scope for all three official SDKs today, not a Python-specific gap.
+
+*Note: this README previously described the pre-Module-16 scope (5
+resources) even though `client.py` already had all 14 wired — updated
+during the post-Module-18 SDK reconciliation checkpoint to match the
+actual code. A prior Module 18 audit pass also incorrectly reported this
+SDK as not existing in the repository at all (it checked
+`packages/sdk-python` and did not search for the actual location,
+`sdks/python`, established since Modules 7-10) — see
+`docs/reviews/0021-post-m18-sdk-reconciliation.md`.*
 
 ## Testing
 
