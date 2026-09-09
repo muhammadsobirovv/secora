@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+/// A blank line in .env (e.g. `GOOGLE_CALLBACK_URL=` with nothing after
+/// the `=`, exactly what .env.example ships for every optional
+/// integration) parses as an empty string, not `undefined`. Zod's
+/// `.optional()` only treats a genuinely missing key as "unset" -- an
+/// empty string still runs through `.url()`/`.min()` and fails. This
+/// normalizes "" (and whitespace-only values) to `undefined` first, so
+/// leaving an unused optional var blank in .env behaves the same as
+/// deleting the line, instead of crash-looping the container.
+const emptyToUndefined = (value: unknown): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
+const optionalUrl = () =>
+  z.preprocess(emptyToUndefined, z.string().url().optional());
+const optionalMinLen = (min: number) =>
+  z.preprocess(emptyToUndefined, z.string().min(min).optional());
+
 /// Fails fast at boot if a required secret/config value is missing or
 /// malformed, instead of surfacing as a confusing runtime error later.
 const envSchema = z.object({
@@ -74,10 +89,10 @@ const envSchema = z.object({
   // Strategies register conditionally based on which of these are present.
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_CALLBACK_URL: z.string().url().optional(),
+  GOOGLE_CALLBACK_URL: optionalUrl(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
-  GITHUB_CALLBACK_URL: z.string().url().optional(),
+  GITHUB_CALLBACK_URL: optionalUrl(),
 
   // Recon worker (Module 3) — see docs/adr/0003-recon-engine-module.md
   RECON_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(3),
@@ -218,7 +233,7 @@ const envSchema = z.object({
   // (rather than a hardcoded default) so "is Ollama configured" can mean
   // "the operator deliberately pointed us at a local server", not "every
   // install silently tries localhost:11434 and fails weirdly".
-  AI_OLLAMA_BASE_URL: z.string().url().optional(),
+  AI_OLLAMA_BASE_URL: optionalUrl(),
   AI_OLLAMA_MODEL: z.string().default('llama3.1'),
 
   AI_OPENROUTER_API_KEY: z.string().optional(),
@@ -317,14 +332,14 @@ const envSchema = z.object({
   INTEGRATION_DROPBOX_CLIENT_SECRET: z.string().optional(),
   INTEGRATION_NOTION_CLIENT_ID: z.string().optional(),
   INTEGRATION_NOTION_CLIENT_SECRET: z.string().optional(),
-  INTEGRATION_CALLBACK_BASE_URL: z.string().url().optional(),
+  INTEGRATION_CALLBACK_BASE_URL: optionalUrl(),
 
   // Module 10 — Observability. OTLP collector endpoint for distributed
   // tracing (see observability/tracing.ts) — unset means tracing
   // initializes with a no-op exporter (spans are created but not shipped
   // anywhere), which is intentional for local dev/sandbox environments
   // that have no collector running.
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl(),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
@@ -425,7 +440,7 @@ const envSchema = z.object({
   // is enough. `s3` covers AWS S3, MinIO (self-hosted, still free), and
   // Cloudflare R2/any S3-compatible endpoint via `STORAGE_S3_ENDPOINT`.
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
-  STORAGE_S3_ENDPOINT: z.string().url().optional(),
+  STORAGE_S3_ENDPOINT: optionalUrl(),
   STORAGE_S3_REGION: z.string().default('auto'),
   STORAGE_S3_BUCKET: z.string().optional(),
   STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
@@ -433,7 +448,7 @@ const envSchema = z.object({
   // MinIO/some R2 setups need path-style URLs (`endpoint/bucket/key`)
   // instead of virtual-hosted-style (`bucket.endpoint/key`).
   STORAGE_S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
-  STORAGE_S3_PUBLIC_BASE_URL: z.string().url().optional(),
+  STORAGE_S3_PUBLIC_BASE_URL: optionalUrl(),
 
   // Cache abstraction (CACHE_SERVICE token, common/providers/cache/).
   // `memory` (default) is a real in-process LRU-ish TTL cache — correct
@@ -460,7 +475,7 @@ const envSchema = z.object({
   // = false`) for a low-stakes dev deployment, but required (checked at
   // the service layer, not here) the moment any policy has `encrypt =
   // true`, the default.
-  BACKUP_ENCRYPTION_KEY: z.string().min(32).optional(),
+  BACKUP_ENCRYPTION_KEY: optionalMinLen(32),
   BACKUP_PG_DUMP_BIN: z.string().default('pg_dump'),
   BACKUP_PG_RESTORE_BIN: z.string().default('pg_restore'),
   BACKUP_VERIFICATION_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
@@ -492,7 +507,7 @@ const envSchema = z.object({
   // deliberately no "billing webhooks accepted with no secret configured"
   // mode, since that would let anyone flip an organization's subscription
   // state.
-  BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
+  BILLING_WEBHOOK_SECRET: optionalMinLen(16),
 
   // Centralized logging — correlation IDs / structured JSON logs.
   LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
@@ -534,7 +549,7 @@ const envSchema = z.object({
   // functionality — unset/false means "send nothing," matching every
   // other optional integration's default-off posture in this platform.
   TELEMETRY_ENABLED: z.coerce.boolean().default(false),
-  TELEMETRY_ENDPOINT: z.string().url().optional(),
+  TELEMETRY_ENDPOINT: optionalUrl(),
 
   // Module 15 — first-run onboarding + demo mode (tasks #351-352).
   DEMO_MODE_ENABLED: z.coerce.boolean().default(false),
