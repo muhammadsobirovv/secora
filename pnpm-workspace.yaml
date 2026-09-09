@@ -2,6 +2,23 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Docker's apps/web/apps/api/apps/api/Dockerfile.worker builds only ever
+# build apps/web, apps/api, and the api worker -- never
+# apps/browser-extension (still on React 18 deliberately, for MV3
+# compatibility). Without this, pnpm resolves two copies of
+# @types/react (19.2.2 for web/api, 18.3.31 for browser-extension) into
+# the same workspace, and apps/web's single-program `tsc` type-check
+# (tsconfig.json's "include" covers the whole apps/web tree, not just
+# reachable files) non-deterministically infers some page component's
+# return type via the *other* copy, which TypeScript then refuses to
+# print ("cannot be named without a reference ... not portable" / TS2742)
+# because that copy lives at an unnameable nested .pnpm/ store path.
+# Pinning a single @types/react(-dom) version workspace-wide fixes this;
+# browser-extension is not type-checked as part of any production build.
+overrides:
+  "@types/react": "19.2.2"
+  "@types/react-dom": "19.2.2"
+
 allowBuilds:
   # protobufjs/@apollo/protobufjs's install script compiles its own JS from
   # .proto definitions (used internally by @apollo/server for query-plan
