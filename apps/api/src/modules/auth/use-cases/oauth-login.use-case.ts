@@ -55,7 +55,9 @@ export class OAuthLoginUseCase {
     private readonly workspacesRepository: WorkspacesRepository,
     @Inject(USER_PREFERENCES_REPOSITORY)
     private readonly userPreferencesRepository: UserPreferencesRepository,
-    private readonly rbacService: RbacService,
+    // See register.use-case.ts for why RbacService needs an explicit
+    // @Inject() token under this project's tsx/esbuild toolchain.
+    @Inject(RbacService) private readonly rbacService: RbacService,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
   ) {}

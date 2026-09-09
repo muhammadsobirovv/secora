@@ -27,7 +27,13 @@ export class DistributedJobResolver {
   jobs(
     @Args('organizationId', { type: () => ID }) organizationId: string,
     @Args('status', { type: () => DistributedJobStatusGql, nullable: true }) status: DistributedJobDto['status'] | undefined,
-    @Args('type', { nullable: true }) type: string | undefined,
+    // Explicit `type: () => String` required: GraphQL's reflection-based
+    // type inference can't determine a GraphQL type from a TS union type
+    // (`string | undefined`) the way it can from a plain `string` — without
+    // this, schema building throws `UndefinedTypeError` for this param
+    // (first surfaced the first time the GraphQL schema was actually built
+    // end-to-end, since nothing exercised this resolver before now).
+    @Args('type', { type: () => String, nullable: true }) type: string | undefined,
     @CurrentGqlUser() user: RequestUser,
   ): Promise<DistributedJobDto[]> {
     return this.queryBus.execute(new ListDistributedJobsQuery(user.id, organizationId, { status, type }));

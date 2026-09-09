@@ -1,3 +1,7 @@
+// See src/main.ts for why this must be the first import — same
+// missing-polyfill fix, applied here since worker.main.ts is a separate
+// NestFactory entry point with its own DI graph.
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { WorkerModule } from './worker.module.js';

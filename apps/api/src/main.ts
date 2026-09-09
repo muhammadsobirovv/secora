@@ -1,3 +1,14 @@
+// Must be the very first import: NestJS's implicit, type-based constructor
+// injection (any provider whose constructor param has no explicit
+// @Inject() token) depends on `Reflect.getMetadata('design:paramtypes', ...)`,
+// which only exists once this polyfill runs. Without it, every such
+// parameter resolves to `undefined` at DI time — this project's own
+// "Nest can't resolve dependencies... argument at index [N] appears to be
+// undefined at runtime" failures (first surfaced the first time this
+// process was actually booted end-to-end against a live database) trace
+// back to this single missing import, not to the individual providers
+// blamed by that error message.
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';

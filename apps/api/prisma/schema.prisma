@@ -2674,6 +2674,7 @@ model BugBountyNotification {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
 
   @@index([userId, readAt])
   @@index([workspaceId, createdAt])
@@ -3532,7 +3533,7 @@ model WorkerNode {
   /// — see docs/architecture/auto-update.md.
   version          String?
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   jobs         DistributedJob[]
   jobEvents    JobEvent[]
 

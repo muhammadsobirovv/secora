@@ -54,6 +54,17 @@ import { WebhookDeliveryQueueService } from './webhooks/webhook-delivery-queue.s
     WebhookDeliveryQueueService,
     ApiKeyAuthGuard,
   ],
-  exports: [ApiKeyAuthGuard],
+  // `ApiKeysModule` re-exported alongside the guard: `ApiKeyAuthGuard`
+  // itself depends on `API_KEYS_REPOSITORY` (provided by `ApiKeysModule`,
+  // imported above but never re-exported). Any module that imports
+  // `PublicApiModule` purely to use `ApiKeyAuthGuard` on its own
+  // controllers (e.g. DistributedJobsModule) needs that token visible in
+  // its own DI scope too, since Nest resolves a `@UseGuards(GuardClass)`
+  // reference's constructor params against the *consuming* module's
+  // import graph — first surfaced the first time this app was actually
+  // booted end-to-end (`Nest can't resolve dependencies of the
+  // ApiKeyAuthGuard... Symbol(API_KEYS_REPOSITORY)... in the
+  // DistributedJobsModule module`).
+  exports: [ApiKeyAuthGuard, ApiKeysModule],
 })
 export class PublicApiModule {}
