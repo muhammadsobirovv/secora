@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/common/empty-state";
 import { ListSkeleton } from "@/components/common/skeletons";
-import type { KnowledgeBaseReferenceEntryDto, KnowledgeBaseReferenceSearchResultDto } from "@pentesthub/shared";
+import type { KnowledgeBaseReferenceEntryDto } from "@pentesthub/shared";
 
 export function KnowledgeBaseReferenceList({
   entries,

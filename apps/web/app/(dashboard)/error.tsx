@@ -19,7 +19,6 @@ export default function DashboardErrorBoundary({
   reset: () => void;
 }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.error("Unhandled render error in dashboard segment", error);
   }, [error]);
 

@@ -26,7 +26,6 @@ export default function GlobalErrorBoundary({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.error("Unhandled render error", error);
   }, [error]);
 
