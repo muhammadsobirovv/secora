@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { usePrimaryOrganization } from "@/features/organizations/hooks/use-organizations";
+import { OrganizationSwitcher } from "@/features/organizations/components/organization-switcher";
 import { useBillingSummary, useCancelSubscription, useRenewSubscription } from "@/features/billing/hooks/use-billing";
 import { NoOrganizationState } from "./no-organization-state";
 
@@ -134,6 +135,9 @@ export function BillingSummarySection() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex justify-end">
+        <OrganizationSwitcher />
+      </div>
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePrimaryOrganization } from "@/features/organizations/hooks/use-organizations";
+import { OrganizationSwitcher } from "@/features/organizations/components/organization-switcher";
 import { useUsageSummary } from "@/features/billing/hooks/use-billing";
 import { NoOrganizationState } from "./no-organization-state";
 
@@ -51,17 +52,26 @@ export function UsageSummarySection() {
 
   if (!entries || entries.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          No metered usage recorded for this billing period yet.
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-end">
+          <OrganizationSwitcher />
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            No metered usage recorded for this billing period yet.
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {entries.map((entry) => {
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <OrganizationSwitcher />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {entries.map((entry) => {
         const limit = entry.hardLimit ?? entry.softLimit;
         const percent = entry.percentUsed;
         const isOverSoft = entry.softLimit !== null && entry.quantity >= entry.softLimit;
@@ -104,7 +114,8 @@ export function UsageSummarySection() {
             </CardContent>
           </Card>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }

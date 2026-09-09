@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePrimaryOrganization } from "@/features/organizations/hooks/use-organizations";
+import { OrganizationSwitcher } from "@/features/organizations/components/organization-switcher";
 import { useBillingSummary, usePlans, useUpgradePlan } from "@/features/billing/hooks/use-billing";
 import { ApiError } from "@/lib/api/client";
 import { NoOrganizationState } from "./no-organization-state";
@@ -70,7 +71,11 @@ export function PlanPickerSection() {
   if (!organization) return <NoOrganizationState />;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <OrganizationSwitcher />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {sortedPlans.map((plan) => {
         const isCurrent = summary?.subscription.plan.tier === plan.tier;
         const featureEntries = Object.entries(plan.features).filter(([, v]) => v !== false);
@@ -117,6 +122,7 @@ export function PlanPickerSection() {
       {sortedPlans.length === 0 && (
         <p className="col-span-full text-sm text-muted-foreground">No plans are configured yet.</p>
       )}
+      </div>
     </div>
   );
 }

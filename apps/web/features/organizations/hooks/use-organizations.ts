@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import * as organizationsApi from "@/lib/api/organizations";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export const organizationKeys = {
   mine: ["organizations", "mine"] as const,
@@ -25,21 +26,30 @@ export function useOrganization(organizationId: string | undefined) {
 }
 
 /// Billing/Usage pages need exactly one `organizationId` to scope requests
-/// to. Module 10's Organization is optional and (unlike Workspace) this
-/// platform has no "current organization" switcher anywhere yet — so this
-/// picks the first organization returned by `listMyOrganizations()` (most
-/// users belong to zero or one) rather than inventing an org-switcher UI
-/// as a side effect of building the Billing UI. A user in more than one
-/// organization is a real, disclosed limitation of this first pass — see
-/// Module 19 baseline audit / final report.
+/// to. Module 20 (org-switcher UX audit, following up on Module 19's
+/// disclosed "no org-switcher UI" gap): a user's choice of "which of my
+/// organizations am I looking at" is now a persisted UI preference
+/// (`useOrganizationStore`), not always just "the first one returned."
+/// The persisted ID is never trusted blindly — it's only used if it's
+/// actually present in this call's real `listMyOrganizations()` result,
+/// so a stale ID (the org was left, deleted, or this is a different
+/// account in the same browser) silently and safely falls back to the
+/// first organization rather than showing nothing or an error.
 export function usePrimaryOrganization() {
   const query = useMyOrganizations();
   const organizations = query.data ?? [];
+  const selectedId = useOrganizationStore((s) => s.selectedOrganizationId);
+  const setSelectedOrganizationId = useOrganizationStore((s) => s.setSelectedOrganizationId);
+
+  const selected = selectedId ? organizations.find((o) => o.id === selectedId) : undefined;
+  const organization = selected ?? organizations[0];
+
   return {
-    organization: organizations[0],
+    organization,
     organizations,
     hasMultiple: organizations.length > 1,
     isLoading: query.isLoading,
     error: query.error,
+    selectOrganization: setSelectedOrganizationId,
   };
 }
