@@ -35,6 +35,7 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN pnpm --filter api exec prisma generate
+RUN pnpm --filter shared build
 RUN pnpm --filter api build
 
 # ---- prod-deps: a second, production-only install (no devDependencies) ----
@@ -54,7 +55,7 @@ RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shel
 WORKDIR /workspace
 COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/apps/api/node_modules ./apps/api/node_modules
-COPY --from=prod-deps /workspace/packages/shared ./packages/shared
+COPY --from=build /workspace/packages/shared ./packages/shared
 COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/generated ./apps/api/generated
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
