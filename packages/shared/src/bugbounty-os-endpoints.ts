@@ -66,6 +66,11 @@ export const API_KEY_ENDPOINTS = {
   list: "/public-api/keys",
   create: "/public-api/keys",
   revoke: (id: string) => `/public-api/keys/${id}`,
+  /// Module 15 — API key management (task #336). Previously missing here
+  /// even though `ApiKeysController.rotate()` has always exposed the
+  /// route — this constant just had no frontend consumer before Module 20
+  /// built the API Keys settings page.
+  rotate: (id: string) => `/public-api/keys/${id}/rotate`,
 } as const;
 
 // Module 10 fix: these were previously workspace-agnostic paths

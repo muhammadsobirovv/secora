@@ -1,17 +1,10 @@
-import { KeyRound } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/common/empty-state";
+import { ApiKeysSection } from "@/features/api-keys/components/api-keys-section";
 
+/// Module 20 (#332-class gap, Phase 1 backlog reconciliation). This was a
+/// permanent "coming soon" `EmptyState` stub despite the backend
+/// (Module 9's `ApiKeysController` + Module 15's rotation/IP-allowlist
+/// work, task #336) having been complete and unchanged since — see
+/// `docs/reviews/0024-module-20-backlog-reconciliation.md`.
 export default function ApiKeysSettingsPage() {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <EmptyState
-          icon={KeyRound}
-          title="API keys are coming soon"
-          description="CLI, browser extension, and automation access will be issued here in a future module."
-        />
-      </CardContent>
-    </Card>
-  );
+  return <ApiKeysSection />;
 }
