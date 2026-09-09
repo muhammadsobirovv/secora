@@ -14,6 +14,7 @@ import { IncidentsResource } from './resources/incidents.resource.js';
 import { RemediationResource } from './resources/remediation.resource.js';
 import { RiskResource } from './resources/risk.resource.js';
 import { SlaResource } from './resources/sla.resource.js';
+import { ApiKeysResource } from './resources/api-keys.resource.js';
 
 /// The official PentestHub AI SDK entrypoint.
 ///
@@ -28,20 +29,23 @@ import { SlaResource } from './resources/sla.resource.js';
 ///
 /// v1 scope covers Auth, Organizations, Distributed Jobs, the Plugin
 /// registry/installations, Integrations, (Module 16) the Knowledge
-/// Graph query layer and Extension API registry, and (Module 17,
+/// Graph query layer and Extension API registry, (Module 17,
 /// task #491) the SOC/Assets/Threat-Intel/Incidents/Remediation/Risk/
-/// SLA surfaces — the same disclosed subset the GraphQL API's v1 covers
-/// (`graphql-api.types.ts`), not the full ~250+-route REST surface.
-/// Every resource method is a thin, typed wrapper around one REST call
-/// using the exact same `@pentesthub/shared` endpoint-builder constants
-/// and DTO types the server itself is built from, so the SDK can never
-/// silently drift from the API it targets. Module 16's other new
-/// surfaces (Collaboration extensions, Public Sharing, AI Memory, the
-/// real-time SSE gateway) and Module 17's link-* incident mutations are
-/// not yet wrapped here — same disclosed-scope posture, not an
-/// oversight; a future pass can add resources for them following the
-/// exact same pattern as `knowledge-graph.resource.ts`/
-/// `extensions.resource.ts`/`incidents.resource.ts`.
+/// SLA surfaces, and (Module 20) the API Keys resource
+/// (`ApiKeysController`, live since Module 15 task #336 but never wrapped
+/// in any SDK until this parity pass) — the same disclosed subset the
+/// GraphQL API's v1 covers (`graphql-api.types.ts`), not the full
+/// ~250+-route REST surface. Every resource method is a thin, typed
+/// wrapper around one REST call using the exact same `@pentesthub/shared`
+/// endpoint-builder constants and DTO types the server itself is built
+/// from, so the SDK can never silently drift from the API it targets.
+/// Module 16's other new surfaces (Collaboration extensions, Public
+/// Sharing, AI Memory, the real-time SSE gateway) and Module 17's link-*
+/// incident mutations are not yet wrapped here — same disclosed-scope
+/// posture, not an oversight; a future pass can add resources for them
+/// following the exact same pattern as `knowledge-graph.resource.ts`/
+/// `extensions.resource.ts`/`incidents.resource.ts`/
+/// `api-keys.resource.ts`.
 export class PentestHubClient {
   private readonly http: HttpClient;
 
@@ -59,6 +63,7 @@ export class PentestHubClient {
   readonly remediation: RemediationResource;
   readonly risk: RiskResource;
   readonly sla: SlaResource;
+  readonly apiKeys: ApiKeysResource;
 
   constructor(options: HttpClientOptions) {
     this.http = new HttpClient(options);
@@ -79,6 +84,7 @@ export class PentestHubClient {
     this.remediation = new RemediationResource(this.http);
     this.risk = new RiskResource(this.http);
     this.sla = new SlaResource(this.http);
+    this.apiKeys = new ApiKeysResource(this.http);
   }
 
   /// Directly set/replace the access token in use (e.g. after restoring
