@@ -1358,3 +1358,78 @@ within this session, not merely slow. See
 `docs/reviews/0022-module-19-backlog-reconciliation.md`,
 `docs/reviews/0023-module-19-monetization-security-review.md`, and
 `docs/releases/module-19-release-notes.md` for full detail.
+
+## Module 20 — Final Product Completion, Release & Project Closure (2026-09-09)
+
+The final module of the core development roadmap: a 45-phase closing
+pass across every surface built in Modules 1-19, not a feature module.
+Per this module's own standing rule, nothing was rewritten, no working
+module was replaced, and no duplicate infrastructure was created —
+every fix reused an existing pattern (mirroring `AiBudgetEnforcerService`
+for the new quota checks, mirroring each SDK's own per-resource file
+convention for the new API-keys wrappers, extending existing deployment
+configs rather than introducing new ones).
+
+A baseline audit (Phases 0-5) found the platform already in strong
+shape and surfaced a small number of real, bounded gaps rather than
+systemic problems: the `RECON_JOBS`/`SCANNER_JOBS` quota types had been
+defined in plan defaults since Module 15 but never actually enforced or
+metered; the Stripe webhook had no defense against out-of-order event
+delivery; several deployment artifacts (`docker-compose.yml`,
+`.env.example`, Kubernetes manifests) were missing billing environment
+variables the worker process needs; the installer prompted for
+Enterprise Edition provider choices that were silently discarded; and
+the public API-keys endpoints (live since Module 15) had zero SDK or
+CLI coverage across all three SDKs and the CLI. Each was fixed with the
+smallest change that closed the gap (Phases 6-9, 10-14, 15-17), and each
+fix is traced in its own `docs/reviews/00XX-module-20-*.md` document.
+
+Phases 18-21 formalized the project's documentation and legal posture
+without making a business decision on its behalf: a root `LICENSE` file
+was added to make the already-consistent `UNLICENSED`/proprietary
+convention (declared individually by every `package.json`) discoverable
+at a glance, explicitly without adopting or recommending any specific
+open-source license — that remains a decision for the project's owners.
+`SECURITY.md` and `docs/security/supply-chain.md` were both re-verified
+in full and found still accurate, with one forward-looking note: the
+supported-versions language needed a follow-up once the version bump
+below landed (done in the same module, so no drift window was left
+open). Phases 22-24 then cut the project's first stable release,
+`1.0.0`, per `docs/architecture/release-engineering.md`'s own
+pre-existing policy anticipating exactly this once "Module 16+ work
+settles the plugin/API-versioning surfaces" — a condition this module,
+being the last one, was positioned to confirm — and backfilled four
+modules' worth of missing `CHANGELOG.md` entries (0.16.0-0.19.0) that
+had drifted out of sync with their own complete release-notes documents.
+Phases 25-39 closed with a confirmation sweep — TODO/FIXME grep, git
+history/status audit, a support-docs cross-check, and a guard-decorator
+spot-check on three representative recently-touched endpoints — that
+found no regressions and no new work items, consistent with the
+preceding 24 phases having already done the deep security/performance/
+reliability passes.
+
+Two limitations were deliberately left open rather than fixed this
+late in the release cycle, both because fixing them risks an
+unrelated-module behavior change for cosmetic-to-moderate severity
+issues: `QUOTA_EXCEEDED` is returned as HTTP 403 by the Module-10-era
+entity-count quota subsystem but HTTP 429 by the Module-15-era
+usage-metering `QuotaService`, two different subsystems sharing one
+error code; and the quota check-then-act concurrency race first
+disclosed in Module 19's security review remains unresolved. Both are
+recorded in `SECURITY.md`'s disclosed-limitation scope so a report about
+either is triaged as already-known rather than novel. This module's
+sandbox verification followed the same disclosed, honest pattern as
+every prior module: `apps/api`'s full `tsc --noEmit`/`jest` remain
+infeasible here (confirmed to reproduce identically against untouched
+files, not caused by this module), while `apps/web`, the TypeScript
+SDK, the CLI, and the Python SDK were all verified directly (the Python
+SDK's full test suite — 5/5 — was re-run after the version bump), and
+the Go SDK was manually cross-checked against real method signatures
+since `go`/`gofmt` are unavailable in this sandbox.
+
+**With this module's completion, the core PentestHub AI development
+roadmap is CLOSED.** Per this module's own standing instruction, no
+Module 21 is started, and no further roadmap is proposed; future work
+awaits explicit human direction. See `docs/reviews/0025` through `0032`
+(this module's eight phase-by-phase review documents), `CHANGELOG.md`'s
+`[1.0.0]` entry, and `LICENSE` (new, repository root) for full detail.
