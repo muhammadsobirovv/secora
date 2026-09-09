@@ -29,6 +29,8 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
+COPY packages/agent-sdk/package.json packages/agent-sdk/package.json
+COPY packages/sdk-typescript/package.json packages/sdk-typescript/package.json
 RUN pnpm install --frozen-lockfile
 
 # ---- build: compile TypeScript + generate the Prisma client ----
@@ -36,6 +38,11 @@ FROM deps AS build
 COPY . .
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter shared build
+# apps/api imports @pentesthub/agent-sdk (Module 13 AI Agent SDK) and
+# @pentesthub/sdk (packages/sdk-typescript) directly -- both must be
+# compiled to dist/ before tsc can resolve them, same as shared above.
+RUN pnpm --filter @pentesthub/agent-sdk build
+RUN pnpm --filter @pentesthub/sdk build
 # tsc's default V8 old-space ceiling (~2GB) is consistently too small for
 # this codebase's full-project compile (tsconfig.build.json), regardless
 # of the host's actual RAM/swap -- it OOMs at the same ~2038MB every time.
@@ -47,6 +54,8 @@ FROM base AS prod-deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/agent-sdk/package.json packages/agent-sdk/package.json
+COPY packages/sdk-typescript/package.json packages/sdk-typescript/package.json
 RUN pnpm install --prod --frozen-lockfile --filter api...
 
 # ---- runtime: the actual production image ----
@@ -60,6 +69,8 @@ WORKDIR /workspace
 COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /workspace/packages/shared ./packages/shared
+COPY --from=build /workspace/packages/agent-sdk ./packages/agent-sdk
+COPY --from=build /workspace/packages/sdk-typescript ./packages/sdk-typescript
 COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/generated ./apps/api/generated
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma

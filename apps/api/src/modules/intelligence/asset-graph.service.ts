@@ -43,8 +43,15 @@ export class AssetGraphService {
   constructor(private readonly prisma: PrismaService) {}
 
   async rebuild(targetId: string): Promise<void> {
-    const target = await this.prisma.target.findUnique({ where: { id: targetId } });
-    if (!target) return;
+    // Target itself has no direct workspaceId column -- scoped through
+    // its Project relation, same pattern used elsewhere for
+    // Target/Evidence (see e.g. asset-inventory.service.ts).
+    const targetRow = await this.prisma.target.findUnique({
+      where: { id: targetId },
+      include: { project: { select: { workspaceId: true } } },
+    });
+    if (!targetRow) return;
+    const target = { ...targetRow, workspaceId: targetRow.project.workspaceId };
 
     const prismaAny = this.prisma as unknown as {
       assetGraphEdge: { deleteMany: (args: unknown) => Promise<unknown> };
