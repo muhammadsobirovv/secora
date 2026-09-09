@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.12.0",
+    "@as-integrations/express5": "^1.1.2",
     "@nestjs-cls/transactional": "^3.2.1",
     "@nestjs-cls/transactional-adapter-prisma": "^1.3.5",
     "@nestjs/apollo": "^13.1.0",

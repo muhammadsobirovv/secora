@@ -52,7 +52,13 @@ export class RegisterUseCase {
     @Inject(USER_PREFERENCES_REPOSITORY)
     private readonly userPreferencesRepository: UserPreferencesRepository,
     @Inject(MAIL_SERVICE) private readonly mailService: MailService,
-    private readonly rbacService: RbacService,
+    // Explicit token, same reason as the ConfigService @Inject below:
+    // under this project's tsx/esbuild toolchain, implicit class-type
+    // constructor injection for RbacService specifically resolves to
+    // `undefined` at runtime (first surfaced the first time this app was
+    // actually booted end-to-end) — plain @Inject(RbacService) sidesteps
+    // whatever metadata-emission edge case causes it.
+    @Inject(RbacService) private readonly rbacService: RbacService,
     private readonly auditService: AuditService,
     private readonly passwordHasher: PasswordHasherService,
     private readonly tokenService: TokenService,

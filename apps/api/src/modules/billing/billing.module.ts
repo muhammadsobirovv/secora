@@ -1,12 +1,7 @@
 import { Module } from '@nestjs/common';
-import { QuotaService } from './quota.service.js';
 import { EntitlementService } from './entitlement.service.js';
 import { InvoiceService } from './invoice.service.js';
 import { BillingService } from './billing.service.js';
-import { SubscriptionService } from './subscription.service.js';
-import { UsageService } from './usage.service.js';
-import { AiModelPricingService } from './ai-cost/ai-model-pricing.service.js';
-import { AiBudgetEnforcerService } from './ai-cost/ai-budget-enforcer.service.js';
 import { BillingController } from './controllers/billing.controller.js';
 import { UsageController } from './controllers/usage.controller.js';
 import { QuotaController } from './controllers/quota.controller.js';
@@ -34,15 +29,17 @@ import { BillingCoreModule } from './billing-core.module.js';
   imports: [BillingCoreModule],
   controllers: [BillingController, UsageController, QuotaController, AiCostControlController, StripeWebhookController],
   providers: [EntitlementService, InvoiceService, BillingService],
-  exports: [
-    SubscriptionService,
-    UsageService,
-    QuotaService,
-    EntitlementService,
-    InvoiceService,
-    BillingService,
-    AiModelPricingService,
-    AiBudgetEnforcerService,
-  ],
+  // Module 20 Phase 8 fix: NestJS cannot re-export an individual provider
+  // that only lives in an *imported* module's own `providers` — it can
+  // only export providers declared directly in this module's `providers`,
+  // or re-export an entire imported module. `SubscriptionService`/
+  // `UsageService`/`QuotaService`/`AiModelPricingService`/
+  // `AiBudgetEnforcerService` are all provided by `BillingCoreModule`
+  // (never redeclared here), so the whole module is exported instead of
+  // listing them individually — this was the first `prisma migrate
+  // deploy`-adjacent full application boot this project's history, which
+  // is what surfaced the wiring bug (`Nest cannot export a provider/module
+  // that is not a part of the currently processed module`).
+  exports: [BillingCoreModule, EntitlementService, InvoiceService, BillingService],
 })
 export class BillingModule {}

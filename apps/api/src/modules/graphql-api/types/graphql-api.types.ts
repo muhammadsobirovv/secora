@@ -1,5 +1,12 @@
 import { Field, GraphQLISODateTime, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
-import GraphQLJSON from 'graphql-type-json';
+// Named import required (not default): under native Node ESM, a default
+// import of this CJS package resolves to the whole `exports` object rather
+// than the `GraphQLJSON` scalar itself (Node's CJS→ESM interop ignores the
+// package's `__esModule` marker) — that wrapper object then isn't a valid
+// GraphQL type, causing `CannotDetermineOutputTypeError` at schema-build
+// time. Node's cjs-module-lexer detects the named `exports.GraphQLJSON = ...`
+// assignment, so a named import binds correctly.
+import { GraphQLJSON } from 'graphql-type-json';
 import type {
   DistributedJobDto,
   DistributedJobPriority,
@@ -75,8 +82,13 @@ export class OrganizationGqlType implements OrganizationDto {
   @Field(() => ID) id!: string;
   @Field() name!: string;
   @Field() slug!: string;
-  @Field({ nullable: true }) domain!: string | null;
-  @Field({ nullable: true }) logoUrl!: string | null;
+  // Explicit `() => String` required on every nullable string field below:
+  // GraphQL's reflection-based type inference can't determine a GraphQL
+  // type from a TS union type (`string | null`) the way it can from a
+  // plain `string` — first surfaced the first time the GraphQL schema was
+  // actually built end-to-end.
+  @Field(() => String, { nullable: true }) domain!: string | null;
+  @Field(() => String, { nullable: true }) logoUrl!: string | null;
   @Field() plan!: string;
   @Field(() => OrganizationStatusGql) status!: OrganizationStatus;
   @Field() createdBy!: string;
@@ -87,16 +99,16 @@ export class OrganizationGqlType implements OrganizationDto {
 @ObjectType('DistributedJob')
 export class DistributedJobGqlType implements DistributedJobDto {
   @Field(() => ID) id!: string;
-  @Field({ nullable: true }) organizationId!: string | null;
-  @Field({ nullable: true }) workspaceId!: string | null;
+  @Field(() => String, { nullable: true }) organizationId!: string | null;
+  @Field(() => String, { nullable: true }) workspaceId!: string | null;
   @Field() type!: string;
   @Field(() => GraphQLJSON) payload!: Record<string, unknown>;
   @Field(() => DistributedJobPriorityGql) priority!: DistributedJobPriority;
   @Field(() => DistributedJobStatusGql) status!: DistributedJobStatus;
-  @Field({ nullable: true }) workerId!: string | null;
+  @Field(() => String, { nullable: true }) workerId!: string | null;
   @Field(() => Int) attempts!: number;
   @Field(() => Int) maxAttempts!: number;
-  @Field({ nullable: true }) lastError!: string | null;
+  @Field(() => String, { nullable: true }) lastError!: string | null;
   @Field(() => GraphQLISODateTime, { nullable: true }) scheduledFor!: string | null;
   @Field(() => GraphQLISODateTime, { nullable: true }) startedAt!: string | null;
   @Field(() => GraphQLISODateTime, { nullable: true }) finishedAt!: string | null;
@@ -117,22 +129,22 @@ export class QueueMetricsGqlType implements QueueMetricsDto {
 @ObjectType('Plugin')
 export class PluginGqlType implements PluginDto {
   @Field(() => ID) id!: string;
-  @Field({ nullable: true }) organizationId!: string | null;
+  @Field(() => String, { nullable: true }) organizationId!: string | null;
   @Field() slug!: string;
   @Field() name!: string;
   @Field(() => PluginCategoryGql) category!: PluginCategory;
   @Field() description!: string;
   @Field() authorUserId!: string;
   @Field(() => PluginStatusGql) status!: PluginStatus;
-  @Field({ nullable: true }) iconUrl!: string | null;
-  @Field({ nullable: true }) homepageUrl!: string | null;
-  @Field({ nullable: true }) repoUrl!: string | null;
-  @Field({ nullable: true }) documentationMarkdown!: string | null;
+  @Field(() => String, { nullable: true }) iconUrl!: string | null;
+  @Field(() => String, { nullable: true }) homepageUrl!: string | null;
+  @Field(() => String, { nullable: true }) repoUrl!: string | null;
+  @Field(() => String, { nullable: true }) documentationMarkdown!: string | null;
   @Field() verified!: boolean;
   @Field(() => Int) downloadCount!: number;
   @Field() ratingAverage!: number;
   @Field(() => Int) ratingCount!: number;
-  @Field({ nullable: true }) latestVersion!: string | null;
+  @Field(() => String, { nullable: true }) latestVersion!: string | null;
   @Field(() => GraphQLISODateTime) createdAt!: string;
   @Field(() => GraphQLISODateTime) updatedAt!: string;
 }

@@ -31,7 +31,9 @@ export class RefreshUseCase {
     private readonly sessionsRepository: SessionsRepository,
     @Inject(REFRESH_TOKENS_REPOSITORY)
     private readonly refreshTokensRepository: RefreshTokensRepository,
-    private readonly rbacService: RbacService,
+    // See register.use-case.ts for why RbacService needs an explicit
+    // @Inject() token under this project's tsx/esbuild toolchain.
+    @Inject(RbacService) private readonly rbacService: RbacService,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
   ) {}

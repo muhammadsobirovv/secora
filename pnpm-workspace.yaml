@@ -3,11 +3,20 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  # protobufjs/@apollo/protobufjs's install script compiles its own JS from
+  # .proto definitions (used internally by @apollo/server for query-plan
+  # serialization) — no native/binary compilation, safe to allow like the
+  # other build-script packages below. `pnpm install` previously left these
+  # two as the literal placeholder text `pnpm approve-builds` writes before
+  # a choice is made ("set this to true or false"), which is not valid YAML
+  # boolean and left the scripts silently skipped (ERR_PNPM_IGNORED_BUILDS).
+  '@apollo/protobufjs': true
   '@prisma/engines': true
   '@scarf/scarf': false
   argon2: true
   esbuild: true
   prisma: true
+  protobufjs: true
   sharp: true
   unrs-resolver: true
 

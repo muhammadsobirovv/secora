@@ -1,5 +1,5 @@
 import type { ReconTool, VulnScanner } from '../../prisma-types.js';
-import { TOOL_TARGET_TYPE_COMPATIBILITY } from '../recon/tool-runners/tool-target-compatibility.js';
+import { TOOL_TARGET_TYPE_COMPATIBILITY } from '@pentesthub/shared';
 
 export type TerminalCommandKind = 'RECON_TOOL' | 'VULN_SCANNER';
 export type TerminalCommandRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -16,6 +16,56 @@ export interface TerminalCommandDefinition {
   requiresApproval: boolean;
   timeoutSeconds: number;
   resourceLimits: { maxOutputBytes: number; maxConcurrent: number };
+}
+
+function reconDef(
+  tool: ReconTool,
+  description: string,
+  riskLevel: TerminalCommandRiskLevel,
+  requiresApproval: boolean,
+  timeoutSeconds: number,
+): TerminalCommandDefinition {
+  return {
+    name: tool,
+    description,
+    kind: 'RECON_TOOL',
+    tool,
+    allowedTargetTypes: TOOL_TARGET_TYPE_COMPATIBILITY[tool] ?? [],
+    requiredPermissions: ['project:write'],
+    riskLevel,
+    requiresApproval,
+    timeoutSeconds,
+    resourceLimits: { maxOutputBytes: 2_000_000, maxConcurrent: 3 },
+  };
+}
+
+const VULN_SCANNER_TARGET_TYPES: Record<string, string[]> = {
+  NUCLEI: ['URL', 'DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS'],
+  FEROXBUSTER: ['URL', 'DOMAIN', 'SUBDOMAIN'],
+  FFUF: ['URL', 'DOMAIN', 'SUBDOMAIN'],
+  NIKTO: ['URL', 'DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS'],
+  DIRSEARCH: ['URL', 'DOMAIN', 'SUBDOMAIN'],
+};
+
+function vulnDef(
+  scanner: VulnScanner,
+  description: string,
+  riskLevel: TerminalCommandRiskLevel,
+  requiresApproval: boolean,
+  timeoutSeconds: number,
+): TerminalCommandDefinition {
+  return {
+    name: scanner,
+    description,
+    kind: 'VULN_SCANNER',
+    tool: scanner,
+    allowedTargetTypes: VULN_SCANNER_TARGET_TYPES[scanner] ?? [],
+    requiredPermissions: ['project:write'],
+    riskLevel,
+    requiresApproval,
+    timeoutSeconds,
+    resourceLimits: { maxOutputBytes: 2_000_000, maxConcurrent: 2 },
+  };
 }
 
 /// Module 16 — Command Security (task #388, spec section "COMMAND
@@ -82,56 +132,6 @@ export const TERMINAL_BLOCKED_COMMAND_NAMES = new Set([
   'RM',
   'DD',
 ]);
-
-function reconDef(
-  tool: ReconTool,
-  description: string,
-  riskLevel: TerminalCommandRiskLevel,
-  requiresApproval: boolean,
-  timeoutSeconds: number,
-): TerminalCommandDefinition {
-  return {
-    name: tool,
-    description,
-    kind: 'RECON_TOOL',
-    tool,
-    allowedTargetTypes: TOOL_TARGET_TYPE_COMPATIBILITY[tool] ?? [],
-    requiredPermissions: ['project:write'],
-    riskLevel,
-    requiresApproval,
-    timeoutSeconds,
-    resourceLimits: { maxOutputBytes: 2_000_000, maxConcurrent: 3 },
-  };
-}
-
-const VULN_SCANNER_TARGET_TYPES: Record<string, string[]> = {
-  NUCLEI: ['URL', 'DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS'],
-  FEROXBUSTER: ['URL', 'DOMAIN', 'SUBDOMAIN'],
-  FFUF: ['URL', 'DOMAIN', 'SUBDOMAIN'],
-  NIKTO: ['URL', 'DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS'],
-  DIRSEARCH: ['URL', 'DOMAIN', 'SUBDOMAIN'],
-};
-
-function vulnDef(
-  scanner: VulnScanner,
-  description: string,
-  riskLevel: TerminalCommandRiskLevel,
-  requiresApproval: boolean,
-  timeoutSeconds: number,
-): TerminalCommandDefinition {
-  return {
-    name: scanner,
-    description,
-    kind: 'VULN_SCANNER',
-    tool: scanner,
-    allowedTargetTypes: VULN_SCANNER_TARGET_TYPES[scanner] ?? [],
-    requiredPermissions: ['project:write'],
-    riskLevel,
-    requiresApproval,
-    timeoutSeconds,
-    resourceLimits: { maxOutputBytes: 2_000_000, maxConcurrent: 2 },
-  };
-}
 
 export function resolveTerminalCommandClassification(
   name: string,

@@ -18,7 +18,10 @@ export class PluginResolver {
   plugins(
     @Args('category', { type: () => PluginCategoryGql, nullable: true }) category: PluginCategory | undefined,
     @Args('status', { type: () => PluginStatusGql, nullable: true }) status: PluginStatus | undefined,
-    @Args('search', { nullable: true }) search: string | undefined,
+    // Explicit `type: () => String` required — see distributed-job.resolver.ts
+    // for why: GraphQL's reflection-based type inference can't determine a
+    // GraphQL type from a TS union type (`string | undefined`).
+    @Args('search', { type: () => String, nullable: true }) search: string | undefined,
   ): Promise<PluginDto[]> {
     return this.queryBus.execute(new ListPluginsQuery({ category, status, search }));
   }
