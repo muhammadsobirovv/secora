@@ -80,7 +80,7 @@ jobs:
       # unrelated-package change still skips every task Turborepo can
       # prove is unaffected.
       - name: Cache Turborepo task outputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-lint-${{ github.sha }}
@@ -108,7 +108,7 @@ jobs:
       # client.
       - run: pnpm --filter api exec prisma generate
       - name: Cache Turborepo task outputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-check-types-${{ github.sha }}
@@ -146,7 +146,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter api exec prisma generate
       - name: Cache Turborepo task outputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-test-${{ github.sha }}
@@ -231,7 +231,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter api exec prisma generate
       - name: Cache Turborepo task outputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-build-${{ github.sha }}
