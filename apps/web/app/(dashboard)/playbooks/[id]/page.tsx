@@ -177,7 +177,7 @@ export default function PlaybookDetailPage() {
             </Button>
           </div>
           {playbook.status !== "PUBLISHED" && (
-            <p className="text-xs text-muted-foreground">Publish this playbook before running it for real (dry-run works on any draft's latest version).</p>
+            <p className="text-xs text-muted-foreground">Publish this playbook before running it for real (dry-run works on any draft&apos;s latest version).</p>
           )}
           {dryRunResult && (
             <div className="space-y-2 rounded border p-3 text-sm">

@@ -16,6 +16,18 @@ const RESULT_HREF: Record<BugBountySearchResultType, (id: string) => string> = {
   BUG_REPORT: (id) => `/bugbounty/reports/${id}`,
   PAYLOAD: () => `/bugbounty/payloads`,
   KNOWLEDGE_BASE_NOTE: () => `/bugbounty/knowledge-base`,
+  // Module 9 added these three result types to BugBountySearchResultType
+  // (packages/shared/src/bugbounty.ts) but this map was never updated —
+  // TypeScript only caught the gap once this Record's exhaustiveness was
+  // actually checked end-to-end. None of the three have a dedicated
+  // per-item route yet: /ai's conversation id is client-side component
+  // state (not a URL param — see app/(dashboard)/ai/page.tsx), and there
+  // is no tag-filter or standalone task-detail page in the frontend at
+  // all yet. Routing to the nearest real list page beats a broken/fake
+  // deep link; revisit once those pages exist.
+  AI_CHAT: () => `/ai`,
+  TAG: () => `/bugbounty`,
+  TASK: () => `/bugbounty`,
 };
 
 export default function BugBountySearchPage() {

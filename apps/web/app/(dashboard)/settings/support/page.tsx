@@ -75,7 +75,13 @@ export default function SupportSettingsPage() {
         subject,
         message,
         email,
-        diagnosticsSnapshot,
+        // SupportTicketDto["diagnosticsSnapshot"] is typed nullable (it's
+        // read back from a stored ticket, which can have no snapshot at
+        // all), but CreateSupportTicketRequestDto's field is optional
+        // without null — this local variable is only ever actually
+        // assigned an object or left undefined above, never null, so this
+        // narrows the type without changing behavior.
+        diagnosticsSnapshot: diagnosticsSnapshot ?? undefined,
       });
       toast.success("Support request sent — we'll reply to your email.");
       setSubject("");

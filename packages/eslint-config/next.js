@@ -54,4 +54,18 @@ export const nextJsConfig = [
       "react/react-in-jsx-scope": "off",
     },
   },
+  // Root-level *.config.js/mjs/cjs (next.config.js, postcss.config.js, ...)
+  // run under Node at build time, not in the browser/service-worker
+  // environment the block above sets globals for — without this, `process`,
+  // `__dirname`, etc. are flagged as undefined (no-undef) even though
+  // they're valid there. Scoped narrowly so app source code's globals are
+  // unaffected.
+  {
+    files: ["*.config.js", "*.config.mjs", "*.config.cjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 ];

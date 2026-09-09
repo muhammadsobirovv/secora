@@ -66,7 +66,11 @@ const ROOT_DOCS: { slug: string; file: string }[] = [
 
 function extractTitle(markdown: string, fallback: string): string {
   const match = /^#\s+(.+)$/m.exec(markdown);
-  return match ? match[1].trim() : fallback;
+  // `noUncheckedIndexedAccess` types every RegExpExecArray index access as
+  // possibly-undefined even though group 1 is guaranteed present whenever
+  // `match` itself is non-null (the whole pattern requires it) — narrow
+  // explicitly rather than a non-null assertion.
+  return match?.[1]?.trim() ?? fallback;
 }
 
 function readCategoryDir(categorySlug: string): DocEntry[] {
