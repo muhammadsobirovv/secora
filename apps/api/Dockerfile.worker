@@ -29,7 +29,8 @@ FROM deps AS build
 COPY . .
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter shared build
-RUN pnpm --filter api build
+# See apps/api/Dockerfile for why this needs an explicit heap ceiling.
+RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 
 FROM base AS prod-deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
