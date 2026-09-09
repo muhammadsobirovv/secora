@@ -8,6 +8,8 @@ import type { VulnScanJobsRepository } from '../domain/repositories/vuln-scan-jo
 import type { VulnScanTemplatesRepository } from '../domain/repositories/vuln-scan-templates.repository.interface.js';
 import type { Target, Workspace } from '../../../prisma-types.js';
 import type { ScopeEngineService } from '../../security/scope-engine.service.js';
+import type { QuotaService } from '../../billing/quota.service.js';
+import type { UsageService } from '../../billing/usage.service.js';
 import { CreateVulnScanJobCommand, CreateVulnScanJobHandler } from './create-vuln-scan-job.command.js';
 
 function buildTarget(overrides?: Partial<Target>): Target {
@@ -52,6 +54,10 @@ function buildHandler(opts: {
   create: jest.Mock;
   target?: Target;
   scopeAssert?: jest.Mock;
+  /// Module 20 — Phase 8. Same "unlimited by default" reasoning as
+  /// create-recon-job.command.spec.ts.
+  enforceForWorkspace?: jest.Mock;
+  usageRecord?: jest.Mock;
 }) {
   const workspacesRepository: WorkspacesRepository = {
     create: jest.fn(),
@@ -80,6 +86,14 @@ function buildHandler(opts: {
   const scopeEngine: Partial<ScopeEngineService> = {
     assertExecutionAllowed: assertExecutionAllowed as unknown as ScopeEngineService['assertExecutionAllowed'],
   };
+  const enforceForWorkspace = opts.enforceForWorkspace ?? jest.fn(async () => ({ organizationId: null }));
+  const quota: Partial<QuotaService> = {
+    enforceForWorkspace: enforceForWorkspace as unknown as QuotaService['enforceForWorkspace'],
+  };
+  const usageRecord = opts.usageRecord ?? jest.fn(async () => undefined);
+  const usage: Partial<UsageService> = {
+    record: usageRecord as unknown as UsageService['record'],
+  };
 
   const handler = new CreateVulnScanJobHandler(
     workspacesRepository,
@@ -90,8 +104,10 @@ function buildHandler(opts: {
     configService,
     eventBus,
     scopeEngine as ScopeEngineService,
+    quota as QuotaService,
+    usage as UsageService,
   );
-  return { handler, vulnScanJobsRepository, eventBus, assertExecutionAllowed };
+  return { handler, vulnScanJobsRepository, eventBus, assertExecutionAllowed, enforceForWorkspace, usageRecord };
 }
 
 describe('CreateVulnScanJobHandler', () => {
@@ -170,5 +186,45 @@ describe('CreateVulnScanJobHandler', () => {
 
     expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
     expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  // Module 20 — Phase 8 (billing finalization). Same `SCANNER_JOBS` quota
+  // gate regression coverage as create-recon-job.command.spec.ts.
+
+  it('rejects job creation when the SCANNER_JOBS quota is exceeded, before touching the repository', async () => {
+    const create = jest.fn();
+    const enforceForWorkspace = jest.fn(async () => {
+      throw { code: 'QUOTA_EXCEEDED', message: 'quota exceeded' };
+    });
+    const { handler, vulnScanJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      enforceForWorkspace,
+    });
+
+    await expect(
+      handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] })),
+    ).rejects.toMatchObject({ code: 'QUOTA_EXCEEDED' });
+
+    expect(enforceForWorkspace).toHaveBeenCalledWith('workspace-1', 'user-1', 'SCANNER_JOBS');
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('records SCANNER_JOBS usage against the resolved organizationId after a successful job creation', async () => {
+    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const enforceForWorkspace = jest.fn(async () => ({ organizationId: 'org-1' }));
+    const { handler, usageRecord } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      enforceForWorkspace,
+    });
+
+    await handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] }));
+    await Promise.resolve();
+
+    expect(usageRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1', workspaceId: 'workspace-1', resourceType: 'SCANNER_JOBS', quantity: 1 }),
+    );
   });
 });

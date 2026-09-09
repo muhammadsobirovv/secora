@@ -7,6 +7,7 @@ import { ManualPaymentProvider } from './providers/manual-payment-provider.js';
 import { StripePaymentProvider } from './providers/stripe-payment-provider.js';
 import { SubscriptionService } from './subscription.service.js';
 import { UsageService } from './usage.service.js';
+import { QuotaService } from './quota.service.js';
 import { AiModelPricingService } from './ai-cost/ai-model-pricing.service.js';
 import { AiBudgetEnforcerService } from './ai-cost/ai-budget-enforcer.service.js';
 import { NotificationsChannelsCoreModule } from '../notifications-channels/notifications-channels-core.module.js';
@@ -24,6 +25,16 @@ import { NotificationsChannelsCoreModule } from '../notifications-channels/notif
 /// `NotificationsChannelsCoreModule` for alert delivery) and nothing
 /// controller-bearing. `BillingModule` (the full module, API-process-only)
 /// imports this instead of redeclaring the same providers.
+///
+/// Module 20 — Phase 8. `QuotaService` moved in here (it previously lived
+/// only in the full, controller-bearing `BillingModule`) so `ReconModule`/
+/// `VulnModule`'s job-creation command handlers — both API-process-only,
+/// HTTP-facing modules, never part of the worker's DI graph — can import
+/// this lightweight core module to enforce `RECON_JOBS`/`SCANNER_JOBS`
+/// quotas at job-creation time without pulling in `BillingModule`'s own
+/// controllers/guards. `QuotaService` only needs `PrismaService` (global)
+/// and the two services already provided here, so this is a pure
+/// relocation, not a new dependency.
 @Module({
   imports: [NotificationsChannelsCoreModule],
   providers: [
@@ -39,6 +50,7 @@ import { NotificationsChannelsCoreModule } from '../notifications-channels/notif
     },
     SubscriptionService,
     UsageService,
+    QuotaService,
     AiModelPricingService,
     AiBudgetEnforcerService,
   ],
@@ -46,6 +58,7 @@ import { NotificationsChannelsCoreModule } from '../notifications-channels/notif
     PAYMENT_PROVIDER,
     SubscriptionService,
     UsageService,
+    QuotaService,
     AiModelPricingService,
     AiBudgetEnforcerService,
   ],

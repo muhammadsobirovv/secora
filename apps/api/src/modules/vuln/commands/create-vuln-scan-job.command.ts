@@ -26,6 +26,8 @@ import {
 } from '../../targets/domain/repositories/targets.repository.interface.js';
 import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
 import { ScopeEngineService } from '../../security/scope-engine.service.js';
+import { QuotaService } from '../../billing/quota.service.js';
+import { UsageService } from '../../billing/usage.service.js';
 import {
   VULN_SCAN_JOBS_REPOSITORY,
   type VulnScanJobsRepository,
@@ -70,6 +72,8 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly eventBus: EventBus,
     private readonly scopeEngine: ScopeEngineService,
+    private readonly quota: QuotaService,
+    private readonly usage: UsageService,
   ) {}
 
   async execute(command: CreateVulnScanJobCommand): Promise<VulnScanJobDto> {
@@ -143,6 +147,11 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       }
     }
 
+    // Module 20 — Phase 8 (billing finalization). Mirrors
+    // CreateReconJobHandler's identical `SCANNER_JOBS` quota gate exactly
+    // — see that handler's doc comment for the full reasoning.
+    const { organizationId } = await this.quota.enforceForWorkspace(workspaceId, command.userId, 'SCANNER_JOBS');
+
     const job = await this.vulnScanJobsRepository.create({
       workspaceId,
       projectId: target.projectId,
@@ -160,6 +169,12 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       }),
       requestId: getRequestId(),
     });
+
+    // Best-effort, after the job already exists — see
+    // CreateReconJobHandler's identical comment.
+    this.usage
+      .record({ organizationId: organizationId ?? undefined, workspaceId, userId: command.userId, resourceType: 'SCANNER_JOBS', quantity: 1, unit: 'jobs' })
+      .catch(() => undefined);
 
     this.eventBus.publish(
       new VulnScanJobCreatedEvent(

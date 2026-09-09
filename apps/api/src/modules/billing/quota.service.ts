@@ -146,6 +146,31 @@ export class QuotaService {
     return result;
   }
 
+  /// Module 20 — Phase 8 (billing finalization). A job-creation-shaped
+  /// convenience wrapper around `enforce()`: a command handler only ever
+  /// has a `workspaceId` in hand (not the `organizationId` `resolveLimit`
+  /// needs to fall through to `Plan.limits`), the same gap
+  /// `AiBudgetEnforcerService.resolveScope()` already solves for AI
+  /// budgets. Resolves the workspace's `organizationId` once, enforces
+  /// against it, and hands the resolved `organizationId` back so the
+  /// caller's post-success `UsageService.record()` call can tag the
+  /// counter the same way `AiBudgetEnforcerService.recordUsage()` does —
+  /// without every call site re-deriving it itself. A workspace with no
+  /// `organizationId` (the common Community Edition / personal-workspace
+  /// case) and no explicit WORKSPACE-scoped `QuotaPolicy` row resolves to
+  /// "unlimited," by the same by-construction default `resolveLimit()`
+  /// already documents.
+  async enforceForWorkspace(
+    workspaceId: string,
+    userId: string,
+    resourceType: UsageResourceType,
+  ): Promise<{ organizationId: string | null }> {
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId }, select: { organizationId: true } });
+    const organizationId = workspace?.organizationId ?? null;
+    await this.enforce({ organizationId: organizationId ?? undefined, workspaceId, userId }, resourceType);
+    return { organizationId };
+  }
+
   async getPlanUsageSummary(organizationId: string): Promise<PlanUsageSummaryEntry[]> {
     const subscription = await this.subscriptions.getOrCreate(organizationId);
     const counters = await this.usage.listForOrganization(organizationId);

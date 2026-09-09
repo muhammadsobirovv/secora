@@ -16,19 +16,24 @@ import { BillingCoreModule } from './billing-core.module.js';
 
 /// Module 15 — Monetization (task #331/#332), AI cost control (task
 /// #340). The API-process-only half: HTTP controllers plus the services
-/// that don't need to exist in the worker process (`QuotaService`,
-/// `EntitlementService`, `InvoiceService`, `BillingService` — nothing in
-/// the worker's recon/vuln/AI execution paths reads a quota, checks an
-/// entitlement, or renders an invoice). `PAYMENT_PROVIDER`'s
-/// `useFactory`-keyed-off-`BILLING_PROVIDER` binding and every provider
-/// `AiChatService` (which the worker process also runs — see
-/// worker.module.ts) needs now live in `BillingCoreModule`, imported here
-/// rather than redeclared — see that module's own doc comment for why the
-/// split exists.
+/// that don't need to exist in the worker process (`EntitlementService`,
+/// `InvoiceService`, `BillingService` — nothing in the worker's
+/// recon/vuln/AI execution paths reads an entitlement or renders an
+/// invoice). `PAYMENT_PROVIDER`'s `useFactory`-keyed-off-`BILLING_PROVIDER`
+/// binding and every provider `AiChatService` (which the worker process
+/// also runs — see worker.module.ts) needs now live in `BillingCoreModule`,
+/// imported here rather than redeclared — see that module's own doc
+/// comment for why the split exists.
+///
+/// Module 20 — Phase 8. `QuotaService` moved to `BillingCoreModule` (so
+/// `ReconModule`/`VulnModule` can enforce job-creation quotas without
+/// importing this controller-bearing module) — no longer declared as its
+/// own provider here, just re-exported from the import for anything that
+/// already depends on getting it via `BillingModule`.
 @Module({
   imports: [BillingCoreModule],
   controllers: [BillingController, UsageController, QuotaController, AiCostControlController, StripeWebhookController],
-  providers: [QuotaService, EntitlementService, InvoiceService, BillingService],
+  providers: [EntitlementService, InvoiceService, BillingService],
   exports: [
     SubscriptionService,
     UsageService,

@@ -23,6 +23,8 @@ import {
 } from '../../targets/domain/repositories/targets.repository.interface.js';
 import { resolveTargetForCaller } from '../../targets/commands/target-lifecycle.commands.js';
 import { ScopeEngineService } from '../../security/scope-engine.service.js';
+import { QuotaService } from '../../billing/quota.service.js';
+import { UsageService } from '../../billing/usage.service.js';
 import {
   RECON_JOBS_REPOSITORY,
   type ReconJobsRepository,
@@ -57,6 +59,8 @@ export class CreateReconJobHandler implements ICommandHandler<
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly eventBus: EventBus,
     private readonly scopeEngine: ScopeEngineService,
+    private readonly quota: QuotaService,
+    private readonly usage: UsageService,
   ) {}
 
   async execute(command: CreateReconJobCommand): Promise<ReconJobDto> {
@@ -108,6 +112,16 @@ export class CreateReconJobHandler implements ICommandHandler<
       }
     }
 
+    // Module 20 — Phase 8 (billing finalization). `RECON_JOBS` has a
+    // configurable per-plan limit (see plan-defaults.ts) that was never
+    // actually enforced anywhere in this handler — throws `QUOTA_EXCEEDED`
+    // (429) before creating the job if the workspace's org is over its
+    // hard limit. Unlimited (no-op) for any workspace with no
+    // organization or no configured QuotaPolicy/Plan limit — the same
+    // zero-configuration Community Edition default every other Module 15
+    // enforcement mechanism has, by construction.
+    const { organizationId } = await this.quota.enforceForWorkspace(workspaceId, command.userId, 'RECON_JOBS');
+
     const job = await this.reconJobsRepository.create({
       workspaceId,
       projectId: target.projectId,
@@ -122,6 +136,13 @@ export class CreateReconJobHandler implements ICommandHandler<
       }),
       requestId: getRequestId(),
     });
+
+    // Best-effort, after the job already exists — a metering write must
+    // never undo or fail an already-accepted job, same posture
+    // `AiBudgetEnforcerService.recordUsage()` takes on its own metering.
+    this.usage
+      .record({ organizationId: organizationId ?? undefined, workspaceId, userId: command.userId, resourceType: 'RECON_JOBS', quantity: 1, unit: 'jobs' })
+      .catch(() => undefined);
 
     this.eventBus.publish(
       new ReconJobCreatedEvent(
