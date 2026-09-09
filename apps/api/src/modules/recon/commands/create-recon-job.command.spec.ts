@@ -7,6 +7,8 @@ import type { TargetsRepository } from '../../targets/domain/repositories/target
 import type { ReconJobsRepository } from '../domain/repositories/recon-jobs.repository.interface.js';
 import type { Target, Workspace } from '../../../prisma-types.js';
 import type { ScopeEngineService } from '../../security/scope-engine.service.js';
+import type { QuotaService } from '../../billing/quota.service.js';
+import type { UsageService } from '../../billing/usage.service.js';
 import { CreateReconJobCommand, CreateReconJobHandler } from './create-recon-job.command.js';
 import * as requestContext from '../../../observability/request-context.js';
 
@@ -55,6 +57,12 @@ function buildHandler(opts: {
   /// (pre-Module-16) tests below don't need to know about Scope Engine
   /// internals; scope-specific behavior gets its own dedicated tests.
   scopeAssert?: jest.Mock;
+  /// Module 20 — Phase 8. Defaults to an "unlimited" resolution (no
+  /// organizationId, enforce() never throws) so the existing tests below
+  /// don't need to know about quota internals; quota-specific behavior
+  /// gets its own dedicated tests.
+  enforceForWorkspace?: jest.Mock;
+  usageRecord?: jest.Mock;
 }) {
   const workspacesRepository: WorkspacesRepository = {
     create: jest.fn(),
@@ -80,6 +88,14 @@ function buildHandler(opts: {
   const scopeEngine: Partial<ScopeEngineService> = {
     assertExecutionAllowed: assertExecutionAllowed as unknown as ScopeEngineService['assertExecutionAllowed'],
   };
+  const enforceForWorkspace = opts.enforceForWorkspace ?? jest.fn(async () => ({ organizationId: null }));
+  const quota: Partial<QuotaService> = {
+    enforceForWorkspace: enforceForWorkspace as unknown as QuotaService['enforceForWorkspace'],
+  };
+  const usageRecord = opts.usageRecord ?? jest.fn(async () => undefined);
+  const usage: Partial<UsageService> = {
+    record: usageRecord as unknown as UsageService['record'],
+  };
 
   const handler = new CreateReconJobHandler(
     workspacesRepository,
@@ -89,8 +105,10 @@ function buildHandler(opts: {
     configService,
     eventBus,
     scopeEngine as ScopeEngineService,
+    quota as QuotaService,
+    usage as UsageService,
   );
-  return { handler, reconJobsRepository, eventBus, assertExecutionAllowed };
+  return { handler, reconJobsRepository, eventBus, assertExecutionAllowed, enforceForWorkspace, usageRecord };
 }
 
 describe('CreateReconJobHandler', () => {
@@ -211,5 +229,48 @@ describe('CreateReconJobHandler', () => {
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'req-recon-abc' }));
     jest.restoreAllMocks();
+  });
+
+  // Module 20 — Phase 8 (billing finalization). `RECON_JOBS` has a
+  // per-plan limit that was never enforced anywhere in this handler
+  // before this change — regression tests for the new gate.
+
+  it('rejects job creation when the RECON_JOBS quota is exceeded, before touching the repository', async () => {
+    const create = jest.fn();
+    const enforceForWorkspace = jest.fn(async () => {
+      throw { code: 'QUOTA_EXCEEDED', message: 'quota exceeded' };
+    });
+    const { handler, reconJobsRepository, eventBus } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      enforceForWorkspace,
+    });
+
+    await expect(
+      handler.execute(new CreateReconJobCommand('user-1', 'target-1', { tools: ['NMAP'] })),
+    ).rejects.toMatchObject({ code: 'QUOTA_EXCEEDED' });
+
+    expect(enforceForWorkspace).toHaveBeenCalledWith('workspace-1', 'user-1', 'RECON_JOBS');
+    expect(reconJobsRepository.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('records RECON_JOBS usage against the resolved organizationId after a successful job creation', async () => {
+    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const enforceForWorkspace = jest.fn(async () => ({ organizationId: 'org-1' }));
+    const { handler, usageRecord } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      enforceForWorkspace,
+    });
+
+    await handler.execute(new CreateReconJobCommand('user-1', 'target-1', { tools: ['NMAP'] }));
+    // usage.record() is fire-and-forget (`.catch()`, not `await`ed) —
+    // flush the microtask queue so the assertion below sees the call.
+    await Promise.resolve();
+
+    expect(usageRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1', workspaceId: 'workspace-1', resourceType: 'RECON_JOBS', quantity: 1 }),
+    );
   });
 });

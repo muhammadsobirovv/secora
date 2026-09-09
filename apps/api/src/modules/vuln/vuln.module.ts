@@ -4,6 +4,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
 import { SecurityModule } from '../security/security.module.js';
+import { BillingCoreModule } from '../billing/billing-core.module.js';
 import { CreateVulnScanJobHandler } from './commands/create-vuln-scan-job.command.js';
 import { StopVulnScanJobHandler } from './commands/stop-vuln-scan-job.command.js';
 import { PauseVulnScanJobHandler } from './commands/pause-vuln-scan-job.command.js';
@@ -36,8 +37,12 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
 /// transitively via VulnCoreModule) for where jobs actually execute,
 /// which this module never invokes directly. Mirrors ReconModule
 /// (Module 3) exactly.
+///
+/// Module 20 — Phase 8. `BillingCoreModule` added so
+/// `CreateVulnScanJobHandler` can enforce the `SCANNER_JOBS` quota at
+/// job-creation time — mirrors the identical `ReconModule` change exactly.
 @Module({
-  imports: [VulnCoreModule, WorkspacesModule, ProjectsModule, TargetsModule, SecurityModule],
+  imports: [VulnCoreModule, WorkspacesModule, ProjectsModule, TargetsModule, SecurityModule, BillingCoreModule],
   controllers: [
     TargetVulnScanJobsController,
     ProjectVulnScanJobsController,
