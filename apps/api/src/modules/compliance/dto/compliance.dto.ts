@@ -21,7 +21,7 @@ export class UpsertBackupPolicyDto implements UpsertBackupPolicyRequestDto {
 }
 
 export class CreateComplianceExportDto implements CreateComplianceExportRequestDto {
-  @ApiPropertyOptional({ type: 'object' })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   scope?: ComplianceExportScope;

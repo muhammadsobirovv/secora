@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { EventBus } from '@nestjs/cqrs';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { computeNextRunAt } from '../scheduled-job-cron.util.js';
-import type { ScheduledJobRun } from '../../../prisma-types.js';
+import type { Prisma, ScheduledJobRun } from '../../../prisma-types.js';
 import { ScheduledJobRunCompletedEvent, ScheduledJobRunFailedEvent } from '../events/scheduled-job-events.js';
 import { PollerLeaseService } from '../../../common/concurrency/poller-lease.service.js';
 
@@ -122,7 +122,7 @@ export class ScheduledJobRunnerService implements OnModuleInit, OnModuleDestroy 
 
     const finishedRun = await this.prisma.scheduledJobRun.update({
       where: { id: run.id },
-      data: { status, finishedAt: new Date(), log, resultSummary },
+      data: { status, finishedAt: new Date(), log, resultSummary: resultSummary as Prisma.InputJsonValue },
     });
 
     await this.prisma.scheduledJob.update({

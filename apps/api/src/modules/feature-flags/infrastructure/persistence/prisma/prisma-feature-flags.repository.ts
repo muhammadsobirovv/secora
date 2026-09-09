@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import type { FeatureFlagScopeType, Prisma } from '../../../../../prisma-types.js';
 import type { AppTransactionalAdapter } from '../../../../../prisma/prisma-transaction.types.js';
 import type {
   CreateFeatureFlagInput,
@@ -35,12 +36,12 @@ export class PrismaFeatureFlagsRepository implements FeatureFlagsRepository {
         key: input.key,
         description: input.description,
         defaultEnabled: input.defaultEnabled,
-        editionRules: input.editionRules ?? undefined,
+        editionRules: (input.editionRules ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     }) as unknown as Promise<FeatureFlag>;
   }
 
-  findOverridesForScopes(scopes: { scopeType: string; scopeId: string }[]): Promise<FeatureFlagOverride[]> {
+  findOverridesForScopes(scopes: { scopeType: FeatureFlagScopeType; scopeId: string }[]): Promise<FeatureFlagOverride[]> {
     if (scopes.length === 0) return Promise.resolve([]);
     return this.txHost.tx.featureFlagOverride.findMany({
       where: { OR: scopes.map((scope) => ({ scopeType: scope.scopeType, scopeId: scope.scopeId })) },

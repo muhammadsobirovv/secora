@@ -94,6 +94,18 @@ export class OrganizationGqlType implements OrganizationDto {
   @Field() createdBy!: string;
   @Field(() => GraphQLISODateTime) createdAt!: string;
   @Field(() => GraphQLISODateTime) updatedAt!: string;
+  // Module 14 -- Tenant Management (Enterprise Edition only) fields, added
+  // to OrganizationDto after this GraphQL type was first written -- see
+  // that interface's doc comment on why these are always present (never
+  // undefined) but only ever non-default under EditionService.isEnterprise().
+  @Field(() => String, { nullable: true }) billingEmail!: string | null;
+  @Field(() => String, { nullable: true }) billingProviderCustomerId!: string | null;
+  @Field(() => String, { nullable: true }) subscriptionStatus!: string | null;
+  @Field(() => GraphQLISODateTime, { nullable: true }) subscriptionRenewsAt!: string | null;
+  @Field(() => String, { nullable: true }) customDomain!: string | null;
+  @Field(() => GraphQLISODateTime, { nullable: true }) customDomainVerifiedAt!: string | null;
+  @Field(() => String, { nullable: true }) brandingPrimaryColor!: string | null;
+  @Field(() => String, { nullable: true }) brandingFaviconUrl!: string | null;
 }
 
 @ObjectType('DistributedJob')

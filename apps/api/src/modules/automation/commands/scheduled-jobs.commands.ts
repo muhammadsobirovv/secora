@@ -7,6 +7,7 @@ import type {
   UpdateScheduledJobRequestDto,
 } from '@pentesthub/shared';
 import { SCHEDULED_JOB_KIND_DEFAULT_CRON } from '@pentesthub/shared';
+import type { Prisma } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { resolveWorkspaceMembership } from '../../collaboration/workspace-membership.util.js';
@@ -41,7 +42,7 @@ export class CreateScheduledJobHandler implements ICommandHandler<CreateSchedule
         name: command.data.name,
         kind: command.data.kind,
         cronExpression,
-        config: command.data.config,
+        config: command.data.config as Prisma.InputJsonValue,
         enabled: command.data.enabled ?? true,
         nextRunAt: computeNextRunAt(cronExpression),
         createdBy: command.userId,
@@ -82,7 +83,7 @@ export class UpdateScheduledJobHandler implements ICommandHandler<UpdateSchedule
         name: command.data.name,
         kind: command.data.kind,
         cronExpression,
-        config: command.data.config,
+        config: command.data.config as Prisma.InputJsonValue,
         enabled: command.data.enabled,
         nextRunAt: command.data.cronExpression || command.data.enabled !== undefined ? computeNextRunAt(cronExpression) : undefined,
       },

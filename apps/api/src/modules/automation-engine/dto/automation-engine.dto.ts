@@ -29,7 +29,7 @@ export class CreateWorkflowDto implements CreateWorkflowRequestDto {
   // z.lazy() recursive schema is a much better fit than nested
   // @ValidateNested() nightmare for a graph of variable-shaped step
   // params).
-  @ApiProperty({ type: 'object' }) @IsObject() definition!: WorkflowDefinition;
+  @ApiProperty({ type: 'object', additionalProperties: true }) @IsObject() definition!: WorkflowDefinition;
   @ApiProperty({ enum: TRIGGER_TYPES }) @IsIn(TRIGGER_TYPES) triggerType!: WorkflowTriggerType;
   @ApiPropertyOptional() @IsOptional() @IsString() cronExpression?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() enabled?: boolean;
@@ -38,14 +38,14 @@ export class CreateWorkflowDto implements CreateWorkflowRequestDto {
 export class UpdateWorkflowDto implements UpdateWorkflowRequestDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(150) name?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) description?: string;
-  @ApiPropertyOptional({ type: 'object' }) @IsOptional() @IsObject() definition?: WorkflowDefinition;
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true }) @IsOptional() @IsObject() definition?: WorkflowDefinition;
   @ApiPropertyOptional({ enum: TRIGGER_TYPES }) @IsOptional() @IsIn(TRIGGER_TYPES) triggerType?: WorkflowTriggerType;
   @ApiPropertyOptional() @IsOptional() @IsString() cronExpression?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() enabled?: boolean;
 }
 
 export class TriggerWorkflowDto implements TriggerWorkflowRequestDto {
-  @ApiPropertyOptional({ type: 'object' }) @IsOptional() @IsObject() input?: Record<string, unknown>;
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true }) @IsOptional() @IsObject() input?: Record<string, unknown>;
 }
 
 export class ApproveWorkflowStepDto implements ApproveWorkflowStepRequestDto {

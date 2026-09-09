@@ -56,6 +56,7 @@ export class StripePaymentProvider implements PaymentProvider {
   }
 
   async ensureCustomer(input: {
+    organizationId: string;
     name: string;
     email: string | null;
     existingProviderCustomerId: string | null;
@@ -66,6 +67,7 @@ export class StripePaymentProvider implements PaymentProvider {
     const customer = await this.request<{ id: string }>('POST', '/customers', {
       name: input.name,
       ...(input.email ? { email: input.email } : {}),
+      'metadata[organizationId]': input.organizationId,
     });
     return { providerCustomerId: customer.id };
   }

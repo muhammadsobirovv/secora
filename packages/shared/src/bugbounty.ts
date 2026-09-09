@@ -261,7 +261,14 @@ export type BugBountyFindingStage =
   | "REJECTED"
   | "RESOLVED"
   | "CLOSED"
-  | "ARCHIVED";
+  | "ARCHIVED"
+  // Module 16 additions (additive only) -- see prisma/schema.prisma's
+  // BugBountyFindingStage enum comment for the Finding Validation
+  // Workflow States this closes the gap on.
+  | "ACCEPTED_RISK"
+  | "FALSE_POSITIVE"
+  | "REMEDIATED"
+  | "REOPENED";
 
 /// Forward-progression order for UI stepper rendering. DUPLICATE/
 /// NEED_MORE_INFO are side-branches (reachable from REPORTED, not part of

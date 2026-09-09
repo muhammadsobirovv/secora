@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
@@ -52,7 +52,7 @@ export class RunPromptTestDto implements RunPromptTestShape {
   @IsInt()
   version?: number;
 
-  @ApiProperty({ required: false, type: 'object' })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   inputVariables?: Record<string, string>;

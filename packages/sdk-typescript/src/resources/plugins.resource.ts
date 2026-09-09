@@ -13,7 +13,10 @@ export class PluginsResource {
   constructor(private readonly http: HttpClient) {}
 
   list(filter?: ListPluginsQueryDto): Promise<PluginDto[]> {
-    return this.http.get<PluginDto[]>(PLUGIN_REGISTRY_ENDPOINTS.list, filter);
+    return this.http.get<PluginDto[]>(
+      PLUGIN_REGISTRY_ENDPOINTS.list,
+      filter as Record<string, string | number | boolean | undefined> | undefined,
+    );
   }
 
   get(pluginId: string): Promise<PluginDto> {

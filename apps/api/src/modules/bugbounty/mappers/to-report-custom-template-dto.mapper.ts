@@ -9,7 +9,7 @@ export function toReportCustomTemplateDto(
     workspaceId: template.workspaceId,
     name: template.name,
     description: template.description,
-    sections: template.sections as ReportCustomTemplateDto['sections'],
+    sections: template.sections as unknown as ReportCustomTemplateDto['sections'],
     createdBy: template.createdBy,
     createdAt: template.createdAt.toISOString(),
     updatedAt: template.updatedAt.toISOString(),

@@ -279,7 +279,7 @@ export class ImportPromptTemplatesHandler implements ICommandHandler<ImportPromp
     if (!workspace) {
       throw new AppException('WORKSPACE_NOT_FOUND', 'Workspace not found.', HttpStatus.NOT_FOUND);
     }
-    const created = [];
+    const created: PromptTemplateDto[] = [];
     for (const item of command.data.templates) {
       const record = await this.promptTemplatesRepository.create({
         workspaceId: workspace.id,

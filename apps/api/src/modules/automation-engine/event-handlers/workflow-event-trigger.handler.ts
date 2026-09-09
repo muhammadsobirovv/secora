@@ -2,6 +2,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { Logger } from '@nestjs/common';
 import type { ActivityDomainEvent } from '../../../common/events/activity-domain-event.interface.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import type { Prisma } from '../../../prisma-types.js';
 import { toWebhookEventKey } from '../../public-api/webhooks/webhook-signature.util.js';
 import { ProjectCreatedEvent } from '../../projects/events/project-events.js';
 import { ReconJobCompletedEvent, ReconJobFailedEvent } from '../../recon/events/recon-job-events.js';
@@ -84,7 +85,7 @@ export class WorkflowEventTriggerHandler implements IEventHandler<ActivityDomain
               entityType: event.entityType,
               entityId: event.entityId,
               metadata: event.metadata ?? {},
-            },
+            } as Prisma.InputJsonValue,
           },
         });
         // Fire-and-forget — same reasoning as WebhookDispatchHandler's

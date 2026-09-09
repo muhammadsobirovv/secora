@@ -30,7 +30,7 @@ export class CreateSupportTicketDto implements CreateSupportTicketRequestDto {
   // browser/version are you on?" — validated only as a plain object here
   // (not field-by-field) since it's diagnostic context, not something the
   // system acts on.
-  @ApiPropertyOptional({ type: 'object' })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   diagnosticsSnapshot?: CreateSupportTicketRequestDto['diagnosticsSnapshot'];

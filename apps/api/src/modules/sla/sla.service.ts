@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { SlaEventDto, SlaEventType, SlaPolicyDto, VulnFindingSeverity } from '@pentesthub/shared';
-import type { AuditEventType } from '../../prisma-types.js';
+import type { AuditEventType, Prisma } from '../../prisma-types.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PollerLeaseService } from '../../common/concurrency/poller-lease.service.js';
 import { SlaBreachedEvent } from './events/sla-breached.event.js';
@@ -137,7 +137,7 @@ export class SlaService {
 
   private async audit(userId: string, type: AuditEventType, metadata: Record<string, unknown>): Promise<void> {
     await this.prisma.auditEvent.create({
-      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata: metadata as Prisma.InputJsonValue },
     });
   }
 

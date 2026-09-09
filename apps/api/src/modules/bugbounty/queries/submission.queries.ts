@@ -1,6 +1,6 @@
 import { IQuery, IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { HttpStatus, Inject } from '@nestjs/common';
-import type { SubmissionDto } from '@pentesthub/shared';
+import type { SubmissionDto, SubmissionStatus } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import {
   WORKSPACES_REPOSITORY,
@@ -47,7 +47,9 @@ export class ListSubmissionsHandler implements IQueryHandler<
       workspaceId: workspace.id,
       programId: query.filter.programId,
       findingId: query.filter.findingId,
-      status: query.filter.status,
+      // ListSubmissionsQueryParamsDto's @IsIn(SUBMISSION_STATUSES) already
+      // validates this against the exact enum member list.
+      status: query.filter.status as SubmissionStatus | undefined,
     });
     return submissions.map(toSubmissionDto);
   }

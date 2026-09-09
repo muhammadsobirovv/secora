@@ -293,7 +293,12 @@ export type IncidentTimelineEventType =
   | "AI_ANALYSIS"
   | "APPROVAL"
   | "CONTAINMENT"
-  | "RESOLUTION";
+  | "RESOLUTION"
+  // Module 17 -- task #473 (Defensive Security Playbooks). Written by
+  // IncidentPlaybooksService when a playbook run is started against this
+  // incident -- see prisma/schema.prisma's IncidentTimelineEventType enum
+  // comment.
+  | "PLAYBOOK_EXECUTED";
 
 /// Append-only — the timeline is immutable/auditable per spec; clients
 /// should never expose an edit/delete action for a timeline entry.

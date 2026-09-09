@@ -129,5 +129,5 @@ export interface ComplianceExportRequestDto {
 }
 
 export interface CreateComplianceExportRequestDto {
-  scope: ComplianceExportScope;
+  scope?: ComplianceExportScope;
 }

@@ -2,6 +2,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { Logger } from '@nestjs/common';
 import type { ActivityDomainEvent } from '../../../common/events/activity-domain-event.interface.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import type { Prisma } from '../../../prisma-types.js';
 import {
   TargetCreatedEvent,
   TargetUpdatedEvent,
@@ -157,7 +158,7 @@ export class WebhookDispatchHandler implements IEventHandler<ActivityDomainEvent
         data: matching.map((webhook) => ({
           webhookTokenId: webhook.id,
           event: eventKey,
-          payload,
+          payload: payload as Prisma.InputJsonValue,
         })),
       });
     } catch (error) {

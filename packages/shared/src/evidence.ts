@@ -9,7 +9,11 @@ export type EvidenceType =
   // and the exact command used to reproduce a finding. Purely additive;
   // every pre-existing EvidenceType value/consumer is unaffected.
   | "PAYLOAD"
-  | "COMMAND";
+  | "COMMAND"
+  // Module 16 additions -- Evidence Workspace section asked for audio
+  // capture and AI-analysis snapshots alongside the existing kinds.
+  | "AUDIO"
+  | "AI_ANALYSIS";
 
 export interface EvidenceDto {
   id: string;

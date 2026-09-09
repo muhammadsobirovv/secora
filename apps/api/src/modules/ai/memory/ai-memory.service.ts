@@ -87,7 +87,8 @@ export class AiMemoryService {
 
     const ttlDays =
       input.ttlDays ??
-      this.configService.get('AI_MEMORY_DEFAULT_TTL_DAYS', { infer: true });
+      this.configService.get('AI_MEMORY_DEFAULT_TTL_DAYS', { infer: true }) ??
+      90;
     const expiresAt =
       ttlDays > 0 ? new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000) : null;
 

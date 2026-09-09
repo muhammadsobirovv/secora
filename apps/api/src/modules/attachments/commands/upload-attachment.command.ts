@@ -247,6 +247,12 @@ export class UploadAttachmentHandler implements ICommandHandler<
       case 'KNOWLEDGE_BASE_NOTE':
       case 'BUG_REPORT':
         return null;
+      // Module 17 -- Incident evidence (task #470/#14) enum addition --
+      // same reserved posture as KNOWLEDGE_BASE_NOTE/BUG_REPORT above: no
+      // command uploads through this handler with this type yet, and
+      // avoiding an Attachments <-> Incidents circular dependency.
+      case 'INCIDENT':
+        return null;
     }
   }
 
