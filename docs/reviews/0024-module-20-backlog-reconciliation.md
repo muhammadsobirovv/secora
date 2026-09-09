@@ -159,6 +159,86 @@ classified:
   broken-symlink pattern as the radix packages above. The spec was
   reviewed by hand instead (see "Security defect" section above).
 
+## Phase 2-3: Product completeness + navigation wiring spot-check
+
+Cross-checked every `PRIMARY_NAV`/`FUTURE_NAV`/`SETTINGS_NAV` entry
+(`apps/web/components/layout/nav-config.ts`,
+`apps/web/app/(dashboard)/settings/layout.tsx`) against the actual
+`app/` route tree rather than assuming a nav label implies a working
+page. Result: every non-`comingSoon` nav entry resolves to a real
+`page.tsx` (Dashboard, Workspace, Projects, Targets, Notes, Evidence,
+Recon, Vulnerabilities, Bug Bounty, SOC, Executive Security, Exposure
+Management, Threat Intelligence, Security Reports, Research Sessions,
+Terminal, Playbooks, AI Assistant, Agent Copilot, Knowledge Base,
+Activity, Pricing, Admin, Documentation, and all eleven Settings pages
+including the API Keys page fixed above). The only `comingSoon: true`
+entry (`CVE Center`) is honestly disclosed as such in the nav item itself,
+not a silent gap. No orphaned nav links, no dead-end pages found.
+
+A full manual state-by-state (loading/empty/error/unauthorized) walkthrough
+of every page was not repeated in this pass — Module 15 (task #360, Final
+UX audit) and Module 18 (task #525, Frontend reliability audit) already
+did this work directly; re-running it from zero would duplicate rather
+than extend that coverage, which Module 20's own "avoid scope creep" rule
+argues against. This pass's contribution is confirming the nav-to-route
+mapping is still accurate after two more modules' worth of changes, and
+finding the one real gap (API Keys) that had slipped through.
+
+## Phase 4: Org/workspace switcher UX audit
+
+Module 19 disclosed "no org-switcher UI" as a known limitation. Audited
+both layers this platform has (Workspace and, above it, the optional
+enterprise Organization) separately, since they're distinct mechanisms
+with very different fix costs.
+
+**Organization layer (billing-scoped) — fixed.** `usePrimaryOrganization()`
+already fetched every organization the caller belongs to
+(`listMyOrganizations()`, IDOR-safe — verified in the Module 19 audit) but
+always rendered the first one with no way to pick another. This is a
+small, safe, additive UI gap: no new backend route, no new trust
+boundary. Added `useOrganizationStore` (a persisted "which organization
+did I pick" UI preference, `apps/web/lib/stores/organization-store.ts`)
+and `<OrganizationSwitcher />` (`apps/web/features/organizations/
+components/organization-switcher.tsx`), wired into all three
+organization-scoped pages (`/settings/billing`, `/settings/usage`,
+`/pricing`). The persisted selection is never trusted as an authorization
+boundary — `usePrimaryOrganization()` only uses it if it's actually
+present in the real, fresh `listMyOrganizations()` response for the
+current user, falling back to the first organization otherwise (handles:
+stale ID from a previous account in the same browser, an organization the
+user has since left). Renders nothing for the common zero/one-organization
+case, so it adds no clutter for Community Edition or single-org users.
+
+**Workspace layer (Projects/Targets/Recon/Vuln/etc.) — audited, confirmed
+pre-existing architectural scope, not changed.** Traced how the main app
+resolves "which workspace" for every implicit-personal-workspace read
+path (`GET /workspace`, `ListProjectsHandler`, and their siblings) — all
+call `WorkspacesRepository.findPersonalWorkspaceForUser()`, which always
+resolves to the caller's *own* personal workspace, never one they were
+invited into as a Module 9 collaborator. This means a user who accepts a
+workspace invite currently has no way to see or navigate to that
+workspace's Projects/Targets/Recon/etc. through the main UI — they can
+only interact with it via Module 9's own explicit, workspace-scoped
+Collaboration endpoints (comments, assignments, watchers) if they already
+know a specific entity's ID.
+
+This is confirmed to be a **known, pre-existing, deliberately-scoped**
+architectural decision, not a newly-discovered defect: the exact
+doc comment in `apps/api/src/modules/collaboration/
+workspace-membership.util.ts` (written when Module 9 shipped) says so
+explicitly — "Modules 1-8 keep their existing implicit
+single-personal-workspace resolution untouched... A future module can
+migrate the rest of the app to workspace-explicit routing once
+multi-workspace switching is a first-class product surface end to end."
+Retrofitting every Module 1-8 read path (Projects, Targets, Recon, Vuln,
+Notes, Evidence, Tags, Activity, Search — a two-digit number of
+controllers) to be workspace-explicit is a genuine architecture change,
+not a small UI fix, and is explicitly out of scope under Module 20's own
+"NEVER rewrite the architecture" / "avoid scope creep" rules. Documented
+here as an accepted, disclosed v1.0 limitation rather than left
+unmentioned or attempted as a rushed, wide-blast-radius change in this
+final module. See Known Limitations in the final report.
+
 ## Summary
 
 One real product gap found and fixed (API Keys settings page — a
