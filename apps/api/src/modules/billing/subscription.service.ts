@@ -91,6 +91,15 @@ export class SubscriptionService {
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;
     planTier?: PlanTier;
+    /// Module 20 — Phase 7 webhook event-ordering fix. Stripe's own
+    /// event id + `created` timestamp, threaded through from
+    /// `StripeWebhookController`. Compared against
+    /// `Subscription.lastWebhookEventAt` in the update below so an
+    /// out-of-order redelivery (an older event arriving after a newer one
+    /// was already applied) is detected and skipped instead of silently
+    /// overwriting newer state with older.
+    eventId: string;
+    eventCreatedAt: Date;
   }): Promise<void> {
     const subscription = await this.findByProviderCustomerId(input.providerCustomerId);
     if (!subscription) {
@@ -106,8 +115,17 @@ export class SubscriptionService {
       if (plan) planId = plan.id;
     }
 
-    await this.prisma.subscription.update({
-      where: { id: subscription.id },
+    // Atomic, single-statement ordering guard: the WHERE clause re-checks
+    // `lastWebhookEventAt` at write time (not just at the `findByProviderCustomerId`
+    // read above), so two webhook deliveries racing concurrently for the
+    // same subscription can't both "win" — Postgres serializes the two
+    // UPDATEs, and whichever one has the older `eventCreatedAt` will find
+    // `updatedCount === 0` and skip, even if it read the row first.
+    const { count: updatedCount } = await this.prisma.subscription.updateMany({
+      where: {
+        id: subscription.id,
+        OR: [{ lastWebhookEventAt: null }, { lastWebhookEventAt: { lte: input.eventCreatedAt } }],
+      },
       data: {
         planId,
         status: input.status,
@@ -116,8 +134,16 @@ export class SubscriptionService {
         currentPeriodStart: input.currentPeriodStart ?? subscription.currentPeriodStart,
         currentPeriodEnd: input.currentPeriodEnd ?? subscription.currentPeriodEnd,
         cancelAtPeriodEnd: input.cancelAtPeriodEnd,
+        lastWebhookEventId: input.eventId,
+        lastWebhookEventAt: input.eventCreatedAt,
       },
     });
+    if (updatedCount === 0) {
+      this.logger.warn(
+        `Stripe webhook event ${input.eventId} (created ${input.eventCreatedAt.toISOString()}) for subscription ${subscription.id} is older than or equal to the last-applied event — skipped to avoid overwriting newer state with stale data.`,
+      );
+      return;
+    }
     if (input.planTier) {
       await this.syncLegacyOrganizationFields(subscription.organizationId, input.status, input.planTier);
     } else {
