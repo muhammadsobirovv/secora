@@ -1,6 +1,6 @@
 {
   "name": "@pentesthub/agent-sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI Agent SDK for PentestHub AI — write an autonomous security agent that runs against any MCP-compatible PentestHub workspace.",
   "license": "UNLICENSED",
   "private": false,

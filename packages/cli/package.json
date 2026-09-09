@@ -1,6 +1,6 @@
 {
   "name": "@pentesthub/cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Official command-line interface for PentestHub AI — MCP tools, Agent SDK runs, Script Engine, and the AI automation platform dashboard.",
   "license": "UNLICENSED",
   "private": false,
