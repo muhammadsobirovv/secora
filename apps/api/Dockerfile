@@ -41,8 +41,11 @@ RUN pnpm --filter shared build
 # apps/api imports @pentesthub/agent-sdk (Module 13 AI Agent SDK) and
 # @pentesthub/sdk (packages/sdk-typescript) directly -- both must be
 # compiled to dist/ before tsc can resolve them, same as shared above.
-RUN pnpm --filter @pentesthub/agent-sdk build
+# @pentesthub/sdk MUST build first: agent-sdk/src/lifecycle.ts imports
+# from @pentesthub/sdk, so building agent-sdk first fails the same
+# "Cannot find module" error one level down.
 RUN pnpm --filter @pentesthub/sdk build
+RUN pnpm --filter @pentesthub/agent-sdk build
 # tsc's default V8 old-space ceiling (~2GB) is consistently too small for
 # this codebase's full-project compile (tsconfig.build.json), regardless
 # of the host's actual RAM/swap -- it OOMs at the same ~2038MB every time.
