@@ -28,6 +28,12 @@ const STAGE_CLASS: Record<BugBountyFindingStage, string> = {
   RESOLVED: "border-success/30 bg-success/10 text-success dark:text-success",
   CLOSED: "border-border text-muted-foreground",
   ARCHIVED: "border-border text-muted-foreground",
+  // Module 16 -- task #382 Finding Validation Workflow States (see
+  // BugBountyFindingStage's doc comment in packages/shared/src/bugbounty.ts).
+  FALSE_POSITIVE: "border-border bg-muted text-muted-foreground",
+  ACCEPTED_RISK: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
+  REMEDIATED: "border-success/30 bg-success/10 text-success dark:text-success",
+  REOPENED: "border-destructive/30 bg-destructive/10 text-destructive",
 };
 
 const STAGE_LABEL: Record<BugBountyFindingStage, string> = {
@@ -44,6 +50,10 @@ const STAGE_LABEL: Record<BugBountyFindingStage, string> = {
   RESOLVED: "Resolved",
   CLOSED: "Closed",
   ARCHIVED: "Archived",
+  FALSE_POSITIVE: "False positive",
+  ACCEPTED_RISK: "Accepted risk",
+  REMEDIATED: "Remediated",
+  REOPENED: "Reopened",
 };
 
 export function BugBountyFindingStageBadge({ stage, className }: { stage: BugBountyFindingStage; className?: string }) {

@@ -32,9 +32,10 @@ COPY . .
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter shared build
 # apps/api imports @pentesthub/agent-sdk and @pentesthub/sdk directly --
-# see apps/api/Dockerfile's matching comment.
-RUN pnpm --filter @pentesthub/agent-sdk build
+# see apps/api/Dockerfile's matching comment. @pentesthub/sdk must build
+# first: agent-sdk imports from it.
 RUN pnpm --filter @pentesthub/sdk build
+RUN pnpm --filter @pentesthub/agent-sdk build
 # See apps/api/Dockerfile for why this needs an explicit heap ceiling.
 RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 
