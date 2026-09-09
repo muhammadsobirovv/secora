@@ -101,14 +101,17 @@ a false positive than miss a real one.
 
 ## Supported versions
 
-PentestHub AI is pre-1.0 (currently `0.15.0`, see `CHANGELOG.md`) — there
-is no stable release line with a formal support window yet, and
-`RELEASE_CHANNEL` (stable/beta/nightly, task #356) is informational only,
-not yet a real support-tier distinction. Until 1.0: **only the latest
-commit on `main` is supported**. If you're running an older commit or a
-fork that has diverged, please reproduce against current `main` before
-reporting, since we can only meaningfully fix and verify against what's
-actually there today. Per-module release notes live in `docs/releases/`.
+PentestHub AI reached its first stable release at `1.0.0` (see
+`CHANGELOG.md`). `RELEASE_CHANNEL` (stable/beta/nightly, task #356)
+remains informational only, not a formal support-tier distinction.
+**Only the latest `1.x` release and the latest commit on `main` are
+supported** — there is no long-term-support line for `0.x` versions,
+since those predate the stability guarantees `1.0.0` establishes. If
+you're running an older commit, an older `0.x` release, or a fork that
+has diverged, please reproduce against current `main` or the latest
+`1.x` tag before reporting, since we can only meaningfully fix and
+verify against what's actually there today. Per-module release notes
+live in `docs/releases/`.
 
 ## Our own security posture, documented
 

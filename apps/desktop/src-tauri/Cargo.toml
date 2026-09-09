@@ -1,6 +1,6 @@
 [package]
 name = "pentesthub-desktop"
-version = "0.1.0"
+version = "1.0.0"
 description = "PentestHub AI Desktop Agent — local execution engine for recon, scanning, AI, RAG, voice, and reporting."
 authors = ["PentestHub AI"]
 edition = "2021"
