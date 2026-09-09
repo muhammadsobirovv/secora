@@ -77,10 +77,17 @@ echo
 prompt "Edition (community/enterprise)" "${EDITION}" EDITION
 prompt "Public domain/hostname this instance will be reached at" "${DOMAIN}" DOMAIN
 
+# Module 20 — Phase 10 (deployment drift fix). This used to prompt for
+# queue/storage/cache provider choices here, but nothing ever read the
+# answers: docker-compose.enterprise.yml hardcodes QUEUE_PROVIDER=redis,
+# CACHE_PROVIDER=redis, STORAGE_PROVIDER=s3 directly (not via an
+# `${VAR:-default}` substitution), so every enterprise install has always
+# gotten Redis+MinIO regardless of what was typed here. Removed the dead
+# prompts rather than leave a misleading question in the installer; if
+# per-install provider choice is wanted later, docker-compose.enterprise.yml
+# itself needs to read those as substitutable env vars first.
 if [[ "${EDITION}" == "enterprise" ]]; then
-  prompt "Queue provider (in-memory/redis)" "redis" QUEUE_PROVIDER
-  prompt "Storage provider (local/s3)" "s3" STORAGE_PROVIDER
-  prompt "Cache provider (memory/redis/disk)" "redis" CACHE_PROVIDER
+  log "Enterprise edition uses Redis (queue+cache) and MinIO (S3-compatible storage) — see docker-compose.enterprise.yml."
 fi
 
 if [[ -f .env ]]; then

@@ -55,3 +55,9 @@ data:
   # STORAGE_S3_REGION: "us-east-1"
   # STORAGE_S3_BUCKET: "pentesthub"
   # STORAGE_S3_FORCE_PATH_STYLE: "true"
+  # --- Module 15/20: Billing — "none" (default) is Community Edition:
+  # BillingService still creates a real Subscription row per
+  # organization, pinned to PlanTier.FREE, it just never calls out to a
+  # payment provider. Set to "stripe" and provide the STRIPE_* secrets
+  # (02-secret.yaml.example) to accept real payments. ---
+  BILLING_PROVIDER: "none" # or "stripe" / "manual"
