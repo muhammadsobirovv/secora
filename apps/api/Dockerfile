@@ -36,7 +36,11 @@ FROM deps AS build
 COPY . .
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter shared build
-RUN pnpm --filter api build
+# tsc's default V8 old-space ceiling (~2GB) is consistently too small for
+# this codebase's full-project compile (tsconfig.build.json), regardless
+# of the host's actual RAM/swap -- it OOMs at the same ~2038MB every time.
+# Raise the heap ceiling explicitly rather than relying on the default.
+RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 
 # ---- prod-deps: a second, production-only install (no devDependencies) ----
 FROM base AS prod-deps
