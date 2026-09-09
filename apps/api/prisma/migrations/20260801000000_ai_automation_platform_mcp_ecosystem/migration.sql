@@ -6,6 +6,103 @@
 -- existing values, and no code branches on "is this the full set of
 -- categories" in a way a new value could silently break.
 
+-- ---------------------------------------------------------------------------
+-- Retroactive fix (found 2026, first real `prisma migrate deploy` run
+-- against a live database): Module 10's Plugin Marketplace (task #182)
+-- schema — `PluginCategory`/`PluginStatus` enums and the
+-- `plugins`/`plugin_versions`/`plugin_installations`/`plugin_ratings`
+-- tables — was added to schema.prisma but a CREATE migration for it was
+-- never written. This migration's own `ALTER TYPE "PluginCategory"`
+-- below, and Module 15's later `ALTER TABLE "plugins" ADD COLUMN
+-- "publisherId"` / `ALTER TABLE "plugin_versions" ADD COLUMN
+-- "checksumSha256"/"reviewStatus"` (20261001000000), both silently
+-- assumed these already existed — every prior review of this migration
+-- was a manual read against schema.prisma, never an actual `migrate
+-- deploy`, so the gap went undetected until now. Added here, first,
+-- since this is the earliest migration that references `PluginCategory`.
+-- `publisherId`/`checksumSha256`/`reviewStatus` are deliberately NOT
+-- included below — they are added by the 20261001000000 migration that
+-- already expects to `ALTER TABLE ... ADD COLUMN` them.
+CREATE TYPE "PluginStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'DEPRECATED', 'SUSPENDED');
+CREATE TYPE "PluginCategory" AS ENUM ('RECON', 'SCANNERS', 'AI_TOOLS', 'REPORTING', 'INTEGRATIONS', 'DASHBOARDS', 'UTILITIES');
+
+CREATE TABLE "plugins" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" "PluginCategory" NOT NULL,
+    "description" TEXT NOT NULL,
+    "authorUserId" TEXT NOT NULL,
+    "status" "PluginStatus" NOT NULL DEFAULT 'DRAFT',
+    "iconUrl" TEXT,
+    "homepageUrl" TEXT,
+    "repoUrl" TEXT,
+    "documentationMarkdown" TEXT,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "downloadCount" INTEGER NOT NULL DEFAULT 0,
+    "ratingAverage" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "ratingCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "plugins_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "plugins_slug_key" ON "plugins"("slug");
+CREATE INDEX "plugins_category_status_idx" ON "plugins"("category", "status");
+ALTER TABLE "plugins" ADD CONSTRAINT "plugins_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "plugins" ADD CONSTRAINT "plugins_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE TABLE "plugin_versions" (
+    "id" TEXT NOT NULL,
+    "pluginId" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "manifestJson" JSONB NOT NULL,
+    "permissions" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    "dependencies" JSONB,
+    "signature" TEXT,
+    "sourceCode" TEXT,
+    "changelog" TEXT,
+    "deprecated" BOOLEAN NOT NULL DEFAULT false,
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "plugin_versions_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "plugin_versions_pluginId_version_key" ON "plugin_versions"("pluginId", "version");
+CREATE INDEX "plugin_versions_pluginId_publishedAt_idx" ON "plugin_versions"("pluginId", "publishedAt");
+ALTER TABLE "plugin_versions" ADD CONSTRAINT "plugin_versions_pluginId_fkey" FOREIGN KEY ("pluginId") REFERENCES "plugins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE TABLE "plugin_installations" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT,
+    "workspaceId" TEXT,
+    "pluginId" TEXT NOT NULL,
+    "versionId" TEXT NOT NULL,
+    "installedBy" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "config" JSONB,
+    "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "plugin_installations_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "plugin_installations_organizationId_workspaceId_pluginId_key" ON "plugin_installations"("organizationId", "workspaceId", "pluginId");
+ALTER TABLE "plugin_installations" ADD CONSTRAINT "plugin_installations_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "plugin_installations" ADD CONSTRAINT "plugin_installations_pluginId_fkey" FOREIGN KEY ("pluginId") REFERENCES "plugins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "plugin_installations" ADD CONSTRAINT "plugin_installations_versionId_fkey" FOREIGN KEY ("versionId") REFERENCES "plugin_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "plugin_installations" ADD CONSTRAINT "plugin_installations_installedBy_fkey" FOREIGN KEY ("installedBy") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE TABLE "plugin_ratings" (
+    "id" TEXT NOT NULL,
+    "pluginId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "review" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "plugin_ratings_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "plugin_ratings_pluginId_userId_key" ON "plugin_ratings"("pluginId", "userId");
+ALTER TABLE "plugin_ratings" ADD CONSTRAINT "plugin_ratings_pluginId_fkey" FOREIGN KEY ("pluginId") REFERENCES "plugins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "plugin_ratings" ADD CONSTRAINT "plugin_ratings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- ---------------------------------------------------------------------------
+
 -- AlterEnum: PluginCategory — Automation Marketplace pack types (task #287)
 ALTER TYPE "PluginCategory" ADD VALUE 'PROMPT_PACK';
 ALTER TYPE "PluginCategory" ADD VALUE 'WORKFLOW_PACK';
