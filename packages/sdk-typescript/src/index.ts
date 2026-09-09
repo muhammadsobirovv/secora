@@ -14,6 +14,7 @@ export { IncidentsResource } from './resources/incidents.resource.js';
 export { RemediationResource } from './resources/remediation.resource.js';
 export { RiskResource } from './resources/risk.resource.js';
 export { SlaResource } from './resources/sla.resource.js';
+export { ApiKeysResource } from './resources/api-keys.resource.js';
 export {
   McpClient,
   McpRpcCallError,

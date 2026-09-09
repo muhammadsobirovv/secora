@@ -3,8 +3,11 @@
 // (packages/sdk-typescript) and Python (sdks/python) SDKs: Auth,
 // Organizations, the Distributed Job System, the Plugin registry/
 // installations, Integrations, (Module 16) the Knowledge Graph query
-// layer and Extension API registry, and (Module 17, task #491) the
-// SOC/Assets/Threat-Intel/Incidents/Remediation/Risk/SLA surfaces.
+// layer and Extension API registry, (Module 17, task #491) the
+// SOC/Assets/Threat-Intel/Incidents/Remediation/Risk/SLA surfaces, and
+// (Module 20) API Keys (ApiKeysResource — live on the server since
+// Module 15 task #336 but never wrapped in this SDK until this parity
+// pass).
 //
 // It has zero third-party dependencies — built entirely on net/http and
 // encoding/json from the standard library — following the same
@@ -57,6 +60,7 @@ type Client struct {
 	Remediation     *RemediationResource
 	Risk            *RiskResource
 	Sla             *SlaResource
+	ApiKeys         *ApiKeysResource
 }
 
 // New constructs a Client from Options.
@@ -85,6 +89,7 @@ func New(opts Options) *Client {
 		Remediation:     &RemediationResource{http: httpClient},
 		Risk:            &RiskResource{http: httpClient},
 		Sla:             &SlaResource{http: httpClient},
+		ApiKeys:         &ApiKeysResource{http: httpClient},
 	}
 }
 

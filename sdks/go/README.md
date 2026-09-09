@@ -80,21 +80,24 @@ client := pentesthub.New(pentesthub.Options{
 
 Auth, Organizations, the Distributed Job System, the Plugin registry/
 installations, Integrations, (Module 16) the Knowledge Graph query layer
-and Extension API registry, and (Module 17) SOC/Assets/Threat-Intel/
-Incidents/Remediation/Risk/SLA — the same v1 subset the TypeScript and
-Python SDKs cover (`client.go`'s `Client` struct lists all fourteen
-resources). OAuth redirect flows, the worker-facing job claim/complete/
-fail routes, and the five incident `link-*` mutations are intentionally
-not wrapped (see doc comments in `distributed_jobs.go`, `integrations.go`,
-and `incidents.go`). This is a deliberately scoped subset of the full
-REST API — Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and
-Billing are out of scope for all three official SDKs today, not a
-Go-specific gap.
+and Extension API registry, (Module 17) SOC/Assets/Threat-Intel/
+Incidents/Remediation/Risk/SLA, and (Module 20) API Keys — the same v1
+subset the TypeScript and Python SDKs cover (`client.go`'s `Client`
+struct lists all fifteen resources). OAuth redirect flows, the
+worker-facing job claim/complete/fail routes, and the five incident
+`link-*` mutations are intentionally not wrapped (see doc comments in
+`distributed_jobs.go`, `integrations.go`, and `incidents.go`). This is a
+deliberately scoped subset of the full REST API — Recon, Vulnerability
+Scanning, Bug Bounty, AI Chat, and Billing are out of scope for all three
+official SDKs today, not a Go-specific gap.
 
 *Note: this README previously described the pre-Module-16 scope (5
 resources) even though `client.go` already had all 14 wired — updated
 during the post-Module-18 SDK reconciliation checkpoint to match the
-actual code.*
+actual code. A Module 20 audit then found `ApiKeysController`
+(`/public-api/keys/*`, live since Module 15 task #336) had never been
+wrapped in any SDK or the CLI — a real, confirmed parity gap, now closed
+by `api_keys.go` and this updated scope line (now 15 resources).*
 
 ## Testing
 

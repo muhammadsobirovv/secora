@@ -45,12 +45,13 @@ client = PentestHubClient(base_url="https://api.your-company.com", api_key=os.en
 
 Auth, Organizations, the Distributed Job System, the Plugin registry/
 installations, Integrations, (Module 16) the Knowledge Graph query layer
-and Extension API registry, and (Module 17) SOC/Assets/Threat-Intel/
-Incidents/Remediation/Risk/SLA — the same v1 subset the TypeScript and Go
-SDKs cover (`client.py`'s `PentestHubClient` wires all fourteen
-resources). This is a deliberately scoped subset of the full REST API —
-Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and Billing are out
-of scope for all three official SDKs today, not a Python-specific gap.
+and Extension API registry, (Module 17) SOC/Assets/Threat-Intel/
+Incidents/Remediation/Risk/SLA, and (Module 20) API Keys — the same v1
+subset the TypeScript and Go SDKs cover (`client.py`'s `PentestHubClient`
+wires all fifteen resources). This is a deliberately scoped subset of the
+full REST API — Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and
+Billing are out of scope for all three official SDKs today, not a
+Python-specific gap.
 
 *Note: this README previously described the pre-Module-16 scope (5
 resources) even though `client.py` already had all 14 wired — updated
@@ -59,7 +60,11 @@ actual code. A prior Module 18 audit pass also incorrectly reported this
 SDK as not existing in the repository at all (it checked
 `packages/sdk-python` and did not search for the actual location,
 `sdks/python`, established since Modules 7-10) — see
-`docs/reviews/0021-post-m18-sdk-reconciliation.md`.*
+`docs/reviews/0021-post-m18-sdk-reconciliation.md`. A Module 20 audit then
+found `ApiKeysController` (`/public-api/keys/*`, live since Module 15
+task #336) had never been wrapped in any SDK or the CLI — a real,
+confirmed parity gap, now closed by `resources/api_keys.py` and this
+updated scope line (now 15 resources).*
 
 ## Testing
 
