@@ -55,6 +55,17 @@ export async function resolveCollaborationEntityWorkspace(
       if (!row) throw entityNotFound();
       return row.workspaceId;
     }
+    // Module 17 -- Incident Management (task #470): incidents reuse this
+    // same Watcher/Reaction/Comment collaboration layer -- see
+    // CollaborationEntityType's doc comment in packages/shared.
+    case 'INCIDENT': {
+      const row = await prisma.incident.findUnique({
+        where: { id: entityId },
+        select: { workspaceId: true },
+      });
+      if (!row) throw entityNotFound();
+      return row.workspaceId;
+    }
     default: {
       const exhaustive: never = entityType;
       throw entityNotFound(exhaustive);

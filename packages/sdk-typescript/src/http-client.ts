@@ -17,6 +17,15 @@ export class PentestHubApiError extends Error {
   }
 }
 
+/// Result of a single `attempt()` call: either a successful parsed
+/// response (`result`), or a retryable failure (429/5xx) carrying enough
+/// detail for the caller's retry loop to back off and report a final
+/// error if retries are exhausted. Never declared before Module 18 task
+/// #526's refactor split this out of `request()` — restored here.
+type AttemptOutcome<T> =
+  | { result: T; retryableStatus?: undefined }
+  | { result?: undefined; retryableStatus: number; retryAfterMs?: number; retryableBody?: Partial<AppErrorResponseDto> };
+
 export interface HttpClientOptions {
   /// Base URL of a PentestHub AI API deployment, e.g.
   /// `https://api.your-company.com` (no trailing slash, no `/api`

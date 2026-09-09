@@ -6,9 +6,11 @@ import {
 } from '@nestjs/cqrs';
 import { HttpStatus, Inject } from '@nestjs/common';
 import type {
+  BugBountyPlatform,
   CreateSubmissionRequestDto,
   SubmissionDto,
   UpdateSubmissionStatusRequestDto,
+  VulnFindingSeverity,
 } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import {
@@ -90,8 +92,12 @@ export class CreateSubmissionHandler implements ICommandHandler<
       findingId: finding.id,
       bugReportId: command.data.bugReportId ?? null,
       title: command.data.title,
-      severity: command.data.severity,
-      platform: command.data.platform,
+      // DTO-level @IsIn(...) already validates these against the exact
+      // enum member lists (see submission.dto.ts) -- narrowing the plain
+      // string here mirrors the established `tool as ReconTool` pattern
+      // in ai-investigation.service.ts.
+      severity: command.data.severity as VulnFindingSeverity,
+      platform: command.data.platform as BugBountyPlatform,
       externalId: command.data.externalId ?? null,
       externalUrl: command.data.externalUrl ?? null,
       notes: command.data.notes ?? null,

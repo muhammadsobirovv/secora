@@ -15,7 +15,7 @@ import type {
   ResourcePermissionDto,
   TemporaryPermissionDto,
 } from '@pentesthub/shared';
-import type { AuditEventType } from '../../../prisma-types.js';
+import type { AuditEventType, Prisma } from '../../../prisma-types.js';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { resolveOrganizationMembership } from '../organization-membership.util.js';
@@ -126,7 +126,7 @@ export class CreateResourcePermissionHandler
         resourceId: command.data.resourceId,
         action: command.data.action,
         effect: command.data.effect,
-        conditions: command.data.conditions,
+        conditions: command.data.conditions as Prisma.InputJsonValue | undefined,
       },
     });
     return toResourcePermissionDto(created);

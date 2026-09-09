@@ -1,4 +1,5 @@
-import type { Submission, RewardLedgerEntry } from '../../../../prisma-types.js';
+import type { Submission, RewardLedgerEntry, SubmissionStatus } from '../../../../prisma-types.js';
+import type { BugBountyPlatform, VulnFindingSeverity } from '@pentesthub/shared';
 
 /// Module 16 — Bug Bounty Submissions + Rewards (task #385). Mirrors the
 /// shape/conventions of BugBountyFindingsRepository — see that file's doc
@@ -16,8 +17,8 @@ export interface CreateSubmissionInput {
   findingId: string;
   bugReportId?: string | null;
   title: string;
-  severity: string;
-  platform: string;
+  severity: VulnFindingSeverity;
+  platform: BugBountyPlatform;
   externalId?: string | null;
   externalUrl?: string | null;
   notes?: string | null;
@@ -25,7 +26,7 @@ export interface CreateSubmissionInput {
 }
 
 export interface UpdateSubmissionStatusInput {
-  status: string;
+  status: SubmissionStatus;
   submittedAt?: Date | null;
   responseAt?: Date | null;
   reward?: number | null;
@@ -37,7 +38,7 @@ export interface ListSubmissionsFilter {
   workspaceId: string;
   programId?: string;
   findingId?: string;
-  status?: string;
+  status?: SubmissionStatus;
   limit?: number;
 }
 

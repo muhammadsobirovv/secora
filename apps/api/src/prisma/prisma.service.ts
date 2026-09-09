@@ -14,7 +14,10 @@ const slowQueryLogger = new Logger('SlowQuery');
 
 @Injectable()
 export class PrismaService
-  extends PrismaClient<'query'>
+  extends PrismaClient<{
+    adapter: PrismaPg;
+    log: [{ emit: 'event'; level: 'query' }];
+  }>
   implements OnModuleInit, OnModuleDestroy
 {
   /// Module 14 — Database / Read Replica Support. `undefined` until

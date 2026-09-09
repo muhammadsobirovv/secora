@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { AppException } from '../../exceptions/app.exception.js';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import type { EnqueueOptions, QueueDepthEntry, QueueJobPriority, QueueService } from './queue-service.interface.js';

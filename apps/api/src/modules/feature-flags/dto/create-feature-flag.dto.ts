@@ -21,7 +21,7 @@ export class CreateFeatureFlagDto implements CreateFeatureFlagRequestDto {
   @IsBoolean()
   defaultEnabled?: boolean;
 
-  @ApiPropertyOptional({ type: 'object' })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   editionRules?: FeatureFlagEditionRules;

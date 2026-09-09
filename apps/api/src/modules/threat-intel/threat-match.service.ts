@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { AssetGraphNodeType, ThreatMatchAnalystStatus, ThreatMatchDto } from '@pentesthub/shared';
-import type { AuditEventType } from '../../prisma-types.js';
+import type { AuditEventType, Prisma } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { IndicatorMatchedEvent } from './events/indicator-matched.event.js';
@@ -190,7 +190,7 @@ export class ThreatMatchService {
 
   private async audit(userId: string, type: AuditEventType, metadata: Record<string, unknown>): Promise<void> {
     await this.prisma.auditEvent.create({
-      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata: metadata as Prisma.InputJsonValue },
     });
   }
 

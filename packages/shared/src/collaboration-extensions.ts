@@ -2,7 +2,10 @@
 // Public Sharing (task #392). Extends Module 9's existing Comment/
 // Mention/Assignment layer rather than replacing it.
 
-export type CollaborationEntityType = "BUGBOUNTY_FINDING" | "BUG_REPORT" | "COMMENT" | "RESEARCH_SESSION";
+// Module 17 -- Incident Management (task #470): incidents reuse the
+// existing Watcher/Reaction/Comment collaboration layer instead of a
+// parallel incident-comments mechanism.
+export type CollaborationEntityType = "BUGBOUNTY_FINDING" | "BUG_REPORT" | "COMMENT" | "RESEARCH_SESSION" | "INCIDENT";
 
 export interface WatcherDto {
   id: string;

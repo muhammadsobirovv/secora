@@ -23,7 +23,7 @@ export interface VerifyPluginSignatureResult {
 export function verifyPluginSignature(
   sourceBundleBase64: string,
   signature: string | undefined,
-  publicKeyPem: string | undefined,
+  publicKeyPem: string | null | undefined,
 ): VerifyPluginSignatureResult {
   if (!signature) {
     return { attempted: false, valid: false };

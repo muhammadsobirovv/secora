@@ -10,7 +10,7 @@ import type {
   IncidentTimelineEventDto,
   IncidentTimelineEventType,
 } from '@pentesthub/shared';
-import type { AuditEventType } from '../../prisma-types.js';
+import type { AuditEventType, Prisma } from '../../prisma-types.js';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SlaService } from '../sla/sla.service.js';
@@ -178,7 +178,7 @@ export class IncidentsService {
     metadata: Record<string, unknown>,
   ): Promise<void> {
     await this.prisma.auditEvent.create({
-      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata },
+      data: { userId, type, ipAddress: '0.0.0.0', userAgent: 'api', metadata: metadata as Prisma.InputJsonValue },
     });
   }
 

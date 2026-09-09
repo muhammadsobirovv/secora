@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../generated/prisma/client.js";
+import { Prisma, PrismaClient } from "../generated/prisma/client.js";
 import { DEFAULT_PLAN_SEEDS } from "@pentesthub/shared";
 
 /// Module 15 — Monetization (task #331/#332). Populates the `Plan` table
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
         priceMonthlyCents: seed.priceMonthlyCents,
         priceYearlyCents: seed.priceYearlyCents,
         currency: seed.currency,
-        limits: seed.limits,
+        limits: seed.limits as Prisma.InputJsonValue,
         features: seed.features,
         isActive: seed.isActive,
       },
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
         priceMonthlyCents: seed.priceMonthlyCents,
         priceYearlyCents: seed.priceYearlyCents,
         currency: seed.currency,
-        limits: seed.limits,
+        limits: seed.limits as Prisma.InputJsonValue,
         features: seed.features,
         isActive: seed.isActive,
       },

@@ -1635,6 +1635,18 @@ enum AuditEventType {
   AUTOMATION_RULE_CREATED
   AUTOMATION_RULE_EXECUTED
   AUTOMATION_RULE_BLOCKED
+  // Module 17 -- hardening pass: three previously-unused audit actions
+  // that had dedicated call sites written for them (AI Investigation
+  // completion, finding verification, remediation evidence linking) but
+  // no enum value to write -- each is a distinct action from its nearest
+  // existing neighbor (AI_INVESTIGATION_STEP_EXECUTED is per-step, not
+  // per-run completion; FINDING_VERIFICATION_STATUS_CHANGED covers the
+  // review-status field generally, this is specifically the verify
+  // action; REMEDIATION_TASK_STATUS_CHANGED doesn't cover evidence
+  // attachment).
+  AI_INVESTIGATION_EXECUTED
+  FINDING_VERIFIED
+  REMEDIATION_EVIDENCE_LINKED
 }
 
 // ---------------------------------------------------------------------------

@@ -106,6 +106,16 @@ export class ThreatIntelProviderService {
         HttpStatus.NOT_IMPLEMENTED,
       );
     }
+    if (provider === 'stix_taxii') {
+      // STIX/TAXII ingestion is a pull-based collection poll with its own
+      // shape (server root + collection id, STIX bundle parsing) -- it
+      // goes through StixTaxiiService, not this bulk-JSON-feed path.
+      throw new AppException(
+        'THREAT_INTEL_PROVIDER_NOT_CONFIGURED',
+        'THREAT_INTEL_PROVIDER=stix_taxii is polled via the dedicated STIX/TAXII import endpoint, not this refresh path.',
+        HttpStatus.NOT_IMPLEMENTED,
+      );
+    }
 
     const log = await this.logRepo.create({
       data: { workspaceId: null, sourceType: provider.toUpperCase(), status: 'FAILED', importedCount: 0, rejectedCount: 0 },

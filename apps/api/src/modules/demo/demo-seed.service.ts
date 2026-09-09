@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Prisma } from '../../prisma-types.js';
 
 /// Module 15 — task #352 (demo mode). Populates a freshly created demo
 /// workspace with realistic-looking, already-completed sample data —
@@ -97,7 +98,7 @@ export class DemoSeedService {
           targetId: webTarget.id,
           type: finding.type as never,
           value: finding.value,
-          data: finding.data,
+          data: finding.data as Prisma.InputJsonValue,
           source: finding.source as never,
           dedupKey: `demo-${finding.type}-${finding.value}`,
         },

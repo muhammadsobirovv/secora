@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import type {
   AgentSdkManifest,
@@ -34,7 +34,7 @@ export class RegisterAgentSdkDefinitionDto implements RegisterShape {
   @MaxLength(2000)
   description!: string;
 
-  @ApiProperty({ type: 'object' })
+  @ApiProperty({ type: 'object', additionalProperties: true })
   @IsObject()
   manifest!: AgentSdkManifest;
 
@@ -62,7 +62,7 @@ export class StartAgentSdkRunDto implements StartRunShape {
   @IsString()
   projectId?: string;
 
-  @ApiProperty({ required: false, type: 'object' })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   input?: Record<string, unknown>;

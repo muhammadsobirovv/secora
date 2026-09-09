@@ -337,4 +337,10 @@ export type AppErrorCode =
   // Module 17 — Defensive Security Playbooks (task #473).
   | "INCIDENT_PLAYBOOK_NO_LINKED_ASSET"
   // Module 17 — Security Reporting extensions / Report Builder (task #481).
-  | "SECURITY_REPORT_NOT_FOUND";
+  | "SECURITY_REPORT_NOT_FOUND"
+  // BYOK AI provider credentials (Phase 1) -- thrown by upsert/delete when
+  // the caller names a provider outside the AiProvider registry.
+  | "INVALID_AI_PROVIDER"
+  // Module 16 -- Extension API registry hardening pass: invoke-endpoint
+  // input size guard.
+  | "EXTENSION_INVOKE_INPUT_TOO_LARGE";

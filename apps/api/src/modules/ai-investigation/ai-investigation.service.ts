@@ -469,7 +469,7 @@ export class AiInvestigationService {
         const tool = this.validateTool(step.toolName, VALID_RECON_TOOLS, targetType, TOOL_TARGET_TYPE_COMPATIBILITY);
         await this.globalSecurityPolicy.assertToolAllowed(workspaceId, tool, targetType ?? 'DOMAIN');
         const job = (await this.commandBus.execute(
-          new CreateReconJobCommand(session.createdBy, session.targetId, { tools: [tool] }),
+          new CreateReconJobCommand(session.createdBy, session.targetId, { tools: [tool as ReconTool] }),
         )) as ReconJobDto;
         return { jobId: job.id, status: job.status, tools: job.tools };
       }
@@ -477,7 +477,7 @@ export class AiInvestigationService {
         const scanner = this.validateTool(step.toolName, VALID_VULN_SCANNERS, targetType, SCANNER_TARGET_TYPE_COMPATIBILITY);
         await this.globalSecurityPolicy.assertToolAllowed(workspaceId, scanner, targetType ?? 'URL');
         const job = (await this.commandBus.execute(
-          new CreateVulnScanJobCommand(session.createdBy, session.targetId, { scanners: [scanner] }),
+          new CreateVulnScanJobCommand(session.createdBy, session.targetId, { scanners: [scanner as VulnScanner] }),
         )) as VulnScanJobDto;
         return { jobId: job.id, status: job.status, scanners: job.scanners };
       }

@@ -10,7 +10,10 @@ export type TargetType =
   | "MOBILE_APP"
   | "INTERNAL_ASSET";
 
-export type TargetEnvironment = "PRODUCTION" | "STAGING" | "DEVELOPMENT" | "UNKNOWN";
+// Module 17 -- Security Asset Ownership (task #3) adds a dedicated TEST
+// value distinct from DEVELOPMENT; additive, no existing value's meaning
+// changes -- see prisma/schema.prisma's TargetEnvironment enum comment.
+export type TargetEnvironment = "PRODUCTION" | "STAGING" | "DEVELOPMENT" | "TEST" | "UNKNOWN";
 export type TargetScopeStatus = "IN_SCOPE" | "OUT_OF_SCOPE" | "PENDING_REVIEW";
 
 export interface TargetDto {

@@ -11,8 +11,8 @@ import {
 import type {
   BugReport,
   BugReportStatus,
-  Prisma,
 } from '../../../../../prisma-types.js';
+import { Prisma } from '../../../../../prisma-types.js';
 
 const ALL_STATUSES: BugReportStatus[] = [
   'DRAFT',
@@ -171,7 +171,7 @@ export class PrismaBugReportsRepository implements BugReportsRepository {
               technicalReview:
                 input.technicalReview === null
                   ? Prisma.JsonNull
-                  : (input.technicalReview as Prisma.InputJsonValue),
+                  : (input.technicalReview as unknown as Prisma.InputJsonValue),
             }
           : {}),
       },

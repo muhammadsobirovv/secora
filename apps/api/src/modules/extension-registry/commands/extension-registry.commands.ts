@@ -1,6 +1,6 @@
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { HttpStatus } from '@nestjs/common';
-import type { AuditEventType } from '../../../prisma-types.js';
+import type { AuditEventType, Prisma } from '../../../prisma-types.js';
 import type { ExtensionDto, ExtensionInvocationResultDto, InvokeExtensionRequestDto, RegisterExtensionRequestDto } from '@pentesthub/shared';
 import { AppException } from '../../../common/exceptions/app.exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -92,7 +92,7 @@ export class RegisterExtensionHandler implements ICommandHandler<RegisterExtensi
         permissions: command.data.permissions,
         capabilities: command.data.capabilities,
         entrypoint: command.data.entrypoint,
-        metadata: command.data.metadata ?? undefined,
+        metadata: (command.data.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
         registeredBy: command.userId,
         enabled: true,
       },

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import type { DistributedJobDto, JobEventDto } from '@pentesthub/shared';
+import type { DistributedJobDto, JobEventDto, QueueMetricsDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import { EnqueueDistributedJobDto, ListDistributedJobsQueryParamsDto } from '../dto/distributed-jobs.dto.js';
@@ -11,7 +11,6 @@ import {
   GetQueueMetricsQuery,
   ListDistributedJobsQuery,
   ListJobEventsQuery,
-  type QueueMetricsDto,
 } from '../queries/distributed-jobs.query.js';
 
 /// Human/org-facing distributed-queue surface — enqueue work, watch its
