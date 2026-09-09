@@ -1,0 +1,44 @@
+Copyright (c) 2026 PentestHub AI
+
+All rights reserved.
+
+This repository and its contents (including, without limitation, all
+source code, documentation, and assets in `apps/`, `packages/`, `sdks/`,
+`extensions/`, and `docs/`, except where a specific file, directory, or
+package explicitly states otherwise) are proprietary and confidential.
+No license, express or implied, to use, copy, modify, merge, publish,
+distribute, sublicense, or sell copies of this software is granted,
+except under a separate written agreement with the copyright holder.
+
+This file formalizes, as a single root-level notice, what every
+package's own `package.json` already declares individually via
+`"license": "UNLICENSED"` — this has been the project's consistent,
+deliberate default since its first module. This file does not change
+that policy; it makes it discoverable without having to check every
+`package.json`.
+
+## Exception
+
+`packages/typescript-config` is licensed under the MIT License (see its
+own `package.json`). It is trivial, non-proprietary `tsconfig.json`
+boilerplate with no product logic, and licensing it permissively costs
+nothing while simplifying reuse. This is the one intentional exception
+to the default above, not an inconsistency to be "fixed."
+
+## Third-party software
+
+This project depends on numerous third-party open-source packages, each
+under its own license (MIT, Apache-2.0, BSD, ISC, and others as declared
+by each dependency). Using this software does not grant any rights to
+those dependencies beyond what their own licenses already provide. See
+`docs/security/supply-chain.md` for how third-party dependencies are
+tracked, scanned, and updated.
+
+---
+
+Choosing whether to eventually open-source part or all of this project
+under a specific OSS license (MIT, Apache-2.0, AGPL, or otherwise) is a
+business decision for the project's owners to make deliberately, not one
+made unilaterally by adding this file. This file only formalizes the
+proprietary default that was already implied and consistently applied
+across every package before it existed.
