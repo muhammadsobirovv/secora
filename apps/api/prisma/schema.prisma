@@ -5117,6 +5117,18 @@ model Subscription {
   currentPeriodEnd       DateTime?
   cancelAtPeriodEnd      Boolean             @default(false)
   trialEndsAt            DateTime?
+  /// Module 20 — webhook event-ordering fix. The provider event ID and
+  /// the provider's own `created` timestamp of the last
+  /// `customer.subscription.*` webhook event actually applied to this
+  /// row. `applyStripeWebhookUpdate()` compares an incoming event's
+  /// timestamp against this before writing — an out-of-order redelivery
+  /// of an older event (e.g. a stale `past_due` arriving after a newer
+  /// `active` was already applied) is detected and skipped instead of
+  /// silently overwriting newer state with older. `null` for a
+  /// subscription that has never received a webhook yet (created via
+  /// checkout/manual flow only).
+  lastWebhookEventId     String?
+  lastWebhookEventAt     DateTime?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
 

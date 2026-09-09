@@ -20,6 +20,11 @@ const TOLERANCE_SECONDS = 5 * 60;
 interface StripeEventEnvelope {
   id: string;
   type: string;
+  /// Unix seconds — Stripe stamps every event with the time it was
+  /// generated. Module 20 — Phase 7: threaded through to
+  /// `SubscriptionService.applyStripeWebhookUpdate()` as the ordering key
+  /// (see that method's doc comment).
+  created: number;
   data: { object: Record<string, unknown> };
 }
 
@@ -155,11 +160,11 @@ export class StripeWebhookController {
 
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        await this.applySubscriptionObject(event.data.object);
+        await this.applySubscriptionObject(event.data.object, event.id, event.created);
         return;
 
       case 'customer.subscription.deleted':
-        await this.applySubscriptionObject(event.data.object, 'CANCELED');
+        await this.applySubscriptionObject(event.data.object, event.id, event.created, 'CANCELED');
         return;
 
       case 'invoice.paid':
@@ -172,7 +177,12 @@ export class StripeWebhookController {
     }
   }
 
-  private async applySubscriptionObject(subscriptionObject: Record<string, unknown>, forcedStatus?: SubscriptionStatus): Promise<void> {
+  private async applySubscriptionObject(
+    subscriptionObject: Record<string, unknown>,
+    eventId: string,
+    eventCreatedAtSeconds: number,
+    forcedStatus?: SubscriptionStatus,
+  ): Promise<void> {
     const providerCustomerId = typeof subscriptionObject.customer === 'string' ? subscriptionObject.customer : null;
     const providerSubscriptionId = typeof subscriptionObject.id === 'string' ? subscriptionObject.id : null;
     if (!providerCustomerId || !providerSubscriptionId) {
@@ -206,6 +216,8 @@ export class StripeWebhookController {
       currentPeriodEnd,
       cancelAtPeriodEnd,
       planTier,
+      eventId,
+      eventCreatedAt: new Date(eventCreatedAtSeconds * 1000),
     });
   }
 

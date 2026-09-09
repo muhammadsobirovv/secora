@@ -52,7 +52,7 @@ describe('StripeWebhookController.receive', () => {
 
   it('rejects a correctly-signed request whose timestamp is outside the 5-minute tolerance (replay defense)', async () => {
     const { controller } = buildController({});
-    const body = { id: 'evt_1', type: 'ping', data: { object: {} } };
+    const body = { id: 'evt_1', type: 'ping', created: Math.floor(Date.now() / 1000), data: { object: {} } };
     const raw = Buffer.from(JSON.stringify(body), 'utf8');
     const oldTimestamp = Math.floor(Date.now() / 1000) - 10 * 60; // 10 minutes ago
     const signature = sign(raw.toString('utf8'), oldTimestamp);
@@ -65,9 +65,11 @@ describe('StripeWebhookController.receive', () => {
   it('accepts a validly-signed customer.subscription.updated event and calls applyStripeWebhookUpdate', async () => {
     const applyStripeWebhookUpdate = jest.fn(async () => undefined);
     const { controller } = buildController({ applyStripeWebhookUpdate });
+    const eventCreated = Math.floor(Date.now() / 1000);
     const body = {
       id: 'evt_1',
       type: 'customer.subscription.updated',
+      created: eventCreated,
       data: {
         object: {
           id: 'sub_123',
@@ -88,14 +90,25 @@ describe('StripeWebhookController.receive', () => {
     await controller.receive(req, `t=${timestamp},v1=${signature}`);
 
     expect(applyStripeWebhookUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ providerCustomerId: 'cus_123', providerSubscriptionId: 'sub_123', status: 'ACTIVE' }),
+      expect.objectContaining({
+        providerCustomerId: 'cus_123',
+        providerSubscriptionId: 'sub_123',
+        status: 'ACTIVE',
+        eventId: 'evt_1',
+        eventCreatedAt: new Date(eventCreated * 1000),
+      }),
     );
   });
 
   it('is a no-op for checkout.session.completed (awaits the follow-up subscription event instead)', async () => {
     const applyStripeWebhookUpdate = jest.fn(async () => undefined);
     const { controller } = buildController({ applyStripeWebhookUpdate });
-    const body = { id: 'evt_1', type: 'checkout.session.completed', data: { object: { customer: 'cus_123', subscription: 'sub_123' } } };
+    const body = {
+      id: 'evt_1',
+      type: 'checkout.session.completed',
+      created: Math.floor(Date.now() / 1000),
+      data: { object: { customer: 'cus_123', subscription: 'sub_123' } },
+    };
     const raw = Buffer.from(JSON.stringify(body), 'utf8');
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = sign(raw.toString('utf8'), timestamp);
