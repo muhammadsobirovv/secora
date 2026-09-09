@@ -11,7 +11,8 @@ export const targetTypeValues = [
   "INTERNAL_ASSET",
 ] as const;
 
-export const targetEnvironmentValues = ["PRODUCTION", "STAGING", "DEVELOPMENT", "UNKNOWN"] as const;
+// TEST -- Module 17 addition to TargetEnvironment (see packages/shared/src/targets.ts).
+export const targetEnvironmentValues = ["PRODUCTION", "STAGING", "DEVELOPMENT", "TEST", "UNKNOWN"] as const;
 export const targetScopeStatusValues = ["IN_SCOPE", "OUT_OF_SCOPE", "PENDING_REVIEW"] as const;
 
 export const targetFormSchema = z.object({
