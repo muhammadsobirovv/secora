@@ -30,7 +30,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:db:push": "prisma db push --skip-generate",
     "prisma:migrate:validate": "node scripts/validate-migrations.mjs",
-    "seed:plans": "tsx prisma/seed-plans.ts"
+    "seed:plans": "tsx prisma/seed-plans.ts",
+    "admin:grant-role": "tsx scripts/grant-admin-role.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.12.0",
