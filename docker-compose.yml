@@ -65,6 +65,23 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      # Module 5/11 — AI Assistant. All optional (see env.validation.ts's
+      # doc comment on AI_DEFAULT_PROVIDER) — none of these being set was
+      # silently leaving every provider unconfigured in this deployment
+      # even after being added to .env, because this file never forwarded
+      # them into the container's actual environment (same class of gap
+      # CORS_ADDITIONAL_ORIGINS had before it was added here).
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-ANTHROPIC}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o}
+      AI_ANTHROPIC_API_KEY: ${AI_ANTHROPIC_API_KEY:-}
+      AI_ANTHROPIC_MODEL: ${AI_ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      AI_GEMINI_API_KEY: ${AI_GEMINI_API_KEY:-}
+      AI_GEMINI_MODEL: ${AI_GEMINI_MODEL:-gemini-2.0-flash}
+      AI_OLLAMA_BASE_URL: ${AI_OLLAMA_BASE_URL:-}
+      AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-llama3.1}
+      AI_OPENROUTER_API_KEY: ${AI_OPENROUTER_API_KEY:-}
+      AI_OPENROUTER_MODEL: ${AI_OPENROUTER_MODEL:-anthropic/claude-sonnet-4.5}
       # Module 20 — Phase 10 (deployment drift fix). Optional Stripe
       # billing (Module 15) — BILLING_PROVIDER defaults to `none`
       # (Community Edition: real Subscription rows, no payment provider
@@ -96,6 +113,20 @@ services:
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY must be set (32+ chars)}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Must match the `api` service's AI config exactly — worker's
+      # AiChatService/AiCoreModule resolve the same AiProviderRegistryService
+      # (autonomous recon/vuln analysis, Module 11) and need the same keys.
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-ANTHROPIC}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o}
+      AI_ANTHROPIC_API_KEY: ${AI_ANTHROPIC_API_KEY:-}
+      AI_ANTHROPIC_MODEL: ${AI_ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      AI_GEMINI_API_KEY: ${AI_GEMINI_API_KEY:-}
+      AI_GEMINI_MODEL: ${AI_GEMINI_MODEL:-gemini-2.0-flash}
+      AI_OLLAMA_BASE_URL: ${AI_OLLAMA_BASE_URL:-}
+      AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-llama3.1}
+      AI_OPENROUTER_API_KEY: ${AI_OPENROUTER_API_KEY:-}
+      AI_OPENROUTER_MODEL: ${AI_OPENROUTER_MODEL:-anthropic/claude-sonnet-4.5}
       # Module 20 — Phase 10. Must match the `api` service's billing
       # config exactly — BillingCoreModule's PAYMENT_PROVIDER factory
       # (keyed off BILLING_PROVIDER) runs in the worker process too (it's
