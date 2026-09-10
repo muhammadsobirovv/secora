@@ -14,7 +14,7 @@
 # compiled dist/ output, generated Prisma client, and production
 # node_modules — the TypeScript source, dev dependencies, and build
 # tooling never reach the final image.
-FROM node:22-bookworm-slim AS base
+FROM node:26-bookworm-slim AS base
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /workspace
 
@@ -62,7 +62,7 @@ COPY packages/sdk-typescript/package.json packages/sdk-typescript/package.json
 RUN pnpm install --prod --frozen-lockfile --filter api...
 
 # ---- runtime: the actual production image ----
-FROM node:22-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 ENV NODE_ENV=production
 # Non-root — this container never needs root, and running as one is an
 # avoidable privilege-escalation surface if the process is ever
