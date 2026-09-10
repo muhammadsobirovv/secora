@@ -8,6 +8,37 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { version: appVersion } = require("./package.json");
 
+// Module 18 — task #523, corrected post-launch. The original CSP here
+// shipped `script-src 'self'` with no `'unsafe-inline'`/nonce, on the
+// (wrong, in production) assumption that the App Router's hydration
+// payload is inert JSON and that this codebase has no inline <script>
+// usage. Next 16's Turbopack/RSC runtime injects genuine executable
+// <script> tags of its own (the `self.__next_f.push(...)` streaming
+// chunks) regardless of anything this app's own code does, and a
+// strict `script-src 'self'` blocks those — confirmed in production via
+// browser console ("Executing inline script violates ... script-src
+// 'self'" on every page, rendering the whole app blank).
+//
+// A nonce-based CSP (proxy.ts minting a fresh nonce per request) was
+// tried first, since it's the stricter option, but Next's own docs are
+// explicit that per-request nonces only work on *dynamically rendered*
+// pages (https://nextjs.org/docs/app/guides/content-security-policy,
+// "How nonces work in Next.js" / "Static vs Dynamic Rendering with
+// CSP") — this app's pages are statically prerendered at build time (no
+// per-page `connection()`/dynamic opt-in anywhere), so their <script>
+// tags are baked in before any request (and any nonce) exists, and can
+// never match a nonce minted later at request time. Forcing every page
+// in the app to dynamic rendering just to support nonces (killing
+// static optimization/CDN caching app-wide) is a much larger,
+// higher-risk change than this incident warrants. Next's own docs
+// cover exactly this case ("Without Nonces") and recommend precisely
+// this `'unsafe-inline'` fallback — same trade-off this file already
+// made for `style-src` below, for the same reason (inline style
+// injection is a far weaker primitive than inline script injection).
+const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000");
+const apiOrigin = apiUrl.origin;
+const apiWsOrigin = `${apiUrl.protocol === "https:" ? "wss:" : "ws:"}//${apiUrl.host}`;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // @pentesthub/shared ships TypeScript source directly (no build step,
@@ -27,18 +58,34 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
-  // Module 18 — task #523, corrected post-launch by proxy.ts (see its
-  // doc comment for the incident this fixes). Content-Security-Policy
-  // moved to proxy.ts, which can mint a per-request nonce; a static
-  // build-time header here can't, and emitting a second, nonce-less
-  // Content-Security-Policy header from this file would AND together
-  // with proxy.ts's and re-block everything it allows. The remaining
-  // headers below don't need per-request values, so they stay here.
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      // `https:` (not just 'self' data: blob:): workspace/user
+      // avatarUrl (apps/api/src/modules/workspaces/commands/upload-
+      // workspace-avatar.command.ts) is whatever URL StorageService.upload()
+      // returns — for an S3/R2/MinIO-backed deployment that's a storage
+      // endpoint domain set via a server-only env var, not something this
+      // build-time config can know or pin to a fixed origin. Restricting
+      // img-src to 'self' would silently break every workspace/user avatar
+      // in any deployment that isn't using the local-disk StorageService
+      // provider — a real regression this phase's grep-only pass would
+      // have missed without tracing avatarUrl's actual source.
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      `connect-src 'self' ${apiOrigin} ${apiWsOrigin}`,
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
     return [
       {
         source: "/(.*)",
         headers: [
+          { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
