@@ -57,6 +57,18 @@ const envSchema = z.object({
     .min(32, 'CREDENTIAL_ENCRYPTION_KEY must be at least 32 characters'),
 
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
+  // Domain restructuring (2026-09): the web app is reachable from more
+  // than one origin at once — e.g. both the bare apex `pentesthubai.com`
+  // and the original `app.pentesthubai.com` — while `FRONTEND_URL` above
+  // stays a single canonical URL (it's used to build absolute links in
+  // emails/OAuth redirects/billing checkout URLs, which each need exactly
+  // one value, not a set). CORS, unlike those call sites, needs to accept
+  // every origin the frontend is actually served from, so this is a
+  // separate, optional, comma-separated list of extra origins — additive
+  // to FRONTEND_URL in bootstrap.ts's enableCors(), never a replacement
+  // for it. Empty by default: a single-domain deployment (the common
+  // case) needs no configuration here at all.
+  CORS_ADDITIONAL_ORIGINS: z.string().optional(),
   MAIL_FROM: z.string().default('PentestHub AI <no-reply@pentesthub.local>'),
   // Module 15 — Integrations (task #338). `dev` (default, `DevMailService`)
   // needs no configuration and is Community Edition's default — mail is
