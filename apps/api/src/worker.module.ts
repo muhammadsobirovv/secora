@@ -14,6 +14,7 @@ import { ReconCoreModule } from './modules/recon/recon-core.module.js';
 import { VulnCoreModule } from './modules/vuln/vuln-core.module.js';
 import { AiCoreModule } from './modules/ai/ai-core.module.js';
 import { BugBountyCoreModule } from './modules/bugbounty/bugbounty-core.module.js';
+import { NotificationsChannelsCoreModule } from './modules/notifications-channels/notifications-channels-core.module.js';
 import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
@@ -56,6 +57,18 @@ import { WorkerReaperService } from './modules/distributed-jobs/services/worker-
 /// process, but it lives in the worker process (not the API process) for
 /// the same reason the other pollers do: controllers only enqueue/read,
 /// background execution happens here.
+///
+/// Also needs NotificationsChannelsCoreModule directly: unlike the API
+/// process (where BugBountyModule imports NotificationsChannelsModule, so
+/// BugBountyDeadlineNotifierService's NotificationDispatcherService
+/// dependency resolves through that chain), this module declares
+/// BugBountyDeadlineNotifierService as its own top-level provider, so its
+/// dependencies must be satisfied here directly — the Core split exists
+/// for exactly this ("controller-free way to inject
+/// NotificationDispatcherService", see that module's doc comment).
+/// Without this, Nest fails to boot with "can't resolve dependencies of
+/// the BugBountyDeadlineNotifierService (..., ?, ...) ... make sure
+/// NotificationDispatcherService is available in the WorkerModule".
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
@@ -83,6 +96,7 @@ import { WorkerReaperService } from './modules/distributed-jobs/services/worker-
     VulnCoreModule,
     AiCoreModule,
     BugBountyCoreModule,
+    NotificationsChannelsCoreModule,
     // Module 15 — Telemetry (task #347): recon/vuln-scan events are
     // published from this process, so this needs its own
     // TelemetryRecordingHandler instance — see TelemetryModule's doc
