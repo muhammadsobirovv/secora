@@ -136,8 +136,13 @@ services:
     # running it via `node <path>` tries to parse that shell code as
     # JavaScript and fails with a syntax error. `sh` interprets it
     # correctly (the shim itself execs into node internally).
+    # No --skip-generate: this Prisma version's `db push` doesn't accept
+    # that flag (it exits with "unknown or unexpected option" and never
+    # runs the push). --accept-data-loss avoids an interactive
+    # confirmation prompt that would otherwise hang in this non-tty
+    # `docker compose run` context.
     working_dir: /workspace/apps/api
-    command: ["sh", "node_modules/.bin/prisma", "db", "push", "--skip-generate"]
+    command: ["sh", "node_modules/.bin/prisma", "db", "push", "--accept-data-loss"]
 
   web:
     build:
