@@ -10,7 +10,7 @@
 # Quick start:
 #   cp .env.example .env   # fill in real secrets — see that file's comments
 #   docker compose up -d --build
-#   docker compose exec api pnpm exec prisma db push   # first-run schema setup
+#   docker compose run --rm migrate   # first-run schema setup (see `migrate` service below for why)
 #
 # This file is the reference "single-machine" deployment. For a
 # multi-replica/HA deployment, see deploy/k8s/ instead — the API and
@@ -104,6 +104,31 @@ services:
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET:-}
     volumes:
       - api-storage:/workspace/apps/api/storage
+
+  # One-off helper for applying Prisma schema changes to the database.
+  # `api`/`worker`'s runtime image is built from the Dockerfile's `runtime`
+  # stage, which only installs `--prod` dependencies (see its `prod-deps`
+  # stage) -- the `prisma` CLI is a devDependency, so it isn't present
+  # there and `docker compose exec api ... prisma ...` fails with
+  # "Cannot find module". This service instead builds from the
+  # Dockerfile's `build` stage, which has the full dependency tree
+  # (including the CLI) from its non-`--prod` `pnpm install`. Not part of
+  # normal `docker compose up` (profile "tools" keeps it out of the
+  # default set) -- run explicitly:
+  #   docker compose run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pentesthub}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-pentesthub}
+    working_dir: /workspace
+    command: ["node", "node_modules/.bin/prisma", "db", "push", "--skip-generate", "--schema", "apps/api/prisma/schema.prisma"]
 
   web:
     build:
