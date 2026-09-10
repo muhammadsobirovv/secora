@@ -19,15 +19,18 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(
     @Inject(ConfigService) configService: ConfigService<EnvConfig, true>,
   ) {
+    // `||`, not `??` — see google.strategy.ts for the full rationale: an
+    // unset optional var in .env loads as `""`, and `??` doesn't catch that,
+    // so passport-oauth2 threw "requires a clientID option" at boot.
     const options = {
       clientID:
-        configService.get('GITHUB_CLIENT_ID', { infer: true }) ??
+        configService.get('GITHUB_CLIENT_ID', { infer: true }) ||
         'not-configured',
       clientSecret:
-        configService.get('GITHUB_CLIENT_SECRET', { infer: true }) ??
+        configService.get('GITHUB_CLIENT_SECRET', { infer: true }) ||
         'not-configured',
       callbackURL:
-        configService.get('GITHUB_CALLBACK_URL', { infer: true }) ??
+        configService.get('GITHUB_CALLBACK_URL', { infer: true }) ||
         'http://localhost/oauth/not-configured',
       scope: ['user:email'],
       // CSRF protection on the OAuth flow — see google.strategy.ts for the
