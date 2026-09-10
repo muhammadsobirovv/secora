@@ -131,8 +131,13 @@ services:
     # workspace root, so pnpm places its bin at apps/api/node_modules/.bin
     # (not /workspace/node_modules/.bin) -- cd into apps/api so both the
     # binary and the default `prisma/schema.prisma` lookup resolve.
+    # The .bin/prisma shim pnpm generates is a POSIX shell wrapper (starts
+    # with a `basedir=$(dirname ...)` header), not a plain JS file --
+    # running it via `node <path>` tries to parse that shell code as
+    # JavaScript and fails with a syntax error. `sh` interprets it
+    # correctly (the shim itself execs into node internally).
     working_dir: /workspace/apps/api
-    command: ["node", "node_modules/.bin/prisma", "db", "push", "--skip-generate"]
+    command: ["sh", "node_modules/.bin/prisma", "db", "push", "--skip-generate"]
 
   web:
     build:
