@@ -119,8 +119,34 @@ export function configureApp(app: INestApplication): void {
     expressInstance.set('trust proxy', trustProxyHops);
   }
 
+  // Domain restructuring (2026-09): the frontend can now be reachable
+  // from more than one origin at once (e.g. both the bare apex
+  // `pentesthubai.com` and `app.pentesthubai.com`), while FRONTEND_URL
+  // stays the single canonical URL used elsewhere (email links, OAuth
+  // redirects, billing checkout) — see env.validation.ts's doc comment
+  // on CORS_ADDITIONAL_ORIGINS. Static array/string `origin` (the
+  // previous config) can only ever match one value; a validator function
+  // is the standard `cors` package pattern for "allow from a known set."
+  const frontendUrl = configService.get('FRONTEND_URL', { infer: true });
+  const additionalOrigins = (
+    configService.get('CORS_ADDITIONAL_ORIGINS', { infer: true }) ?? ''
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+  const allowedOrigins = new Set([frontendUrl, ...additionalOrigins]);
+
   app.enableCors({
-    origin: configService.get('FRONTEND_URL', { infer: true }),
+    origin: (origin, callback) => {
+      // No `Origin` header (server-to-server calls, curl, same-origin
+      // requests) — nothing to check against, let it through same as the
+      // old static-origin config implicitly did.
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
     credentials: true,
   });
 

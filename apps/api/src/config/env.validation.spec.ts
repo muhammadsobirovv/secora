@@ -73,6 +73,23 @@ describe('validateEnv — valid configuration', () => {
     expect(result.QUEUE_PROVIDER).toBe('redis');
     expect(result.STORAGE_PROVIDER).toBe('s3');
   });
+
+  it('accepts a comma-separated CORS_ADDITIONAL_ORIGINS and leaves it unparsed (bootstrap.ts splits it)', () => {
+    const env = {
+      ...minimalValidEnv(),
+      CORS_ADDITIONAL_ORIGINS: 'https://pentesthubai.com,https://www.pentesthubai.com',
+    };
+
+    const result = validateEnv(env);
+    expect(result.CORS_ADDITIONAL_ORIGINS).toBe(
+      'https://pentesthubai.com,https://www.pentesthubai.com',
+    );
+  });
+
+  it('leaves CORS_ADDITIONAL_ORIGINS undefined when not set (single-domain deployments need no config)', () => {
+    const result = validateEnv(minimalValidEnv());
+    expect(result.CORS_ADDITIONAL_ORIGINS).toBeUndefined();
+  });
 });
 
 describe('validateEnv — missing required variable', () => {
