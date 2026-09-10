@@ -127,8 +127,12 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-pentesthub}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-pentesthub}
-    working_dir: /workspace
-    command: ["node", "node_modules/.bin/prisma", "db", "push", "--skip-generate", "--schema", "apps/api/prisma/schema.prisma"]
+    # `prisma` is a devDependency of apps/api specifically, not the
+    # workspace root, so pnpm places its bin at apps/api/node_modules/.bin
+    # (not /workspace/node_modules/.bin) -- cd into apps/api so both the
+    # binary and the default `prisma/schema.prisma` lookup resolve.
+    working_dir: /workspace/apps/api
+    command: ["node", "node_modules/.bin/prisma", "db", "push", "--skip-generate"]
 
   web:
     build:
