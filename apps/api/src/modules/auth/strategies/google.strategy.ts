@@ -23,15 +23,21 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
     @Inject(ConfigService) configService: ConfigService<EnvConfig, true>,
   ) {
+    // `||`, not `??`: an unset optional var in .env (e.g. `GOOGLE_CLIENT_ID=`
+    // with nothing after the `=`) loads as `""`, not `undefined` — `??` only
+    // substitutes on null/undefined, so it let "" through and
+    // passport-oauth2's OAuth2Strategy constructor throws "requires a
+    // clientID option" at boot, crash-looping the container even though
+    // Google OAuth is meant to be optional here. `||` treats "" as falsy too.
     const options = {
       clientID:
-        configService.get('GOOGLE_CLIENT_ID', { infer: true }) ??
+        configService.get('GOOGLE_CLIENT_ID', { infer: true }) ||
         'not-configured',
       clientSecret:
-        configService.get('GOOGLE_CLIENT_SECRET', { infer: true }) ??
+        configService.get('GOOGLE_CLIENT_SECRET', { infer: true }) ||
         'not-configured',
       callbackURL:
-        configService.get('GOOGLE_CALLBACK_URL', { infer: true }) ??
+        configService.get('GOOGLE_CALLBACK_URL', { infer: true }) ||
         'http://localhost/oauth/not-configured',
       scope: ['email', 'profile'],
       // CSRF protection on the OAuth flow (architecture review §6, HIGH):
