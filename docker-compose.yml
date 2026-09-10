@@ -51,6 +51,10 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET must be set (32+ chars)}
       CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY must be set (32+ chars)}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      # Extra origins CORS should accept alongside FRONTEND_URL — see
+      # env.validation.ts's doc comment on this var. Empty by default
+      # (single-domain deployments need no configuration here).
+      CORS_ADDITIONAL_ORIGINS: ${CORS_ADDITIONAL_ORIGINS:-}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OBSERVABILITY_METRICS_TOKEN: ${OBSERVABILITY_METRICS_TOKEN:-}
