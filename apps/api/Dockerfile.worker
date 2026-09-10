@@ -62,4 +62,8 @@ COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
 COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
 USER pentesthub
 WORKDIR /workspace/apps/api
-CMD ["node", "dist/src/worker.main.js"]
+# Same fix as apps/api/Dockerfile's CMD — see that file's comment.
+# worker.main.ts's boot log ("Worker starting (version ...)") reads
+# npm_package_version too, and was logging 'unknown' for the identical
+# reason (no npm/pnpm wrapper around a plain `node dist/...` CMD).
+CMD ["sh", "-c", "export npm_package_version=$(node -p \"require('./package.json').version\") && exec node dist/src/worker.main.js"]

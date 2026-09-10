@@ -87,4 +87,20 @@ EXPOSE 3000
 # no external orchestrator doing the equivalent check.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/observability/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["node", "dist/src/main.js"]
+# `npm run`/`pnpm run` inject `npm_package_version` (read from the
+# nearest package.json) into every script's environment automatically —
+# health.controller.ts's liveness/readiness bodies, worker.main.ts's boot
+# log, cluster-overview.service.ts, tracing.ts, and telemetry-collector
+# .service.ts all read that env var directly rather than re-parsing
+# package.json themselves (same "one source of truth" reasoning as
+# next.config.js's NEXT_PUBLIC_APP_VERSION). Running `node dist/...`
+# directly, as this CMD did before, bypasses that injection entirely —
+# the var is simply never set, every one of those call sites silently
+# falls back to 'unknown', and apps/web's stale-build banner
+# (use-app-version-check.ts) compares that 'unknown' against its own
+# real, build-time-baked version and finds them permanently unequal —
+# the banner never stops showing. Reading package.json's version at
+# container startup and exporting it ourselves reproduces exactly what
+# `npm run` would have done, without needing a package-manager wrapper
+# process alive for the container's whole lifetime.
+CMD ["sh", "-c", "export npm_package_version=$(node -p \"require('./package.json').version\") && exec node dist/src/main.js"]
