@@ -16,8 +16,9 @@ const PUBLIC_PATHS = [
 // robots.txt/sitemap.xml must answer crawlers (which have no session),
 // and the /docs portal (app/docs, outside the (dashboard) group) is
 // public reference material a signed-in user should still be able to read.
-// /.well-known holds security.txt (RFC 9116) for researchers and scanners.
-const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known"];
+// /.well-known holds security.txt (RFC 9116); /legal/* and /security are
+// the public legal and vulnerability-disclosure pages.
+const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known", "/legal", "/security"];
 
 /// This is a UX nicety only — redirects at the edge based on a plain
 /// (non-httpOnly) marker cookie so an unauthenticated visitor doesn't see

@@ -202,8 +202,17 @@ export function LandingPage() {
             <Link href="/pricing" className="transition-colors hover:text-foreground">
               {t("landing.footer.pricing")}
             </Link>
-            <Link href="/docs/start/security-policy" className="transition-colors hover:text-foreground">
+            <Link href="/security" className="transition-colors hover:text-foreground">
               {t("landing.footer.security")}
+            </Link>
+            <Link href="/legal/terms" className="transition-colors hover:text-foreground">
+              {t("landing.footer.terms")}
+            </Link>
+            <Link href="/legal/acceptable-use" className="transition-colors hover:text-foreground">
+              {t("landing.footer.aup")}
+            </Link>
+            <Link href="/legal/privacy" className="transition-colors hover:text-foreground">
+              {t("landing.footer.privacy")}
             </Link>
             <a href="mailto:support@pentesthubai.com" className="transition-colors hover:text-foreground">
               {t("landing.footer.support")}

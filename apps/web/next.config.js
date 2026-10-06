@@ -58,6 +58,13 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
+  // The docs site used to publish /docs/<category>/<doc> pages straight
+  // from the repo's docs/ folder; it now serves only the allowlisted user
+  // guides. The old security policy URL was linked from the landing page
+  // and SECURITY.md, so it keeps working by pointing at /security.
+  async redirects() {
+    return [{ source: "/docs/start/security-policy", destination: "/security", permanent: true }];
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
