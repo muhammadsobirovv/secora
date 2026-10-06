@@ -195,7 +195,7 @@ export function LandingPage() {
               </a>
             </span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link href="/docs" className="transition-colors hover:text-foreground">
               {t("landing.footer.docs")}
             </Link>
@@ -205,6 +205,12 @@ export function LandingPage() {
             <Link href="/docs/start/security-policy" className="transition-colors hover:text-foreground">
               {t("landing.footer.security")}
             </Link>
+            <a href="mailto:support@pentesthubai.com" className="transition-colors hover:text-foreground">
+              {t("landing.footer.support")}
+            </a>
+            <a href="mailto:security@pentesthubai.com" className="transition-colors hover:text-foreground">
+              {t("landing.footer.contact")}
+            </a>
           </div>
         </div>
       </footer>

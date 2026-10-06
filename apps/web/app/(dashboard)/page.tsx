@@ -63,6 +63,20 @@ const structuredData: JsonLdGraph = {
       url: SITE_URL,
       logo: `${SITE_URL}/favicon.ico`,
       description: META_DESCRIPTION,
+      email: "support@pentesthubai.com",
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "support@pentesthubai.com",
+          availableLanguage: ["en", "uz", "ru"],
+        },
+        {
+          "@type": "ContactPoint",
+          contactType: "security",
+          email: "security@pentesthubai.com",
+        },
+      ],
       founder: { "@id": FOUNDER_ID },
       sameAs: [GITHUB, X_PROFILE],
     },

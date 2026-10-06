@@ -25,14 +25,14 @@ Instead, use one of these private channels:
    settings referenced in `docs/security/supply-chain.md`, it's a
    per-repository toggle this file can describe but can't enable for
    you.)*
-2. **Email fallback**: if you don't have (or don't want to use) a GitHub
-   account, email **security@pentesthub.ai**. *(This is a placeholder
-   address — anyone forking or self-hosting this project should replace it
-   with an inbox they actually monitor. An unmonitored security contact
-   address is worse than none at all, because it gives a false sense of
-   there being a working reporting channel.)* If you can, encrypt your
-   report; publish a PGP key alongside this address if your fork adopts
-   email as its primary channel.
+2. **Email**: if you don't have (or don't want to use) a GitHub account,
+   email **[security@pentesthubai.com](mailto:security@pentesthubai.com)**.
+   This inbox is monitored and is also published in
+   [`/.well-known/security.txt`](https://pentesthubai.com/.well-known/security.txt)
+   (RFC 9116). *(Forking or self-hosting this project? Replace it with an
+   inbox you actually monitor — an unmonitored security contact is worse
+   than none, because it gives a false sense of a working reporting
+   channel.)*
 
 ### What to include
 

@@ -95,10 +95,13 @@ changes.
 
 ## Contact
 
-Replace this with your deployment's actual contact address. The upstream
-project's placeholder is `privacy@pentesthub.ai` — same caveat as
-`SECURITY.md`'s `security@pentesthub.ai`: an unmonitored address is worse
-than none, so point this at an inbox you actually read.
+For the hosted service at pentesthubai.com, send privacy and data
+requests to [support@pentesthubai.com](mailto:support@pentesthubai.com);
+security vulnerabilities go to
+[security@pentesthubai.com](mailto:security@pentesthubai.com) (see
+`SECURITY.md`). Self-hosting? Replace these with your deployment's own
+contact addresses — an unmonitored address is worse than none, so point
+them at inboxes you actually read.
 
 ## Related documents
 
