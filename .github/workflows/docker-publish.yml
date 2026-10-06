@@ -101,7 +101,7 @@ jobs:
           provenance: true
 
       - name: Scan image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}-${{ matrix.component }}@${{ steps.build.outputs.digest }}
           format: sarif
