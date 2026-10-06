@@ -183,6 +183,17 @@ export function LandingPage() {
             <span>
               © {year}. {t("landing.footer.rights")}
             </span>
+            <span>
+              {t("landing.footer.founder")}{" "}
+              <a
+                href="https://www.linkedin.com/in/muhammadsobirov"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-foreground"
+              >
+                Muhammad Sobirov
+              </a>
+            </span>
           </div>
           <div className="flex items-center gap-5">
             <Link href="/docs" className="transition-colors hover:text-foreground">

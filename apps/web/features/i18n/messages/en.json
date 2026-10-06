@@ -75,6 +75,7 @@
   "landing.footer.docs": "Documentation",
   "landing.footer.pricing": "Pricing",
   "landing.footer.security": "Security",
+  "landing.footer.founder": "Founded by",
   "landing.hero.ctaScan": "Scan a target",
   "landing.hero.ctaDemo": "Watch demo",
   "landing.terminal.label": "Example scan: discovered subdomains, open ports, findings and an AI-built attack chain",

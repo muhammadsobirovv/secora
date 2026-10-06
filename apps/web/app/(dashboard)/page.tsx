@@ -13,10 +13,12 @@ import { LandingPage } from "@/features/marketing/landing-page";
 // so search engines had nothing public to crawl or index. This page is a
 // server component (metadata below is server-only) that renders static,
 // server-rendered marketing content.
+const META_DESCRIPTION =
+  "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace. Find vulnerabilities before attackers do.";
+
 export const metadata: Metadata = {
   title: "PentestHub AI — AI-Powered Offensive Security Platform",
-  description:
-    "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace. Find vulnerabilities before attackers do.",
+  description: META_DESCRIPTION,
   openGraph: {
     title: "PentestHub AI — AI-Powered Offensive Security Platform",
     description:
@@ -36,6 +38,62 @@ export const metadata: Metadata = {
   },
 };
 
+const SITE_URL = "https://pentesthubai.com";
+const FOUNDER_ID = `${SITE_URL}/#founder`;
+const ORG_ID = `${SITE_URL}/#organization`;
+const LINKEDIN = "https://www.linkedin.com/in/muhammadsobirov";
+const GITHUB = "https://github.com/dotuz";
+const X_PROFILE = "https://x.com/Immukhammed";
+
+// schema.org structured data (Knowledge Panel signals). Static, no user
+// input; "<" is escaped so the JSON can never close the script tag.
+type JsonLdNode = { "@type": string; "@id"?: string } & Record<string, unknown>;
+interface JsonLdGraph {
+  "@context": "https://schema.org";
+  "@graph": JsonLdNode[];
+}
+
+const structuredData: JsonLdGraph = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": ORG_ID,
+      name: "PentestHub AI",
+      url: SITE_URL,
+      logo: `${SITE_URL}/favicon.ico`,
+      description: META_DESCRIPTION,
+      founder: { "@id": FOUNDER_ID },
+      sameAs: [GITHUB, X_PROFILE],
+    },
+    {
+      "@type": "Person",
+      "@id": FOUNDER_ID,
+      name: "Muhammad Sobirov",
+      jobTitle: "Founder & CEO",
+      worksFor: { "@id": ORG_ID },
+      sameAs: [LINKEDIN, GITHUB, X_PROFILE],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "PentestHub AI",
+      publisher: { "@id": ORG_ID },
+    },
+  ],
+};
+
 export default function MarketingHomePage() {
-  return <LandingPage />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
+      <LandingPage />
+    </>
+  );
 }
