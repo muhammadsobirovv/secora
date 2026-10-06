@@ -1,52 +1,52 @@
 import Link from "next/link";
-import { DOC_CATEGORIES, getDocsByCategory } from "@/lib/docs-content";
+import { listAllDocs } from "@/lib/docs-content";
+import { DocsLanguageNote } from "./docs-language-note";
 
-/// Module 15 — task #350 "Documentation portal structure".
-///
-/// Public index of every document under `docs/` (plus the curated
-/// root-level docs) grouped by category. Statically generated — no
-/// runtime filesystem dependency (see `lib/docs-content.ts` for why).
+/// Public index of the user-facing documentation. Lists only the
+/// allowlisted docs in `lib/docs-content.ts` — internal engineering
+/// material in the repository's `docs/` folder is never published here.
 export const metadata = {
   title: "Documentation — PentestHub AI",
-  description: "Architecture decisions, module guides, security reviews, and release notes for PentestHub AI.",
+  description:
+    "Guides for PentestHub AI: getting started, scanning, bug bounty workflow, AI copilot, responsible use, API and security.",
 };
 
 export default function DocsIndexPage() {
-  const sections = DOC_CATEGORIES.map((category) => ({
-    category,
-    docs: getDocsByCategory(category.slug),
-  })).filter((section) => section.docs.length > 0);
+  const docs = listAllDocs();
 
   return (
     <div className="min-h-svh bg-background">
       <div className="mx-auto max-w-4xl px-6 py-16">
-        <p className="text-sm font-medium text-primary">PentestHub AI</p>
+        <Link href="/" className="text-sm font-medium text-primary">
+          PentestHub AI
+        </Link>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">Documentation</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Architecture decisions, module guides, security reviews, and release notes — generated
-          directly from the project&apos;s <code className="text-sm">docs/</code> folder.
+          Everything you need to test authorized targets with PentestHub AI — from your first target to
+          reports, the AI copilot and the API.
         </p>
+        <DocsLanguageNote />
 
-        <div className="mt-12 space-y-10">
-          {sections.map(({ category, docs }) => (
-            <section key={category.slug}>
-              <h2 className="text-lg font-semibold">{category.label}</h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">{category.description}</p>
-              <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
-                {docs.map((doc) => (
-                  <li key={doc.slug}>
-                    <Link
-                      href={`/docs/${category.slug}/${doc.slug}`}
-                      className="text-sm text-primary underline-offset-4 hover:underline"
-                    >
-                      {doc.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
+        <ul className="mt-10 grid gap-3 sm:grid-cols-2">
+          {docs.map((doc) => (
+            <li key={doc.slug}>
+              <Link
+                href={`/docs/${doc.slug}`}
+                className="block h-full rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary"
+              >
+                <span className="font-medium">{doc.title}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{doc.description}</span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
+
+        <p className="mt-10 text-sm text-muted-foreground">
+          Legal: <Link href="/legal/terms" className="text-primary hover:underline">Terms of Service</Link> ·{" "}
+          <Link href="/legal/acceptable-use" className="text-primary hover:underline">Acceptable Use</Link> ·{" "}
+          <Link href="/legal/privacy" className="text-primary hover:underline">Privacy</Link> ·{" "}
+          <Link href="/security" className="text-primary hover:underline">Security</Link>
+        </p>
       </div>
     </div>
   );

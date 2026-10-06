@@ -1,116 +1,91 @@
 import fs from "node:fs";
 import path from "node:path";
 
-/// Module 15 — task #350 "Documentation portal structure".
+/// The public documentation site (/docs) is built from an explicit
+/// ALLOWLIST of user-facing Markdown files under `docs/user/`. Nothing
+/// else in the repository's `docs/` folder (ADRs, reviews/audits, release
+/// notes, module/migration/mobile guides, operations logs) is published,
+/// and a new file added anywhere in `docs/` stays private until someone
+/// deliberately adds it to PUBLIC_DOCS below. That is the point of an
+/// allowlist: internal material can never leak onto the site by accident.
 ///
-/// Reads Markdown straight out of the monorepo's `docs/` folder (plus a
-/// few curated root-level docs — PROJECT_SPEC.md, README.md, SECURITY.md)
-/// via Node's built-in `fs`/`path`. Deliberately no new npm dependency
-/// (no Docusaurus/Nextra/MkDocs/VitePress) — the app already ships
-/// `react-markdown` + `remark-gfm` + `rehype-highlight` for AI chat
-/// rendering (`features/ai/components/ai-message-markdown.tsx`), and that
-/// same stack is reused here rather than standing up a second rendering
-/// pipeline. Adding a real new dependency was also judged extra risk this
-/// session given the eslint/pnpm-store corruption incident recorded in
-/// task #348/#349's completion notes.
-///
-/// Every page under `/docs` is statically generated at `next build` time
-/// (see `generateStaticParams` + `dynamicParams = false` in
-/// `app/docs/[...slug]/page.tsx`), which runs against the full monorepo
-/// checkout. Next.js bakes the resulting HTML/RSC payload into the build
-/// output, so the deployed `output: "standalone"` runtime (see
-/// `next.config.js`) never touches this file system access at request
-/// time and does not need `docs/` to be present in the deployed
-/// container. If a doc is renamed/removed without a rebuild, visiting its
-/// old URL 404s rather than silently reading stale or missing content off
-/// disk — the safer failure mode for a "standalone" deployment.
+/// Every page is statically generated at `next build` time (see
+/// `generateStaticParams` + `dynamicParams = false` in
+/// `app/docs/[...slug]/page.tsx`), so the `output: "standalone"` runtime
+/// never reads these files at request time and any URL not listed here
+/// returns 404.
 const REPO_ROOT = path.join(process.cwd(), "..", "..");
-const DOCS_ROOT = path.join(REPO_ROOT, "docs");
-
-export interface DocCategory {
-  slug: string;
-  label: string;
-  description: string;
-}
-
-// Order here is the order categories render in on the /docs index page.
-export const DOC_CATEGORIES: DocCategory[] = [
-  { slug: "start", label: "Getting Started", description: "Project spec, README, and the security disclosure policy." },
-  { slug: "adr", label: "Architecture Decision Records", description: "Why the platform is built the way it is, module by module." },
-  { slug: "architecture", label: "Architecture", description: "Cross-cutting system design: API gateway, auto-update, CI/CD, i18n." },
-  { slug: "modules", label: "Module Guides", description: "What each numbered module implements." },
-  { slug: "security", label: "Security", description: "Secrets management, TLS/mTLS, WAF compatibility, supply chain, permissions." },
-  { slug: "compliance", label: "Compliance", description: "GDPR and related regulatory readiness." },
-  { slug: "mobile", label: "Mobile", description: "Flutter app architecture and API integration guides." },
-  { slug: "migration", label: "Migration Guides", description: "Local-first and desktop-agent migration paths." },
-  { slug: "mcp", label: "MCP & Integrations", description: "Model Context Protocol ecosystem guide." },
-  { slug: "reviews", label: "Reviews & Audits", description: "Security, performance, accessibility, and production-readiness audits." },
-  { slug: "releases", label: "Release Notes", description: "What shipped in each module." },
-];
 
 export interface DocEntry {
-  category: string;
   slug: string;
   title: string;
-  filePath: string;
+  description: string;
+  /// Path relative to the repository root.
+  file: string;
 }
 
-// Curated root-level docs, folded into the "start" category. Paths are
-// relative to REPO_ROOT rather than DOCS_ROOT since these files live
-// outside docs/.
-const ROOT_DOCS: { slug: string; file: string }[] = [
-  { slug: "readme", file: "README.md" },
-  { slug: "project-spec", file: "PROJECT_SPEC.md" },
-  { slug: "security-policy", file: "SECURITY.md" },
+// Order here is the order docs render in on the /docs index page.
+export const PUBLIC_DOCS: readonly DocEntry[] = [
+  {
+    slug: "getting-started",
+    title: "Getting Started",
+    description: "What PentestHub AI is, creating an account, your first workspace and target.",
+    file: "docs/user/getting-started.md",
+  },
+  {
+    slug: "scanning",
+    title: "Scanning Guide",
+    description: "Recon and vulnerability scans, reading findings, severity and exporting.",
+    file: "docs/user/scanning.md",
+  },
+  {
+    slug: "bug-bounty",
+    title: "Bug Bounty Workflow",
+    description: "Import a program and its scope, track findings and build a report.",
+    file: "docs/user/bug-bounty.md",
+  },
+  {
+    slug: "ai-copilot",
+    title: "AI Copilot",
+    description: "What the copilot can and can't do, bring-your-own-key and privacy modes.",
+    file: "docs/user/ai-copilot.md",
+  },
+  {
+    slug: "responsible-use",
+    title: "Rules of Engagement & Responsible Use",
+    description: "A practical guide to testing only what you are authorized to test.",
+    file: "docs/user/responsible-use.md",
+  },
+  {
+    slug: "api-sdk-cli",
+    title: "API, SDK & CLI",
+    description: "Quick reference for the REST API, SDKs, CLI and webhooks.",
+    file: "docs/user/api-sdk-cli.md",
+  },
+  {
+    slug: "security",
+    title: "Security & Vulnerability Disclosure",
+    description: "How to report a vulnerability in PentestHub AI.",
+    file: "docs/user/security.md",
+  },
+  {
+    slug: "faq",
+    title: "FAQ & Troubleshooting",
+    description: "Answers to common account, scanning and AI questions.",
+    file: "docs/user/faq.md",
+  },
 ];
 
-function extractTitle(markdown: string, fallback: string): string {
-  const match = /^#\s+(.+)$/m.exec(markdown);
-  // `noUncheckedIndexedAccess` types every RegExpExecArray index access as
-  // possibly-undefined even though group 1 is guaranteed present whenever
-  // `match` itself is non-null (the whole pattern requires it) — narrow
-  // explicitly rather than a non-null assertion.
-  return match?.[1]?.trim() ?? fallback;
+export function listAllDocs(): readonly DocEntry[] {
+  return PUBLIC_DOCS;
 }
 
-function readCategoryDir(categorySlug: string): DocEntry[] {
-  if (categorySlug === "start") {
-    return ROOT_DOCS.filter(({ file }) => fs.existsSync(path.join(REPO_ROOT, file))).map(({ slug, file }) => {
-      const filePath = path.join(REPO_ROOT, file);
-      const raw = fs.readFileSync(filePath, "utf-8");
-      return { category: "start", slug, title: extractTitle(raw, file), filePath };
-    });
-  }
-
-  const dir = path.join(DOCS_ROOT, categorySlug);
-  if (!fs.existsSync(dir)) return [];
-
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .map((file) => {
-      const filePath = path.join(dir, file);
-      const raw = fs.readFileSync(filePath, "utf-8");
-      const slug = file.replace(/\.md$/, "");
-      return { category: categorySlug, slug, title: extractTitle(raw, slug), filePath };
-    });
+export function getDoc(slug: string): DocEntry | undefined {
+  return PUBLIC_DOCS.find((doc) => doc.slug === slug);
 }
 
-export function listAllDocs(): DocEntry[] {
-  return DOC_CATEGORIES.flatMap((c) => readCategoryDir(c.slug));
-}
-
-export function getDocsByCategory(categorySlug: string): DocEntry[] {
-  return readCategoryDir(categorySlug);
-}
-
-export function getCategory(slug: string): DocCategory | undefined {
-  return DOC_CATEGORIES.find((c) => c.slug === slug);
-}
-
-export function getDocContent(categorySlug: string, slug: string): { title: string; content: string } | null {
-  const entry = readCategoryDir(categorySlug).find((e) => e.slug === slug);
+export function getDocContent(slug: string): { title: string; content: string } | null {
+  const entry = getDoc(slug);
   if (!entry) return null;
-  return { title: entry.title, content: fs.readFileSync(entry.filePath, "utf-8") };
+  return { title: entry.title, content: fs.readFileSync(path.join(REPO_ROOT, entry.file), "utf-8") };
 }
