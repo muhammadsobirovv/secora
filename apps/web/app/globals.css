@@ -4,58 +4,70 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* "Signal" theme. Dark is the primary look (next-themes defaultTheme is
+   "dark"); light is the same indigo family with contrast-safe values so
+   the existing ThemeSwitcher keeps working. Severity colors (--sev-*) are
+   reserved for findings — never use them as general UI accents. */
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.47 0.17 264);
-  --primary-foreground: oklch(0.98 0.01 264);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --destructive-foreground: oklch(0.98 0.01 27);
-  --success: oklch(0.6 0.15 150);
-  --success-foreground: oklch(0.98 0.01 150);
-  --warning: oklch(0.75 0.15 80);
-  --warning-foreground: oklch(0.2 0.05 80);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.47 0.17 264);
+  --background: #f6f5ff;
+  --foreground: #15123a;
+  --card: #ffffff;
+  --card-foreground: #15123a;
+  --popover: #ffffff;
+  --popover-foreground: #15123a;
+  --primary: #5b4ce6;
+  --primary-foreground: #ffffff;
+  --secondary: #ebe9fb;
+  --secondary-foreground: #15123a;
+  --muted: #ebe9fb;
+  --muted-foreground: #565290;
+  --accent: #e4e1fa;
+  --accent-foreground: #15123a;
+  --destructive: #b42f2f;
+  --destructive-foreground: #ffffff;
+  --success: #157556;
+  --success-foreground: #ffffff;
+  --warning: #985800;
+  --warning-foreground: #ffffff;
+  --border: #dcd9f5;
+  --input: #dcd9f5;
+  --ring: #5b4ce6;
+
+  --sev-critical: #a83a24;
+  --sev-high: #985800;
+  --sev-ok: #157556;
 }
 
 .dark {
-  --background: oklch(0.14 0.005 264);
-  --foreground: oklch(0.96 0 0);
-  --card: oklch(0.18 0.006 264);
-  --card-foreground: oklch(0.96 0 0);
-  --popover: oklch(0.18 0.006 264);
-  --popover-foreground: oklch(0.96 0 0);
-  --primary: oklch(0.68 0.16 264);
-  --primary-foreground: oklch(0.14 0.02 264);
-  --secondary: oklch(0.23 0.006 264);
-  --secondary-foreground: oklch(0.96 0 0);
-  --muted: oklch(0.23 0.006 264);
-  --muted-foreground: oklch(0.65 0.01 264);
-  --accent: oklch(0.27 0.008 264);
-  --accent-foreground: oklch(0.96 0 0);
-  --destructive: oklch(0.62 0.2 27);
-  --destructive-foreground: oklch(0.98 0.01 27);
-  --success: oklch(0.65 0.14 150);
-  --success-foreground: oklch(0.14 0.02 150);
-  --warning: oklch(0.75 0.15 80);
-  --warning-foreground: oklch(0.14 0.02 80);
-  --border: oklch(0.28 0.007 264 / 60%);
-  --input: oklch(0.28 0.007 264 / 60%);
-  --ring: oklch(0.68 0.16 264);
+  --background: #0e0b2b;
+  --foreground: #e8e6ff;
+  --card: #080620;
+  --card-foreground: #e8e6ff;
+  --popover: #080620;
+  --popover-foreground: #e8e6ff;
+  --primary: #6d5ef5;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1648;
+  --secondary-foreground: #e8e6ff;
+  --muted: #1a1648;
+  --muted-foreground: #9c98d6;
+  --accent: #211c5a;
+  --accent-foreground: #e8e6ff;
+  --destructive: #e5534b;
+  --destructive-foreground: #ffffff;
+  --success: #3fae8a;
+  --success-foreground: #080620;
+  --warning: #d9a640;
+  --warning-foreground: #080620;
+  --border: #2e2a7a;
+  --input: #2e2a7a;
+  --ring: #6d5ef5;
+
+  --sev-critical: #f0997b;
+  --sev-high: #ef9f27;
+  --sev-ok: #5dcaa5;
 }
 
 @theme inline {
@@ -82,6 +94,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-high: var(--sev-high);
+  --color-sev-ok: var(--sev-ok);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -102,6 +117,47 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Landing hero animations. Motion only when the user hasn't asked for
+   reduced motion — otherwise the graph and terminal render static. */
+@media (prefers-reduced-motion: no-preference) {
+  .signal-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: signal-pulse 2.4s ease-out infinite;
+  }
+  .signal-edge {
+    stroke-dasharray: 4 6;
+    animation: signal-flow 1.6s linear infinite;
+  }
+  .signal-caret {
+    animation: signal-blink 1s steps(1) infinite;
+  }
+}
+
+@keyframes signal-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes signal-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes signal-blink {
+  50% {
+    opacity: 0;
   }
 }
 

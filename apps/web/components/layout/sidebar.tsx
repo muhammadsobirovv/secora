@@ -51,7 +51,7 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar — always visible, no collapse control. */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/50 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
         <SidebarContent />
       </aside>
 

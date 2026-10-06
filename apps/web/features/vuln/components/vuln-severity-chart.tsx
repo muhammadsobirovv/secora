@@ -6,8 +6,8 @@ const SEVERITY_BAR_CLASS: Record<VulnFindingSeverity, string> = {
   INFO: "bg-muted-foreground/40",
   LOW: "bg-blue-500",
   MEDIUM: "bg-warning",
-  HIGH: "bg-orange-500",
-  CRITICAL: "bg-destructive",
+  HIGH: "bg-sev-high",
+  CRITICAL: "bg-sev-critical",
 };
 
 const SEVERITY_LABEL: Record<VulnFindingSeverity, string> = {

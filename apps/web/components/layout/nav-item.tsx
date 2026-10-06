@@ -35,7 +35,7 @@ export function NavItem({ item }: { item: NavItemType }) {
       className={cn(
         "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
         isActive
-          ? "bg-accent text-accent-foreground"
+          ? "bg-primary/15 text-foreground [&_svg]:text-primary"
           : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
       )}
     >

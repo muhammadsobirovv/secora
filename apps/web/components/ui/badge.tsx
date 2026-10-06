@@ -6,12 +6,15 @@ const badgeVariants = cva(
   "inline-flex items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap w-fit",
   {
     variants: {
+      // Tinted (15% fill + 40% border) rather than solid fills, so badges
+      // sit quietly on the Signal surfaces. Primary uses foreground text:
+      // #6D5EF5 as text on its own tint is below WCAG AA.
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-transparent bg-destructive text-destructive-foreground",
-        success: "border-transparent bg-success text-success-foreground",
-        warning: "border-transparent bg-warning text-warning-foreground",
+        default: "border-primary/40 bg-primary/15 text-foreground",
+        secondary: "border-border bg-secondary text-secondary-foreground",
+        destructive: "border-destructive/40 bg-destructive/15 text-destructive",
+        success: "border-success/40 bg-success/15 text-success",
+        warning: "border-warning/40 bg-warning/15 text-warning",
         outline: "text-foreground border-border",
       },
     },

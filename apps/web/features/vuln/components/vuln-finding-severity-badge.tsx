@@ -12,8 +12,8 @@ const SEVERITY_CLASS: Record<VulnFindingSeverity, string> = {
   INFO: "border-border text-muted-foreground",
   LOW: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
   MEDIUM: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
-  HIGH: "border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  CRITICAL: "border-destructive/30 bg-destructive/10 text-destructive",
+  HIGH: "border-sev-high/40 bg-sev-high/15 text-sev-high",
+  CRITICAL: "border-sev-critical/40 bg-sev-critical/15 text-sev-critical",
 };
 
 const SEVERITY_LABEL: Record<VulnFindingSeverity, string> = {

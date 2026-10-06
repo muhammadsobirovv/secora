@@ -12,17 +12,17 @@ interface StatCardProps {
 export function StatCard({ label, value, icon: Icon, isLoading }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="size-5 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
+      <CardContent className="flex items-start justify-between gap-4 p-4">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium tracking-wider text-muted-foreground uppercase">{label}</p>
           {isLoading ? (
-            <Skeleton className="mt-1 h-6 w-10" />
+            <Skeleton className="mt-2 h-7 w-12" />
           ) : (
-            <p className="text-xl font-semibold">{value}</p>
+            <p className="mt-1.5 font-mono text-2xl font-semibold tabular-nums">{value}</p>
           )}
+        </div>
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/40 bg-primary/10">
+          <Icon className="size-4 text-primary" />
         </div>
       </CardContent>
     </Card>
