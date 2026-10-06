@@ -12,6 +12,12 @@ const PUBLIC_PATHS = [
   "/oauth/callback",
 ];
 
+// Reachable by everyone, signed in or not — never redirected either way.
+// robots.txt/sitemap.xml must answer crawlers (which have no session),
+// and the /docs portal (app/docs, outside the (dashboard) group) is
+// public reference material a signed-in user should still be able to read.
+const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml"];
+
 /// This is a UX nicety only — redirects at the edge based on a plain
 /// (non-httpOnly) marker cookie so an unauthenticated visitor doesn't see
 /// a flash of dashboard chrome before client-side JS redirects them. It
@@ -21,8 +27,16 @@ const PUBLIC_PATHS = [
 /// docs/adr/0002-workspace-foundation-module.md, Decision 4).
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (OPEN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+    return NextResponse.next();
+  }
+
   const hasSession = request.cookies.has(SESSION_COOKIE_NAME);
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  // "/" is the public marketing/landing page (app/page.tsx), not the
+  // dashboard — the authenticated home moved to "/dashboard". It's
+  // matched exactly (not via startsWith, which would otherwise make
+  // every path "public") alongside the auth-flow paths below.
+  const isPublicPath = pathname === "/" || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!hasSession && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);
@@ -30,8 +44,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // An already-signed-in visitor doesn't need the login/register forms or
+  // the marketing landing page — send them straight into the app. "/" is
+  // included here (not just PUBLIC_PATHS) so a logged-in user hitting the
+  // bare domain lands on their dashboard instead of the marketing copy.
   if (hasSession && isPublicPath && pathname !== "/oauth/callback") {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

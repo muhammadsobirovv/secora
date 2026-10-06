@@ -9,6 +9,7 @@ import { useVulnDashboardSummary } from "@/features/vuln/hooks/use-vuln";
 import { VulnSeverityChart } from "@/features/vuln/components/vuln-severity-chart";
 import { VulnScannerStatusList } from "@/features/vuln/components/vuln-scanner-status-list";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
+import { PageHelp } from "@/components/common/page-help";
 
 /// Workspace-wide "Vulnerability Dashboard" — analog of the Recon landing
 /// page, but built around one aggregate query (GetVulnDashboardSummary)
@@ -23,6 +24,20 @@ export default function VulnDashboardPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
             <ShieldAlert className="size-6" /> Vulnerabilities
+            <PageHelp
+              summary="This is where actual weaknesses are found and tracked — different from Recon (which only maps out what exists). Vulnerability scans test the targets and URLs Recon discovered for real security issues, and every result lands here as a finding with a severity rating."
+              steps={[
+                "Pick a scanner under \"Scanners\" and a target to test, or apply a saved template under \"Templates\" to run several checks at once.",
+                "Track progress under \"Scan jobs\" while it runs.",
+                "Triage results here or under \"Findings\" — confirm real issues, mark false positives, and hand confirmed ones to Bug Bounty or Reports.",
+              ]}
+              actions={[
+                { label: "Scan jobs", description: "Every vulnerability scan run across your projects — status, progress, and logs." },
+                { label: "Templates", description: "Reusable bundles of scanner configs so you don't set up the same checks every time." },
+                { label: "Scanners", description: "Which scanning tools are available and their current status." },
+                { label: "Findings by severity / Recent findings", description: "A quick read on what's Critical/High right now, and the newest results to triage first." },
+              ]}
+            />
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Findings and scan activity across every project. Start new scans from a target&apos;s page.

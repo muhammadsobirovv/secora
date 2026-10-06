@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { NavItem as NavItemType } from "./nav-config";
 
 export function NavItem({ item }: { item: NavItemType }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const isActive = item.href !== "#" && (pathname === item.href || pathname.startsWith(`${item.href}/`));
   const Icon = item.icon;
+  const label = item.i18nKey ? t(item.i18nKey) : item.label;
 
   if (item.comingSoon) {
     return (
@@ -18,7 +21,7 @@ export function NavItem({ item }: { item: NavItemType }) {
         title="Coming soon"
       >
         <Icon className="size-4" />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1">{label}</span>
         <Badge variant="outline" className="px-1 py-0 text-[10px] text-muted-foreground/60">
           Soon
         </Badge>
@@ -37,7 +40,7 @@ export function NavItem({ item }: { item: NavItemType }) {
       )}
     >
       <Icon className="size-4" />
-      <span>{item.label}</span>
+      <span>{label}</span>
     </Link>
   );
 }

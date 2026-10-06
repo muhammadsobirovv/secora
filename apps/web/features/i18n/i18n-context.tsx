@@ -31,6 +31,7 @@ import ru from "./messages/ru.json";
 const STORAGE_KEY = "phai.language";
 
 type Messages = typeof en;
+export type MessageKey = keyof Messages;
 const CATALOGS: Record<Locale, Messages> = { en, uz, ru };
 
 interface I18nContextValue {

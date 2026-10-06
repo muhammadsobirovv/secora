@@ -13,8 +13,24 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "PentestHub AI",
-  description: "Enterprise-grade pentesting and bug bounty platform",
+  metadataBase: new URL("https://pentesthubai.com"),
+  title: {
+    default: "PentestHub AI — AI-Powered Offensive Security Platform",
+    template: "%s | PentestHub AI",
+  },
+  description:
+    "Enterprise-grade pentesting and bug bounty platform: recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
+  openGraph: {
+    siteName: "PentestHub AI",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
@@ -13,14 +13,32 @@ import { CommandPalette } from "./command-palette";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isHydrated } = useAuth();
   useKeyboardShortcuts();
 
+  // "/" doubles as the public marketing landing page (app/(dashboard)/page.tsx
+  // now renders marketing copy, not the dashboard — that moved to
+  // "/dashboard"). proxy.ts already redirects a signed-in visitor away from
+  // "/" to "/dashboard" at the edge, so in the normal case this component
+  // only ever renders "/" for a signed-out visitor. The client-side check
+  // below is just a safety net for the rare race where hydration completes
+  // after render (e.g. a stale-but-still-valid session restored client-side).
+  const isPublicRoot = pathname === "/";
+
   React.useEffect(() => {
-    if (isHydrated && !isAuthenticated) {
+    if (!isHydrated) return;
+    if (!isAuthenticated && !isPublicRoot) {
       router.replace("/login");
+    } else if (isAuthenticated && isPublicRoot) {
+      router.replace("/dashboard");
     }
-  }, [isHydrated, isAuthenticated, router]);
+  }, [isHydrated, isAuthenticated, isPublicRoot, router]);
+
+  if (isPublicRoot && (!isHydrated || !isAuthenticated)) {
+    // No sidebar/header chrome — the marketing page owns its own full layout.
+    return <>{children}</>;
+  }
 
   if (!isHydrated || !isAuthenticated) {
     return (

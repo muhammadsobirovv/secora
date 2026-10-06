@@ -25,7 +25,7 @@ export function OAuthCallbackHandler() {
       .oauthExchange(code)
       .then(async (tokens) => {
         await completeLogin(tokens);
-        router.push("/");
+        router.push("/dashboard");
       })
       .catch(() => setFailed(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps

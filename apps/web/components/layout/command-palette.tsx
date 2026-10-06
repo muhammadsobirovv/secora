@@ -23,7 +23,7 @@ import { useSearch } from "@/features/search/hooks/use-search";
 import { cn } from "@/lib/utils";
 
 const STATIC_COMMANDS = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Workspace", href: "/workspace", icon: Building2 },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Targets", href: "/targets", icon: Target },

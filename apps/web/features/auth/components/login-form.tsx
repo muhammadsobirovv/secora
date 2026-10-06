@@ -18,6 +18,29 @@ import * as authApi from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { OAuthButtons } from "./oauth-buttons";
 
+/// Security fix (open-redirect hardening). `?next=` is attacker-reachable
+/// — anyone can craft `https://pentesthubai.com/login?next=https://evil.com`
+/// (or a protocol-relative `//evil.com`) and send it as a phishing link, and
+/// prior to this fix `router.push(searchParams.get("next"))` would follow it
+/// unconditionally straight after a real login. Only allow a same-origin,
+/// single-segment-leading-slash path back through; anything else (absolute
+/// URL, protocol-relative `//host`, backslash tricks) falls back to "/".
+function sanitizeNextPath(raw: string | null): string {
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/")) return "/dashboard";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/dashboard";
+  try {
+    // Resolving against a fixed origin surfaces any embedded scheme/host
+    // (e.g. "/\evil.com" or "/%09/evil.com") that would otherwise slip past
+    // the startsWith checks above once the browser normalizes it.
+    const resolved = new URL(raw, "https://pentesthubai.com");
+    if (resolved.origin !== "https://pentesthubai.com") return "/dashboard";
+    return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,7 +63,7 @@ export function LoginForm() {
         return;
       }
       await completeLogin(res);
-      router.push(searchParams.get("next") ?? "/");
+      router.push(sanitizeNextPath(searchParams.get("next")));
     } catch (error) {
       if (error instanceof ApiError) {
         toast.error(errorMessage(error));
@@ -62,7 +85,7 @@ export function LoginForm() {
     try {
       const tokens = await authApi.startDemoSession();
       await completeLogin(tokens);
-      router.push("/");
+      router.push("/dashboard");
     } catch (error) {
       if (error instanceof ApiError && error.code === "DEMO_MODE_DISABLED") {
         toast.error("Demo mode isn't available on this deployment.");

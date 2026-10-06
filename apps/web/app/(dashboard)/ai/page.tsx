@@ -10,6 +10,7 @@ import { AiConversationSidebar } from "@/features/ai/components/ai-conversation-
 import { AiChatPanel, type AiChatPanelHandle } from "@/features/ai/components/ai-chat-panel";
 import { AiContextPanel } from "@/features/ai/components/ai-context-panel";
 import { useCreateAiConversation } from "@/features/ai/hooks/use-ai";
+import { PageHelp } from "@/components/common/page-help";
 
 /// AI Dashboard page (Module 5 spec): workspace/project selector (via the
 /// existing ?projectId= + ProjectPicker convention), conversation history,
@@ -59,6 +60,19 @@ function AiDashboardContent() {
         <div className="flex items-center gap-2">
           <Bot className="size-5 text-primary" />
           <h1 className="text-2xl font-semibold">AI Security Copilot</h1>
+          <PageHelp
+            summary={`A chat assistant scoped to one project — it can see that project's targets, recon results, findings, and notes, so you can ask it things like "what's still unscanned" or "summarize the critical findings" without re-explaining context every time.`}
+            steps={[
+              "Pick a project — the assistant only knows about that project's data.",
+              "Ask a question directly, or use one of the suggested questions on the right.",
+              "Start a new conversation any time; old ones stay in the sidebar so you can pick up where you left off.",
+            ]}
+            actions={[
+              { label: "Switch project", description: "Change which project's context the assistant uses." },
+              { label: "New conversation", description: "Start a fresh chat thread (previous ones aren't lost)." },
+              { label: "Context panel", description: "Shows what the assistant currently knows about the project and suggested next questions." },
+            ]}
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => router.push("/ai")}>

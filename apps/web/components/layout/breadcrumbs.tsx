@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 
 const LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
   projects: "Projects",
   targets: "Targets",
   notes: "Notes",
@@ -37,7 +38,7 @@ export function Breadcrumbs() {
   let href = "";
   return (
     <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-      <Link href="/" className="flex items-center hover:text-foreground">
+      <Link href="/dashboard" className="flex items-center hover:text-foreground">
         <Home className="size-3.5" />
       </Link>
       {segments.map((segment, i) => {

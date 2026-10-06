@@ -34,7 +34,7 @@ export default function DashboardErrorBoundary({
           <RefreshCw className="size-3.5" /> Try again
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/">Back to dashboard</Link>
+          <Link href="/dashboard">Back to dashboard</Link>
         </Button>
       </div>
     </div>

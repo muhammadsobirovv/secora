@@ -7,6 +7,7 @@ import { Breadcrumbs } from "./breadcrumbs";
 import { NotificationsStub } from "./notifications-stub";
 import { ThemeSwitcher } from "./theme-switcher";
 import { UserMenu } from "./user-menu";
+import { LanguageSwitcher } from "@/features/i18n/language-switcher";
 
 export function Header() {
   const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
@@ -37,6 +38,7 @@ export function Header() {
       </button>
       <div className="flex items-center gap-1">
         <NotificationsStub />
+        <LanguageSwitcher />
         <ThemeSwitcher />
         <UserMenu />
       </div>

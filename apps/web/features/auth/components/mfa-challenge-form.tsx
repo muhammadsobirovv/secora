@@ -47,7 +47,7 @@ export function MfaChallengeForm() {
       });
       sessionStorage.removeItem(CHALLENGE_TOKEN_KEY);
       await completeLogin(tokens);
-      router.push("/");
+      router.push("/dashboard");
     } catch (error) {
       if (error instanceof ApiError && error.code === "MFA_CHALLENGE_EXPIRED") {
         toast.error("This challenge expired. Please sign in again.");

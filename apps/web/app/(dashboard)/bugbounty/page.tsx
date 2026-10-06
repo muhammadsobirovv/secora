@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { useBugBountyDashboard, useBugBountyStatistics } from "@/features/bugbounty/hooks/use-bugbounty";
 import { BugBountyFindingStageBadge } from "@/features/bugbounty/components/bugbounty-badges";
 import { VulnFindingSeverityBadge } from "@/features/vuln/components/vuln-finding-severity-badge";
+import { PageHelp } from "@/components/common/page-help";
 
 function formatPercent(n: number): string {
   return `${Math.round(n * 100)}%`;
@@ -45,6 +46,19 @@ export default function BugBountyDashboardPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
             <Bug className="size-6" /> Bug Bounty
+            <PageHelp
+              summary="Runs your bug bounty engagements end to end: which programs you're working, what's in scope, and how findings turn into paid reports — separate from your own internal pentest projects."
+              steps={[
+                "Import or add a program (HackerOne/Bugcrowd/Intigriti/Markdown/JSON) under \"Programs\" — this defines scope, policy, and reward tiers.",
+                "Recon and vulnerability findings that match a program's in-scope assets get tracked as bug bounty findings here.",
+                "Draft a report (AI can help write it) under \"Reports\", submit it, and track the payout.",
+              ]}
+              actions={[
+                { label: "Programs", description: "The bug bounty programs you're enrolled in — scope, policy, safe-harbor terms, reward tiers." },
+                { label: "Findings", description: "Confirmed vulnerabilities that are in-scope for a program, waiting to become a report." },
+                { label: "Reports", description: "Draft, submit, and track bug reports and their payout status." },
+              ]}
+            />
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Programs, findings, and reports across every bug bounty engagement.
