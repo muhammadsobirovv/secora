@@ -33,6 +33,8 @@ import {
 import { PasswordHasherService } from '../services/password-hasher.service.js';
 import { TokenService } from '../services/token.service.js';
 import { toAuthenticatedUserDto } from '../mappers/to-authenticated-user-dto.mapper.js';
+import { LEGAL_VERSION } from '@pentesthub/shared';
+import { LegalService } from '../../legal/legal.service.js';
 
 export interface RegisterInput extends RegisterRequestDto {
   ipAddress: string;
@@ -60,6 +62,8 @@ export class RegisterUseCase {
     // whatever metadata-emission edge case causes it.
     @Inject(RbacService) private readonly rbacService: RbacService,
     private readonly auditService: AuditService,
+    // Explicit token for the same tsx/esbuild metadata reason as RbacService.
+    @Inject(LegalService) private readonly legalService: LegalService,
     private readonly passwordHasher: PasswordHasherService,
     private readonly tokenService: TokenService,
     // See prisma.service.ts for why @Inject(ConfigService) is required
@@ -74,6 +78,16 @@ export class RegisterUseCase {
   /// failure partway through never leaves an orphaned account.
   @Transactional()
   async execute(input: RegisterInput): Promise<RegisterResponseDto> {
+    // Server-side enforcement of the signup checkbox: no account is created
+    // unless the client sends the current legal version as accepted.
+    if (input.acceptedLegalVersion !== LEGAL_VERSION) {
+      throw new AppException(
+        'LEGAL_ACCEPTANCE_REQUIRED',
+        'You must accept the current Terms of Service, Acceptable Use Policy and Privacy Policy to create an account.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const existing = await this.usersRepository.findByEmail(input.email);
     if (existing) {
       throw new AppException(
@@ -112,6 +126,15 @@ export class RegisterUseCase {
     }
 
     await this.rbacService.assignDefaultRole(user.id);
+
+    // Same transaction as the account itself: an account never exists
+    // without its acceptance record.
+    await this.legalService.recordAcceptance({
+      userId: user.id,
+      version: input.acceptedLegalVersion,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+    });
 
     const workspace = await this.workspacesRepository.create({
       name: `${input.displayName}'s Workspace`,

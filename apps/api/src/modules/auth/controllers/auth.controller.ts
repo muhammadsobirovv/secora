@@ -18,6 +18,7 @@ import type {
 } from '@pentesthub/shared';
 import { Public } from '../../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import { AllowWithoutLegalAcceptance } from '../../../common/decorators/allow-without-legal-acceptance.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import { extractRequestContext } from '../../../common/utils/request-context.js';
 import { RegisterDto } from '../dto/register.dto.js';
@@ -92,6 +93,7 @@ export class AuthController {
     });
   }
 
+  @AllowWithoutLegalAcceptance()
   @Get('me')
   @ApiOperation({ summary: 'Get the current authenticated user' })
   me(@CurrentUser() user: RequestUser): Promise<AuthenticatedUserDto> {

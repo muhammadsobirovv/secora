@@ -92,6 +92,15 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   public?: boolean;
 }
 
+export const LEGAL_ACCEPT_PATH = "/legal/accept";
+
+function redirectToLegalAcceptance() {
+  if (typeof window === "undefined") return;
+  const { pathname, search } = window.location;
+  if (pathname === LEGAL_ACCEPT_PATH) return;
+  window.location.assign(`${LEGAL_ACCEPT_PATH}?next=${encodeURIComponent(pathname + search)}`);
+}
+
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   const { body, public: isPublic, headers, ...rest } = options;
   const isFormData = body instanceof FormData;
@@ -124,6 +133,12 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   if (!res.ok || !("success" in json) || !json.success) {
     const err = json as ApiErrorResponse;
+    // The API gates every authenticated route until the current legal
+    // version is accepted. Send the user to the acceptance screen from
+    // wherever the first gated call happens, remembering where they were.
+    if (res.status === 403 && err.code === "LEGAL_ACCEPTANCE_REQUIRED") {
+      redirectToLegalAcceptance();
+    }
     throw new ApiError(
       (err.code as AppErrorCode) ?? "UNKNOWN_ERROR",
       err.message ?? "Something went wrong.",

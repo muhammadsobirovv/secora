@@ -9,6 +9,9 @@ export interface RegisterRequestDto {
   email: string;
   password: string;
   displayName: string;
+  /// The LEGAL_VERSION the user accepted on the signup form. Required:
+  /// the API rejects signup unless it equals the current version.
+  acceptedLegalVersion: string;
 }
 
 export interface RegisterResponseDto {

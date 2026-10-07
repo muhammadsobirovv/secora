@@ -46,6 +46,7 @@ model User {
   mfaChallengeTokens      MfaChallengeToken[]
   oauthExchangeCodes      OAuthExchangeCode[]
   auditEvents             AuditEvent[]
+  legalAcceptances        LegalAcceptance[]
   userRoles               UserRole[]
   workspaceMemberships    WorkspaceMember[]
   apiKeys                 ApiKey[]
@@ -1505,6 +1506,30 @@ model AuditEvent {
   @@map("audit_events")
 }
 
+/// Append-only record that a user accepted the combined legal documents
+/// (Terms of Service, Acceptable Use Policy, Privacy Policy) at a given
+/// LEGAL_VERSION (@pentesthub/shared). No code path updates or deletes
+/// these rows; a new version means a new row. Unique per (user, version)
+/// so accepting the same version twice is a no-op, not a duplicate.
+model LegalAcceptance {
+  id         String   @id @default(uuid())
+  userId     String
+  version    String
+  /// The documents accepted, e.g. ["terms", "aup", "privacy"].
+  documents  String[]
+  acceptedAt DateTime @default(now())
+  ipAddress  String
+  userAgent  String
+
+  // Cascade only matters for demo-session cleanup, the one code path that
+  // hard-deletes users; regular account deletion is a soft delete.
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@index([userId, acceptedAt])
+  @@map("legal_acceptances")
+}
+
 enum AuditEventType {
   REGISTER
   LOGIN_SUCCESS
@@ -1647,6 +1672,8 @@ enum AuditEventType {
   AI_INVESTIGATION_EXECUTED
   FINDING_VERIFIED
   REMEDIATION_EVIDENCE_LINKED
+  // Legal acceptance (Terms of Service + Acceptable Use + Privacy).
+  LEGAL_ACCEPTED
 }
 
 // ---------------------------------------------------------------------------

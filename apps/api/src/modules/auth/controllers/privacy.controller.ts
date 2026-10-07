@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { UserDataExportDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import { AllowWithoutLegalAcceptance } from '../../../common/decorators/allow-without-legal-acceptance.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
 import { extractRequestContext } from '../../../common/utils/request-context.js';
 import { DeleteAccountDto } from '../dto/delete-account.dto.js';
@@ -16,6 +17,8 @@ import { DeleteAccountUseCase } from '../use-cases/delete-account.use-case.js';
 /// what is and isn't covered.
 @ApiTags('auth')
 @ApiBearerAuth()
+// Privacy rights (export, deletion) stay available before acceptance.
+@AllowWithoutLegalAcceptance()
 @Controller('auth/privacy')
 export class PrivacyController {
   constructor(

@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import * as legalApi from "@/lib/api/legal";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { OnboardingFlow } from "@/features/onboarding/onboarding-flow";
@@ -35,12 +37,29 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [isHydrated, isAuthenticated, isPublicRoot, router]);
 
+  // Send a signed-in user who hasn't accepted the current legal version to
+  // the acceptance screen before any dashboard chrome renders. (apiFetch
+  // also redirects on the API's 403 LEGAL_ACCEPTANCE_REQUIRED — this just
+  // avoids flashing the dashboard first.)
+  const legalStatus = useQuery({
+    queryKey: ["legal-status"],
+    queryFn: legalApi.getLegalStatus,
+    enabled: isHydrated && isAuthenticated && !isPublicRoot,
+    staleTime: 5 * 60 * 1000,
+  });
+  const acceptanceRequired = legalStatus.data?.acceptanceRequired === true;
+  React.useEffect(() => {
+    if (acceptanceRequired) {
+      router.replace(`/legal/accept?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [acceptanceRequired, pathname, router]);
+
   if (isPublicRoot && (!isHydrated || !isAuthenticated)) {
     // No sidebar/header chrome — the marketing page owns its own full layout.
     return <>{children}</>;
   }
 
-  if (!isHydrated || !isAuthenticated) {
+  if (!isHydrated || !isAuthenticated || acceptanceRequired) {
     return (
       <div className="flex h-svh items-center justify-center">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />

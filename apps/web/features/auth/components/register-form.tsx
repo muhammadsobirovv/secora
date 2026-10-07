@@ -15,11 +15,18 @@ import { registerSchema, type RegisterFormValues } from "../validators/auth.sche
 import * as authApi from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { OAuthButtons } from "./oauth-buttons";
+import { LEGAL_VERSION } from "@pentesthub/shared";
+import { LegalConsent } from "@/features/legal/legal-consent";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 export function RegisterForm() {
   const router = useRouter();
+  const { t } = useI18n();
   const [submitting, setSubmitting] = React.useState(false);
   const [registeredEmail, setRegisteredEmail] = React.useState<string | null>(null);
+  // Unchecked by default; signup is blocked until ticked. The API enforces
+  // the same rule (acceptedLegalVersion must equal LEGAL_VERSION).
+  const [acceptedLegal, setAcceptedLegal] = React.useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -27,14 +34,20 @@ export function RegisterForm() {
   });
 
   async function onSubmit(values: RegisterFormValues) {
+    if (!acceptedLegal) {
+      toast.error(t("legal.consent.required"));
+      return;
+    }
     setSubmitting(true);
     try {
       const { confirmPassword: _confirmPassword, ...registerPayload } = values;
-      await authApi.register(registerPayload);
+      await authApi.register({ ...registerPayload, acceptedLegalVersion: LEGAL_VERSION });
       setRegisteredEmail(values.email);
     } catch (error) {
       if (error instanceof ApiError && error.code === "EMAIL_ALREADY_REGISTERED") {
         toast.error("An account with this email already exists.");
+      } else if (error instanceof ApiError && error.code === "LEGAL_ACCEPTANCE_REQUIRED") {
+        toast.error(t("legal.consent.required"));
       } else {
         toast.error("Something went wrong. Please try again.");
       }
@@ -110,7 +123,8 @@ export function RegisterForm() {
               </p>
             )}
           </div>
-          <Button type="submit" disabled={submitting} className="mt-2">
+          <LegalConsent id="register-legal" checked={acceptedLegal} onCheckedChange={setAcceptedLegal} />
+          <Button type="submit" disabled={submitting || !acceptedLegal} className="mt-2">
             {submitting && <Loader2 className="size-4 animate-spin" />}
             Create account
           </Button>

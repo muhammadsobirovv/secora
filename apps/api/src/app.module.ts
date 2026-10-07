@@ -20,6 +20,8 @@ import { EditionGuard } from './common/guards/edition.guard.js';
 import { IpAllowlistGuard } from './common/guards/ip-allowlist.guard.js';
 import { MtlsGuard } from './common/guards/mtls.guard.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { LegalModule } from './modules/legal/legal.module.js';
+import { LegalAcceptanceGuard } from './modules/legal/legal-acceptance.guard.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module.js';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module.js';
@@ -160,6 +162,7 @@ import { SocModule } from './modules/soc/soc.module.js';
     PrismaModule,
     ProvidersModule,
     AuditModule,
+    LegalModule,
     RbacModule,
     WorkspacesModule,
     ApiKeysModule,
@@ -271,6 +274,9 @@ import { SocModule } from './modules/soc/soc.module.js';
     { provide: APP_GUARD, useClass: MtlsGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // After authentication/roles: every authenticated route is 403
+    // LEGAL_ACCEPTANCE_REQUIRED until the current legal version is accepted.
+    { provide: APP_GUARD, useClass: LegalAcceptanceGuard },
     { provide: APP_GUARD, useClass: EditionGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },

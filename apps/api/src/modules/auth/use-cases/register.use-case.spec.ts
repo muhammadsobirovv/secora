@@ -23,6 +23,8 @@ import { MAIL_SERVICE } from '../../../common/providers/tokens.js';
 import type { MailService } from '../../../common/providers/mail/mail-service.interface.js';
 import { RbacService } from '../../rbac/rbac.service.js';
 import { AuditService } from '../../audit/audit.service.js';
+import { LegalService } from '../../legal/legal.service.js';
+import { LEGAL_VERSION } from '@pentesthub/shared';
 import { PasswordHasherService } from '../services/password-hasher.service.js';
 import { TokenService } from '../services/token.service.js';
 import type { EnvConfig } from '../../../config/env.validation.js';
@@ -40,6 +42,7 @@ describe('RegisterUseCase', () => {
     email: 'new@example.com',
     password: 'correcthorsebatterystaple',
     displayName: 'New User',
+    acceptedLegalVersion: LEGAL_VERSION,
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
   };
@@ -97,6 +100,9 @@ describe('RegisterUseCase', () => {
     const auditService = {
       log: jest.fn(),
     } as unknown as jest.Mocked<AuditService>;
+    const legalService = {
+      recordAcceptance: jest.fn(),
+    } as unknown as jest.Mocked<LegalService>;
     const passwordHasher = {
       hash: jest
         .fn<PasswordHasherService['hash']>()
@@ -126,6 +132,7 @@ describe('RegisterUseCase', () => {
       { provide: MAIL_SERVICE, useValue: mailService },
       { provide: RbacService, useValue: rbacService },
       { provide: AuditService, useValue: auditService },
+      { provide: LegalService, useValue: legalService },
       { provide: PasswordHasherService, useValue: passwordHasher },
       { provide: TokenService, useValue: tokenService },
       { provide: ConfigService, useValue: configService },
@@ -142,6 +149,7 @@ describe('RegisterUseCase', () => {
       mailService,
       rbacService,
       auditService,
+      legalService,
       passwordHasher,
     };
   }
@@ -171,6 +179,13 @@ describe('RegisterUseCase', () => {
     expect(deps.auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'user-1', type: 'REGISTER' }),
     );
+    expect(deps.legalService.recordAcceptance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        version: LEGAL_VERSION,
+        ipAddress: '127.0.0.1',
+      }),
+    );
     expect(result.user.emailVerified).toBe(false);
     expect(result.user.mfaEnabled).toBe(false);
   });
@@ -182,6 +197,28 @@ describe('RegisterUseCase', () => {
     } as User);
 
     await expect(deps.useCase.execute(baseInput)).rejects.toThrow(AppException);
+    expect(deps.usersRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects signup without legal acceptance and creates no account', async () => {
+    const deps = await buildUseCase();
+
+    await expect(
+      deps.useCase.execute({ ...baseInput, acceptedLegalVersion: '' }),
+    ).rejects.toMatchObject({ code: 'LEGAL_ACCEPTANCE_REQUIRED' });
+    expect(deps.usersRepository.create).not.toHaveBeenCalled();
+    expect(deps.legalService.recordAcceptance).not.toHaveBeenCalled();
+  });
+
+  it('rejects signup that accepted a stale legal version', async () => {
+    const deps = await buildUseCase();
+
+    await expect(
+      deps.useCase.execute({
+        ...baseInput,
+        acceptedLegalVersion: '2000-01-01',
+      }),
+    ).rejects.toMatchObject({ code: 'LEGAL_ACCEPTANCE_REQUIRED' });
     expect(deps.usersRepository.create).not.toHaveBeenCalled();
   });
 });

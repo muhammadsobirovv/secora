@@ -18,4 +18,14 @@ export class RegisterDto implements RegisterRequestDto {
   @MinLength(1)
   @MaxLength(100)
   displayName!: string;
+
+  @ApiProperty({
+    example: '2026-10-06',
+    description:
+      'LEGAL_VERSION of the Terms of Service, Acceptable Use Policy and Privacy Policy the user accepted. Must equal the current version.',
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  acceptedLegalVersion!: string;
 }

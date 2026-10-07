@@ -343,4 +343,9 @@ export type AppErrorCode =
   | "INVALID_AI_PROVIDER"
   // Module 16 -- Extension API registry hardening pass: invoke-endpoint
   // input size guard.
-  | "EXTENSION_INVOKE_INPUT_TOO_LARGE";
+  | "EXTENSION_INVOKE_INPUT_TOO_LARGE"
+  // Legal acceptance: the user has not accepted the current LEGAL_VERSION
+  // (403 on every gated route), or tried to accept a version other than
+  // the current one.
+  | "LEGAL_ACCEPTANCE_REQUIRED"
+  | "LEGAL_VERSION_MISMATCH";

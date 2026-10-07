@@ -36,14 +36,22 @@ class AuthRepository {
   final ApiClient _api;
   final SecureTokenStorage _tokens;
 
+  /// [acceptedLegalVersion] is the legal version the user explicitly
+  /// accepted on the signup form; the API rejects signup without it.
   Future<void> register({
     required String email,
     required String password,
     required String displayName,
+    required String acceptedLegalVersion,
   }) =>
       _api.post<void>(
         '/auth/register',
-        body: {'email': email, 'password': password, 'displayName': displayName},
+        body: {
+          'email': email,
+          'password': password,
+          'displayName': displayName,
+          'acceptedLegalVersion': acceptedLegalVersion,
+        },
         public: true,
       );
 
