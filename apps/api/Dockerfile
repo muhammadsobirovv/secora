@@ -78,6 +78,11 @@ COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/generated ./apps/api/generated
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
 COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
+# DevMailService (used whenever MAIL_PROVIDER is not "smtp") writes every
+# outgoing email to process.cwd()/.mail-outbox. The non-root runtime user
+# cannot create that directory under the root-owned app dir, so without
+# this line signup and password reset answered HTTP 500 (EACCES).
+RUN mkdir -p apps/api/.mail-outbox && chown pentesthub:pentesthub apps/api/.mail-outbox
 USER pentesthub
 WORKDIR /workspace/apps/api
 EXPOSE 3000
