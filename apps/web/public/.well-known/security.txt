@@ -2,4 +2,4 @@ Contact: mailto:security@pentesthubai.com
 Expires: 2027-10-06T00:00:00.000Z
 Preferred-Languages: en, uz, ru
 Canonical: https://pentesthubai.com/.well-known/security.txt
-Policy: https://pentesthubai.com/docs/start/security-policy
+Policy: https://pentesthubai.com/security
