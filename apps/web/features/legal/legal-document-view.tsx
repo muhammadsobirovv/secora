@@ -14,6 +14,12 @@ import type { LegalCatalog, LegalPageKind } from "./content/types";
 
 const CATALOGS: Record<string, LegalCatalog> = { en, uz, ru };
 
+/// The catalogs carry inline "(LEGAL REVIEW ...)" markers for the lawyer
+/// (greppable in content/*.ts). They are drafting notes, never shown to
+/// visitors, so they are stripped at render time.
+const REVIEW_MARKER = /\s*\(LEGAL REVIEW[^)]*\)/g;
+const visible = (text: string): string => text.replace(REVIEW_MARKER, "");
+
 export const LEGAL_LINKS: { kind: LegalPageKind; href: string; labelKey: "legal.nav.terms" | "legal.nav.aup" | "legal.nav.privacy" | "legal.nav.security" }[] = [
   { kind: "terms", href: "/legal/terms", labelKey: "legal.nav.terms" },
   { kind: "aup", href: "/legal/acceptable-use", labelKey: "legal.nav.aup" },
@@ -68,7 +74,7 @@ export function LegalDocumentView({ kind }: { kind: LegalPageKind }) {
 
         <h1 className="text-3xl font-semibold tracking-tight">{doc.title}</h1>
         {kind !== "security" && <p className="mt-2 font-mono text-xs text-muted-foreground">{versionLine}</p>}
-        <p className="mt-6 text-muted-foreground">{doc.intro}</p>
+        <p className="mt-6 text-muted-foreground">{visible(doc.intro)}</p>
 
         <div className="mt-10 space-y-8">
           {doc.sections.map((section) => (
@@ -76,13 +82,13 @@ export function LegalDocumentView({ kind }: { kind: LegalPageKind }) {
               <h2 className="text-lg font-semibold">{section.heading}</h2>
               {section.paragraphs?.map((paragraph) => (
                 <p key={paragraph} className="mt-3 leading-relaxed text-muted-foreground">
-                  {paragraph}
+                  {visible(paragraph)}
                 </p>
               ))}
               {section.list && (
                 <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted-foreground">
                   {section.list.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item}>{visible(item)}</li>
                   ))}
                 </ul>
               )}
