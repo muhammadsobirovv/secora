@@ -1,3 +1,4 @@
+import type { AttestTargetAuthorizationRequestDto } from "./target-authorization.js";
 import type { TagDto } from "./tags.js";
 
 export type TargetType =
@@ -39,6 +40,11 @@ export interface CreateTargetRequestDto {
   description?: string;
   environment?: TargetEnvironment;
   scopeStatus?: TargetScopeStatus;
+  /// How the user is authorized to test this target. Optional on the API
+  /// (targets also come from finding promotion, imports and integrations);
+  /// the web form always sends it. Active scans are refused until the
+  /// target has a valid attestation, however it was created.
+  authorization?: AttestTargetAuthorizationRequestDto;
 }
 
 export interface UpdateTargetRequestDto {

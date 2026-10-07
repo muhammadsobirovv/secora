@@ -106,3 +106,4 @@ export * from "./incident-investigation.js";
 export * from "./security-reporting.js";
 export * from "./module17-endpoints.js";
 export * from "./legal.js";
+export * from "./target-authorization.js";

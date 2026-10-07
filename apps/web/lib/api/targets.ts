@@ -1,6 +1,9 @@
-import { TARGET_ENDPOINTS } from "@pentesthub/shared";
+import { TARGET_ENDPOINTS, targetAuthorizationEndpoints } from "@pentesthub/shared";
 import type {
+  AttestTargetAuthorizationRequestDto,
   CreateTargetRequestDto,
+  TargetAuthorizationDto,
+  TargetAuthorizationStatusDto,
   ListTargetsQueryDto,
   TargetDto,
   UpdateTargetRequestDto,
@@ -38,4 +41,12 @@ export function tagTarget(id: string, tagId: string) {
 
 export function untagTarget(id: string, tagId: string) {
   return apiFetch<void>(TARGET_ENDPOINTS.tag(id, tagId), { method: "DELETE" });
+}
+
+export function getTargetAuthorization(id: string) {
+  return apiFetch<TargetAuthorizationStatusDto>(targetAuthorizationEndpoints.status(id));
+}
+
+export function attestTargetAuthorization(id: string, data: AttestTargetAuthorizationRequestDto) {
+  return apiFetch<TargetAuthorizationDto>(targetAuthorizationEndpoints.attest(id), { method: "POST", body: data });
 }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useI18n } from "@/features/i18n/i18n-context";
 import {
   Select,
   SelectContent,
@@ -135,11 +137,19 @@ function ImportProgramDialog() {
   const [open, setOpen] = React.useState(false);
   const [source, setSource] = React.useState<ProgramImportSource>("HACKERONE");
   const [raw, setRaw] = React.useState("");
+  // Program-scope attestation: linked targets the program classifies
+  // IN_SCOPE then count as authorized for active scans (12 months).
+  const [scopeAttested, setScopeAttested] = React.useState(false);
   const importProgram = useImportBugBountyProgram();
+  const { t } = useI18n();
 
   async function handleSubmit(): Promise<void> {
     try {
-      const result = await importProgram.mutateAsync({ source, raw });
+      const result = await importProgram.mutateAsync({
+        source,
+        raw,
+        scopeAttestation: { attested: scopeAttested },
+      });
       toast.success(`Imported "${result.program.name}" (${result.scopeItemsImported} scope items)`);
       if (result.warnings.length) {
         result.warnings.forEach((w) => toast.warning(w));
@@ -191,9 +201,20 @@ function ImportProgramDialog() {
               rows={12}
             />
           </div>
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="import-scope-attest"
+              checked={scopeAttested}
+              onCheckedChange={(checked) => setScopeAttested(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="import-scope-attest" className="text-sm leading-relaxed font-normal">
+              {t("targetAuth.programAttest")}
+            </Label>
+          </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => void handleSubmit()} disabled={!raw || importProgram.isPending}>
+          <Button onClick={() => void handleSubmit()} disabled={!raw || !scopeAttested || importProgram.isPending}>
             {importProgram.isPending && <Loader2 className="size-4 animate-spin" />}
             Import
           </Button>

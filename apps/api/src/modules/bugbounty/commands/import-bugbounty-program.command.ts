@@ -27,11 +27,17 @@ import {
   type ParsedProgramImport,
 } from '../importers/program-importer.interface.js';
 import { computeImportFingerprint } from '../importers/program-update-detector.js';
+import {
+  TargetAuthorizationService,
+  type RequestContextInput,
+} from '../../target-authorization/target-authorization.service.js';
 
 export class ImportBugBountyProgramCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly data: ImportProgramRequestDto,
+    /// Caller IP / user agent, recorded with the scope attestation.
+    public readonly context?: RequestContextInput,
   ) {}
 }
 
@@ -52,6 +58,8 @@ export class ImportBugBountyProgramHandler implements ICommandHandler<
     private readonly programsRepository: BugBountyProgramsRepository,
     private readonly importerRegistry: ProgramImporterRegistryService,
     private readonly eventBus: EventBus,
+    @Inject(TargetAuthorizationService)
+    private readonly targetAuthorization: TargetAuthorizationService,
   ) {}
 
   async execute(
@@ -108,6 +116,20 @@ export class ImportBugBountyProgramHandler implements ICommandHandler<
       lastImportedAt: new Date(),
       importFingerprint: computeImportFingerprint(parsed),
     });
+
+    // Program-scope authorization attestation: the user confirms they take
+    // part in this program and will test only its in-scope assets. Linked
+    // targets the program's rules classify IN_SCOPE then count as
+    // authorized (BUG_BOUNTY_SCOPE) for active scans.
+    if (command.data.scopeAttestation?.attested === true) {
+      await this.targetAuthorization.attestProgramScope({
+        userId: command.userId,
+        workspaceId: workspace.id,
+        programId: program.id,
+        expiresAt: command.data.scopeAttestation.expiresAt,
+        context: command.context,
+      });
+    }
 
     this.eventBus.publish(
       new BugBountyProgramCreatedEvent(

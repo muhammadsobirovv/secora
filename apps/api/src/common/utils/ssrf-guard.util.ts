@@ -52,7 +52,7 @@ import { AppException } from '../exceptions/app.exception.js';
 ///      `fetch`'s automatic redirect-follow.
 /// Tracked as a concrete follow-up in docs/operations/ (Phase 29).
 
-const PRIVATE_IPV4_CIDRS: Array<{ base: number[]; bits: number }> = [
+export const PRIVATE_IPV4_CIDRS: Array<{ base: number[]; bits: number }> = [
   { base: [0, 0, 0, 0], bits: 8 }, // "this" network
   { base: [10, 0, 0, 0], bits: 8 }, // RFC1918
   { base: [100, 64, 0, 0], bits: 10 }, // CGNAT
@@ -70,7 +70,7 @@ const PRIVATE_IPV4_CIDRS: Array<{ base: number[]; bits: number }> = [
   { base: [255, 255, 255, 255], bits: 32 }, // broadcast
 ];
 
-function ipv4ToInt(octets: number[]): number {
+export function ipv4ToInt(octets: number[]): number {
   return ((octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]) >>> 0;
 }
 

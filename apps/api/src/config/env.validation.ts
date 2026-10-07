@@ -152,6 +152,23 @@ const envSchema = z.object({
   RECON_TOOL_BIN_GAU: z.string().default('gau'),
   RECON_TOOL_BIN_WAYBACKURLS: z.string().default('waybackurls'),
   RECON_TOOL_BIN_WHOIS: z.string().default('whois'),
+
+  // Active-scan network guard (target authorization layer). The hosted
+  // service refuses active scans of private/internal ranges, localhost and
+  // cloud metadata addresses. Self-hosted deployments that legitimately
+  // test their own internal network can set this to "true". Parsed as an
+  // explicit 'true'/'false' string (z.coerce.boolean would read "false" as
+  // true).
+  ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  // Comma-separated domain suffixes refused for active scans by default
+  // (government and military). Owners can ask support to be allow-listed.
+  ACTIVE_SCAN_DENYLIST: z.string().default('gov.uz,mil.uz,gov,mil'),
+  // Comma-separated hostnames or suffixes exempted from the denylist after
+  // an owner's request was approved via support.
+  ACTIVE_SCAN_ALLOWLIST: z.string().default(''),
   // ASN lookup reuses the same `whois` binary against Team Cymru's
   // whois-based bulk ASN lookup service (plain WHOIS protocol, no API key)
   // — see asn.tool-runner.ts. Configurable in case an environment needs a

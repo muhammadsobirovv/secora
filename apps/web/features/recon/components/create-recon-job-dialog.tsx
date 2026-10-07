@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, Radar } from "lucide-react";
 import { toast } from "sonner";
+import { scanErrorMessage } from "@/features/targets/scan-error-message";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,8 +38,8 @@ export function CreateReconJobDialog({
       setOpen(false);
       setTools([]);
       onCreated?.(job.id);
-    } catch {
-      toast.error("Couldn't start the recon job. Please try again.");
+    } catch (error) {
+      toast.error(scanErrorMessage(error, "Couldn't start the recon job. Please try again."));
     }
   }
 

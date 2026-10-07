@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import type { Request } from 'express';
 import type { ReconJobDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
+import { extractRequestContext } from '../../../common/utils/request-context.js';
 import { CreateReconJobDto } from '../dto/create-recon-job.dto.js';
 import { CreateReconJobCommand } from '../commands/create-recon-job.command.js';
 import { ListReconJobsQuery } from '../queries/list-recon-jobs.query.js';
@@ -28,9 +30,15 @@ export class TargetReconJobsController {
     @Param('targetId') targetId: string,
     @Body() dto: CreateReconJobDto,
     @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ): Promise<ReconJobDto> {
     return this.commandBus.execute(
-      new CreateReconJobCommand(user.id, targetId, dto),
+      new CreateReconJobCommand(
+        user.id,
+        targetId,
+        dto,
+        extractRequestContext(req),
+      ),
     );
   }
 

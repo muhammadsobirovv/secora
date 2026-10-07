@@ -33,12 +33,20 @@ import { isToolCompatibleWithTargetType } from '../tool-runners/tool-target-comp
 import { toReconJobDto } from '../mappers/to-recon-job-dto.mapper.js';
 import { ReconJobCreatedEvent } from '../events/recon-job-events.js';
 import { getRequestId } from '../../../observability/request-context.js';
+import { isPassiveReconTool } from '@pentesthub/shared';
+import {
+  TargetAuthorizationService,
+  type RequestContextInput,
+} from '../../target-authorization/target-authorization.service.js';
 
 export class CreateReconJobCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly targetId: string,
     public readonly data: CreateReconJobRequestDto,
+    /// Caller IP / user agent for the audit trail (REST only; internal
+    /// callers such as monitoring or AI tools omit it).
+    public readonly context?: RequestContextInput,
   ) {}
 }
 
@@ -61,6 +69,8 @@ export class CreateReconJobHandler implements ICommandHandler<
     private readonly scopeEngine: ScopeEngineService,
     private readonly quota: QuotaService,
     private readonly usage: UsageService,
+    @Inject(TargetAuthorizationService)
+    private readonly targetAuthorization: TargetAuthorizationService,
   ) {}
 
   async execute(command: CreateReconJobCommand): Promise<ReconJobDto> {
@@ -101,6 +111,8 @@ export class CreateReconJobHandler implements ICommandHandler<
         projectId: target.projectId,
       },
       operationType: 'RECON_JOB',
+      ipAddress: command.context?.ipAddress,
+      userAgent: command.context?.userAgent,
     });
 
     for (const tool of command.data.tools) {
@@ -111,6 +123,22 @@ export class CreateReconJobHandler implements ICommandHandler<
         );
       }
     }
+
+    // Target authorization layer. A job with any ACTIVE tool needs a
+    // valid, unexpired attestation and must pass the active-scan network
+    // guard; a passive-only job (public third-party sources only) needs
+    // neither. Every handler path (REST, AI tools, MCP, monitoring, AI
+    // investigation) goes through here.
+    const active = command.data.tools.some((tool) => !isPassiveReconTool(tool));
+    const authorization = active
+      ? await this.targetAuthorization.assertActiveScanAllowed({
+          userId: command.userId,
+          workspaceId,
+          target,
+          operationType: 'RECON_JOB',
+          context: command.context,
+        })
+      : null;
 
     // Module 20 — Phase 8 (billing finalization). `RECON_JOBS` has a
     // configurable per-plan limit (see plan-defaults.ts) that was never
@@ -135,6 +163,18 @@ export class CreateReconJobHandler implements ICommandHandler<
         infer: true,
       }),
       requestId: getRequestId(),
+    });
+
+    await this.targetAuthorization.recordScanStarted({
+      userId: command.userId,
+      workspaceId,
+      target,
+      operationType: 'RECON_JOB',
+      jobId: job.id,
+      tools: command.data.tools,
+      active,
+      authorization,
+      context: command.context,
     });
 
     // Best-effort, after the job already exists — a metering write must

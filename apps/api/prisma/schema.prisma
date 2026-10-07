@@ -47,6 +47,7 @@ model User {
   oauthExchangeCodes      OAuthExchangeCode[]
   auditEvents             AuditEvent[]
   legalAcceptances        LegalAcceptance[]
+  targetAuthorizations    TargetAuthorization[]
   userRoles               UserRole[]
   workspaceMemberships    WorkspaceMember[]
   apiKeys                 ApiKey[]
@@ -698,10 +699,55 @@ model Target {
   knowledgeBaseNotes    KnowledgeBaseNote[]
   // Module 9 — additive back-relation.
   scheduledJobs         ScheduledJob[]
+  // Authorization attestations (append-only).
+  authorizations        TargetAuthorization[]
 
   @@index([projectId])
   @@index([type])
   @@map("targets")
+}
+
+enum TargetAuthorizationBasis {
+  OWNER
+  WRITTEN_PERMISSION
+  BUG_BOUNTY_SCOPE
+}
+
+/// Append-only attestation of how a user is authorized to test an asset.
+/// Either target-level (targetId set: "I own it" / "written permission" /
+/// "in a program's scope") or program-level (programId set, targetId null:
+/// made when importing a bug bounty program — covers linked targets the
+/// program's scope rules classify IN_SCOPE). The newest unexpired row is
+/// the one in force; renewing adds a row, nothing is ever updated or
+/// deleted by application code.
+///
+/// Phase 2 (not built): domain ownership verification (DNS TXT
+/// "pentesthub-verify=<token>" or /.well-known/pentesthub-verify.txt) would
+/// be its own model (targetId, method, token, verifiedAt) beside this one.
+model TargetAuthorization {
+  id                 String                   @id @default(uuid())
+  targetId           String?
+  programId          String?
+  workspaceId        String
+  createdBy          String
+  basis              TargetAuthorizationBasis
+  /// Contract number, ROE reference, program URL, ...
+  documentReference  String?
+  notes              String?
+  /// TARGET_ATTESTATION_VERSION of the wording the user confirmed.
+  attestationVersion String
+  expiresAt          DateTime
+  ipAddress          String
+  userAgent          String
+  createdAt          DateTime                 @default(now())
+
+  target  Target?           @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  program BugBountyProgram? @relation(fields: [programId], references: [id], onDelete: Cascade)
+  creator User              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([targetId, createdAt])
+  @@index([programId, createdAt])
+  @@map("target_authorizations")
 }
 
 // ---------------------------------------------------------------------------
@@ -1674,6 +1720,10 @@ enum AuditEventType {
   REMEDIATION_EVIDENCE_LINKED
   // Legal acceptance (Terms of Service + Acceptable Use + Privacy).
   LEGAL_ACCEPTED
+  // Target authorization attestations and scan starts.
+  TARGET_AUTHORIZATION_ATTESTED
+  SCAN_STARTED
+  ACTIVE_SCAN_BLOCKED
 }
 
 // ---------------------------------------------------------------------------
@@ -2095,6 +2145,8 @@ model BugBountyProgram {
   scheduledJobs ScheduledJob[]
   // Module 16 additive back-relation.
   submissions   Submission[]
+  // Program-scope authorization attestations made at import.
+  scopeAuthorizations TargetAuthorization[]
 
   @@index([workspaceId, status])
   @@index([projectId])

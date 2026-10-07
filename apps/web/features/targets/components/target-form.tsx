@@ -1,5 +1,6 @@
 "use client";
 
+import type * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
@@ -33,9 +34,19 @@ interface TargetFormProps {
   onSubmit: (values: TargetFormValues) => void | Promise<void>;
   submitting?: boolean;
   submitLabel?: string;
+  /// Rendered just above the submit button (e.g. authorization fields).
+  extra?: React.ReactNode;
+  submitDisabled?: boolean;
 }
 
-export function TargetForm({ defaultValues, onSubmit, submitting, submitLabel = "Add target" }: TargetFormProps) {
+export function TargetForm({
+  defaultValues,
+  onSubmit,
+  submitting,
+  submitLabel = "Add target",
+  extra,
+  submitDisabled,
+}: TargetFormProps) {
   const form = useForm<TargetFormValues>({
     resolver: zodResolver(targetFormSchema),
     defaultValues: {
@@ -120,7 +131,8 @@ export function TargetForm({ defaultValues, onSubmit, submitting, submitLabel = 
         <Label htmlFor="description">Description (optional)</Label>
         <Textarea id="description" rows={3} {...form.register("description")} />
       </div>
-      <Button type="submit" disabled={submitting} className="mt-2 self-start">
+      {extra}
+      <Button type="submit" disabled={submitting || submitDisabled} className="mt-2 self-start">
         {submitting && <Loader2 className="size-4 animate-spin" />}
         {submitLabel}
       </Button>

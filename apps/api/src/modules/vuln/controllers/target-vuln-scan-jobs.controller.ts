@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import type { Request } from 'express';
 import type { VulnScanJobDto } from '@pentesthub/shared';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { RequestUser } from '../../../common/types/authenticated-request.js';
+import { extractRequestContext } from '../../../common/utils/request-context.js';
 import { CreateVulnScanJobDto } from '../dto/create-vuln-scan-job.dto.js';
 import { CreateVulnScanJobCommand } from '../commands/create-vuln-scan-job.command.js';
 import { ListVulnScanJobsQuery } from '../queries/list-vuln-scan-jobs.query.js';
@@ -28,9 +30,15 @@ export class TargetVulnScanJobsController {
     @Param('targetId') targetId: string,
     @Body() dto: CreateVulnScanJobDto,
     @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ): Promise<VulnScanJobDto> {
     return this.commandBus.execute(
-      new CreateVulnScanJobCommand(user.id, targetId, dto),
+      new CreateVulnScanJobCommand(
+        user.id,
+        targetId,
+        dto,
+        extractRequestContext(req),
+      ),
     );
   }
 

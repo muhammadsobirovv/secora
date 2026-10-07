@@ -9,10 +9,13 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
+import { extractRequestContext } from '../../../common/utils/request-context.js';
 import type {
   BugBountyProgramDetailDto,
   BugBountyProgramDto,
@@ -103,9 +106,14 @@ export class BugBountyProgramsController {
   import(
     @Body() dto: ImportProgramDto,
     @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ): Promise<ImportProgramResultDto> {
     return this.commandBus.execute(
-      new ImportBugBountyProgramCommand(user.id, dto),
+      new ImportBugBountyProgramCommand(
+        user.id,
+        dto,
+        extractRequestContext(req),
+      ),
     );
   }
 

@@ -11,6 +11,7 @@ import type { ScopeEngineService } from '../../security/scope-engine.service.js'
 import type { QuotaService } from '../../billing/quota.service.js';
 import type { UsageService } from '../../billing/usage.service.js';
 import { CreateVulnScanJobCommand, CreateVulnScanJobHandler } from './create-vuln-scan-job.command.js';
+import type { TargetAuthorizationService } from '../../target-authorization/target-authorization.service.js';
 
 function buildTarget(overrides?: Partial<Target>): Target {
   return {
@@ -29,6 +30,22 @@ function buildTarget(overrides?: Partial<Target>): Target {
     updatedAt: new Date(),
     ...overrides,
   } as Target;
+}
+
+/// A complete persisted job as the repository returns it (the DTO mapper
+/// reads its timestamps).
+function buildJob(id: string) {
+  return {
+    id,
+    workspaceId: 'workspace-1',
+    projectId: 'project-1',
+    targetId: 'target-1',
+    scanners: ['NUCLEI'],
+    status: 'PENDING',
+    toolRuns: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 function buildWorkspace(overrides?: Partial<Workspace>): Workspace {
@@ -58,6 +75,8 @@ function buildHandler(opts: {
   /// create-recon-job.command.spec.ts.
   enforceForWorkspace?: jest.Mock;
   usageRecord?: jest.Mock;
+  /// Target authorization gate; authorized by default.
+  assertActiveScanAllowed?: jest.Mock;
 }) {
   const workspacesRepository: WorkspacesRepository = {
     create: jest.fn(),
@@ -95,6 +114,21 @@ function buildHandler(opts: {
     record: usageRecord as unknown as UsageService['record'],
   };
 
+  const assertActiveScanAllowed =
+    opts.assertActiveScanAllowed ??
+    jest.fn(() =>
+      Promise.resolve({
+        id: 'authz-1',
+        basis: 'OWNER',
+        attestationVersion: 'v',
+      }),
+    );
+  const recordScanStarted = jest.fn(() => Promise.resolve(undefined));
+  const targetAuthorization = {
+    assertActiveScanAllowed,
+    recordScanStarted,
+  } as unknown as TargetAuthorizationService;
+
   const handler = new CreateVulnScanJobHandler(
     workspacesRepository,
     projectsRepository as ProjectsRepository,
@@ -106,8 +140,18 @@ function buildHandler(opts: {
     scopeEngine as ScopeEngineService,
     quota as QuotaService,
     usage as UsageService,
+    targetAuthorization,
   );
-  return { handler, vulnScanJobsRepository, eventBus, assertExecutionAllowed, enforceForWorkspace, usageRecord };
+  return {
+    handler,
+    vulnScanJobsRepository,
+    eventBus,
+    assertExecutionAllowed,
+    enforceForWorkspace,
+    usageRecord,
+    assertActiveScanAllowed,
+    recordScanStarted,
+  };
 }
 
 describe('CreateVulnScanJobHandler', () => {
@@ -131,7 +175,7 @@ describe('CreateVulnScanJobHandler', () => {
   });
 
   it('creates the job normally for a non-demo workspace', async () => {
-    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const create = jest.fn(async () => buildJob('job-1'));
     const { handler, vulnScanJobsRepository } = buildHandler({
       workspace: buildWorkspace({ isDemo: false }),
       create,
@@ -143,6 +187,67 @@ describe('CreateVulnScanJobHandler', () => {
 
     expect(vulnScanJobsRepository.create).toHaveBeenCalledTimes(1);
     expect(result.id).toBe('job-1');
+  });
+
+  // Target authorization layer: every scanner is active, so a scan is
+  // refused before any job exists when the target has no valid
+  // attestation, and a started scan is recorded with its authorization.
+
+  it('blocks the scan before creating a job when the target has no valid authorization', async () => {
+    const create = jest.fn();
+    const assertActiveScanAllowed = jest.fn(() =>
+      Promise.reject(
+        Object.assign(new Error('authorization required'), {
+          code: 'TARGET_AUTHORIZATION_REQUIRED',
+          status: 403,
+        }),
+      ),
+    );
+    const { handler, vulnScanJobsRepository, eventBus, recordScanStarted } =
+      buildHandler({
+        workspace: buildWorkspace({ isDemo: false }),
+        create,
+        assertActiveScanAllowed,
+      });
+
+    await expect(
+      handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', {
+          scanners: ['NUCLEI'],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'TARGET_AUTHORIZATION_REQUIRED' });
+
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    expect(recordScanStarted).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('records the scan start with the authorization and caller IP once the job exists', async () => {
+    const create = jest.fn(() => Promise.resolve(buildJob('job-9')));
+    const { handler, recordScanStarted } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+    });
+
+    await handler.execute(
+      new CreateVulnScanJobCommand(
+        'user-1',
+        'target-1',
+        { scanners: ['NUCLEI'] },
+        { ipAddress: '203.0.113.5', userAgent: 'jest' },
+      ),
+    );
+
+    expect(recordScanStarted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: 'job-9',
+        active: true,
+        operationType: 'VULN_SCAN',
+        authorization: expect.objectContaining({ id: 'authz-1' }),
+        context: { ipAddress: '203.0.113.5', userAgent: 'jest' },
+      }),
+    );
   });
 
   // Module 16 — Scope Engine (task #370). Same security regression
@@ -212,7 +317,7 @@ describe('CreateVulnScanJobHandler', () => {
   });
 
   it('records SCANNER_JOBS usage against the resolved organizationId after a successful job creation', async () => {
-    const create = jest.fn(async () => ({ id: 'job-1', toolRuns: [] }));
+    const create = jest.fn(async () => buildJob('job-1'));
     const enforceForWorkspace = jest.fn(async () => ({ organizationId: 'org-1' }));
     const { handler, usageRecord } = buildHandler({
       workspace: buildWorkspace({ isDemo: false }),

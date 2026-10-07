@@ -2,13 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as targetsApi from "@/lib/api/targets";
-import type { CreateTargetRequestDto, ListTargetsQueryDto, UpdateTargetRequestDto } from "@pentesthub/shared";
+import type {
+  AttestTargetAuthorizationRequestDto,
+  CreateTargetRequestDto,
+  ListTargetsQueryDto,
+  UpdateTargetRequestDto,
+} from "@pentesthub/shared";
 
 export const targetKeys = {
   all: ["targets"] as const,
   list: (projectId: string, filter: ListTargetsQueryDto = {}) =>
     ["targets", "list", projectId, filter] as const,
   detail: (id: string) => ["targets", "detail", id] as const,
+  authorization: (id: string) => ["targets", "authorization", id] as const,
 };
 
 export function useTargets(projectId: string, filter: ListTargetsQueryDto = {}) {
@@ -53,5 +59,22 @@ export function useDeleteTarget() {
   return useMutation({
     mutationFn: (id: string) => targetsApi.deleteTarget(id),
     onSuccess: invalidate,
+  });
+}
+
+/// Whether the target has a valid authorization for active scans.
+export function useTargetAuthorization(id: string) {
+  return useQuery({
+    queryKey: targetKeys.authorization(id),
+    queryFn: () => targetsApi.getTargetAuthorization(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAttestTargetAuthorization(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: AttestTargetAuthorizationRequestDto) => targetsApi.attestTargetAuthorization(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: targetKeys.authorization(id) }),
   });
 }

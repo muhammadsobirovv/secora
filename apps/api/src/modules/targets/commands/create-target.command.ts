@@ -21,12 +21,19 @@ import {
 import { resolveProjectInCallerWorkspace } from '../../../common/utils/project-access.util.js';
 import { toTargetDto } from '../mappers/to-target-dto.mapper.js';
 import { TargetCreatedEvent } from '../events/target-events.js';
+import { Transactional } from '@nestjs-cls/transactional';
+import {
+  TargetAuthorizationService,
+  type RequestContextInput,
+} from '../../target-authorization/target-authorization.service.js';
 
 export class CreateTargetCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly projectId: string,
     public readonly data: CreateTargetRequestDto,
+    /// Caller IP / user agent, recorded with the authorization attestation.
+    public readonly context?: RequestContextInput,
   ) {}
 }
 
@@ -43,8 +50,13 @@ export class CreateTargetHandler implements ICommandHandler<
     @Inject(TARGETS_REPOSITORY)
     private readonly targetsRepository: TargetsRepository,
     private readonly eventBus: EventBus,
+    @Inject(TargetAuthorizationService)
+    private readonly targetAuthorization: TargetAuthorizationService,
   ) {}
 
+  /// Transactional so a target created with an authorization attestation
+  /// never exists without it (and vice versa).
+  @Transactional()
   async execute(command: CreateTargetCommand): Promise<TargetDto> {
     const { workspace } = await resolveProjectInCallerWorkspace(
       this.workspacesRepository,
@@ -72,6 +84,16 @@ export class CreateTargetHandler implements ICommandHandler<
         target.id,
       ),
     );
+
+    if (command.data.authorization) {
+      await this.targetAuthorization.attestTarget({
+        userId: command.userId,
+        workspaceId: workspace.id,
+        target,
+        data: command.data.authorization,
+        context: command.context,
+      });
+    }
 
     const withTags = await this.targetsRepository.findById(target.id);
     return toTargetDto(withTags!);

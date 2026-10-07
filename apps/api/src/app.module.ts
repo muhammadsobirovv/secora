@@ -21,6 +21,7 @@ import { IpAllowlistGuard } from './common/guards/ip-allowlist.guard.js';
 import { MtlsGuard } from './common/guards/mtls.guard.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { LegalModule } from './modules/legal/legal.module.js';
+import { TargetAuthorizationModule } from './modules/target-authorization/target-authorization.module.js';
 import { LegalAcceptanceGuard } from './modules/legal/legal-acceptance.guard.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module.js';
@@ -163,6 +164,7 @@ import { SocModule } from './modules/soc/soc.module.js';
     ProvidersModule,
     AuditModule,
     LegalModule,
+    TargetAuthorizationModule,
     RbacModule,
     WorkspacesModule,
     ApiKeysModule,

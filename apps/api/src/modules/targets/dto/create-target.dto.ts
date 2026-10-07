@@ -5,7 +5,10 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { AttestTargetAuthorizationDto } from '../../target-authorization/dto/attest-target-authorization.dto.js';
 import type { CreateTargetRequestDto as CreateTargetShape } from '@pentesthub/shared';
 import type {
   TargetEnvironment,
@@ -67,4 +70,14 @@ export class CreateTargetDto implements CreateTargetShape {
   @IsOptional()
   @IsIn(TARGET_SCOPE_STATUSES)
   scopeStatus?: TargetScopeStatus;
+
+  @ApiPropertyOptional({
+    type: AttestTargetAuthorizationDto,
+    description:
+      'How you are authorized to test this target. Active scans are refused until the target has a valid attestation.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AttestTargetAuthorizationDto)
+  authorization?: AttestTargetAuthorizationDto;
 }

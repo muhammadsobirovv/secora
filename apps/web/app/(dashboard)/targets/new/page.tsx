@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Target } from "lucide-react";
@@ -9,6 +9,12 @@ import { ProjectPicker } from "@/components/common/project-picker";
 import { TargetForm } from "@/features/targets/components/target-form";
 import { useCreateTarget } from "@/features/targets/hooks/use-targets";
 import type { TargetFormValues } from "@/features/targets/validators/target.schema";
+import {
+  EMPTY_TARGET_AUTHORIZATION,
+  TargetAuthorizationFields,
+  toAttestRequest,
+} from "@/features/targets/components/target-authorization-fields";
+import { ApiError } from "@/lib/api/client";
 
 function NewTargetContent() {
   const projectId = useSearchParams().get("projectId");
@@ -32,6 +38,9 @@ function NewTargetContent() {
 function NewTargetForm({ projectId }: { projectId: string }) {
   const router = useRouter();
   const createTarget = useCreateTarget(projectId);
+  // Every target created in the UI records how the user is authorized to
+  // test it; "Add target" stays disabled until the attestation is ticked.
+  const [authorization, setAuthorization] = useState(EMPTY_TARGET_AUTHORIZATION);
 
   async function handleSubmit(values: TargetFormValues) {
     try {
@@ -42,11 +51,16 @@ function NewTargetForm({ projectId }: { projectId: string }) {
         description: values.description || undefined,
         environment: values.environment,
         scopeStatus: values.scopeStatus,
+        authorization: toAttestRequest(authorization),
       });
       toast.success("Target added");
       router.push(`/targets/${target.id}`);
-    } catch {
-      toast.error("Couldn't add target. Please try again.");
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError && error.code.startsWith("TARGET_AUTHORIZATION")
+          ? error.message
+          : "Couldn't add target. Please try again.",
+      );
     }
   }
 
@@ -57,7 +71,14 @@ function NewTargetForm({ projectId }: { projectId: string }) {
           <CardTitle>Add a target</CardTitle>
         </CardHeader>
         <CardContent>
-          <TargetForm onSubmit={handleSubmit} submitting={createTarget.isPending} />
+          <TargetForm
+            onSubmit={handleSubmit}
+            submitting={createTarget.isPending}
+            submitDisabled={!authorization.attested}
+            extra={
+              <TargetAuthorizationFields idPrefix="new-target" value={authorization} onChange={setAuthorization} />
+            }
+          />
         </CardContent>
       </Card>
     </div>

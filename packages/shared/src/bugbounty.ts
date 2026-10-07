@@ -206,6 +206,11 @@ export interface ImportProgramRequestDto {
   /// Markdown document, or platform-specific JSON, depending on `source`.
   raw: string;
   projectId?: string;
+  /// The user confirms they take part in this program and will test only
+  /// its in-scope assets under its rules. When true, targets linked to the
+  /// program that its scope rules classify IN_SCOPE count as authorized
+  /// (basis BUG_BOUNTY_SCOPE) for active scans until `expiresAt`.
+  scopeAttestation?: { attested: boolean; expiresAt?: string };
 }
 
 export interface ImportProgramResultDto {

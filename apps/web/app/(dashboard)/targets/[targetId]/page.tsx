@@ -18,6 +18,7 @@ import { useChangeEvents, useTechnologies } from "@/features/intelligence/hooks/
 import { formatDateTime } from "@/lib/format";
 import { TargetTypeBadge } from "@/features/targets/components/target-type-badge";
 import { TargetActionsMenu } from "@/features/targets/components/target-actions-menu";
+import { TargetAuthorizationCard } from "@/features/targets/components/target-authorization-card";
 import { CreateReconJobDialog } from "@/features/recon/components/create-recon-job-dialog";
 import { ReconJobList } from "@/features/recon/components/recon-job-list";
 import { CreateVulnScanJobDialog } from "@/features/vuln/components/create-vuln-scan-job-dialog";
@@ -88,6 +89,8 @@ export default function TargetDetailPage({ params }: { params: Promise<{ targetI
         </div>
         <TargetActionsMenu target={target} />
       </div>
+
+      <TargetAuthorizationCard targetId={targetId} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">

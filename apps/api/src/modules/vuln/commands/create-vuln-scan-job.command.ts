@@ -40,12 +40,18 @@ import { isScannerCompatibleWithTargetType } from '../scanner-runners/scanner-ta
 import { toVulnScanJobDto } from '../mappers/to-vuln-scan-job-dto.mapper.js';
 import { VulnScanJobCreatedEvent } from '../events/vuln-scan-job-events.js';
 import { getRequestId } from '../../../observability/request-context.js';
+import {
+  TargetAuthorizationService,
+  type RequestContextInput,
+} from '../../target-authorization/target-authorization.service.js';
 
 export class CreateVulnScanJobCommand implements ICommand {
   constructor(
     public readonly userId: string,
     public readonly targetId: string,
     public readonly data: CreateVulnScanJobRequestDto,
+    /// Caller IP / user agent for the audit trail (REST only).
+    public readonly context?: RequestContextInput,
   ) {}
 }
 
@@ -74,6 +80,8 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
     private readonly scopeEngine: ScopeEngineService,
     private readonly quota: QuotaService,
     private readonly usage: UsageService,
+    @Inject(TargetAuthorizationService)
+    private readonly targetAuthorization: TargetAuthorizationService,
   ) {}
 
   async execute(command: CreateVulnScanJobCommand): Promise<VulnScanJobDto> {
@@ -112,7 +120,22 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         projectId: target.projectId,
       },
       operationType: 'VULN_SCAN',
+      ipAddress: command.context?.ipAddress,
+      userAgent: command.context?.userAgent,
     });
+
+    // Target authorization layer: every vulnerability scanner is ACTIVE,
+    // so a valid, unexpired attestation and the active-scan network guard
+    // are always required. Every caller (REST, AI tools, MCP, AI
+    // investigation) goes through this handler.
+    const authorization =
+      await this.targetAuthorization.assertActiveScanAllowed({
+        userId: command.userId,
+        workspaceId,
+        target,
+        operationType: 'VULN_SCAN',
+        context: command.context,
+      });
 
     let scanners = command.data.scanners;
     let config = command.data.config ?? null;
@@ -168,6 +191,18 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         infer: true,
       }),
       requestId: getRequestId(),
+    });
+
+    await this.targetAuthorization.recordScanStarted({
+      userId: command.userId,
+      workspaceId,
+      target,
+      operationType: 'VULN_SCAN',
+      jobId: job.id,
+      tools: scanners,
+      active: true,
+      authorization,
+      context: command.context,
     });
 
     // Best-effort, after the job already exists — see

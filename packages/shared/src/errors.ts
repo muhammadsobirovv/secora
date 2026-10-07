@@ -348,4 +348,10 @@ export type AppErrorCode =
   // (403 on every gated route), or tried to accept a version other than
   // the current one.
   | "LEGAL_ACCEPTANCE_REQUIRED"
-  | "LEGAL_VERSION_MISMATCH";
+  | "LEGAL_VERSION_MISMATCH"
+  // Target authorization attestation (active scans).
+  | "TARGET_AUTHORIZATION_REQUIRED"
+  | "TARGET_AUTHORIZATION_EXPIRED"
+  | "TARGET_AUTHORIZATION_ATTESTATION_REQUIRED"
+  | "TARGET_AUTHORIZATION_INVALID"
+  | "TARGET_FORBIDDEN_FOR_ACTIVE_SCAN";
