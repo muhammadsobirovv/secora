@@ -25,6 +25,17 @@ export const PROGRAM_IMPORT_SOURCES: ProgramImportSource[] = [
   'JSON',
 ];
 
+/// Declared before ImportProgramDto: its decorator metadata references this
+/// class eagerly, so a later declaration throws at module load (TDZ).
+export class ProgramScopeAttestationDto {
+  @ApiProperty() @IsBoolean() @Equals(true) attested!: boolean;
+
+  @ApiPropertyOptional({ description: 'ISO date; default now + 12 months.' })
+  @IsOptional()
+  @IsISO8601()
+  expiresAt?: string;
+}
+
 export class ImportProgramDto implements ImportShape {
   @ApiProperty({ enum: PROGRAM_IMPORT_SOURCES })
   @IsIn(PROGRAM_IMPORT_SOURCES)
@@ -46,15 +57,6 @@ export class ImportProgramDto implements ImportShape {
   @ValidateNested()
   @Type(() => ProgramScopeAttestationDto)
   scopeAttestation?: ProgramScopeAttestationDto;
-}
-
-export class ProgramScopeAttestationDto {
-  @ApiProperty() @IsBoolean() @Equals(true) attested!: boolean;
-
-  @ApiPropertyOptional({ description: 'ISO date; default now + 12 months.' })
-  @IsOptional()
-  @IsISO8601()
-  expiresAt?: string;
 }
 
 /// Shared by both the `detect-update` (read-only preview) and `reimport`
