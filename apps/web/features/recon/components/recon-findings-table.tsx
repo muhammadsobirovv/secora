@@ -18,24 +18,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/common/empty-state";
 import { ListSkeleton } from "@/components/common/skeletons";
 import { formatDistanceToNow } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { usePromoteReconFinding } from "../hooks/use-recon";
 
-const TYPE_LABEL: Record<ReconFindingType, string> = {
-  SUBDOMAIN: "Subdomain",
-  URL: "URL",
-  OPEN_PORT: "Open port",
-  SERVICE: "Service",
-  TECHNOLOGY: "Technology",
-  DNS_RECORD: "DNS record",
-  HTTP_HEADER: "HTTP header",
-  CERTIFICATE: "Certificate",
-  SCREENSHOT: "Screenshot",
-  SECURITY_HEADER: "Security header",
-  WHOIS_RECORD: "WHOIS",
-  ASN: "ASN",
-};
-
-const ALL_TYPES = Object.keys(TYPE_LABEL) as ReconFindingType[];
+const ALL_TYPES: ReconFindingType[] = [
+  "SUBDOMAIN",
+  "URL",
+  "OPEN_PORT",
+  "SERVICE",
+  "TECHNOLOGY",
+  "DNS_RECORD",
+  "HTTP_HEADER",
+  "CERTIFICATE",
+  "SCREENSHOT",
+  "SECURITY_HEADER",
+  "WHOIS_RECORD",
+  "ASN",
+];
 
 export function ReconFindingsTable({
   findings,
@@ -44,6 +43,7 @@ export function ReconFindingsTable({
   findings: ReconFindingDto[] | undefined;
   isLoading: boolean;
 }) {
+  const { t } = useI18n();
   const [typeFilter, setTypeFilter] = React.useState<ReconFindingType | "ALL">("ALL");
   const promote = usePromoteReconFinding();
 
@@ -53,16 +53,16 @@ export function ReconFindingsTable({
   }, [findings, typeFilter]);
 
   const presentTypes = React.useMemo(
-    () => ALL_TYPES.filter((t) => findings?.some((f) => f.type === t)),
+    () => ALL_TYPES.filter((type) => findings?.some((f) => f.type === type)),
     [findings],
   );
 
   async function handlePromote(finding: ReconFindingDto): Promise<void> {
     try {
       await promote.mutateAsync({ id: finding.id });
-      toast.success(`Promoted "${finding.value}" to a target`);
+      toast.success(t("recon.findings.promoteSuccess", { value: finding.value }));
     } catch {
-      toast.error("Couldn't promote this finding.");
+      toast.error(t("recon.findings.promoteError"));
     }
   }
 
@@ -72,8 +72,8 @@ export function ReconFindingsTable({
     return (
       <EmptyState
         icon={SearchX}
-        title="No findings yet"
-        description="Findings appear here as tools complete — domains, ports, technologies, and more."
+        title={t("recon.findings.emptyTitle")}
+        description={t("recon.findings.emptyDescription")}
       />
     );
   }
@@ -86,10 +86,10 @@ export function ReconFindingsTable({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All types ({findings.length})</SelectItem>
+            <SelectItem value="ALL">{t("recon.findings.allTypes", { count: findings.length })}</SelectItem>
             {presentTypes.map((type) => (
               <SelectItem key={type} value={type}>
-                {TYPE_LABEL[type]} ({findings.filter((f) => f.type === type).length})
+                {t(`recon.findingType.${type}` as const)} ({findings.filter((f) => f.type === type).length})
               </SelectItem>
             ))}
           </SelectContent>
@@ -99,10 +99,10 @@ export function ReconFindingsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Type</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Last seen</TableHead>
+            <TableHead>{t("recon.findings.col.type")}</TableHead>
+            <TableHead>{t("recon.findings.col.value")}</TableHead>
+            <TableHead>{t("recon.findings.col.source")}</TableHead>
+            <TableHead>{t("recon.findings.col.lastSeen")}</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -112,7 +112,7 @@ export function ReconFindingsTable({
             return (
               <TableRow key={finding.id}>
                 <TableCell>
-                  <Badge variant="outline">{TYPE_LABEL[finding.type]}</Badge>
+                  <Badge variant="outline">{t(`recon.findingType.${finding.type}` as const)}</Badge>
                 </TableCell>
                 <TableCell className="max-w-md truncate font-mono text-xs" title={finding.value}>
                   {finding.value}
@@ -124,7 +124,7 @@ export function ReconFindingsTable({
                 <TableCell>
                   {promotable &&
                     (finding.promotedTargetId ? (
-                      <Badge variant="secondary">Promoted</Badge>
+                      <Badge variant="secondary">{t("recon.findings.promoted")}</Badge>
                     ) : (
                       <Button
                         size="sm"
@@ -133,7 +133,7 @@ export function ReconFindingsTable({
                         onClick={() => void handlePromote(finding)}
                       >
                         {promote.isPending && <Loader2 className="size-3.5 animate-spin" />}
-                        Promote
+                        {t("recon.findings.promote")}
                       </Button>
                     ))}
                 </TableCell>

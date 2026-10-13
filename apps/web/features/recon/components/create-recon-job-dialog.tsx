@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { scanErrorMessage } from "@/features/targets/scan-error-message";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ export function CreateReconJobDialog({
   targetType: TargetType;
   onCreated?: (jobId: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = React.useState(false);
   const [tools, setTools] = React.useState<ReconTool[]>([]);
   const createJob = useCreateReconJob(targetId);
@@ -34,12 +36,12 @@ export function CreateReconJobDialog({
   async function handleSubmit(): Promise<void> {
     try {
       const job = await createJob.mutateAsync({ tools });
-      toast.success(`Recon job started (${tools.length} tool${tools.length === 1 ? "" : "s"})`);
+      toast.success(t("recon.create.started", { count: tools.length }));
       setOpen(false);
       setTools([]);
       onCreated?.(job.id);
     } catch (error) {
-      toast.error(scanErrorMessage(error, "Couldn't start the recon job. Please try again."));
+      toast.error(scanErrorMessage(error, t("recon.create.error")));
     }
   }
 
@@ -47,16 +49,13 @@ export function CreateReconJobDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Radar className="size-4" /> New scan
+          <Radar className="size-4" /> {t("recon.create.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Start a recon scan</DialogTitle>
-          <DialogDescription>
-            Choose which tools to run against this target. Every scan runs asynchronously — you can
-            close this dialog and track progress from the job list.
-          </DialogDescription>
+          <DialogTitle>{t("recon.create.title")}</DialogTitle>
+          <DialogDescription>{t("recon.create.description")}</DialogDescription>
         </DialogHeader>
 
         <ReconToolSelectList targetType={targetType} selected={tools} onChange={setTools} />
@@ -67,7 +66,7 @@ export function CreateReconJobDialog({
             disabled={tools.length === 0 || createJob.isPending}
           >
             {createJob.isPending && <Loader2 className="size-4 animate-spin" />}
-            Start scan ({tools.length})
+            {t("recon.create.submit", { count: tools.length })}
           </Button>
         </DialogFooter>
       </DialogContent>

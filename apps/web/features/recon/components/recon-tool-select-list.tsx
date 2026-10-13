@@ -1,26 +1,29 @@
+"use client";
+
 import { TOOL_TARGET_TYPE_COMPATIBILITY } from "@pentesthub/shared";
 import type { ReconTool, TargetType } from "@pentesthub/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/features/i18n/i18n-context";
 
-const TOOL_LABEL: Record<ReconTool, string> = {
-  SUBFINDER: "Subfinder — subdomain enumeration",
-  ASSETFINDER: "Assetfinder — subdomain enumeration",
-  AMASS: "Amass — subdomain enumeration (passive)",
-  DNSX: "DNSX — DNS records",
-  NAABU: "Naabu — port scan",
-  NMAP: "Nmap — port scan + service detection",
-  HTTPX: "HTTPX — HTTP probe, tech detection, headers",
-  WHATWEB: "WhatWeb — technology fingerprinting",
-  GOWITNESS: "Gowitness — screenshots",
-  KATANA: "Katana — web crawler",
-  GAU: "Gau — historical URLs (multi-source)",
-  WAYBACKURLS: "Waybackurls — Wayback Machine URLs",
-  WHOIS: "WHOIS — domain registration lookup",
-  ASN: "ASN lookup — IP-to-AS mapping",
-};
-
-const ALL_TOOLS = Object.keys(TOOL_LABEL) as ReconTool[];
+// Tool names are proper nouns and stay as-is; only the description is
+// translated (see the recon.tool.* catalog entries).
+const ALL_TOOLS = [
+  "SUBFINDER",
+  "ASSETFINDER",
+  "AMASS",
+  "DNSX",
+  "NAABU",
+  "NMAP",
+  "HTTPX",
+  "WHATWEB",
+  "GOWITNESS",
+  "KATANA",
+  "GAU",
+  "WAYBACKURLS",
+  "WHOIS",
+  "ASN",
+] as const satisfies readonly ReconTool[];
 
 /// Greys out (rather than hides) any tool that doesn't support the
 /// target's type — mirrors the server-side check in
@@ -36,6 +39,8 @@ export function ReconToolSelectList({
   selected: ReconTool[];
   onChange: (tools: ReconTool[]) => void;
 }) {
+  const { t } = useI18n();
+
   function toggle(tool: ReconTool, checked: boolean): void {
     onChange(checked ? [...selected, tool] : selected.filter((t) => t !== tool));
   }
@@ -55,7 +60,7 @@ export function ReconToolSelectList({
               disabled={!compatible}
               onCheckedChange={(checked) => toggle(tool, checked === true)}
             />
-            <Label className="cursor-pointer font-normal">{TOOL_LABEL[tool]}</Label>
+            <Label className="cursor-pointer font-normal">{t(`recon.tool.${tool}` as const)}</Label>
           </label>
         );
       })}

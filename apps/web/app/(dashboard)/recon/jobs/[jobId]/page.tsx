@@ -19,12 +19,14 @@ import { ReconJobProgress } from "@/features/recon/components/recon-job-progress
 import { ReconLiveLogPanel } from "@/features/recon/components/recon-live-log-panel";
 import { ReconFindingsTable } from "@/features/recon/components/recon-findings-table";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { ReconJobStatus } from "@pentesthub/shared";
 
 const TERMINAL_STATUSES: ReconJobStatus[] = ["COMPLETED", "FAILED", "CANCELLED"];
 const CANCELLABLE_STATUSES: ReconJobStatus[] = ["PENDING", "RUNNING", "RETRYING"];
 
 export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
+  const { t } = useI18n();
   const { jobId } = use(params);
   const { data: job, isLoading, isError, refetch } = useReconJob(jobId);
   const { data: findings, isLoading: findingsLoading } = useReconJobFindings(jobId);
@@ -34,18 +36,18 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
   async function handleCancel(): Promise<void> {
     try {
       await cancelJob.mutateAsync(jobId);
-      toast.success("Cancellation requested");
+      toast.success(t("recon.job.cancelRequested"));
     } catch {
-      toast.error("Couldn't cancel this job.");
+      toast.error(t("recon.job.cancelError"));
     }
   }
 
   async function handleRetry(): Promise<void> {
     try {
       await retryJob.mutateAsync(jobId);
-      toast.success("Job queued for retry");
+      toast.success(t("recon.job.retryQueued"));
     } catch {
-      toast.error("Couldn't retry this job.");
+      toast.error(t("recon.job.retryError"));
     }
   }
 
@@ -59,7 +61,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
   }
 
   if (isError || !job) {
-    return <ErrorState description="Couldn't load this recon job." onRetry={() => void refetch()} />;
+    return <ErrorState description={t("recon.job.loadError")} onRetry={() => void refetch()} />;
   }
 
   const isRunning = !TERMINAL_STATUSES.includes(job.status);
@@ -70,19 +72,19 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Radar className="size-5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Recon job</h1>
+            <h1 className="text-xl font-semibold">{t("recon.job.title")}</h1>
             <ReconJobStatusBadge status={job.status} />
           </div>
           <p className="mt-1 font-mono text-xs text-muted-foreground">{job.id}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <Link href={`/targets/${job.targetId}`} className="hover:text-foreground hover:underline">
-              Target →
+              {t("recon.job.target")} →
             </Link>
             <Link href={`/projects/${job.projectId}?tab=recon`} className="hover:text-foreground hover:underline">
-              Project →
+              {t("recon.job.project")} →
             </Link>
-            {job.startedAt && <span>Started {formatDateTime(job.startedAt)}</span>}
-            {job.completedAt && <span>Completed {formatDateTime(job.completedAt)}</span>}
+            {job.startedAt && <span>{t("recon.job.started", { date: formatDateTime(job.startedAt) })}</span>}
+            {job.completedAt && <span>{t("recon.job.completed", { date: formatDateTime(job.completedAt) })}</span>}
           </div>
           {job.error && <p className="mt-2 text-sm text-destructive">{job.error}</p>}
         </div>
@@ -95,7 +97,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
               onClick={() => void handleCancel()}
             >
               {cancelJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-              Cancel
+              {t("common.cancel")}
             </Button>
           )}
           {job.status === "FAILED" && (
@@ -105,7 +107,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
               ) : (
                 <RotateCcw className="size-4" />
               )}
-              Retry
+              {t("recon.job.retry")}
             </Button>
           )}
         </div>
@@ -113,7 +115,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Progress</CardTitle>
+          <CardTitle className="text-base">{t("recon.job.progress")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReconJobProgress toolRuns={job.toolRuns} />
@@ -122,7 +124,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Live log</CardTitle>
+          <CardTitle className="text-base">{t("recon.job.liveLog")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReconLiveLogPanel jobId={job.id} enabled={isRunning} />
@@ -131,7 +133,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Findings ({job.findingsCount})</CardTitle>
+          <CardTitle className="text-base">{t("recon.job.findingsTitle", { count: job.findingsCount })}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReconFindingsTable findings={findings} isLoading={findingsLoading} />

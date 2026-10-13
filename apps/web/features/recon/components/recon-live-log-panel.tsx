@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Circle, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { useReconJobLogs } from "../hooks/use-recon";
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -17,6 +18,7 @@ const LEVEL_COLOR: Record<string, string> = {
 /// so re-streaming it live would be pointless work. `enabled` is the
 /// caller's job.status not being terminal.
 export function ReconLiveLogPanel({ jobId, enabled }: { jobId: string; enabled: boolean }) {
+  const { t } = useI18n();
   const { logs, connected, error } = useReconJobLogs(jobId, enabled);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -28,14 +30,14 @@ export function ReconLiveLogPanel({ jobId, enabled }: { jobId: string; enabled: 
     <div className="rounded-lg border border-border bg-muted/30">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Terminal className="size-3.5" /> Live log
+          <Terminal className="size-3.5" /> {t("recon.job.liveLog")}
         </div>
         {enabled && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Circle
               className={cn("size-2", connected ? "fill-success text-success" : "fill-muted text-muted")}
             />
-            {connected ? "Streaming" : "Connecting…"}
+            {connected ? t("recon.log.streaming") : t("recon.log.connecting")}
           </div>
         )}
       </div>
@@ -43,7 +45,7 @@ export function ReconLiveLogPanel({ jobId, enabled }: { jobId: string; enabled: 
         {error && <p className="text-destructive">{error}</p>}
         {logs.length === 0 && !error && (
           <p className="text-muted-foreground">
-            {enabled ? "Waiting for output…" : "No live output for a finished job."}
+            {enabled ? t("recon.log.waiting") : t("recon.log.finished")}
           </p>
         )}
         {logs.map((log) => (

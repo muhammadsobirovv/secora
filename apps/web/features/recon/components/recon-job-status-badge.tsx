@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { ReconJobStatus } from "@pentesthub/shared";
 
 const STATUS_VARIANT: Record<
@@ -13,15 +16,7 @@ const STATUS_VARIANT: Record<
   CANCELLED: "outline",
 };
 
-const STATUS_LABEL: Record<ReconJobStatus, string> = {
-  PENDING: "Pending",
-  RUNNING: "Running",
-  RETRYING: "Retrying",
-  COMPLETED: "Completed",
-  FAILED: "Failed",
-  CANCELLED: "Cancelled",
-};
-
 export function ReconJobStatusBadge({ status }: { status: ReconJobStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+  const { t } = useI18n();
+  return <Badge variant={STATUS_VARIANT[status]}>{t(`recon.status.${status}` as const)}</Badge>;
 }
