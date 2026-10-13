@@ -34,7 +34,7 @@ import { WorkspaceAvatar } from "@/features/workspace/components/workspace-avata
 // The authenticated dashboard home now lives at "/dashboard"; proxy.ts
 // redirects signed-in visitors from "/" to here at the edge.
 export default function DashboardHomePage() {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const { user } = useAuth();
   const { data: workspace } = useWorkspace();
   const { data: members } = useWorkspaceMembers();
@@ -132,7 +132,7 @@ export default function DashboardHomePage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{workspace?.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t("dashboard.members", { count: memberCount })}
+                    {plural("dashboard.members", memberCount)}
                   </p>
                 </div>
               </div>

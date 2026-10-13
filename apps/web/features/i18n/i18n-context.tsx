@@ -6,7 +6,15 @@ import { isSupportedLocale, type Locale } from "@pentesthub/shared";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { updatePreferences } from "@/lib/api/user-preferences";
 import { setFormatLocale } from "@/lib/format";
-import { interpolate, translate, type TranslateFn, type TranslateParams } from "./catalog";
+import {
+  interpolate,
+  translate,
+  translatePlural,
+  type PluralBase,
+  type PluralFn,
+  type TranslateFn,
+  type TranslateParams,
+} from "./catalog";
 import {
   LOCALE_COOKIE,
   LOCALE_COOKIE_MAX_AGE_SECONDS,
@@ -39,6 +47,8 @@ interface I18nContextValue {
   /// it back.
   adoptLocale: (locale: Locale) => void;
   t: TranslateFn;
+  /// Count-based string from a plural group (see ./plural.ts), in the active locale.
+  plural: PluralFn;
 }
 
 const I18nContext = React.createContext<I18nContextValue | null>(null);
@@ -135,9 +145,14 @@ export function I18nProvider({
     [locale],
   );
 
+  const plural = React.useCallback<PluralFn>(
+    (base: PluralBase, count, params) => translatePlural(locale, base, count, params),
+    [locale],
+  );
+
   const value = React.useMemo<I18nContextValue>(
-    () => ({ locale, setLocale, adoptLocale, t }),
-    [locale, setLocale, adoptLocale, t],
+    () => ({ locale, setLocale, adoptLocale, t, plural }),
+    [locale, setLocale, adoptLocale, t, plural],
   );
 
   // Remounting the subtree on a language change makes every component —

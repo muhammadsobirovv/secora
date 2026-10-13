@@ -19,7 +19,7 @@ const STATUS_ICON: Record<VulnScanJobToolRunDto["status"], React.ReactNode> = {
 /// ReconJobProgress, one row per VulnScanJobToolRun (written to as
 /// VulnScanJobExecutionService works through the job's scanner list).
 export function VulnScanJobProgress({ toolRuns }: { toolRuns: VulnScanJobToolRunDto[] }) {
-  const { t } = useI18n();
+  const { plural } = useI18n();
   return (
     <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
       {toolRuns.map((run) => (
@@ -29,7 +29,7 @@ export function VulnScanJobProgress({ toolRuns }: { toolRuns: VulnScanJobToolRun
             <span className="font-mono text-sm">{run.scanner}</span>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {run.status === "COMPLETED" && <span>{t("recon.progress.findings", { count: run.findingsCount })}</span>}
+            {run.status === "COMPLETED" && <span>{plural("recon.progress.findings", run.findingsCount)}</span>}
             {run.errorMessage && (
               <Badge variant="destructive" className="max-w-64 truncate" title={run.errorMessage}>
                 {run.errorMessage}

@@ -26,7 +26,7 @@ const TERMINAL_STATUSES: ReconJobStatus[] = ["COMPLETED", "FAILED", "CANCELLED"]
 const CANCELLABLE_STATUSES: ReconJobStatus[] = ["PENDING", "RUNNING", "RETRYING"];
 
 export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const { jobId } = use(params);
   const { data: job, isLoading, isError, refetch } = useReconJob(jobId);
   const { data: findings, isLoading: findingsLoading } = useReconJobFindings(jobId);
@@ -133,7 +133,7 @@ export default function ReconJobDetailPage({ params }: { params: Promise<{ jobId
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("recon.job.findingsTitle", { count: job.findingsCount })}</CardTitle>
+          <CardTitle className="text-base">{plural("recon.job.findingsTitle", job.findingsCount)}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReconFindingsTable findings={findings} isLoading={findingsLoading} />

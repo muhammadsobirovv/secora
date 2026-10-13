@@ -46,6 +46,16 @@ for (const locale of ["uz", "ru"]) {
   if (missing.length) errors.push(`${locale}.json is missing ${missing.length} key(s): ${missing.slice(0, 8).join(", ")}${missing.length > 8 ? " …" : ""}`);
   if (extra.length) errors.push(`${locale}.json has ${extra.length} key(s) not in en.json: ${extra.slice(0, 8).join(", ")}${extra.length > 8 ? " …" : ""}`);
 }
+// Plural groups (features/i18n/plural.ts): every "<base>_<form>" key belongs
+// to a group that must have an "_other" form in every locale.
+const PLURAL_SUFFIX = /_(one|few|many|other)$/;
+for (const locale of ["en", "uz", "ru"]) {
+  for (const key of Object.keys(catalogs[locale])) {
+    if (!PLURAL_SUFFIX.test(key)) continue;
+    const base = key.replace(PLURAL_SUFFIX, "");
+    if (!(`${base}_other` in catalogs[locale])) errors.push(`${locale}.json: plural group "${base}" has no _other form`);
+  }
+}
 for (const locale of ["en", "uz", "ru"]) {
   for (const [key, value] of Object.entries(catalogs[locale])) {
     if (typeof value !== "string" || value.trim() === "") errors.push(`${locale}.json: "${key}" is empty`);
@@ -101,6 +111,11 @@ for (const rel of SCAN_DIRS.flatMap(walk)) {
       if (ts.isIdentifier(callee) && callee.text === "t") {
         const [arg] = node.arguments;
         if (arg && ts.isStringLiteral(arg) && !enKeys.has(arg.text)) unknownKeys.push(`${rel}:${lineOf(node)} t("${arg.text}")`);
+      }
+      // plural("base", count) — the base must be a plural group in en (its _other form).
+      if (ts.isIdentifier(callee) && callee.text === "plural") {
+        const [arg] = node.arguments;
+        if (arg && ts.isStringLiteral(arg) && !enKeys.has(`${arg.text}_other`)) unknownKeys.push(`${rel}:${lineOf(node)} plural("${arg.text}") has no ${arg.text}_other`);
       }
     }
     ts.forEachChild(node, visit);

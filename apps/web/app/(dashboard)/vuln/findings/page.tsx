@@ -38,7 +38,7 @@ const SCANNERS: VulnScanner[] = ["NUCLEI", "FFUF", "DIRSEARCH", "FEROXBUSTER", "
 /// table. "/" focuses the search box — a lightweight keyboard shortcut
 /// per the frontend spec's "Keyboard Shortcuts" requirement.
 export default function VulnFindingsPage() {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const [severity, setSeverity] = React.useState<VulnFindingSeverity | "ALL">("ALL");
   const [status, setStatus] = React.useState<VulnFindingStatus | "ALL">("ALL");
   const [scanner, setScanner] = React.useState<VulnScanner | "ALL">("ALL");
@@ -130,7 +130,7 @@ export default function VulnFindingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {findings ? t("vuln.findings.count", { count: findings.length }) : t("vuln.findings.title")}
+            {findings ? plural("vuln.findings.count", findings.length) : t("vuln.findings.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>

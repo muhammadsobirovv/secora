@@ -19,7 +19,7 @@ const STATUS_ICON: Record<ReconJobToolRunDto["status"], React.ReactNode> = {
 /// to as it works through the job's tool list sequentially (see
 /// ReconJobExecutionService).
 export function ReconJobProgress({ toolRuns }: { toolRuns: ReconJobToolRunDto[] }) {
-  const { t } = useI18n();
+  const { plural } = useI18n();
   return (
     <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
       {toolRuns.map((run) => (
@@ -29,7 +29,7 @@ export function ReconJobProgress({ toolRuns }: { toolRuns: ReconJobToolRunDto[] 
             <span className="font-mono text-sm">{run.tool}</span>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {run.status === "COMPLETED" && <span>{t("recon.progress.findings", { count: run.findingsCount })}</span>}
+            {run.status === "COMPLETED" && <span>{plural("recon.progress.findings", run.findingsCount)}</span>}
             {run.errorMessage && (
               <Badge variant="destructive" className="max-w-64 truncate" title={run.errorMessage}>
                 {run.errorMessage}

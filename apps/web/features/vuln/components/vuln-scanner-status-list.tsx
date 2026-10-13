@@ -19,7 +19,7 @@ export function VulnScannerStatusList({
   entries: VulnScannerHistoryEntryDto[] | undefined;
   isLoading: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   if (isLoading) return <ListSkeleton rows={3} />;
 
   if (!entries || entries.length === 0) {
@@ -38,7 +38,7 @@ export function VulnScannerStatusList({
         <div key={entry.scanner} className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm">{entry.scanner}</span>
-            <span className="text-xs text-muted-foreground">{t("vuln.scannerHistory.runs", { count: entry.totalRuns })}</span>
+            <span className="text-xs text-muted-foreground">{plural("vuln.scannerHistory.runs", entry.totalRuns)}</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -49,7 +49,7 @@ export function VulnScannerStatusList({
                 <XCircle className="size-3.5 text-destructive" /> {entry.failedRuns}
               </span>
             )}
-            <span>{t("recon.progress.findings", { count: entry.totalFindings })}</span>
+            <span>{plural("recon.progress.findings", entry.totalFindings)}</span>
             {entry.lastRunAt && <span>{formatDistanceToNow(entry.lastRunAt)}</span>}
           </div>
         </div>

@@ -29,7 +29,7 @@ const STOPPABLE_STATUSES: VulnScanJobStatus[] = ["PENDING", "RUNNING", "RETRYING
 const PAUSABLE_STATUSES: VulnScanJobStatus[] = ["RUNNING", "RETRYING"];
 
 export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const { jobId } = use(params);
   const { data: job, isLoading, isError, refetch } = useVulnScanJob(jobId);
   const { data: findings, isLoading: findingsLoading } = useVulnScanJobFindings(jobId);
@@ -160,7 +160,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("recon.job.findingsTitle", { count: job.findingsCount })}</CardTitle>
+          <CardTitle className="text-base">{plural("recon.job.findingsTitle", job.findingsCount)}</CardTitle>
         </CardHeader>
         <CardContent>
           <VulnFindingsTable findings={findings} isLoading={findingsLoading} />
