@@ -7,10 +7,10 @@
 /// documents at their next request (the API answers 403
 /// LEGAL_ACCEPTANCE_REQUIRED until they do). Bump it only for a material
 /// change, and update LEGAL_EFFECTIVE_DATE together with it.
-export const LEGAL_VERSION = "2026-10-06";
+export const LEGAL_VERSION = "2026-10-13";
 
 /// ISO date (YYYY-MM-DD) the current LEGAL_VERSION takes effect.
-export const LEGAL_EFFECTIVE_DATE = "2026-10-06";
+export const LEGAL_EFFECTIVE_DATE = "2026-10-13";
 
 export const LEGAL_DOCUMENTS = ["terms", "aup", "privacy"] as const;
 export type LegalDocumentKind = (typeof LEGAL_DOCUMENTS)[number];

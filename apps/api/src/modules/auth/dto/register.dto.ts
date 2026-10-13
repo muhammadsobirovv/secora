@@ -20,7 +20,7 @@ export class RegisterDto implements RegisterRequestDto {
   displayName!: string;
 
   @ApiProperty({
-    example: '2026-10-06',
+    example: '2026-10-13',
     description:
       'LEGAL_VERSION of the Terms of Service, Acceptable Use Policy and Privacy Policy the user accepted. Must equal the current version.',
   })

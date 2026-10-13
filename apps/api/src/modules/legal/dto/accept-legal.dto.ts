@@ -4,7 +4,7 @@ import type { AcceptLegalRequestDto } from '@pentesthub/shared';
 
 export class AcceptLegalDto implements AcceptLegalRequestDto {
   @ApiProperty({
-    example: '2026-10-06',
+    example: '2026-10-13',
     description: 'Must equal the current LEGAL_VERSION.',
   })
   @IsString()

@@ -3,7 +3,7 @@
 ///
 /// MUST equal LEGAL_VERSION in packages/shared/src/legal.ts — the API
 /// rejects signup with any other value. Bump both together.
-const String legalVersion = '2026-10-06';
+const String legalVersion = '2026-10-13';
 
 const String legalTermsUrl = 'https://secora.group/legal/terms';
 const String legalAcceptableUseUrl = 'https://secora.group/legal/acceptable-use';
