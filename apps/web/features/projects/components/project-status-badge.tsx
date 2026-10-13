@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { ProjectStatus } from "@pentesthub/shared";
 
 const STATUS_VARIANT: Record<ProjectStatus, "default" | "secondary" | "success" | "outline"> = {
@@ -8,13 +11,13 @@ const STATUS_VARIANT: Record<ProjectStatus, "default" | "secondary" | "success" 
   ARCHIVED: "outline",
 };
 
-const STATUS_LABEL: Record<ProjectStatus, string> = {
-  ACTIVE: "Active",
-  ON_HOLD: "On hold",
-  COMPLETED: "Completed",
-  ARCHIVED: "Archived",
-};
-
 export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+  const { t } = useI18n();
+  const label = {
+    ACTIVE: t("projectStatus.ACTIVE"),
+    ON_HOLD: t("projectStatus.ON_HOLD"),
+    COMPLETED: t("projectStatus.COMPLETED"),
+    ARCHIVED: t("projectStatus.ARCHIVED"),
+  }[status];
+  return <Badge variant={STATUS_VARIANT[status]}>{label}</Badge>;
 }

@@ -13,8 +13,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/features/workspace/hooks/use-workspace";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 export function WorkspaceSwitcher() {
+  const { t } = useI18n();
   const { data: workspace, isLoading } = useWorkspace();
 
   if (isLoading) {
@@ -35,11 +37,11 @@ export function WorkspaceSwitcher() {
             <Building2 className="size-3.5" />
           </AvatarFallback>
         </Avatar>
-        <span className="flex-1 truncate">{workspace?.name ?? "Workspace"}</span>
+        <span className="flex-1 truncate">{workspace?.name ?? t("workspaceSwitcher.fallbackName")}</span>
         <ChevronsUpDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Your workspace</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("workspaceSwitcher.yours")}</DropdownMenuLabel>
         <DropdownMenuItem disabled className="opacity-100">
           <Avatar className="size-5 rounded">
             <AvatarImage src={workspace?.avatarUrl ?? undefined} alt={workspace?.name} />
@@ -53,13 +55,13 @@ export function WorkspaceSwitcher() {
         <DropdownMenuItem asChild>
           <Link href="/settings/workspace">
             <Settings className="size-4" />
-            Workspace settings
+            {t("workspaceSwitcher.settings")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem disabled>
           <Plus className="size-4" />
-          Add workspace
-          <span className="ml-auto text-xs text-muted-foreground">Soon</span>
+          {t("workspaceSwitcher.add")}
+          <span className="ml-auto text-xs text-muted-foreground">{t("common.soon")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

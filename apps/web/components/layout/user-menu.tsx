@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 function initials(name: string): string {
   return name
@@ -23,6 +24,7 @@ function initials(name: string): string {
 }
 
 export function UserMenu() {
+  const { t } = useI18n();
   const { user, logout } = useAuth();
   if (!user) return null;
 
@@ -41,17 +43,17 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/settings/profile">
-            <User className="size-4" /> Profile
+            <User className="size-4" /> {t("userMenu.profile")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/settings/security">
-            <Settings className="size-4" /> Settings
+            <Settings className="size-4" /> {t("userMenu.settings")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
-          <LogOut className="size-4" /> Log out
+          <LogOut className="size-4" /> {t("userMenu.logout")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

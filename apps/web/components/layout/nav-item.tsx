@@ -18,12 +18,12 @@ export function NavItem({ item }: { item: NavItemType }) {
     return (
       <div
         className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/50"
-        title="Coming soon"
+        title={t("nav.comingSoon")}
       >
         <Icon className="size-4" />
         <span className="flex-1">{label}</span>
         <Badge variant="outline" className="px-1 py-0 text-[10px] text-muted-foreground/60">
-          Soon
+          {t("common.soon")}
         </Badge>
       </div>
     );

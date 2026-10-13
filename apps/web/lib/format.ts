@@ -1,3 +1,24 @@
+import { DEFAULT_LOCALE, type Locale } from "@pentesthub/shared";
+import { translate } from "@/features/i18n/catalog";
+import { INTL_LOCALE } from "@/features/i18n/locale";
+
+/// Date, time and relative-time formatting in the active UI language.
+///
+/// The active locale is set by I18nProvider while it renders (so both the
+/// server render and the client render of a request format with that
+/// request's language) and these functions are plain functions so the ~45
+/// existing call sites keep working unchanged. Components that must
+/// re-format when the language changes are remounted by the provider.
+let activeLocale: Locale = DEFAULT_LOCALE;
+
+export function setFormatLocale(locale: Locale): void {
+  activeLocale = locale;
+}
+
+export function getFormatLocale(): Locale {
+  return activeLocale;
+}
+
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 31536000],
   ["month", 2592000],
@@ -7,13 +28,23 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const relativeFormatters = new Map<Locale, Intl.RelativeTimeFormat>();
+function relativeFormatter(locale: Locale): Intl.RelativeTimeFormat {
+  let rtf = relativeFormatters.get(locale);
+  if (!rtf) {
+    rtf = new Intl.RelativeTimeFormat(INTL_LOCALE[locale], { numeric: "auto" });
+    relativeFormatters.set(locale, rtf);
+  }
+  return rtf;
+}
 
 export function formatDistanceToNow(isoDate: string): string {
+  const locale = activeLocale;
+  const rtf = relativeFormatter(locale);
   const seconds = Math.round((new Date(isoDate).getTime() - Date.now()) / 1000);
   const absSeconds = Math.abs(seconds);
 
-  if (absSeconds < 60) return "just now";
+  if (absSeconds < 60) return translate(locale, "common.justNow");
 
   for (const [unit, secondsInUnit] of UNITS) {
     if (absSeconds >= secondsInUnit) {
@@ -25,7 +56,7 @@ export function formatDistanceToNow(isoDate: string): string {
 }
 
 export function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString(undefined, {
+  return new Date(isoDate).toLocaleDateString(INTL_LOCALE[activeLocale], {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -33,7 +64,7 @@ export function formatDate(isoDate: string): string {
 }
 
 export function formatDateTime(isoDate: string): string {
-  return new Date(isoDate).toLocaleString(undefined, {
+  return new Date(isoDate).toLocaleString(INTL_LOCALE[activeLocale], {
     year: "numeric",
     month: "short",
     day: "numeric",

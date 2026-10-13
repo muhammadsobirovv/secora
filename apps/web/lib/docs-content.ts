@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+import type { Locale } from "@pentesthub/shared";
+import { DOC_FILES } from "./docs-bundle.generated";
 
 /// The public documentation site (/docs) is built from an explicit
 /// ALLOWLIST of user-facing Markdown files under `docs/user/`. Nothing
@@ -9,71 +9,59 @@ import path from "node:path";
 /// deliberately adds it to PUBLIC_DOCS below. That is the point of an
 /// allowlist: internal material can never leak onto the site by accident.
 ///
-/// Every page is statically generated at `next build` time (see
-/// `generateStaticParams` + `dynamicParams = false` in
-/// `app/docs/[...slug]/page.tsx`), so the `output: "standalone"` runtime
-/// never reads these files at request time and any URL not listed here
-/// returns 404.
-const REPO_ROOT = path.join(process.cwd(), "..", "..");
+/// The Markdown is bundled at build time by scripts/generate-docs-bundle.mjs
+/// (see there for why), so serving a page never touches the filesystem.
+///
+/// Translations live next to the English source as `<base>.<locale>.md`
+/// (e.g. getting-started.uz.md). A page without a translation for the
+/// active language falls back to English and the page shows a notice.
 
 export interface DocEntry {
   slug: string;
-  title: string;
-  description: string;
-  /// Path relative to the repository root.
-  file: string;
+  /// File name without extension under docs/user (English source).
+  base: string;
+  /// Catalog keys for the localized title/description on the docs index.
+  titleKey: DocMessageKey;
+  descriptionKey: DocMessageKey;
+}
+
+type DocMessageKey =
+  | "docs.item.getting-started.title"
+  | "docs.item.getting-started.description"
+  | "docs.item.scanning.title"
+  | "docs.item.scanning.description"
+  | "docs.item.bug-bounty.title"
+  | "docs.item.bug-bounty.description"
+  | "docs.item.ai-copilot.title"
+  | "docs.item.ai-copilot.description"
+  | "docs.item.responsible-use.title"
+  | "docs.item.responsible-use.description"
+  | "docs.item.api-sdk-cli.title"
+  | "docs.item.api-sdk-cli.description"
+  | "docs.item.security.title"
+  | "docs.item.security.description"
+  | "docs.item.faq.title"
+  | "docs.item.faq.description";
+
+function entry(slug: string): DocEntry {
+  return {
+    slug,
+    base: slug,
+    titleKey: `docs.item.${slug}.title` as DocMessageKey,
+    descriptionKey: `docs.item.${slug}.description` as DocMessageKey,
+  };
 }
 
 // Order here is the order docs render in on the /docs index page.
 export const PUBLIC_DOCS: readonly DocEntry[] = [
-  {
-    slug: "getting-started",
-    title: "Getting Started",
-    description: "What PentestHub AI is, creating an account, your first workspace and target.",
-    file: "docs/user/getting-started.md",
-  },
-  {
-    slug: "scanning",
-    title: "Scanning Guide",
-    description: "Recon and vulnerability scans, reading findings, severity and exporting.",
-    file: "docs/user/scanning.md",
-  },
-  {
-    slug: "bug-bounty",
-    title: "Bug Bounty Workflow",
-    description: "Import a program and its scope, track findings and build a report.",
-    file: "docs/user/bug-bounty.md",
-  },
-  {
-    slug: "ai-copilot",
-    title: "AI Copilot",
-    description: "What the copilot can and can't do, bring-your-own-key and privacy modes.",
-    file: "docs/user/ai-copilot.md",
-  },
-  {
-    slug: "responsible-use",
-    title: "Rules of Engagement & Responsible Use",
-    description: "A practical guide to testing only what you are authorized to test.",
-    file: "docs/user/responsible-use.md",
-  },
-  {
-    slug: "api-sdk-cli",
-    title: "API, SDK & CLI",
-    description: "Quick reference for the REST API, SDKs, CLI and webhooks.",
-    file: "docs/user/api-sdk-cli.md",
-  },
-  {
-    slug: "security",
-    title: "Security & Vulnerability Disclosure",
-    description: "How to report a vulnerability in PentestHub AI.",
-    file: "docs/user/security.md",
-  },
-  {
-    slug: "faq",
-    title: "FAQ & Troubleshooting",
-    description: "Answers to common account, scanning and AI questions.",
-    file: "docs/user/faq.md",
-  },
+  entry("getting-started"),
+  entry("scanning"),
+  entry("bug-bounty"),
+  entry("ai-copilot"),
+  entry("responsible-use"),
+  entry("api-sdk-cli"),
+  entry("security"),
+  entry("faq"),
 ];
 
 export function listAllDocs(): readonly DocEntry[] {
@@ -84,8 +72,24 @@ export function getDoc(slug: string): DocEntry | undefined {
   return PUBLIC_DOCS.find((doc) => doc.slug === slug);
 }
 
-export function getDocContent(slug: string): { title: string; content: string } | null {
+export interface DocContent {
+  content: string;
+  /// The language the content is actually written in.
+  language: Locale;
+  /// True when the requested language had no translation and English is
+  /// shown instead.
+  isFallback: boolean;
+}
+
+export function getDocContent(slug: string, locale: Locale = "en"): DocContent | null {
   const entry = getDoc(slug);
   if (!entry) return null;
-  return { title: entry.title, content: fs.readFileSync(path.join(REPO_ROOT, entry.file), "utf-8") };
+
+  if (locale !== "en") {
+    const translated = DOC_FILES[`${entry.base}.${locale}.md`];
+    if (translated !== undefined) return { content: translated, language: locale, isFallback: false };
+  }
+  const english = DOC_FILES[`${entry.base}.md`];
+  if (english === undefined) return null;
+  return { content: english, language: "en", isFallback: locale !== "en" };
 }

@@ -20,18 +20,19 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useSearch } from "@/features/search/hooks/use-search";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { cn } from "@/lib/utils";
 
 const STATIC_COMMANDS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Workspace", href: "/workspace", icon: Building2 },
-  { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "Targets", href: "/targets", icon: Target },
-  { label: "Notes", href: "/notes", icon: FileText },
-  { label: "Evidence", href: "/evidence", icon: ImageIcon },
-  { label: "Activity", href: "/activity", icon: Activity },
-  { label: "Settings", href: "/settings/profile", icon: Settings },
-];
+  { labelKey: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { labelKey: "nav.workspace", href: "/workspace", icon: Building2 },
+  { labelKey: "nav.projects", href: "/projects", icon: FolderKanban },
+  { labelKey: "nav.targets", href: "/targets", icon: Target },
+  { labelKey: "nav.notes", href: "/notes", icon: FileText },
+  { labelKey: "nav.evidence", href: "/evidence", icon: ImageIcon },
+  { labelKey: "nav.activity", href: "/activity", icon: Activity },
+  { labelKey: "nav.settings", href: "/settings/profile", icon: Settings },
+] as const;
 
 const RESULT_HREF: Record<string, (id: string, projectId: string | null) => string> = {
   PROJECT: (id) => `/projects/${id}`,
@@ -41,6 +42,7 @@ const RESULT_HREF: Record<string, (id: string, projectId: string | null) => stri
 };
 
 export function CommandPalette() {
+  const { t } = useI18n();
   const open = useUiStore((s) => s.commandPaletteOpen);
   const setOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const router = useRouter();
@@ -69,7 +71,7 @@ export function CommandPalette() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="top-[20%] max-w-xl translate-y-0 gap-0 overflow-hidden p-0">
         <VisuallyHidden>
-          <DialogTitle>Command palette</DialogTitle>
+          <DialogTitle>{t("palette.title")}</DialogTitle>
         </VisuallyHidden>
         <CommandPrimitive shouldFilter={!debouncedQuery} className="flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-3">
@@ -78,27 +80,27 @@ export function CommandPalette() {
               autoFocus
               value={query}
               onValueChange={setQuery}
-              placeholder="Search or jump to…"
+              placeholder={t("palette.placeholder")}
               className="flex h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
             {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           </div>
           <CommandPrimitive.List className="max-h-80 overflow-y-auto p-2">
             <CommandPrimitive.Empty className="py-6 text-center text-sm text-muted-foreground">
-              No results found.
+              {t("palette.empty")}
             </CommandPrimitive.Empty>
             {!debouncedQuery && (
-              <CommandPrimitive.Group heading="Navigate" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground">
+              <CommandPrimitive.Group heading={t("palette.navigate")} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground">
                 {STATIC_COMMANDS.map((c) => (
                   <CommandItem key={c.href} onSelect={() => go(c.href)}>
                     <c.icon className="size-4" />
-                    {c.label}
+                    {t(c.labelKey)}
                   </CommandItem>
                 ))}
               </CommandPrimitive.Group>
             )}
             {debouncedQuery && results && results.length > 0 && (
-              <CommandPrimitive.Group heading="Results" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground">
+              <CommandPrimitive.Group heading={t("palette.results")} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground">
                 {results.map((r) => (
                   <CommandItem
                     key={`${r.type}-${r.id}`}

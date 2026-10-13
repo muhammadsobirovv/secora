@@ -4,11 +4,12 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
+    "dev": "node scripts/generate-docs-bundle.mjs && next dev --port 3001",
+    "build": "node scripts/generate-docs-bundle.mjs && next build",
     "start": "next start --port 3001",
-    "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "lint": "node scripts/generate-docs-bundle.mjs && node scripts/check-i18n.mjs && eslint --max-warnings 0",
+    "check-types": "node scripts/generate-docs-bundle.mjs && next typegen && tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

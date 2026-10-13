@@ -1,96 +1,154 @@
 "use client";
 
 import * as React from "react";
-import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@pentesthub/shared";
-import en from "./messages/en.json";
-import uz from "./messages/uz.json";
-import ru from "./messages/ru.json";
+import { useRouter } from "next/navigation";
+import { isSupportedLocale, type Locale } from "@pentesthub/shared";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { updatePreferences } from "@/lib/api/user-preferences";
+import { setFormatLocale } from "@/lib/format";
+import { interpolate, translate, type TranslateFn, type TranslateParams } from "./catalog";
+import {
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE_SECONDS,
+  LOCALE_STORAGE_KEY,
+  PRE_LOGIN_CHOICE_KEY,
+} from "./locale";
 
-/// Module 15 — task #348 "i18n architecture — English/Uzbek/Russian".
-///
-/// A deliberately small, hand-rolled provider — plain React context + a
-/// handful of starter JSON catalogs — rather than pulling in next-intl or
-/// react-intl as a new dependency. Two reasons: (1) this pass establishes
-/// the *architecture*, not a full retrofit of every hardcoded string
-/// across the app (see `docs/architecture/i18n.md` for the explicit scope
-/// boundary and why), so the extra surface area of a full i18n library
-/// isn't earning its keep yet; (2) adding a new npm dependency here would
-/// need a `pnpm install` this session had no way to verify completes
-/// within the sandbox's confirmed ~170s tool-call ceiling — safer to ship
-/// something small, real, and fully verified than something unverified.
-///
-/// Deliberately does NOT depend on `usePreferences()` (the authenticated
-/// `/users/me/preferences` query) — this provider mounts at the app root
-/// in `Providers`, which wraps logged-out routes (login, register) too.
-/// Locale state lives in `localStorage` (key mirrors the desktop app's
-/// `phai.language` — see apps/desktop's `AppearanceSettings.tsx` — so a
-/// user's choice reads the same way across both surfaces) with a graceful
-/// `navigator.language` fallback for a first-ever visit. The settings page
-/// is what layers the authenticated `UserPreferences.language` sync on
-/// top, exactly the way it already does for `theme` via `next-themes`.
-const STORAGE_KEY = "phai.language";
+export type { MessageKey } from "./catalog";
 
-type Messages = typeof en;
-export type MessageKey = keyof Messages;
-const CATALOGS: Record<Locale, Messages> = { en, uz, ru };
+/// UI language state for the whole app.
+///
+/// One choice, applied everywhere: the root server layout resolves the
+/// language from the `phai.locale` cookie (then Accept-Language, then "en")
+/// and passes it in as `initialLocale`, so the very first server render and
+/// the first client render already agree — there is no English flash.
+/// `setLocale` (an explicit user choice) writes the cookie, mirrors it to
+/// localStorage, tells the server preference when signed in, and refreshes
+/// the router so server components re-render in the new language.
+/// `adoptLocale` does the same minus the server write — used when the
+/// signed-in server preference is being applied to this browser.
+///
+/// Persistence sources and their order are documented in ./locale.ts.
 
 interface I18nContextValue {
   locale: Locale;
+  /// An explicit user choice: persists to cookie, localStorage and (when
+  /// signed in) the server preference, then re-renders server components.
   setLocale: (locale: Locale) => void;
-  t: (key: keyof Messages) => string;
+  /// Applies a locale that came from the server preference; does not write
+  /// it back.
+  adoptLocale: (locale: Locale) => void;
+  t: TranslateFn;
 }
 
 const I18nContext = React.createContext<I18nContextValue | null>(null);
 
-function detectInitialLocale(): Locale {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
-
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored && isSupportedLocale(stored)) return stored;
-
-  const browserTag = window.navigator.language?.split("-")[0]?.toLowerCase();
-  if (browserTag && isSupportedLocale(browserTag)) return browserTag;
-
-  return DEFAULT_LOCALE;
+function readCookie(name: string): string | null {
+  const prefix = `${encodeURIComponent(name)}=`;
+  for (const part of document.cookie.split("; ")) {
+    if (part.startsWith(prefix)) return decodeURIComponent(part.slice(prefix.length));
+  }
+  return null;
 }
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  // Starts at DEFAULT_LOCALE on the server (and on the client's first
-  // render, to avoid a hydration mismatch) then syncs to the real stored/
-  // detected locale in an effect — same "settle after mount" shape as
-  // next-themes uses for the theme class.
-  const [locale, setLocaleState] = React.useState<Locale>(DEFAULT_LOCALE);
+export function readLocaleCookie(): Locale | null {
+  if (typeof document === "undefined") return null;
+  const value = readCookie(LOCALE_COOKIE);
+  return value && isSupportedLocale(value) ? value : null;
+}
 
-  React.useEffect(() => {
-    setLocaleState(detectInitialLocale());
-  }, []);
+function writeLocaleCookie(locale: Locale): void {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie =
+    `${encodeURIComponent(LOCALE_COOKIE)}=${locale}; Path=/; ` +
+    `Max-Age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+}
 
-  // Module 15 — task #349 (accessibility audit): keeps <html lang> in
-  // sync with the active locale. Screen readers and browser
-  // translate/spell-check features use this attribute to choose
-  // pronunciation/language rules — leaving it hardcoded to "en" (as
-  // app/layout.tsx's static markup does, since it's a server component
-  // with no access to this client-only locale state) would mis-announce
-  // Uzbek/Russian UI copy. Same "settle after mount" pattern as
-  // next-themes's `class` attribute handling right next to this provider
-  // in providers.tsx — both rely on `suppressHydrationWarning` on <html>.
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: React.ReactNode;
+  initialLocale: Locale;
+}) {
+  const router = useRouter();
+  const [locale, setLocaleState] = React.useState<Locale>(initialLocale);
+
+  // Synchronously, during render: formatters (lib/format.ts) read this, and
+  // they run in descendants' render — an effect would be too late.
+  setFormatLocale(locale);
+
+  // Screen readers and browser translate/spell-check use <html lang>; the
+  // server already set it from the cookie, this keeps it right after a
+  // client-side switch.
   React.useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = React.useCallback((next: Locale) => {
-    setLocaleState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
+  const apply = React.useCallback(
+    (next: Locale, source: "user" | "server") => {
+      writeLocaleCookie(next);
+      try {
+        window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+      } catch {
+        // storage disabled — the cookie is the source of truth anyway
+      }
+      setLocaleState(next);
+
+      if (source === "user") {
+        if (useAuthStore.getState().accessToken) {
+          void updatePreferences({ language: next }).catch(() => undefined);
+        } else {
+          try {
+            window.sessionStorage.setItem(PRE_LOGIN_CHOICE_KEY, "1");
+          } catch {
+            // ignore
+          }
+        }
+      }
+      router.refresh();
+    },
+    [router],
+  );
+
+  const setLocale = React.useCallback((next: Locale) => apply(next, "user"), [apply]);
+  const adoptLocale = React.useCallback((next: Locale) => apply(next, "server"), [apply]);
+
+  // One-time migration: visitors who picked a language before the cookie
+  // existed only have localStorage. Promote it so the server can see it.
+  React.useEffect(() => {
+    if (readLocaleCookie()) return;
+    try {
+      const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (stored && isSupportedLocale(stored) && stored !== initialLocale) {
+        apply(stored, "server");
+      }
+    } catch {
+      // ignore
+    }
+    // Runs once on mount by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const t = React.useCallback(
-    (key: keyof Messages): string => CATALOGS[locale][key] ?? CATALOGS[DEFAULT_LOCALE][key],
+  const t = React.useCallback<TranslateFn>(
+    (key, params) => translate(locale, key, params),
     [locale],
   );
 
-  const value = React.useMemo<I18nContextValue>(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+  const value = React.useMemo<I18nContextValue>(
+    () => ({ locale, setLocale, adoptLocale, t }),
+    [locale, setLocale, adoptLocale, t],
+  );
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  // Remounting the subtree on a language change makes every component —
+  // including ones that format dates via lib/format.ts without reading this
+  // context — re-render in the new language. The QueryClient lives above
+  // this provider, so cached data survives.
+  return (
+    <I18nContext.Provider value={value}>
+      <React.Fragment key={locale}>{children}</React.Fragment>
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): I18nContextValue {
@@ -100,3 +158,6 @@ export function useI18n(): I18nContextValue {
   }
   return ctx;
 }
+
+export { interpolate };
+export type { TranslateParams };

@@ -2,23 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AiMessageMarkdown } from "@/features/ai/components/ai-message-markdown";
-import { getDocContent, listAllDocs } from "@/lib/docs-content";
-import { DocsLanguageNote } from "../docs-language-note";
+import { getServerI18n } from "@/features/i18n/server";
+import { getDoc, getDocContent, listAllDocs } from "@/lib/docs-content";
+import { DocsHeader } from "../docs-header";
 
-/// Module 15 — task #350 "Documentation portal structure".
+/// Renders one allowlisted user-facing document, e.g. `/docs/getting-started`,
+/// in the visitor's language. Reuses `AiMessageMarkdown` (react-markdown +
+/// remark-gfm + rehype-highlight, already shipped for AI chat rendering)
+/// rather than a second Markdown pipeline.
 ///
-/// Renders one allowlisted user-facing document, e.g. `/docs/getting-started`. Reuses
-/// `AiMessageMarkdown` (react-markdown + remark-gfm + rehype-highlight,
-/// already shipped for AI chat rendering) rather than a second Markdown
-/// pipeline — the docs live inside `<article className="prose">` the
-/// same way an AI message does.
-///
-/// `dynamicParams = false` is the load-bearing line for this page: every
-/// valid `/docs/...` URL is enumerated by `generateStaticParams` below
-/// and pre-rendered at build time. Any URL that isn't in that list 404s
-/// instead of falling through to an on-demand filesystem read — the
-/// `output: "standalone"` production build should never need `docs/` to
-/// exist at runtime.
+/// `dynamicParams = false` keeps the URL space closed: only slugs returned
+/// by `generateStaticParams` (the allowlist) exist, everything else 404s.
+/// The content itself comes from the build-time bundle
+/// (scripts/generate-docs-bundle.mjs), never from the filesystem.
 export function generateStaticParams() {
   return listAllDocs().map((doc) => ({ slug: [doc.slug] }));
 }
@@ -29,41 +25,50 @@ interface DocPageProps {
   params: Promise<{ slug: string[] }>;
 }
 
-function resolveDoc(slugParts: string[]) {
+function slugOf(slugParts: string[]): string | null {
   // Only single-segment URLs exist; anything deeper (the old
   // /docs/<category>/<doc> paths) is not a public document and 404s.
-  if (slugParts.length !== 1 || !slugParts[0]) return null;
-  return getDocContent(slugParts[0]);
+  return slugParts.length === 1 && slugParts[0] ? slugParts[0] : null;
 }
 
 export async function generateMetadata({ params }: DocPageProps) {
   const { slug } = await params;
-  const doc = resolveDoc(slug);
+  const { t } = await getServerI18n();
+  const entry = getDoc(slugOf(slug) ?? "");
   return {
-    title: doc ? `${doc.title} — Documentation` : "Documentation — PentestHub AI",
+    title: entry ? `${t(entry.titleKey)} — ${t("docs.index.title")}` : t("docs.index.metaTitle"),
   };
 }
 
 export default async function DocPage({ params }: DocPageProps) {
   const { slug } = await params;
-  const doc = resolveDoc(slug);
+  const { locale, t } = await getServerI18n();
+  const slugValue = slugOf(slug);
+  const doc = slugValue ? getDocContent(slugValue, locale) : null;
   if (!doc) notFound();
-
 
   return (
     <div className="min-h-svh bg-background">
-      <div className="mx-auto max-w-4xl px-6 py-16">
+      <DocsHeader />
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <Link
           href="/docs"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          All documentation
+          {t("docs.backToAll")}
         </Link>
 
-        <DocsLanguageNote />
+        {doc.isFallback && (
+          <p
+            role="note"
+            className="mt-6 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground"
+          >
+            {t("docs.notTranslated")}
+          </p>
+        )}
 
-        <article>
+        <article lang={doc.language}>
           <AiMessageMarkdown content={doc.content} className="mt-2" />
         </article>
       </div>

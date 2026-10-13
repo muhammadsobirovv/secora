@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { useToggleFavoriteProject } from "../hooks/use-projects";
 import { ProjectStatusBadge } from "./project-status-badge";
 import type { ProjectDto } from "@pentesthub/shared";
 
 export function ProjectCard({ project }: { project: ProjectDto }) {
+  const { t } = useI18n();
   const toggleFavorite = useToggleFavoriteProject();
 
   return (
@@ -27,7 +29,7 @@ export function ProjectCard({ project }: { project: ProjectDto }) {
             variant="ghost"
             size="icon"
             className="size-7 shrink-0"
-            aria-label={project.isFavorite ? "Unfavorite" : "Favorite"}
+            aria-label={project.isFavorite ? t("project.unfavorite") : t("project.favorite")}
             onClick={() => toggleFavorite.mutate({ id: project.id, isFavorite: project.isFavorite })}
           >
             <Star

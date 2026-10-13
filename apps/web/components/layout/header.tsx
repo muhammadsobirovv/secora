@@ -8,8 +8,10 @@ import { NotificationsStub } from "./notifications-stub";
 import { ThemeSwitcher } from "./theme-switcher";
 import { UserMenu } from "./user-menu";
 import { LanguageSwitcher } from "@/features/i18n/language-switcher";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 export function Header() {
+  const { t } = useI18n();
   const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
   const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
 
@@ -20,7 +22,7 @@ export function Header() {
         size="icon"
         className="md:hidden"
         onClick={() => setMobileSidebarOpen(true)}
-        aria-label="Open menu"
+        aria-label={t("header.openMenu")}
       >
         <Menu className="size-4" />
       </Button>
@@ -31,7 +33,7 @@ export function Header() {
         className="ml-auto flex w-full max-w-64 items-center gap-2 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/50"
       >
         <Search className="size-3.5" />
-        <span className="flex-1 text-left">Search…</span>
+        <span className="flex-1 text-left">{t("common.searchEllipsis")}</span>
         <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
           ⌘K
         </kbd>

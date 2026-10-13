@@ -3,6 +3,7 @@
 import { CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 export interface PageHelpAction {
   /// The button/control's visible label, e.g. "New scan" or "Import program".
@@ -28,10 +29,11 @@ export interface PageHelpProps {
 /// of what the section is for or what each button/action does; this gives
 /// every page a one-click answer without needing a full product tour.
 export function PageHelp({ summary, actions, steps }: PageHelpProps) {
+  const { t } = useI18n();
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Help for this page">
+        <Button variant="ghost" size="icon" aria-label={t("page.help.aria")}>
           <CircleHelp className="size-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -48,7 +50,7 @@ export function PageHelp({ summary, actions, steps }: PageHelpProps) {
 
         {actions && actions.length > 0 && (
           <div className="mt-3 border-t border-border pt-3">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">On this page</p>
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("page.help.onThisPage")}</p>
             <dl className="space-y-1.5">
               {actions.map((action) => (
                 <div key={action.label}>

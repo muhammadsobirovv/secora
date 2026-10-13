@@ -16,11 +16,6 @@ export default function PreferencesSettingsPage() {
   const { data: preferences, isLoading } = usePreferences();
   const updatePreferences = useUpdatePreferences();
   const { setTheme } = useTheme();
-  // Module 15 — task #348. `t()` demonstrates this page reading from the
-  // i18n catalog for its own copy; `setLocale` is this page's write path
-  // into the i18n architecture, mirroring `setTheme` for the theme
-  // preference right below it. Full-page string extraction beyond these
-  // labels is out of scope for this task — see docs/architecture/i18n.md.
   const { locale, setLocale, t } = useI18n();
 
   async function handleThemeChange(theme: Theme) {
@@ -28,17 +23,14 @@ export default function PreferencesSettingsPage() {
     try {
       await updatePreferences.mutateAsync({ theme });
     } catch {
-      toast.error("Couldn't save theme preference.");
+      toast.error(t("settings.preferences.themeSaveError"));
     }
   }
 
-  async function handleLanguageChange(language: Locale) {
+  // setLocale already persists the choice (cookie, localStorage and, when
+  // signed in, UserPreferences.language), so no second PATCH here.
+  function handleLanguageChange(language: Locale) {
     setLocale(language);
-    try {
-      await updatePreferences.mutateAsync({ language });
-    } catch {
-      toast.error(t("settings.preferences.saveError"));
-    }
   }
 
   async function handleTimezoneBlur(timezone: string) {
@@ -84,19 +76,15 @@ export default function PreferencesSettingsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="LIGHT">Light</SelectItem>
-              <SelectItem value="DARK">Dark</SelectItem>
-              <SelectItem value="SYSTEM">System</SelectItem>
+              <SelectItem value="LIGHT">{t("theme.light")}</SelectItem>
+              <SelectItem value="DARK">{t("theme.dark")}</SelectItem>
+              <SelectItem value="SYSTEM">{t("theme.system")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("settings.preferences.language")}</Label>
-          {/* Module 15 — task #348. Value comes from local i18n state
-              (updated instantly on change) rather than `preferences.language`
-              directly, so switching languages doesn't wait on the
-              mutation's round-trip before the UI reflects the choice. */}
-          <Select value={locale} onValueChange={(v) => void handleLanguageChange(v as Locale)}>
+          <Select value={locale} onValueChange={(v) => handleLanguageChange(v as Locale)}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>

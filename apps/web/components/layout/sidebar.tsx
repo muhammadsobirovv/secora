@@ -7,8 +7,10 @@ import { WorkspaceSwitcher } from "./workspace-switcher";
 import { NavItem } from "./nav-item";
 import { PRIMARY_NAV, FUTURE_NAV, SETTINGS_NAV } from "./nav-config";
 import { Separator } from "@/components/ui/separator";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useI18n();
   return (
     <>
       <div className="flex h-14 items-center gap-2 px-4">
@@ -24,14 +26,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           than one (this app also has page-local nav in some feature
           areas) — "Main" distinguishes this one as the primary sidebar. */}
       <nav
-        aria-label="Main"
+        aria-label={t("sidebar.main")}
         className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2"
         onClick={onNavigate}
       >
         {PRIMARY_NAV.map((item) => (
           <NavItem key={item.href} item={item} />
         ))}
-        <p className="mt-4 mb-1 px-2.5 text-xs font-medium text-muted-foreground/70">Future modules</p>
+        <p className="mt-4 mb-1 px-2.5 text-xs font-medium text-muted-foreground/70">{t("sidebar.futureModules")}</p>
         {FUTURE_NAV.map((item) => (
           <NavItem key={item.label} item={item} />
         ))}
@@ -45,6 +47,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function Sidebar() {
+  const { t } = useI18n();
   const mobileOpen = useUiStore((s) => s.mobileSidebarOpen);
   const setMobileOpen = useUiStore((s) => s.setMobileSidebarOpen);
 
@@ -68,7 +71,7 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Close menu"
+                aria-label={t("header.closeMenu")}
                 onClick={() => setMobileOpen(false)}
               >
                 <X className="size-4" />

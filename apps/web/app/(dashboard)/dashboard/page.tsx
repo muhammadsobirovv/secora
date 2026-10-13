@@ -18,6 +18,7 @@ import { StatCard } from "@/components/common/stat-card";
 import { EmptyState } from "@/components/common/empty-state";
 import { CardGridSkeleton } from "@/components/common/skeletons";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { useWorkspace, useWorkspaceMembers } from "@/features/workspace/hooks/use-workspace";
 import { useProjects } from "@/features/projects/hooks/use-projects";
 import { useTags } from "@/features/tags/hooks/use-tags";
@@ -33,6 +34,7 @@ import { WorkspaceAvatar } from "@/features/workspace/components/workspace-avata
 // The authenticated dashboard home now lives at "/dashboard"; proxy.ts
 // redirects signed-in visitors from "/" to here at the edge.
 export default function DashboardHomePage() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { data: workspace } = useWorkspace();
   const { data: members } = useWorkspaceMembers();
@@ -43,41 +45,54 @@ export default function DashboardHomePage() {
 
   const recentProjects = (projects ?? []).slice(0, 6);
   const favoriteCount = (projects ?? []).filter((p) => p.isFavorite).length;
+  const memberCount = members?.length ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">
-            Welcome back{user ? `, ${user.displayName.split(" ")[0]}` : ""}
+            {user
+              ? t("dashboard.welcomeName", { name: user.displayName.split(" ")[0] ?? "" })
+              : t("dashboard.welcome")}
           </h1>
-          <p className="text-sm text-muted-foreground">Here&apos;s what&apos;s happening in your workspace.</p>
+          <p className="text-sm text-muted-foreground">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setCommandPaletteOpen(true)}>
-            <Search className="size-4" /> Search
+            <Search className="size-4" /> {t("common.search")}
           </Button>
           <Button asChild>
             <Link href="/projects/new">
-              <Plus className="size-4" /> New project
+              <Plus className="size-4" /> {t("dashboard.newProject")}
             </Link>
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Projects" value={projects?.length ?? 0} icon={FolderKanban} isLoading={projectsLoading} />
-        <StatCard label="Favorites" value={favoriteCount} icon={Star} isLoading={projectsLoading} />
-        <StatCard label="Tags" value={tags?.length ?? 0} icon={Tags} />
-        <StatCard label="Team members" value={members?.length ?? 0} icon={Users} />
+        <StatCard
+          label={t("dashboard.stats.projects")}
+          value={projects?.length ?? 0}
+          icon={FolderKanban}
+          isLoading={projectsLoading}
+        />
+        <StatCard
+          label={t("dashboard.stats.favorites")}
+          value={favoriteCount}
+          icon={Star}
+          isLoading={projectsLoading}
+        />
+        <StatCard label={t("dashboard.stats.tags")} value={tags?.length ?? 0} icon={Tags} />
+        <StatCard label={t("dashboard.stats.teamMembers")} value={memberCount} icon={Users} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Recent projects</h2>
+            <h2 className="text-lg font-medium">{t("dashboard.recentProjects")}</h2>
             <Button variant="link" asChild className="h-auto p-0">
-              <Link href="/projects">View all</Link>
+              <Link href="/projects">{t("common.viewAll")}</Link>
             </Button>
           </div>
           {projectsLoading ? (
@@ -85,12 +100,12 @@ export default function DashboardHomePage() {
           ) : recentProjects.length === 0 ? (
             <EmptyState
               icon={FolderKanban}
-              title="No projects yet"
-              description="Create your first project to start tracking targets, notes, and evidence."
+              title={t("dashboard.empty.title")}
+              description={t("dashboard.empty.description")}
               action={
                 <Button asChild size="sm">
                   <Link href="/projects/new">
-                    <Plus className="size-4" /> New project
+                    <Plus className="size-4" /> {t("dashboard.newProject")}
                   </Link>
                 </Button>
               }
@@ -108,7 +123,7 @@ export default function DashboardHomePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Building2 className="size-4" /> Workspace
+                <Building2 className="size-4" /> {t("dashboard.workspace")}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
@@ -116,16 +131,18 @@ export default function DashboardHomePage() {
                 <WorkspaceAvatar workspace={workspace} className="size-10" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{workspace?.name}</p>
-                  <p className="text-xs text-muted-foreground">{members?.length ?? 0} member(s)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("dashboard.members", { count: memberCount })}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" asChild>
-                  <Link href="/workspace">Overview</Link>
+                  <Link href="/workspace">{t("dashboard.overview")}</Link>
                 </Button>
                 <Button variant="outline" size="sm" className="flex-1" asChild>
                   <Link href="/settings/workspace">
-                    <Settings className="size-3.5" /> Settings
+                    <Settings className="size-3.5" /> {t("nav.settings")}
                   </Link>
                 </Button>
               </div>
@@ -135,7 +152,7 @@ export default function DashboardHomePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <ActivityIcon className="size-4" /> Recent activity
+                <ActivityIcon className="size-4" /> {t("dashboard.recentActivity")}
               </CardTitle>
             </CardHeader>
             <CardContent>
