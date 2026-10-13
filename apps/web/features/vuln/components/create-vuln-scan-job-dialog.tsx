@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { scanErrorMessage } from "@/features/targets/scan-error-message";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function CreateVulnScanJobDialog({
   targetType: TargetType;
   onCreated?: (jobId: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = React.useState(false);
   const [scanners, setScanners] = React.useState<VulnScanner[]>([]);
   const [priority, setPriority] = React.useState(0);
@@ -37,13 +39,13 @@ export function CreateVulnScanJobDialog({
   async function handleSubmit(): Promise<void> {
     try {
       const job = await createJob.mutateAsync({ scanners, priority });
-      toast.success(`Vulnerability scan started (${scanners.length} scanner${scanners.length === 1 ? "" : "s"})`);
+      toast.success(t("vuln.create.started", { count: scanners.length }));
       setOpen(false);
       setScanners([]);
       setPriority(0);
       onCreated?.(job.id);
     } catch (error) {
-      toast.error(scanErrorMessage(error, "Couldn't start the scan. Please try again."));
+      toast.error(scanErrorMessage(error, t("vuln.create.error")));
     }
   }
 
@@ -51,23 +53,20 @@ export function CreateVulnScanJobDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <ShieldAlert className="size-4" /> New scan
+          <ShieldAlert className="size-4" /> {t("vuln.create.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Start a vulnerability scan</DialogTitle>
-          <DialogDescription>
-            Choose which scanners to run against this target. Every scan runs asynchronously — you
-            can close this dialog and track progress from the job list.
-          </DialogDescription>
+          <DialogTitle>{t("vuln.create.title")}</DialogTitle>
+          <DialogDescription>{t("vuln.create.description")}</DialogDescription>
         </DialogHeader>
 
         <VulnScannerSelectList targetType={targetType} selected={scanners} onChange={setScanners} />
 
         <div className="flex items-center gap-3">
           <Label htmlFor="vuln-scan-priority" className="text-sm text-muted-foreground">
-            Priority (0–100, higher runs first)
+            {t("vuln.create.priority")}
           </Label>
           <Input
             id="vuln-scan-priority"
@@ -86,7 +85,7 @@ export function CreateVulnScanJobDialog({
             disabled={scanners.length === 0 || createJob.isPending}
           >
             {createJob.isPending && <Loader2 className="size-4 animate-spin" />}
-            Start scan ({scanners.length})
+            {t("vuln.create.submit", { count: scanners.length })}
           </Button>
         </DialogFooter>
       </DialogContent>

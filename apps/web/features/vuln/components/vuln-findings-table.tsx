@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/common/empty-state";
 import { ListSkeleton } from "@/components/common/skeletons";
 import { formatDistanceToNow } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { VulnFindingSeverityBadge } from "./vuln-finding-severity-badge";
 import { VulnFindingStatusBadge } from "./vuln-finding-status-badge";
 import { useBulkUpdateVulnFindings } from "../hooks/use-vuln";
@@ -29,15 +30,6 @@ const BULK_STATUS_OPTIONS: VulnFindingStatus[] = [
   "FIXED",
   "FALSE_POSITIVE",
 ];
-
-const STATUS_LABEL: Record<VulnFindingStatus, string> = {
-  NEW: "New",
-  CONFIRMED: "Confirmed",
-  DUPLICATE: "Duplicate",
-  ACCEPTED_RISK: "Accepted risk",
-  FIXED: "Fixed",
-  FALSE_POSITIVE: "False positive",
-};
 
 /// Shared table for both the job-detail findings list (no bulk actions,
 /// `enableBulkActions={false}`) and the workspace-wide Findings page
@@ -51,7 +43,7 @@ export function VulnFindingsTable({
   isLoading,
   showTarget = false,
   enableBulkActions = false,
-  emptyDescription = "Findings appear here once a scan completes.",
+  emptyDescription,
 }: {
   findings: VulnFindingDto[] | undefined;
   isLoading: boolean;
@@ -59,6 +51,7 @@ export function VulnFindingsTable({
   enableBulkActions?: boolean;
   emptyDescription?: string;
 }) {
+  const { t } = useI18n();
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateVulnFindings();
 
@@ -98,17 +91,23 @@ export function VulnFindingsTable({
   async function handleBulkStatus(status: VulnFindingStatus): Promise<void> {
     try {
       await bulkUpdate.mutateAsync({ findingIds: [...selected], status });
-      toast.success(`Updated ${selected.size} finding${selected.size === 1 ? "" : "s"} to ${STATUS_LABEL[status]}`);
+      toast.success(t("vuln.bulk.updated", { status: t(`vuln.status.${status}` as const), count: selected.size }));
       setSelected(new Set());
     } catch {
-      toast.error("Couldn't update the selected findings.");
+      toast.error(t("vuln.bulk.error"));
     }
   }
 
   if (isLoading) return <ListSkeleton />;
 
   if (!findings || findings.length === 0) {
-    return <EmptyState icon={SearchX} title="No findings" description={emptyDescription} />;
+    return (
+      <EmptyState
+        icon={SearchX}
+        title={t("vuln.findings.emptyTitle")}
+        description={emptyDescription ?? t("vuln.findings.emptyDescription")}
+      />
+    );
   }
 
   const allSelected = enableBulkActions && findings.length > 0 && selected.size === findings.length;
@@ -118,19 +117,20 @@ export function VulnFindingsTable({
       {enableBulkActions && selected.size > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
           <span className="text-sm text-muted-foreground">
-            {selected.size} selected <span className="text-xs">(Esc to clear)</span>
+            {t("vuln.bulk.selected", { count: selected.size })}{" "}
+            <span className="text-xs">{t("vuln.bulk.escToClear")}</span>
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={bulkUpdate.isPending}>
                 {bulkUpdate.isPending && <Loader2 className="size-3.5 animate-spin" />}
-                Set status…
+                {t("vuln.bulk.setStatus")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {BULK_STATUS_OPTIONS.map((status) => (
                 <DropdownMenuItem key={status} onSelect={() => void handleBulkStatus(status)}>
-                  {STATUS_LABEL[status]}
+                  {t(`vuln.status.${status}` as const)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -146,12 +146,12 @@ export function VulnFindingsTable({
                 <Checkbox checked={allSelected} onCheckedChange={(c) => toggleAll(c === true)} />
               </TableHead>
             )}
-            <TableHead>Severity</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Scanner</TableHead>
-            {showTarget && <TableHead>Target</TableHead>}
-            <TableHead>Status</TableHead>
-            <TableHead>Last seen</TableHead>
+            <TableHead>{t("vuln.findings.col.severity")}</TableHead>
+            <TableHead>{t("vuln.findings.col.title")}</TableHead>
+            <TableHead>{t("vuln.findings.col.scanner")}</TableHead>
+            {showTarget && <TableHead>{t("vuln.findings.col.target")}</TableHead>}
+            <TableHead>{t("vuln.findings.col.status")}</TableHead>
+            <TableHead>{t("vuln.findings.col.lastSeen")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

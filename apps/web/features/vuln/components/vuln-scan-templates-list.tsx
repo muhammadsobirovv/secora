@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/common/empty-state";
 import { CardGridSkeleton } from "@/components/common/skeletons";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { useDeleteVulnScanTemplate } from "../hooks/use-vuln";
 import type { VulnScanTemplateDto } from "@pentesthub/shared";
 
@@ -17,14 +18,15 @@ export function VulnScanTemplatesList({
   templates: VulnScanTemplateDto[] | undefined;
   isLoading: boolean;
 }) {
+  const { t } = useI18n();
   const deleteTemplate = useDeleteVulnScanTemplate();
 
   async function handleDelete(id: string): Promise<void> {
     try {
       await deleteTemplate.mutateAsync(id);
-      toast.success("Template deleted");
+      toast.success(t("vuln.template.deleted"));
     } catch {
-      toast.error("Couldn't delete this template.");
+      toast.error(t("vuln.template.deleteError"));
     }
   }
 
@@ -34,8 +36,8 @@ export function VulnScanTemplatesList({
     return (
       <EmptyState
         icon={LayoutTemplate}
-        title="No scan templates yet"
-        description="Save a reusable scanner + config combination to speed up future scans."
+        title={t("vuln.template.emptyTitle")}
+        description={t("vuln.template.emptyDescription")}
       />
     );
   }
@@ -56,7 +58,7 @@ export function VulnScanTemplatesList({
                 className="size-7"
                 disabled={deleteTemplate.isPending}
                 onClick={() => void handleDelete(template.id)}
-                aria-label="Delete template"
+                aria-label={t("vuln.template.delete")}
               >
                 {deleteTemplate.isPending ? (
                   <Loader2 className="size-3.5 animate-spin" />

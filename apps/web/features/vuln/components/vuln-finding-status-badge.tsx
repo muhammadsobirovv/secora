@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnFindingStatus } from "@pentesthub/shared";
 
 const STATUS_VARIANT: Record<
@@ -13,15 +16,7 @@ const STATUS_VARIANT: Record<
   FALSE_POSITIVE: "outline",
 };
 
-const STATUS_LABEL: Record<VulnFindingStatus, string> = {
-  NEW: "New",
-  CONFIRMED: "Confirmed",
-  DUPLICATE: "Duplicate",
-  ACCEPTED_RISK: "Accepted risk",
-  FIXED: "Fixed",
-  FALSE_POSITIVE: "False positive",
-};
-
 export function VulnFindingStatusBadge({ status }: { status: VulnFindingStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+  const { t } = useI18n();
+  return <Badge variant={STATUS_VARIANT[status]}>{t(`vuln.status.${status}` as const)}</Badge>;
 }

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useVulnFindings } from "@/features/vuln/hooks/use-vuln";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type {
   ListVulnFindingsQueryDto,
   VulnFindingSeverity,
@@ -37,6 +38,7 @@ const SCANNERS: VulnScanner[] = ["NUCLEI", "FFUF", "DIRSEARCH", "FEROXBUSTER", "
 /// table. "/" focuses the search box — a lightweight keyboard shortcut
 /// per the frontend spec's "Keyboard Shortcuts" requirement.
 export default function VulnFindingsPage() {
+  const { t } = useI18n();
   const [severity, setSeverity] = React.useState<VulnFindingSeverity | "ALL">("ALL");
   const [status, setStatus] = React.useState<VulnFindingStatus | "ALL">("ALL");
   const [scanner, setScanner] = React.useState<VulnScanner | "ALL">("ALL");
@@ -68,11 +70,9 @@ export default function VulnFindingsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          <ShieldAlert className="size-6" /> Findings
+          <ShieldAlert className="size-6" /> {t("vuln.findings.title")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every vulnerability finding across the workspace. Select rows for bulk status updates.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("vuln.findings.subtitle")}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -80,7 +80,7 @@ export default function VulnFindingsPage() {
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchInputRef}
-            placeholder="Search findings… (press / to focus)"
+            placeholder={t("vuln.findings.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-64 pl-8"
@@ -88,36 +88,36 @@ export default function VulnFindingsPage() {
         </div>
         <Select value={severity} onValueChange={(v) => setSeverity(v as VulnFindingSeverity | "ALL")}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Severity" />
+            <SelectValue placeholder={t("vuln.findings.col.severity")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All severities</SelectItem>
+            <SelectItem value="ALL">{t("vuln.findings.allSeverities")}</SelectItem>
             {SEVERITIES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s}
+                {t(`severity.${s}` as const)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => setStatus(v as VulnFindingStatus | "ALL")}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder={t("vuln.findings.col.status")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All statuses</SelectItem>
+            <SelectItem value="ALL">{t("vuln.findings.allStatuses")}</SelectItem>
             {STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s.replace("_", " ")}
+                {t(`vuln.status.${s}` as const)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={scanner} onValueChange={(v) => setScanner(v as VulnScanner | "ALL")}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Scanner" />
+            <SelectValue placeholder={t("vuln.findings.col.scanner")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All scanners</SelectItem>
+            <SelectItem value="ALL">{t("vuln.findings.allScanners")}</SelectItem>
             {SCANNERS.map((s) => (
               <SelectItem key={s} value={s}>
                 {s}
@@ -130,7 +130,7 @@ export default function VulnFindingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {findings ? `${findings.length} finding${findings.length === 1 ? "" : "s"}` : "Findings"}
+            {findings ? t("vuln.findings.count", { count: findings.length }) : t("vuln.findings.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>

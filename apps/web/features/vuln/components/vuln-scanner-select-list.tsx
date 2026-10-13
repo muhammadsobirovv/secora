@@ -1,17 +1,12 @@
+"use client";
+
 import { SCANNER_TARGET_TYPE_COMPATIBILITY } from "@pentesthub/shared";
 import type { TargetType, VulnScanner } from "@pentesthub/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/features/i18n/i18n-context";
 
-const SCANNER_LABEL: Record<VulnScanner, string> = {
-  NUCLEI: "Nuclei — template-based vulnerability scanning",
-  FFUF: "ffuf — fast web fuzzer (directories, params)",
-  DIRSEARCH: "dirsearch — directory/file brute-forcing",
-  FEROXBUSTER: "feroxbuster — recursive content discovery",
-  NIKTO: "Nikto — web server misconfiguration scanning",
-};
-
-const ALL_SCANNERS = Object.keys(SCANNER_LABEL) as VulnScanner[];
+const ALL_SCANNERS: VulnScanner[] = ["NUCLEI", "FFUF", "DIRSEARCH", "FEROXBUSTER", "NIKTO"];
 
 /// Mirrors ReconToolSelectList exactly: greys out (never hides) a scanner
 /// incompatible with the target's type, using the same compatibility map
@@ -26,6 +21,8 @@ export function VulnScannerSelectList({
   selected: VulnScanner[];
   onChange: (scanners: VulnScanner[]) => void;
 }) {
+  const { t } = useI18n();
+
   function toggle(scanner: VulnScanner, checked: boolean): void {
     onChange(checked ? [...selected, scanner] : selected.filter((s) => s !== scanner));
   }
@@ -45,7 +42,7 @@ export function VulnScannerSelectList({
               disabled={!compatible}
               onCheckedChange={(checked) => toggle(scanner, checked === true)}
             />
-            <Label className="cursor-pointer font-normal">{SCANNER_LABEL[scanner]}</Label>
+            <Label className="cursor-pointer font-normal">{t(`vuln.scanner.${scanner}` as const)}</Label>
           </label>
         );
       })}

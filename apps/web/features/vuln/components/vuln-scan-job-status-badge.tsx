@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnScanJobStatus } from "@pentesthub/shared";
 
 const STATUS_VARIANT: Record<
@@ -14,16 +17,7 @@ const STATUS_VARIANT: Record<
   CANCELLED: "outline",
 };
 
-const STATUS_LABEL: Record<VulnScanJobStatus, string> = {
-  PENDING: "Pending",
-  RUNNING: "Running",
-  PAUSED: "Paused",
-  RETRYING: "Retrying",
-  COMPLETED: "Completed",
-  FAILED: "Failed",
-  CANCELLED: "Cancelled",
-};
-
 export function VulnScanJobStatusBadge({ status }: { status: VulnScanJobStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+  const { t } = useI18n();
+  return <Badge variant={STATUS_VARIANT[status]}>{t(`vuln.jobStatus.${status}` as const)}</Badge>;
 }

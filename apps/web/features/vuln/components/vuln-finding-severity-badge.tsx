@@ -1,5 +1,8 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnFindingSeverity } from "@pentesthub/shared";
 
 /// The shared Badge component only ships 6 semantic variants (default,
@@ -16,14 +19,6 @@ const SEVERITY_CLASS: Record<VulnFindingSeverity, string> = {
   CRITICAL: "border-sev-critical/40 bg-sev-critical/15 text-sev-critical",
 };
 
-const SEVERITY_LABEL: Record<VulnFindingSeverity, string> = {
-  INFO: "Info",
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "High",
-  CRITICAL: "Critical",
-};
-
 export function VulnFindingSeverityBadge({
   severity,
   className,
@@ -31,9 +26,10 @@ export function VulnFindingSeverityBadge({
   severity: VulnFindingSeverity;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={cn(SEVERITY_CLASS[severity], className)}>
-      {SEVERITY_LABEL[severity]}
+      {t(`severity.${severity}` as const)}
     </Badge>
   );
 }

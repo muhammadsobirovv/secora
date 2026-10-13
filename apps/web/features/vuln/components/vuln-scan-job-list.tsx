@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,35 +7,43 @@ import { EmptyState } from "@/components/common/empty-state";
 import { ListSkeleton } from "@/components/common/skeletons";
 import { VulnScanJobStatusBadge } from "./vuln-scan-job-status-badge";
 import { formatDistanceToNow } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnScanJobDto } from "@pentesthub/shared";
 
 export function VulnScanJobList({
   jobs,
   isLoading,
   showTarget = false,
-  emptyDescription = "Start a scan to see vulnerability scan jobs here.",
+  emptyDescription,
 }: {
   jobs: VulnScanJobDto[] | undefined;
   isLoading: boolean;
   showTarget?: boolean;
   emptyDescription?: string;
 }) {
+  const { t } = useI18n();
   if (isLoading) return <ListSkeleton />;
 
   if (!jobs || jobs.length === 0) {
-    return <EmptyState icon={ShieldAlert} title="No scan jobs yet" description={emptyDescription} />;
+    return (
+      <EmptyState
+        icon={ShieldAlert}
+        title={t("vuln.list.emptyTitle")}
+        description={emptyDescription ?? t("vuln.list.emptyDescription")}
+      />
+    );
   }
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Status</TableHead>
-          <TableHead>Scanners</TableHead>
-          {showTarget && <TableHead>Target</TableHead>}
-          <TableHead>Priority</TableHead>
-          <TableHead>Findings</TableHead>
-          <TableHead>Started</TableHead>
+          <TableHead>{t("recon.list.status")}</TableHead>
+          <TableHead>{t("vuln.list.scanners")}</TableHead>
+          {showTarget && <TableHead>{t("recon.list.target")}</TableHead>}
+          <TableHead>{t("vuln.list.priority")}</TableHead>
+          <TableHead>{t("recon.list.findings")}</TableHead>
+          <TableHead>{t("recon.list.started")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -46,7 +56,7 @@ export function VulnScanJobList({
             </TableCell>
             <TableCell>
               <Link href={`/vuln/jobs/${job.id}`} className="text-sm text-muted-foreground">
-                {job.scanners.length} scanner{job.scanners.length === 1 ? "" : "s"}
+                {job.scanners.length}
               </Link>
             </TableCell>
             {showTarget && (
@@ -70,7 +80,7 @@ export function VulnScanJobList({
             </TableCell>
             <TableCell>
               <Link href={`/vuln/jobs/${job.id}`} className="text-sm text-muted-foreground">
-                {job.startedAt ? formatDistanceToNow(job.startedAt) : "not started"}
+                {job.startedAt ? formatDistanceToNow(job.startedAt) : t("recon.list.notStarted")}
               </Link>
             </TableCell>
           </TableRow>

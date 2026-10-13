@@ -21,6 +21,7 @@ import { VulnScanJobProgress } from "@/features/vuln/components/vuln-scan-job-pr
 import { VulnLiveLogPanel } from "@/features/vuln/components/vuln-live-log-panel";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnScanJobStatus } from "@pentesthub/shared";
 
 const TERMINAL_STATUSES: VulnScanJobStatus[] = ["COMPLETED", "FAILED", "CANCELLED"];
@@ -28,6 +29,7 @@ const STOPPABLE_STATUSES: VulnScanJobStatus[] = ["PENDING", "RUNNING", "RETRYING
 const PAUSABLE_STATUSES: VulnScanJobStatus[] = ["RUNNING", "RETRYING"];
 
 export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
+  const { t } = useI18n();
   const { jobId } = use(params);
   const { data: job, isLoading, isError, refetch } = useVulnScanJob(jobId);
   const { data: findings, isLoading: findingsLoading } = useVulnScanJobFindings(jobId);
@@ -39,36 +41,36 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
   async function handleStop(): Promise<void> {
     try {
       await stopJob.mutateAsync(jobId);
-      toast.success("Stop requested");
+      toast.success(t("vuln.job.stopRequested"));
     } catch {
-      toast.error("Couldn't stop this job.");
+      toast.error(t("vuln.job.stopError"));
     }
   }
 
   async function handlePause(): Promise<void> {
     try {
       await pauseJob.mutateAsync(jobId);
-      toast.success("Pause requested");
+      toast.success(t("vuln.job.pauseRequested"));
     } catch {
-      toast.error("Couldn't pause this job.");
+      toast.error(t("vuln.job.pauseError"));
     }
   }
 
   async function handleResume(): Promise<void> {
     try {
       await resumeJob.mutateAsync(jobId);
-      toast.success("Job resumed");
+      toast.success(t("vuln.job.resumed"));
     } catch {
-      toast.error("Couldn't resume this job.");
+      toast.error(t("vuln.job.resumeError"));
     }
   }
 
   async function handleRetry(): Promise<void> {
     try {
       await retryJob.mutateAsync(jobId);
-      toast.success("Job queued for retry");
+      toast.success(t("vuln.job.retryQueued"));
     } catch {
-      toast.error("Couldn't retry this job.");
+      toast.error(t("vuln.job.retryError"));
     }
   }
 
@@ -82,7 +84,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
   }
 
   if (isError || !job) {
-    return <ErrorState description="Couldn't load this scan job." onRetry={() => void refetch()} />;
+    return <ErrorState description={t("vuln.job.loadError")} onRetry={() => void refetch()} />;
   }
 
   const isRunning = !TERMINAL_STATUSES.includes(job.status);
@@ -93,20 +95,20 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <ShieldAlert className="size-5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Vulnerability scan</h1>
+            <h1 className="text-xl font-semibold">{t("vuln.job.title")}</h1>
             <VulnScanJobStatusBadge status={job.status} />
           </div>
           <p className="mt-1 font-mono text-xs text-muted-foreground">{job.id}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <Link href={`/targets/${job.targetId}`} className="hover:text-foreground hover:underline">
-              Target →
+              {t("recon.job.target")} →
             </Link>
             <Link href={`/projects/${job.projectId}?tab=vuln`} className="hover:text-foreground hover:underline">
-              Project →
+              {t("recon.job.project")} →
             </Link>
-            <span>Priority {job.priority}</span>
-            {job.startedAt && <span>Started {formatDateTime(job.startedAt)}</span>}
-            {job.completedAt && <span>Completed {formatDateTime(job.completedAt)}</span>}
+            <span>{t("vuln.priority", { value: job.priority })}</span>
+            {job.startedAt && <span>{t("recon.job.started", { date: formatDateTime(job.startedAt) })}</span>}
+            {job.completedAt && <span>{t("recon.job.completed", { date: formatDateTime(job.completedAt) })}</span>}
           </div>
           {job.error && <p className="mt-2 text-sm text-destructive">{job.error}</p>}
         </div>
@@ -114,25 +116,25 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
           {PAUSABLE_STATUSES.includes(job.status) && (
             <Button size="sm" variant="outline" disabled={pauseJob.isPending} onClick={() => void handlePause()}>
               {pauseJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <PauseCircle className="size-4" />}
-              Pause
+              {t("vuln.job.pause")}
             </Button>
           )}
           {job.status === "PAUSED" && (
             <Button size="sm" variant="outline" disabled={resumeJob.isPending} onClick={() => void handleResume()}>
               {resumeJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
-              Resume
+              {t("vuln.job.resume")}
             </Button>
           )}
           {STOPPABLE_STATUSES.includes(job.status) && (
             <Button size="sm" variant="outline" disabled={stopJob.isPending} onClick={() => void handleStop()}>
               {stopJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-              Stop
+              {t("vuln.job.stop")}
             </Button>
           )}
           {job.status === "FAILED" && (
             <Button size="sm" disabled={retryJob.isPending} onClick={() => void handleRetry()}>
               {retryJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
-              Retry
+              {t("recon.job.retry")}
             </Button>
           )}
         </div>
@@ -140,7 +142,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Progress</CardTitle>
+          <CardTitle className="text-base">{t("recon.job.progress")}</CardTitle>
         </CardHeader>
         <CardContent>
           <VulnScanJobProgress toolRuns={job.toolRuns} />
@@ -149,7 +151,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Live log</CardTitle>
+          <CardTitle className="text-base">{t("vuln.log.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <VulnLiveLogPanel jobId={job.id} enabled={isRunning} />
@@ -158,7 +160,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Findings ({job.findingsCount})</CardTitle>
+          <CardTitle className="text-base">{t("recon.job.findingsTitle", { count: job.findingsCount })}</CardTitle>
         </CardHeader>
         <CardContent>
           <VulnFindingsTable findings={findings} isLoading={findingsLoading} />

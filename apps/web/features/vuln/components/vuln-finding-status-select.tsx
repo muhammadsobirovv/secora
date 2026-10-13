@@ -2,6 +2,7 @@
 
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { useUpdateVulnFindingStatus } from "../hooks/use-vuln";
 import type { VulnFindingStatus } from "@pentesthub/shared";
 
@@ -14,24 +15,16 @@ const STATUS_OPTIONS: VulnFindingStatus[] = [
   "FALSE_POSITIVE",
 ];
 
-const STATUS_LABEL: Record<VulnFindingStatus, string> = {
-  NEW: "New",
-  CONFIRMED: "Confirmed",
-  DUPLICATE: "Duplicate",
-  ACCEPTED_RISK: "Accepted risk",
-  FIXED: "Fixed",
-  FALSE_POSITIVE: "False positive",
-};
-
 export function VulnFindingStatusSelect({ findingId, status }: { findingId: string; status: VulnFindingStatus }) {
+  const { t } = useI18n();
   const updateStatus = useUpdateVulnFindingStatus();
 
   async function handleChange(next: string): Promise<void> {
     try {
       await updateStatus.mutateAsync({ id: findingId, data: { status: next as VulnFindingStatus } });
-      toast.success(`Marked as ${STATUS_LABEL[next as VulnFindingStatus]}`);
+      toast.success(t("vuln.finding.markedAs", { status: t(`vuln.status.${next as VulnFindingStatus}` as const) }));
     } catch {
-      toast.error("Couldn't update this finding's status.");
+      toast.error(t("vuln.finding.statusError"));
     }
   }
 
@@ -43,7 +36,7 @@ export function VulnFindingStatusSelect({ findingId, status }: { findingId: stri
       <SelectContent>
         {STATUS_OPTIONS.map((option) => (
           <SelectItem key={option} value={option}>
-            {STATUS_LABEL[option]}
+            {t(`vuln.status.${option}` as const)}
           </SelectItem>
         ))}
       </SelectContent>

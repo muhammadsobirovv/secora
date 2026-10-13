@@ -10,12 +10,14 @@ import { VulnSeverityChart } from "@/features/vuln/components/vuln-severity-char
 import { VulnScannerStatusList } from "@/features/vuln/components/vuln-scanner-status-list";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
 import { PageHelp } from "@/components/common/page-help";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 /// Workspace-wide "Vulnerability Dashboard" — analog of the Recon landing
 /// page, but built around one aggregate query (GetVulnDashboardSummary)
 /// instead of a plain job list, since the spec calls for severity charts
 /// / scanner status / running jobs / recent findings all on one screen.
 export default function VulnDashboardPage() {
+  const { t } = useI18n();
   const { data: summary, isLoading } = useVulnDashboardSummary();
 
   return (
@@ -23,50 +25,44 @@ export default function VulnDashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <ShieldAlert className="size-6" /> Vulnerabilities
+            <ShieldAlert className="size-6" /> {t("nav.vulnerabilities")}
             <PageHelp
-              summary="This is where actual weaknesses are found and tracked — different from Recon (which only maps out what exists). Vulnerability scans test the targets and URLs Recon discovered for real security issues, and every result lands here as a finding with a severity rating."
-              steps={[
-                "Pick a scanner under \"Scanners\" and a target to test, or apply a saved template under \"Templates\" to run several checks at once.",
-                "Track progress under \"Scan jobs\" while it runs.",
-                "Triage results here or under \"Findings\" — confirm real issues, mark false positives, and hand confirmed ones to Bug Bounty or Reports.",
-              ]}
+              summary={t("vuln.help.summary")}
+              steps={[t("vuln.help.step1"), t("vuln.help.step2"), t("vuln.help.step3")]}
               actions={[
-                { label: "Scan jobs", description: "Every vulnerability scan run across your projects — status, progress, and logs." },
-                { label: "Templates", description: "Reusable bundles of scanner configs so you don't set up the same checks every time." },
-                { label: "Scanners", description: "Which scanning tools are available and their current status." },
-                { label: "Findings by severity / Recent findings", description: "A quick read on what's Critical/High right now, and the newest results to triage first." },
+                { label: t("vuln.nav.scanJobs"), description: t("vuln.help.scanJobsDesc") },
+                { label: t("vuln.nav.templates"), description: t("vuln.help.templatesDesc") },
+                { label: t("vuln.nav.scanners"), description: t("vuln.help.scannersDesc") },
+                { label: t("vuln.dashboard.findingsBySeverity"), description: t("vuln.help.findingsDesc") },
               ]}
             />
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Findings and scan activity across every project. Start new scans from a target&apos;s page.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("vuln.dashboard.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" asChild>
             <Link href="/vuln/jobs">
-              <ListChecks className="size-4" /> Scan jobs
+              <ListChecks className="size-4" /> {t("vuln.nav.scanJobs")}
             </Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
             <Link href="/vuln/templates">
-              <LayoutTemplate className="size-4" /> Templates
+              <LayoutTemplate className="size-4" /> {t("vuln.nav.templates")}
             </Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
             <Link href="/vuln/scanners">
-              <RadioTower className="size-4" /> Scanners
+              <RadioTower className="size-4" /> {t("vuln.nav.scanners")}
             </Link>
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard label="Total findings" value={summary?.totalFindings} isLoading={isLoading} />
-        <SummaryCard label="Running jobs" value={summary?.runningJobsCount} isLoading={isLoading} />
+        <SummaryCard label={t("vuln.dashboard.totalFindings")} value={summary?.totalFindings} isLoading={isLoading} />
+        <SummaryCard label={t("vuln.dashboard.runningJobs")} value={summary?.runningJobsCount} isLoading={isLoading} />
         <SummaryCard
-          label="Critical + High"
+          label={t("vuln.dashboard.criticalHigh")}
           value={
             summary ? (summary.severityCounts.CRITICAL ?? 0) + (summary.severityCounts.HIGH ?? 0) : undefined
           }
@@ -77,7 +73,7 @@ export default function VulnDashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Findings by severity</CardTitle>
+            <CardTitle className="text-base">{t("vuln.dashboard.findingsBySeverity")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading || !summary ? (
@@ -90,7 +86,7 @@ export default function VulnDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Scanner status</CardTitle>
+            <CardTitle className="text-base">{t("vuln.dashboard.scannerStatus")}</CardTitle>
           </CardHeader>
           <CardContent>
             <VulnScannerStatusList entries={summary?.scannerHistory} isLoading={isLoading} />
@@ -100,9 +96,9 @@ export default function VulnDashboardPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-base">Recent findings</CardTitle>
+          <CardTitle className="text-base">{t("vuln.dashboard.recentFindings")}</CardTitle>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/vuln/findings">View all →</Link>
+            <Link href="/vuln/findings">{t("common.viewAll")} →</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -110,7 +106,7 @@ export default function VulnDashboardPage() {
             findings={summary?.recentFindings}
             isLoading={isLoading}
             showTarget
-            emptyDescription="Findings will appear here as scans complete."
+            emptyDescription={t("vuln.dashboard.recentEmpty")}
           />
         </CardContent>
       </Card>

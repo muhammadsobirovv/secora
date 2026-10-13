@@ -12,8 +12,10 @@ import { VulnFindingSeverityBadge } from "@/features/vuln/components/vuln-findin
 import { VulnFindingStatusSelect } from "@/features/vuln/components/vuln-finding-status-select";
 import { VulnFindingEvidencePanel } from "@/features/vuln/components/vuln-finding-evidence-panel";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/features/i18n/i18n-context";
 
 export default function VulnFindingDetailPage({ params }: { params: Promise<{ findingId: string }> }) {
+  const { t } = useI18n();
   const { findingId } = use(params);
   const { data: finding, isLoading, isError, refetch } = useVulnFinding(findingId);
 
@@ -27,7 +29,7 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
   }
 
   if (isError || !finding) {
-    return <ErrorState description="Couldn't load this finding." onRetry={() => void refetch()} />;
+    return <ErrorState description={t("vuln.finding.loadError")} onRetry={() => void refetch()} />;
   }
 
   return (
@@ -37,7 +39,7 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
           href="/vuln/findings"
           className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" /> Back to findings
+          <ArrowLeft className="size-3.5" /> {t("vuln.finding.backToFindings")}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -47,10 +49,10 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
             </div>
             <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
               <Link href={`/targets/${finding.targetId}`} className="hover:text-foreground hover:underline">
-                Target →
+                {t("recon.job.target")} →
               </Link>
               <Link href={`/vuln/jobs/${finding.jobId}`} className="hover:text-foreground hover:underline">
-                Scan job →
+                {t("vuln.finding.scanJob")} →
               </Link>
               <Badge variant="outline">{finding.scanner}</Badge>
               {finding.scannerVersion && <span>v{finding.scannerVersion}</span>}
@@ -62,34 +64,36 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Description</CardTitle>
+          <CardTitle className="text-base">{t("vuln.finding.description")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm whitespace-pre-wrap text-foreground">{finding.description}</p>
           {finding.path && (
-            <p className="mt-3 font-mono text-xs text-muted-foreground">Path: {finding.path}</p>
+            <p className="mt-3 font-mono text-xs text-muted-foreground">
+              {t("vuln.finding.path", { path: finding.path })}
+            </p>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Classification</CardTitle>
+          <CardTitle className="text-base">{t("vuln.finding.classification")}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-          <Field label="CVSS score" value={finding.cvssScore !== null ? finding.cvssScore.toFixed(1) : "—"} />
-          <Field label="CVSS vector" value={finding.cvssVector ?? "—"} mono />
+          <Field label={t("vuln.finding.cvssScore")} value={finding.cvssScore !== null ? finding.cvssScore.toFixed(1) : "—"} />
+          <Field label={t("vuln.finding.cvssVector")} value={finding.cvssVector ?? "—"} mono />
           <Field label="CWE" value={finding.cwe ?? "—"} />
-          <Field label="OWASP category" value={finding.owaspCategory?.replace(/_/g, " ") ?? "—"} />
-          <Field label="Confidence" value={finding.confidence} />
-          <Field label="Vulnerability type" value={finding.vulnType} />
+          <Field label={t("vuln.finding.owasp")} value={finding.owaspCategory?.replace(/_/g, " ") ?? "—"} />
+          <Field label={t("vuln.finding.confidence")} value={finding.confidence} />
+          <Field label={t("vuln.finding.vulnType")} value={finding.vulnType} />
         </CardContent>
       </Card>
 
       {(finding.tags.length > 0 || finding.references.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tags & references</CardTitle>
+            <CardTitle className="text-base">{t("vuln.finding.tagsRefs")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {finding.tags.length > 0 && (
@@ -118,7 +122,7 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Evidence</CardTitle>
+          <CardTitle className="text-base">{t("vuln.finding.evidence")}</CardTitle>
         </CardHeader>
         <CardContent>
           <VulnFindingEvidencePanel evidence={finding} />
@@ -128,15 +132,15 @@ export default function VulnFindingDetailPage({ params }: { params: Promise<{ fi
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="size-4" /> Timeline
+            <Clock className="size-4" /> {t("vuln.finding.timeline")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col gap-2 text-sm">
-            <TimelineRow label="First seen" at={finding.firstSeenAt} />
-            <TimelineRow label="Last seen" at={finding.lastSeenAt} />
-            <TimelineRow label="Created" at={finding.createdAt} />
-            <TimelineRow label="Last updated" at={finding.updatedAt} />
+            <TimelineRow label={t("vuln.timeline.firstSeen")} at={finding.firstSeenAt} />
+            <TimelineRow label={t("vuln.timeline.lastSeen")} at={finding.lastSeenAt} />
+            <TimelineRow label={t("vuln.timeline.created")} at={finding.createdAt} />
+            <TimelineRow label={t("vuln.timeline.updated")} at={finding.updatedAt} />
           </ul>
         </CardContent>
       </Card>
