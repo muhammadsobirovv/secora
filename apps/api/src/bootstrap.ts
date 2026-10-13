@@ -121,7 +121,7 @@ export function configureApp(app: INestApplication): void {
 
   // Domain restructuring (2026-09): the frontend can now be reachable
   // from more than one origin at once (e.g. both the bare apex
-  // `pentesthubai.com` and `app.pentesthubai.com`), while FRONTEND_URL
+  // `secora.group` and `app.secora.group`), while FRONTEND_URL
   // stays the single canonical URL used elsewhere (email links, OAuth
   // redirects, billing checkout) — see env.validation.ts's doc comment
   // on CORS_ADDITIONAL_ORIGINS. Static array/string `origin` (the

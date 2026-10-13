@@ -4,7 +4,7 @@ We welcome reports of security vulnerabilities in PentestHub AI. The full policy
 
 ## How to report
 
-- Email **[security@pentesthubai.com](mailto:security@pentesthubai.com)**, or
+- Email **[security@secora.group](mailto:security@secora.group)**, or
 - use **Report a vulnerability** on the project's GitHub repository (private advisory).
 
 Please do not open a public issue for a security problem.

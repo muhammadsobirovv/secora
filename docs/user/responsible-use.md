@@ -26,4 +26,4 @@ PentestHub AI is a tool for **authorized** security testing. This page is a prac
 
 PentestHub AI provides tooling. It does not verify your authorization on your behalf. If you test without authorization or outside the agreed ROE or scope, you act at your own risk and are fully responsible for the legal consequences in your country and in the country where the target is located.
 
-Questions: [support@pentesthubai.com](mailto:support@pentesthubai.com).
+Questions: [support@secora.group](mailto:support@secora.group).

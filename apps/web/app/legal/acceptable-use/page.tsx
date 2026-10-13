@@ -5,7 +5,7 @@ import { LegalDocumentView } from "@/features/legal/legal-document-view";
 export const metadata: Metadata = {
   title: "Acceptable Use Policy",
   description: "What you may and may not do with PentestHub AI, including the Rules of Engagement.",
-  alternates: { canonical: "https://pentesthubai.com/legal/acceptable-use" },
+  alternates: { canonical: "https://secora.group/legal/acceptable-use" },
 };
 
 export default function Page() {

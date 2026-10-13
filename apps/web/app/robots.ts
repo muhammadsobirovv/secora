@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = "https://pentesthubai.com";
+const SITE_URL = "https://secora.group";
 
 // SEO fix — previously there was no robots.txt at all, so crawlers had no
 // explicit signal about what's public. The overwhelming majority of the

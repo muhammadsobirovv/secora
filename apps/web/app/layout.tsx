@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pentesthubai.com"),
+  metadataBase: new URL("https://secora.group"),
   title: {
     default: "PentestHub AI — AI-Powered Offensive Security Platform",
     template: "%s | PentestHub AI",

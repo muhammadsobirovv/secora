@@ -214,10 +214,10 @@ export function LandingPage() {
             <Link href="/legal/privacy" className="transition-colors hover:text-foreground">
               {t("landing.footer.privacy")}
             </Link>
-            <a href="mailto:support@pentesthubai.com" className="transition-colors hover:text-foreground">
+            <a href="mailto:support@secora.group" className="transition-colors hover:text-foreground">
               {t("landing.footer.support")}
             </a>
-            <a href="mailto:security@pentesthubai.com" className="transition-colors hover:text-foreground">
+            <a href="mailto:security@secora.group" className="transition-colors hover:text-foreground">
               {t("landing.footer.contact")}
             </a>
           </div>

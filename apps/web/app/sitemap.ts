@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { listAllDocs } from "@/lib/docs-content";
 
-const SITE_URL = "https://pentesthubai.com";
+const SITE_URL = "https://secora.group";
 
 // Lists only genuinely public, unauthenticated routes: the marketing home,
 // the allowlisted user docs (lib/docs-content.ts — the same list the docs

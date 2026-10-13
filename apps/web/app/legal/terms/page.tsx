@@ -5,7 +5,7 @@ import { LegalDocumentView } from "@/features/legal/legal-document-view";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "The rules for using PentestHub AI, an authorized security testing platform.",
-  alternates: { canonical: "https://pentesthubai.com/legal/terms" },
+  alternates: { canonical: "https://secora.group/legal/terms" },
 };
 
 export default function Page() {

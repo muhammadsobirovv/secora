@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     title: "PentestHub AI — AI-Powered Offensive Security Platform",
     description:
       "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
-    url: "https://pentesthubai.com",
+    url: "https://secora.group",
     siteName: "PentestHub AI",
     type: "website",
   },
@@ -34,11 +34,11 @@ export const metadata: Metadata = {
       "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
   },
   alternates: {
-    canonical: "https://pentesthubai.com",
+    canonical: "https://secora.group",
   },
 };
 
-const SITE_URL = "https://pentesthubai.com";
+const SITE_URL = "https://secora.group";
 const FOUNDER_ID = `${SITE_URL}/#founder`;
 const ORG_ID = `${SITE_URL}/#organization`;
 const LINKEDIN = "https://www.linkedin.com/in/muhammadsobirov";
@@ -63,18 +63,18 @@ const structuredData: JsonLdGraph = {
       url: SITE_URL,
       logo: `${SITE_URL}/favicon.ico`,
       description: META_DESCRIPTION,
-      email: "support@pentesthubai.com",
+      email: "support@secora.group",
       contactPoint: [
         {
           "@type": "ContactPoint",
           contactType: "customer support",
-          email: "support@pentesthubai.com",
+          email: "support@secora.group",
           availableLanguage: ["en", "uz", "ru"],
         },
         {
           "@type": "ContactPoint",
           contactType: "security",
-          email: "security@pentesthubai.com",
+          email: "security@secora.group",
         },
       ],
       founder: { "@id": FOUNDER_ID },

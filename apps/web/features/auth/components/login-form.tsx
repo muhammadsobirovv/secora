@@ -19,7 +19,7 @@ import { ApiError } from "@/lib/api/client";
 import { OAuthButtons } from "./oauth-buttons";
 
 /// Security fix (open-redirect hardening). `?next=` is attacker-reachable
-/// — anyone can craft `https://pentesthubai.com/login?next=https://evil.com`
+/// — anyone can craft `https://secora.group/login?next=https://evil.com`
 /// (or a protocol-relative `//evil.com`) and send it as a phishing link, and
 /// prior to this fix `router.push(searchParams.get("next"))` would follow it
 /// unconditionally straight after a real login. Only allow a same-origin,
@@ -33,8 +33,8 @@ function sanitizeNextPath(raw: string | null): string {
     // Resolving against a fixed origin surfaces any embedded scheme/host
     // (e.g. "/\evil.com" or "/%09/evil.com") that would otherwise slip past
     // the startsWith checks above once the browser normalizes it.
-    const resolved = new URL(raw, "https://pentesthubai.com");
-    if (resolved.origin !== "https://pentesthubai.com") return "/dashboard";
+    const resolved = new URL(raw, "https://secora.group");
+    if (resolved.origin !== "https://secora.group") return "/dashboard";
     return `${resolved.pathname}${resolved.search}${resolved.hash}`;
   } catch {
     return "/dashboard";

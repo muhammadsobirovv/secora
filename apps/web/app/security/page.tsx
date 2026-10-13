@@ -7,7 +7,7 @@ import { LegalDocumentView } from "@/features/legal/legal-document-view";
 export const metadata: Metadata = {
   title: "Security & Vulnerability Disclosure",
   description: "How to report a security vulnerability in PentestHub AI and what to expect.",
-  alternates: { canonical: "https://pentesthubai.com/security" },
+  alternates: { canonical: "https://secora.group/security" },
 };
 
 export default function Page() {

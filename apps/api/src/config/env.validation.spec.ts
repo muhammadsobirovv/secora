@@ -77,12 +77,12 @@ describe('validateEnv — valid configuration', () => {
   it('accepts a comma-separated CORS_ADDITIONAL_ORIGINS and leaves it unparsed (bootstrap.ts splits it)', () => {
     const env = {
       ...minimalValidEnv(),
-      CORS_ADDITIONAL_ORIGINS: 'https://pentesthubai.com,https://www.pentesthubai.com',
+      CORS_ADDITIONAL_ORIGINS: 'https://secora.group,https://www.secora.group',
     };
 
     const result = validateEnv(env);
     expect(result.CORS_ADDITIONAL_ORIGINS).toBe(
-      'https://pentesthubai.com,https://www.pentesthubai.com',
+      'https://secora.group,https://www.secora.group',
     );
   });
 

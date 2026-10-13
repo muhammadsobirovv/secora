@@ -95,10 +95,10 @@ changes.
 
 ## Contact
 
-For the hosted service at pentesthubai.com, send privacy and data
-requests to [support@pentesthubai.com](mailto:support@pentesthubai.com);
+For the hosted service at secora.group, send privacy and data
+requests to [support@secora.group](mailto:support@secora.group);
 security vulnerabilities go to
-[security@pentesthubai.com](mailto:security@pentesthubai.com) (see
+[security@secora.group](mailto:security@secora.group) (see
 `SECURITY.md`). Self-hosting? Replace these with your deployment's own
 contact addresses — an unmonitored address is worse than none, so point
 them at inboxes you actually read.

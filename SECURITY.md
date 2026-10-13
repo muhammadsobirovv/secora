@@ -26,9 +26,9 @@ Instead, use one of these private channels:
    per-repository toggle this file can describe but can't enable for
    you.)*
 2. **Email**: if you don't have (or don't want to use) a GitHub account,
-   email **[security@pentesthubai.com](mailto:security@pentesthubai.com)**.
+   email **[security@secora.group](mailto:security@secora.group)**.
    This inbox is monitored and is also published in
-   [`/.well-known/security.txt`](https://pentesthubai.com/.well-known/security.txt)
+   [`/.well-known/security.txt`](https://secora.group/.well-known/security.txt)
    (RFC 9116). *(Forking or self-hosting this project? Replace it with an
    inbox you actually monitor — an unmonitored security contact is worse
    than none, because it gives a false sense of a working reporting

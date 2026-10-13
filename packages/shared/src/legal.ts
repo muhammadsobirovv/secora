@@ -18,8 +18,8 @@ export type LegalDocumentKind = (typeof LEGAL_DOCUMENTS)[number];
 export const LEGAL_ACCEPTANCE_REQUIRED = "LEGAL_ACCEPTANCE_REQUIRED";
 
 export const LEGAL_CONTACT = {
-  support: "support@pentesthubai.com",
-  security: "security@pentesthubai.com",
+  support: "support@secora.group",
+  security: "security@secora.group",
 } as const;
 
 export interface LegalStatusDto {

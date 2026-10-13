@@ -4,13 +4,13 @@ Everything you can do in the web app is also available programmatically. The sam
 
 ## REST API
 
-- Base URL: `https://api.pentesthubai.com`
-- Interactive reference (OpenAPI): [api.pentesthubai.com/api/docs](https://api.pentesthubai.com/api/docs)
+- Base URL: `https://api.secora.group`
+- Interactive reference (OpenAPI): [api.secora.group/api/docs](https://api.secora.group/api/docs)
 
 Authenticate with a bearer token:
 
 ```bash
-curl -H "Authorization: Bearer <token>" https://api.pentesthubai.com/auth/me
+curl -H "Authorization: Bearer <token>" https://api.secora.group/auth/me
 ```
 
 For automation, create an **API key** under **Settings → API keys** and give it only the scopes it needs. Keys can be rotated and revoked at any time. Never commit keys to source control.
@@ -23,7 +23,7 @@ The SDK is not published to npm yet. Build it from the project repository (`pack
 import { PentestHubClient } from "@pentesthub/sdk";
 
 const client = new PentestHubClient({
-  baseUrl: "https://api.pentesthubai.com",
+  baseUrl: "https://api.secora.group",
   apiKey: process.env.PENTESTHUB_API_KEY,
 });
 ```

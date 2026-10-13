@@ -58,8 +58,8 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
   // Domain restructuring (2026-09): the web app is reachable from more
-  // than one origin at once — e.g. both the bare apex `pentesthubai.com`
-  // and the original `app.pentesthubai.com` — while `FRONTEND_URL` above
+  // than one origin at once — e.g. both the bare apex `secora.group`
+  // and the original `app.secora.group` — while `FRONTEND_URL` above
   // stays a single canonical URL (it's used to build absolute links in
   // emails/OAuth redirects/billing checkout URLs, which each need exactly
   // one value, not a set). CORS, unlike those call sites, needs to accept

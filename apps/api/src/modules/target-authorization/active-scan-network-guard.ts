@@ -143,7 +143,7 @@ export async function evaluateActiveScanTarget(
   if (denied && !allowlisted) {
     return {
       allowed: false,
-      reason: `Domains under ".${denied}" (government/military) are refused for active scans by default. If you own this asset and hold written authorization, contact support@pentesthubai.com.`,
+      reason: `Domains under ".${denied}" (government/military) are refused for active scans by default. If you own this asset and hold written authorization, contact support@secora.group.`,
     };
   }
 

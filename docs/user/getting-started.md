@@ -6,7 +6,7 @@ PentestHub AI is a workspace for authorized security testing: reconnaissance, vu
 
 ## 1. Create an account
 
-1. Open [pentesthubai.com](https://pentesthubai.com) and choose **Get started free**, or sign in with Google or GitHub.
+1. Open [secora.group](https://secora.group) and choose **Get started free**, or sign in with Google or GitHub.
 2. Read and accept the Terms of Service, Acceptable Use Policy and Privacy Policy. Registration cannot be completed without this.
 3. If you signed up with email and password, confirm your address with the link we send you.
 
