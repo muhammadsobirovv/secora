@@ -16,17 +16,26 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL("https://secora.group"),
   title: {
-    default: "PentestHub AI — AI-Powered Offensive Security Platform",
-    template: "%s | PentestHub AI",
+    default: "Secora — Security Platform",
+    template: "%s | Secora",
   },
   description:
-    "Enterprise-grade pentesting and bug bounty platform: recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
+    "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
   openGraph: {
-    siteName: "PentestHub AI",
+    siteName: "Secora",
     type: "website",
+    title: "Secora — Security Platform",
+    description:
+      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    url: "https://secora.group",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Secora" }],
   },
   twitter: {
     card: "summary_large_image",
+    title: "Secora — Security Platform",
+    description:
+      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,

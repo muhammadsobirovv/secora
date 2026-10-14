@@ -17,21 +17,23 @@ const META_DESCRIPTION =
   "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace. Find vulnerabilities before attackers do.";
 
 export const metadata: Metadata = {
-  title: "PentestHub AI — AI-Powered Offensive Security Platform",
+  title: "Secora — Security Platform",
   description: META_DESCRIPTION,
   openGraph: {
-    title: "PentestHub AI — AI-Powered Offensive Security Platform",
+    title: "Secora — Security Platform",
     description:
-      "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
+      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
     url: "https://secora.group",
-    siteName: "PentestHub AI",
+    siteName: "Secora",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Secora" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PentestHub AI — AI-Powered Offensive Security Platform",
+    title: "Secora — Security Platform",
     description:
-      "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace.",
+      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "https://secora.group",
