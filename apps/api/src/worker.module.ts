@@ -19,6 +19,7 @@ import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
 import { TargetAuthorizationModule } from './modules/target-authorization/target-authorization.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
@@ -108,6 +109,9 @@ import { TargetAuthorizationModule } from './modules/target-authorization/target
     // TargetAuthorizationService. That service is only registered in AppModule,
     // so the worker's own DI container failed to boot with "can't resolve
     // dependencies of the CreateTargetHandler". @Global, so no other wiring needed.
+    // TargetAuthorizationService also injects AuditService (@Global, same as
+    // AppModule). Without AuditModule the worker fails to boot the same way.
+    AuditModule,
     TargetAuthorizationModule,
   ],
   // Module 10 adds WorkerReaperService — dead-worker recovery + job
