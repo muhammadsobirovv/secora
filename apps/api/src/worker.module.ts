@@ -18,6 +18,7 @@ import { NotificationsChannelsCoreModule } from './modules/notifications-channel
 import { TelemetryModule } from './modules/telemetry/telemetry.module.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
+import { TargetAuthorizationModule } from './modules/target-authorization/target-authorization.module.js';
 
 /// The worker process's own root module — deliberately NOT AppModule.
 /// No HTTP guards/filters/interceptors (ThrottlerGuard, JwtAuthGuard,
@@ -102,6 +103,12 @@ import { WorkerReaperService } from './modules/distributed-jobs/services/worker-
     // TelemetryRecordingHandler instance — see TelemetryModule's doc
     // comment (same reasoning as ActivityModule's dual registration).
     TelemetryModule,
+    // Per-target authorization attestation (commit 30c1e01). CreateTargetHandler
+    // (TargetsModule, pulled in via ReconCoreModule) injects
+    // TargetAuthorizationService. That service is only registered in AppModule,
+    // so the worker's own DI container failed to boot with "can't resolve
+    // dependencies of the CreateTargetHandler". @Global, so no other wiring needed.
+    TargetAuthorizationModule,
   ],
   // Module 10 adds WorkerReaperService — dead-worker recovery + job
   // migration for the Distributed Job System, a fourth self-scheduling
