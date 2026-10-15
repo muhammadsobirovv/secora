@@ -75,7 +75,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Terminal", href: "/terminal", icon: TerminalSquare, i18nKey: "nav.terminal" },
   // Module 16 — task #389. Playbooks: reusable, auditable step graphs.
   { label: "Playbooks", href: "/playbooks", icon: Workflow, i18nKey: "nav.playbooks" },
-  { label: "AI Assistant", href: "/ai", icon: Bot, i18nKey: "nav.aiAssistant" },
+  { label: "Secora AI", href: "/ai", icon: Bot, i18nKey: "nav.aiAssistant" },
   // Module 11 — AI Security Copilot + Autonomous Multi-Agent System
   // (task #237): Master AI Orchestrator run list/detail + system-wide
   // reference catalog. Distinct from "AI Assistant" above (Module 5's

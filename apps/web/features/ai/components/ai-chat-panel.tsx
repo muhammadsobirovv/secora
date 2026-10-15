@@ -102,7 +102,7 @@ export const AiChatPanel = React.forwardRef<AiChatPanelHandle, { conversationId:
         <EmptyState
           icon={Bot}
           title="Start a conversation"
-          description="Pick a conversation on the left, or create a new one to ask the AI Security Copilot about this project."
+          description="Pick a conversation on the left, or create a new one to ask Secora AI about this project."
         />
       );
     }

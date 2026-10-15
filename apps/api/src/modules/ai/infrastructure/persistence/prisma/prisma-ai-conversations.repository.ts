@@ -75,6 +75,10 @@ export class PrismaAiConversationsRepository implements AiConversationsRepositor
     }));
   }
 
+  async setTitle(id: string, title: string): Promise<void> {
+    await this.txHost.tx.aiConversation.update({ where: { id }, data: { title } });
+  }
+
   setPinned(id: string, pinned: boolean): Promise<AiConversationRecord> {
     return this.txHost.tx.aiConversation.update({
       where: { id },

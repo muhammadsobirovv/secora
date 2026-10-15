@@ -30,7 +30,7 @@ function AiDashboardContent() {
         <h1 className="text-2xl font-semibold">AI Security Copilot</h1>
         <ProjectPicker
           icon={Bot}
-          description="Which project should the AI Security Copilot use as context?"
+          description="Which project should Secora AI use as context?"
           hrefFor={(id) => `/ai?projectId=${id}`}
         />
       </div>
@@ -59,7 +59,7 @@ function AiDashboardContent() {
       <div className="flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <Bot className="size-5 text-primary" />
-          <h1 className="text-2xl font-semibold">AI Security Copilot</h1>
+          <h1 className="text-2xl font-semibold">Secora AI</h1>
           <PageHelp
             summary={`A chat assistant scoped to one project — it can see that project's targets, recon results, findings, and notes, so you can ask it things like "what's still unscanned" or "summarize the critical findings" without re-explaining context every time.`}
             steps={[

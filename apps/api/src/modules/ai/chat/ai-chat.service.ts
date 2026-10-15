@@ -42,6 +42,13 @@ import { FreeTierGateService } from './free-tier-gate.service.js';
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
 
+/// First line of the user's opening message, trimmed to 60 characters.
+function deriveConversationTitle(content: string): string {
+  const firstLine = content.split('\n').find((line) => line.trim().length > 0)?.trim() ?? '';
+  if (!firstLine) return 'Yangi suhbat';
+  return firstLine.length > 60 ? `${firstLine.slice(0, 57)}...` : firstLine;
+}
+
 export interface StartTurnResult {
   userMessage: AiMessageDto;
   assistantMessage: AiMessageDto;
@@ -102,6 +109,11 @@ export class AiChatService {
       model: conversation.model,
     });
     await this.conversationsRepository.touch(conversationId);
+    // Name the conversation from its first message instead of leaving it as
+    // "New conversation" in the list.
+    if (!conversation.title) {
+      await this.conversationsRepository.setTitle(conversationId, deriveConversationTitle(sanitizedContent));
+    }
 
     this.streamHub.start(assistantMessage.id);
     void this.runGeneration(conversation, assistantMessage.id, userId);

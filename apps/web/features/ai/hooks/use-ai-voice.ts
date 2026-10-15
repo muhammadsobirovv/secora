@@ -12,6 +12,8 @@ import * as React from "react";
 /// no SpeechRecognition as of this writing) rather than throwing, so
 /// callers can simply hide the mic/speak buttons.
 
+const VOICE_LANG = "uz-UZ";
+
 function getSpeechRecognitionCtor(): (new () => SpeechRecognition) | null {
   if (typeof window === "undefined") return null;
   return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
@@ -51,7 +53,9 @@ export function useSpeechToText(onFinalTranscript: (text: string) => void): UseS
     setInterimTranscript("");
 
     const recognition = new Ctor();
-    recognition.lang = typeof navigator !== "undefined" ? navigator.language : "en-US";
+    // Speech input defaults to Uzbek. The browser's own locale is English
+    // for most users here, which made Uzbek speech get transcribed as English.
+    recognition.lang = VOICE_LANG;
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -111,6 +115,7 @@ export function useTextToSpeech(): UseTextToSpeechResult {
       if (!supported) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = VOICE_LANG;
       utterance.onend = () => setSpeakingMessageId((current) => (current === messageId ? null : current));
       utterance.onerror = () => setSpeakingMessageId((current) => (current === messageId ? null : current));
       setSpeakingMessageId(messageId);

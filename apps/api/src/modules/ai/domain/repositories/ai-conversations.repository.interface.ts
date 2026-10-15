@@ -47,6 +47,7 @@ export interface AiConversationsRepository {
   findById(id: string): Promise<AiConversationRecord | null>;
   list(filter: ListAiConversationsFilter): Promise<AiConversationListItem[]>;
   setPinned(id: string, pinned: boolean): Promise<AiConversationRecord>;
+  setTitle(id: string, title: string): Promise<void>;
   setArchived(id: string, archived: boolean): Promise<AiConversationRecord>;
   touch(id: string): Promise<void>;
   delete(id: string): Promise<void>;
