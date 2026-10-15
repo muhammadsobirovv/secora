@@ -271,7 +271,15 @@ export function useAiMessageStream(
               .map((line) => line.slice(5).trim());
             if (dataLines.length === 0) continue;
             try {
-              const event = JSON.parse(dataLines.join("")) as AiChatMessageStreamEvent;
+              // Nest's @Sse wraps each payload as `{ data: event }`; accept
+              // both the wrapped and the bare shape.
+              const raw = JSON.parse(dataLines.join("")) as
+                | AiChatMessageStreamEvent
+                | { data: AiChatMessageStreamEvent };
+              const event: AiChatMessageStreamEvent =
+                raw && typeof raw === "object" && "data" in raw && raw.data && typeof raw.data === "object"
+                  ? (raw.data as AiChatMessageStreamEvent)
+                  : (raw as AiChatMessageStreamEvent);
               applyEvent(event, setState);
               if (event.type === "done" || event.type === "error" || event.type === "cancelled") {
                 onDoneRef.current?.();
