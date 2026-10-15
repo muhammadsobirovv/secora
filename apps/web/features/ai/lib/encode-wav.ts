@@ -55,7 +55,7 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
 
   let offset = 44;
   for (let i = 0; i < samples.length; i++, offset += bytesPerSample) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    const clamped = Math.max(-1, Math.min(1, samples[i] ?? 0));
     view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
   }
 
