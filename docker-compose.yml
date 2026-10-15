@@ -82,6 +82,9 @@ services:
       AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-llama3.1}
       AI_OPENROUTER_API_KEY: ${AI_OPENROUTER_API_KEY:-}
       AI_OPENROUTER_MODEL: ${AI_OPENROUTER_MODEL:-anthropic/claude-sonnet-4.5}
+      # Speech (mic / read-aloud). Azure needs both key and region.
+      AI_SPEECH_AZURE_API_KEY: ${AI_SPEECH_AZURE_API_KEY:-}
+      AI_SPEECH_AZURE_REGION: ${AI_SPEECH_AZURE_REGION:-}
       # Module 20 — Phase 10 (deployment drift fix). Optional Stripe
       # billing (Module 15) — BILLING_PROVIDER defaults to `none`
       # (Community Edition: real Subscription rows, no payment provider
