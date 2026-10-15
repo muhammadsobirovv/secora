@@ -19,7 +19,7 @@ class PushNotificationService {
 
   static const AndroidNotificationChannel _defaultChannel = AndroidNotificationChannel(
     'pentesthub_default',
-    'PentestHub AI',
+    'Secora AI',
     description: 'Job completion, findings, assignments, and AI updates.',
     importance: Importance.high,
   );

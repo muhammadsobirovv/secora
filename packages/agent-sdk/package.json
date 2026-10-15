@@ -1,7 +1,7 @@
 {
   "name": "@pentesthub/agent-sdk",
   "version": "1.0.0",
-  "description": "AI Agent SDK for PentestHub AI — write an autonomous security agent that runs against any MCP-compatible PentestHub workspace.",
+  "description": "AI Agent SDK for Secora AI — write an autonomous security agent that runs against any MCP-compatible Secora workspace.",
   "license": "UNLICENSED",
   "private": false,
   "type": "module",

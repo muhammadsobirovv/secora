@@ -2,7 +2,7 @@
 
 **Module 20 — Final Product Completion, Release & Project Closure.**
 Status: **COMPLETE**. This document closes out the 45-phase spec and
-formally closes the core PentestHub AI development roadmap.
+formally closes the core Secora AI development roadmap.
 
 ## What this module was
 
@@ -126,7 +126,7 @@ already-known.
 
 ## Project status
 
-**The core PentestHub AI development roadmap (Modules 1-20) is CLOSED.**
+**The core Secora AI development roadmap (Modules 1-20) is CLOSED.**
 
 Per this module's explicit standing instruction: no Module 21 is
 started, no further roadmap is proposed, and no new development work

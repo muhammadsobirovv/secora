@@ -1,4 +1,4 @@
-# PentestHub AI — cert-manager ClusterIssuer for automatic TLS on
+# Secora AI — cert-manager ClusterIssuer for automatic TLS on
 # 20-ingress.yaml (Module 14: Security / Certificate rotation).
 #
 # `.example` suffix, same convention as 02-secret.yaml.example: this

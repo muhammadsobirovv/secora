@@ -10,7 +10,7 @@ import type { CaptureType } from "../shared/types";
 
 export function buildContextMenus(): void {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: CONTEXT_MENU_IDS.root, title: "PentestHub AI", contexts: ["page", "selection", "link", "image"] });
+    chrome.contextMenus.create({ id: CONTEXT_MENU_IDS.root, title: "Secora AI", contexts: ["page", "selection", "link", "image"] });
 
     const capture = (id: string, title: string) => chrome.contextMenus.create({ id, parentId: CONTEXT_MENU_IDS.root, title, contexts: ["page", "selection", "link", "image"] });
 

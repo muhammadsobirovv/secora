@@ -14,7 +14,7 @@ import { requireRole } from '../../collaboration/permissions.util.js';
 import { toApiKeyDto } from '../mappers/to-api-key-dto.mapper.js';
 
 /// Raw key format: `phb_<32 random bytes, base64url>` — the `phb_`
-/// prefix (PentestHub) lets a secret-scanner (GitHub push protection,
+/// prefix (Secora) lets a secret-scanner (GitHub push protection,
 /// Trufflehog, etc.) recognize a leaked key by pattern the same way
 /// `sk-`/`ghp_`-style provider keys do. Only the sha256 hash is ever
 /// stored (see api-keys.repository.interface.ts — matches the

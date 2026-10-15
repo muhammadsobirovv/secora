@@ -27,7 +27,7 @@ const SKIP = [/^features\/i18n\//, /^features\/legal\/content\//, /\.generated\.
 const TEXT_ATTRS = new Set(["placeholder", "aria-label", "aria-description", "title", "alt"]);
 const TOAST_METHODS = new Set(["success", "error", "warning", "info", "message", "loading"]);
 // Proper nouns / technical tokens that are not translated.
-const NEVER_TRANSLATED = /^(PentestHub AI|GitHub|Google|OpenAI|Anthropic|Gemini|Ollama|OpenRouter|HackerOne|Bugcrowd|Intigriti|YesWeHack|Synack|Stripe|Nuclei|ffuf|Nmap|Naabu|httpx|Katana|Amass|Subfinder|MITRE ATT&CK|OWASP|CVSS|CVE|CWE|CAPEC|SOC|API|CLI|SDK|MCP|SSH|DNS|URL|IP|JSON|CSV|PDF|MFA|TOTP|OAuth|SSE)$/;
+const NEVER_TRANSLATED = /^(Secora AI|GitHub|Google|OpenAI|Anthropic|Gemini|Ollama|OpenRouter|HackerOne|Bugcrowd|Intigriti|YesWeHack|Synack|Stripe|Nuclei|ffuf|Nmap|Naabu|httpx|Katana|Amass|Subfinder|MITRE ATT&CK|OWASP|CVSS|CVE|CWE|CAPEC|SOC|API|CLI|SDK|MCP|SSH|DNS|URL|IP|JSON|CSV|PDF|MFA|TOTP|OAuth|SSE)$/;
 
 const update = process.argv.includes("--update");
 const errors = [];

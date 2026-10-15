@@ -1,4 +1,4 @@
-// Package pentesthub is the official Go client for the PentestHub AI
+// Package pentesthub is the official Go client for the Secora AI
 // REST API. It covers the same v1 resource scope as the TypeScript
 // (packages/sdk-typescript) and Python (sdks/python) SDKs: Auth,
 // Organizations, the Distributed Job System, the Plugin registry/
@@ -19,7 +19,7 @@ import "net/http"
 
 // Options configures a new Client.
 type Options struct {
-	// BaseURL is the PentestHub AI API origin, e.g.
+	// BaseURL is the Secora AI API origin, e.g.
 	// "https://api.your-company.com". Required.
 	BaseURL string
 	// AccessToken, if set, is used as the initial bearer token (e.g. when
@@ -40,9 +40,9 @@ type Options struct {
 	OnTokenRefreshed TokenRefreshedFunc
 }
 
-// Client is the top-level PentestHub AI SDK entry point, grouping every
+// Client is the top-level Secora AI SDK entry point, grouping every
 // resource under one struct — mirrors the TypeScript SDK's
-// PentestHubClient and the Python SDK's PentestHubClient.
+// SecoraClient and the Python SDK's SecoraClient.
 type Client struct {
 	http *HttpClient
 

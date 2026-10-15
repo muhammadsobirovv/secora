@@ -1,12 +1,12 @@
 # Rules of Engagement & Responsible Use
 
-PentestHub AI is a tool for **authorized** security testing. This page is a practical summary. The binding rules are in the [Terms of Service](/legal/terms) and the [Acceptable Use Policy](/legal/acceptable-use).
+Secora AI is a tool for **authorized** security testing. This page is a practical summary. The binding rules are in the [Terms of Service](/legal/terms) and the [Acceptable Use Policy](/legal/acceptable-use).
 
 ## Before you test
 
 - **Own it or have it in writing.** Test only assets you own, or for which you hold explicit, written and current authorization from the owner: a contract, signed Rules of Engagement (ROE), or a bug bounty program's published scope and safe-harbor terms.
 - **Know your scope.** Write down the exact assets, the time window, the allowed techniques and the contacts for emergencies.
-- **Record the basis in PentestHub AI.** Each target asks how you are authorized and for an expiry date. Keep it accurate.
+- **Record the basis in Secora AI.** Each target asks how you are authorized and for an expiry date. Keep it accurate.
 
 ## While you test
 
@@ -24,6 +24,6 @@ PentestHub AI is a tool for **authorized** security testing. This page is a prac
 
 ## Your responsibility
 
-PentestHub AI provides tooling. It does not verify your authorization on your behalf. If you test without authorization or outside the agreed ROE or scope, you act at your own risk and are fully responsible for the legal consequences in your country and in the country where the target is located.
+Secora AI provides tooling. It does not verify your authorization on your behalf. If you test without authorization or outside the agreed ROE or scope, you act at your own risk and are fully responsible for the legal consequences in your country and in the country where the target is located.
 
 Questions: [support@secora.group](mailto:support@secora.group).

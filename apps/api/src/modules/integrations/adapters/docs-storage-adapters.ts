@@ -76,7 +76,7 @@ export class NotionAdapter implements IntegrationAdapter {
 /// holds the plugin's generated API key, sent as `Authorization: Bearer
 /// <key>`. Disclosed limitation: this requires the user to have that
 /// plugin installed and the desktop Obsidian app running and reachable
-/// from wherever the API server executes — for a cloud-hosted PentestHub
+/// from wherever the API server executes — for a cloud-hosted Secora
 /// AI deployment that means reachable via the user's Desktop Agent /
 /// local network, not the public internet. Documented in the module's
 /// README as an operator/end-user setup requirement, not a bug.

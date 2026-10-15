@@ -47,7 +47,7 @@ export function AppShell() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px 16px", fontWeight: 700, fontSize: 14 }}>
           <div style={{ width: 22, height: 22, borderRadius: 6, background: "var(--color-primary)" }} />
-          PentestHub AI
+          Secora AI
         </div>
 
         <button

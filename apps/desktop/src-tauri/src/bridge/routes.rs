@@ -41,7 +41,7 @@ fn err_response(e: AppError) -> (StatusCode, Json<serde_json::Value>) {
 pub async fn health() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "ok": true,
-        "name": "PentestHub AI Desktop Agent",
+        "name": "Secora AI Desktop Agent",
         "version": env!("CARGO_PKG_VERSION"),
     }))
 }
@@ -53,7 +53,7 @@ pub async fn pair(State(state): State<BridgeState>, Json(body): Json<PairRequest
     // body token (a client bug, not a security boundary) gets a clear
     // `valid: false` instead of a confusing 200.
     let valid = body.token == *state.token;
-    Json(PairResponse { valid, agent_version: env!("CARGO_PKG_VERSION").to_string(), agent_name: "PentestHub AI Desktop Agent".to_string() })
+    Json(PairResponse { valid, agent_version: env!("CARGO_PKG_VERSION").to_string(), agent_name: "Secora AI Desktop Agent".to_string() })
 }
 
 // ---------------------------------------------------------------------

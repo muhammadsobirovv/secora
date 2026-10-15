@@ -1,4 +1,4 @@
-# PentestHub AI — Kubernetes deployment
+# Secora AI — Kubernetes deployment
 
 Reference manifests for a multi-replica, horizontally-scaled deployment. For a
 single-machine deployment, use the root `docker-compose.yml` instead — see

@@ -1,4 +1,4 @@
-# PentestHub AI — Desktop Agent
+# Secora AI — Desktop Agent
 
 Module 7. Tauri (Rust + React/TypeScript) desktop app — the local
 execution engine for recon, scanning, AI, RAG, voice, and reporting. See

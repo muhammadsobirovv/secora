@@ -204,7 +204,7 @@ export function SidePanel() {
         {messages.length === 0 && <EmptyState title="Ask about this page" description="Pick a quick action above, or type a question below." />}
         {messages.map((m) => (
           <Card key={m.id} style={{ padding: 10, background: m.role === "user" ? "var(--color-bg-subtle)" : "var(--color-bg-elevated)" }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontWeight: 600 }}>{m.role === "user" ? "You" : "PentestHub AI"}</div>
+            <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontWeight: 600 }}>{m.role === "user" ? "You" : "Secora AI"}</div>
             {m.role === "assistant" ? <Markdown content={m.content || (m.streaming ? "…" : "")} /> : <div style={{ fontSize: 12.5 }}>{m.content}</div>}
           </Card>
         ))}

@@ -86,7 +86,7 @@ export function OptionsApp() {
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Puzzle size={22} color="var(--color-primary)" />
-        <h1 style={{ fontSize: 19, margin: 0 }}>PentestHub AI — Settings</h1>
+        <h1 style={{ fontSize: 19, margin: 0 }}>Secora AI — Settings</h1>
       </div>
 
       <Section icon={<Wifi size={15} />} title="Desktop Agent Connection">

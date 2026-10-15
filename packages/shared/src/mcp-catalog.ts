@@ -1,4 +1,4 @@
-// Module 13 — the PentestHub-specific MCP Resource/Tool catalog. `mcp.ts`
+// Module 13 — the Secora-specific MCP Resource/Tool catalog. `mcp.ts`
 // is the protocol envelope; this file is "what does this server actually
 // expose", consumed by both `apps/api/src/modules/mcp` (the real
 // implementation) and the Developer Portal's API Explorer (a read-only
@@ -91,5 +91,5 @@ export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
 /// The Prompt Registry (task #280) is surfaced over MCP as
 /// `prompts/list`+`prompts/get` using this fixed prefix plus the
 /// `PromptTemplate.name` — an MCP host's prompt picker can show every
-/// workspace prompt without a PentestHub-specific integration.
+/// workspace prompt without a Secora-specific integration.
 export const MCP_PROMPT_NAME_PREFIX = "pentesthub:";

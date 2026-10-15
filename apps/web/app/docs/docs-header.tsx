@@ -13,7 +13,7 @@ export function DocsHeader() {
           <span className="flex size-7 items-center justify-center rounded-md border border-primary/50 bg-primary/15">
             <ShieldCheck className="size-4 text-primary" />
           </span>
-          PentestHub AI
+          Secora AI
         </Link>
         <div className="ml-auto flex items-center gap-1">
           <LanguageSwitcher />

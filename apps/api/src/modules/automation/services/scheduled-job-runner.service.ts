@@ -19,7 +19,7 @@ const CLAIM_IN_FLIGHT_MS = 5 * 60_000;
 
 /// Executes one ScheduledJob's `kind`-specific action and records a
 /// ScheduledJobRun. This is intentionally a thin dispatcher, not a real
-/// job-execution engine: PentestHub's actual recon/scan execution lives
+/// job-execution engine: Secora's actual recon/scan execution lives
 /// in the Desktop Agent (Module 7, local-first per ADR 0007) or, for the
 /// still-server-side pre-migration paths, Modules 3/4's existing Job
 /// Queue — this service's job is to *trigger* those on a schedule (via

@@ -1,6 +1,6 @@
 # Security Policy
 
-PentestHub AI is a penetration-testing and bug-bounty platform — the kind
+Secora AI is a penetration-testing and bug-bounty platform — the kind
 of software where the people running it are, by definition, unusually
 capable of finding and exploiting security bugs in it. We'd rather hear
 about a problem from you, privately, than find out about it from a public
@@ -101,7 +101,7 @@ a false positive than miss a real one.
 
 ## Supported versions
 
-PentestHub AI reached its first stable release at `1.0.0` (see
+Secora AI reached its first stable release at `1.0.0` (see
 `CHANGELOG.md`). `RELEASE_CHANNEL` (stable/beta/nightly, task #356)
 remains informational only, not a formal support-tier distinction.
 **Only the latest `1.x` release and the latest commit on `main` are

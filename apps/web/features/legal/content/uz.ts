@@ -11,7 +11,7 @@ export const uz: LegalCatalog = {
   terms: {
     title: "Foydalanish shartlari",
     intro:
-      "Ushbu Shartlar O'zbekiston Respublikasidan boshqariladigan PentestHub AI xizmatidan (\"Xizmat\") foydalanishni tartibga soladi. Hisob yaratish yoki Xizmatdan foydalanish orqali siz ushbu Shartlarga, Maqbul foydalanish siyosatiga va Maxfiylik siyosatiga rozilik bildirasiz.",
+      "Ushbu Shartlar O'zbekiston Respublikasidan boshqariladigan Secora AI xizmatidan (\"Xizmat\") foydalanishni tartibga soladi. Hisob yaratish yoki Xizmatdan foydalanish orqali siz ushbu Shartlarga, Maqbul foydalanish siyosatiga va Maxfiylik siyosatiga rozilik bildirasiz.",
     sections: [
       {
         heading: "1. Faqat ruxsat etilgan xavfsizlik testlari",
@@ -61,7 +61,7 @@ export const uz: LegalCatalog = {
       {
         heading: "8. Zararni qoplash",
         paragraphs: [
-          "Siz Xizmatdan foydalanishingiz, test faoliyatingiz yoki ushbu Shartlar yoxud qonunni buzishingiz natijasida yuzaga keladigan har qanday da'volar, zararlar, jarimalar va xarajatlardan (jumladan oqilona yuridik xarajatlar) PentestHub AI va uning operatorlarini himoya qilishga va zararni qoplashga rozilik bildirasiz. (LEGAL REVIEW)",
+          "Siz Xizmatdan foydalanishingiz, test faoliyatingiz yoki ushbu Shartlar yoxud qonunni buzishingiz natijasida yuzaga keladigan har qanday da'volar, zararlar, jarimalar va xarajatlardan (jumladan oqilona yuridik xarajatlar) Secora AI va uning operatorlarini himoya qilishga va zararni qoplashga rozilik bildirasiz. (LEGAL REVIEW)",
         ],
       },
       {
@@ -85,7 +85,7 @@ export const uz: LegalCatalog = {
   aup: {
     title: "Maqbul foydalanish siyosati va Test o'tkazish qoidalari",
     intro:
-      "Ushbu siyosat PentestHub AI bilan nima qilish mumkin va nima mumkin emasligini tushuntiradi. U Foydalanish shartlarining bir qismidir. Biror narsa noaniq bo'lsa, test o'tkazishdan oldin so'rang.",
+      "Ushbu siyosat Secora AI bilan nima qilish mumkin va nima mumkin emasligini tushuntiradi. U Foydalanish shartlarining bir qismidir. Biror narsa noaniq bo'lsa, test o'tkazishdan oldin so'rang.",
     sections: [
       {
         heading: "1. Avval ruxsat",
@@ -143,7 +143,7 @@ export const uz: LegalCatalog = {
   privacy: {
     title: "Maxfiylik siyosati",
     intro:
-      "Ushbu siyosat PentestHub AI qanday shaxsiy ma'lumotlarni qayta ishlashini, nima uchun va sizning qanday huquqlaringiz borligini tushuntiradi. (LEGAL REVIEW: O'zbekiston Respublikasining \"Shaxsga doir ma'lumotlar to'g'risida\"gi qonuni va ma'lumotlarni mahalliylashtirish talablariga muvofiqligini tasdiqlash.)",
+      "Ushbu siyosat Secora AI qanday shaxsiy ma'lumotlarni qayta ishlashini, nima uchun va sizning qanday huquqlaringiz borligini tushuntiradi. (LEGAL REVIEW: O'zbekiston Respublikasining \"Shaxsga doir ma'lumotlar to'g'risida\"gi qonuni va ma'lumotlarni mahalliylashtirish talablariga muvofiqligini tasdiqlash.)",
     sections: [
       {
         heading: "1. Biz yig'adigan ma'lumotlar",
@@ -174,7 +174,7 @@ export const uz: LegalCatalog = {
       {
         heading: "4. Ma'lumotlar qayerda saqlanadi",
         paragraphs: [
-          "Xizmat ma'lumotlari hosting provayderimiz tomonidan PentestHub AI uchun boshqariladigan serverlarda saqlanadi. Uchinchi tomon AI provayderlariga yuborgan ma'lumotlaringiz boshqa mamlakatlarda qayta ishlanishi mumkin. (LEGAL REVIEW: hosting hududini va transchegaraviy uzatishning huquqiy asosini ko'rsatish.)",
+          "Xizmat ma'lumotlari hosting provayderimiz tomonidan Secora AI uchun boshqariladigan serverlarda saqlanadi. Uchinchi tomon AI provayderlariga yuborgan ma'lumotlaringiz boshqa mamlakatlarda qayta ishlanishi mumkin. (LEGAL REVIEW: hosting hududini va transchegaraviy uzatishning huquqiy asosini ko'rsatish.)",
         ],
       },
       {
@@ -204,7 +204,7 @@ export const uz: LegalCatalog = {
   security: {
     title: "Zaifliklarni oshkor qilish siyosati",
     intro:
-      "Biz xavfsizlik tadqiqotchilarining xabarlarini mamnuniyat bilan qabul qilamiz. Ushbu siyosat PentestHub AI dagi zaiflik haqida qanday xabar berish va bizdan nima kutish mumkinligini tushuntiradi.",
+      "Biz xavfsizlik tadqiqotchilarining xabarlarini mamnuniyat bilan qabul qilamiz. Ushbu siyosat Secora AI dagi zaiflik haqida qanday xabar berish va bizdan nima kutish mumkinligini tushuntiradi.",
     sections: [
       {
         heading: "Qanday xabar berish kerak",

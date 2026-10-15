@@ -13,7 +13,7 @@ export interface ExportableCapture {
 }
 
 export function toMarkdown(captures: ExportableCapture[]): string {
-  const lines = [`# PentestHub Capture Export`, ``, `Exported ${new Date().toISOString()} — ${captures.length} item(s)`, ``];
+  const lines = [`# Secora Capture Export`, ``, `Exported ${new Date().toISOString()} — ${captures.length} item(s)`, ``];
   for (const c of captures) {
     lines.push(`## ${c.type} — ${c.pageUrl}`, ``, `- Saved as: ${c.savedAs}`, `- Captured: ${c.at}`, ``);
     if (c.data) lines.push("```", c.data.slice(0, 5000), "```", "");
@@ -66,7 +66,7 @@ export function toHar(captures: Array<{ pageUrl: string; method?: string; status
     cache: {},
     timings: { send: 0, wait: 0, receive: 0 },
   }));
-  return JSON.stringify({ log: { version: "1.2", creator: { name: "PentestHub AI Browser Extension", version: "1.0" }, entries } }, null, 2);
+  return JSON.stringify({ log: { version: "1.2", creator: { name: "Secora AI Browser Extension", version: "1.0" }, entries } }, null, 2);
 }
 
 export async function toZip(captures: ExportableCapture[]): Promise<Blob> {
@@ -122,9 +122,9 @@ function buildPrintableHtml(captures: ExportableCapture[]): string {
       </section>`,
     )
     .join("\n");
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>PentestHub Capture Export</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Secora Capture Export</title>
     <style>body{font-family:-apple-system,Segoe UI,sans-serif;padding:24px;color:#111;} h1{font-size:18px;}</style>
-    </head><body><h1>PentestHub Capture Export</h1><div style="font-size:12px;color:#666;margin-bottom:16px;">Exported ${new Date().toISOString()} — ${captures.length} item(s)</div>${rows}</body></html>`;
+    </head><body><h1>Secora Capture Export</h1><div style="font-size:12px;color:#666;margin-bottom:16px;">Exported ${new Date().toISOString()} — ${captures.length} item(s)</div>${rows}</body></html>`;
 }
 
 function escapeHtml(s: string): string {

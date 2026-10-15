@@ -1,7 +1,7 @@
 {
   "name": "@pentesthub/sdk",
   "version": "1.0.0",
-  "description": "Official TypeScript/JavaScript SDK for the PentestHub AI REST API.",
+  "description": "Official TypeScript/JavaScript SDK for the Secora AI REST API.",
   "license": "UNLICENSED",
   "private": false,
   "type": "module",

@@ -1,6 +1,6 @@
 # @pentesthub/cli
 
-Official command-line interface for PentestHub AI's Module 13 automation platform — MCP tools, Agent SDK runs, Script Engine, and the AI automation usage dashboard, all over the same REST API the web app and SDKs use.
+Official command-line interface for Secora AI's Module 13 automation platform — MCP tools, Agent SDK runs, Script Engine, and the AI automation usage dashboard, all over the same REST API the web app and SDKs use.
 
 ## Install
 

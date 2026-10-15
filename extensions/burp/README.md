@@ -1,7 +1,7 @@
-# PentestHub AI — Burp Suite Extension
+# Secora AI — Burp Suite Extension
 
 A Jython (legacy Burp Extender API) extension that connects Burp Suite
-Community or Professional to a running PentestHub AI Desktop Agent via
+Community or Professional to a running Secora AI Desktop Agent via
 its Local Bridge Server. See `apps/desktop/src-tauri/src/bridge/mod.rs`
 for the server this talks to, and `apps/browser-extension/` for the
 sibling Browser Extension that speaks the same protocol.
@@ -31,7 +31,7 @@ because:
    somewhere permanent (e.g. `~/tools/jython-standalone-2.7.3.jar`).
 3. In Burp: **Extender > Options > Python Environment** — set "Location
    of Jython standalone JAR file" to the path from step 2.
-4. **PentestHub AI Desktop Agent** running (Module 7) with the Local
+4. **Secora AI Desktop Agent** running (Module 7) with the Local
    Bridge Server started (it starts automatically with the desktop app —
    see Settings > Browser Extension for the pairing token).
 
@@ -43,22 +43,22 @@ because:
    repo (leave `pentesthub_burp/` next to it — Jython adds the loaded
    script's own directory to `sys.path`, so the package is found
    automatically with no extra configuration).
-4. Click **Next** — you should see `PentestHub AI loaded.` in the output
-   pane and a new **PentestHub AI** tab appear in Burp's top-level tab
+4. Click **Next** — you should see `Secora AI loaded.` in the output
+   pane and a new **Secora AI** tab appear in Burp's top-level tab
    bar.
 
 ## Pairing
 
 1. In the Desktop Agent: **Settings > Browser Extension** — copy the
    **Server URL** and **Pairing Token**.
-2. In Burp's **PentestHub AI** tab: paste both into the "Desktop Agent
+2. In Burp's **Secora AI** tab: paste both into the "Desktop Agent
    Connection" form, click **Test Connection** (should show
    "Connected"), then **Save**.
 
 ## Using it
 
 Right-click any request/response in Burp (Proxy history, Repeater,
-Target site map, etc.) to get the **PentestHub AI** submenu:
+Target site map, etc.) to get the **Secora AI** submenu:
 
 - **Send Request** / **Send Response** — saves the raw HTTP text as
   Evidence in the current Project (whatever Project/Target is currently
@@ -120,7 +120,7 @@ jython test_crypto.py
 
 # 2. Load the extension in Burp (see "Installing" above) and confirm:
 #    - No errors in Extender > Extensions > Errors tab
-#    - The "PentestHub AI" tab renders
+#    - The "Secora AI" tab renders
 #    - "Test Connection" succeeds against a running Desktop Agent
 #    - Each context-menu action (right-click a request in Proxy history)
 #      completes and appears in the Desktop Agent's Project (Evidence/

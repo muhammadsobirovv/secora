@@ -38,7 +38,7 @@ function buildSteps(workspaceName: string | undefined): Step[] {
   return [
     {
       icon: ShieldCheck,
-      title: "Welcome to PentestHub AI",
+      title: "Welcome to Secora AI",
       description: workspaceName
         ? `Your workspace "${workspaceName}" is ready. Here's a quick tour of where to start.`
         : "Your workspace is ready. Here's a quick tour of where to start.",

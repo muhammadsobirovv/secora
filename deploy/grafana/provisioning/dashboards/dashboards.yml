@@ -1,4 +1,4 @@
-# PentestHub AI — Grafana dashboard provisioning (Module 14: Monitoring).
+# Secora AI — Grafana dashboard provisioning (Module 14: Monitoring).
 # Points Grafana at the dashboard JSON files in this directory so they
 # load automatically rather than requiring manual import.
 apiVersion: 1
@@ -6,7 +6,7 @@ apiVersion: 1
 providers:
   - name: pentesthub
     orgId: 1
-    folder: "PentestHub AI"
+    folder: "Secora AI"
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

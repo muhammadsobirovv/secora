@@ -1,4 +1,4 @@
-# PentestHub AI
+# Secora AI
 
 A unified daily workspace for bug bounty hunters, penetration testers, and
 security engineers — recon, vulnerability scanning, an AI security
@@ -12,7 +12,7 @@ Found a security issue? See `SECURITY.md` for how to report it privately.
 
 ## Local-first architecture
 
-PentestHub AI is being migrated to a **local-first** architecture: the
+Secora AI is being migrated to a **local-first** architecture: the
 backend is a thin metadata/coordination layer (auth, workspace/project/
 target metadata, findings metadata, activity, team collaboration,
 notifications, sync, RBAC, audit) and a separate **Desktop Agent**
@@ -48,7 +48,7 @@ Turborepo + pnpm workspaces:
   `packages/cli`.
 - `packages/ui` — shared UI primitives (shadcn/ui-based).
 - `packages/sdk-typescript` — `@pentesthub/sdk`: a TypeScript client
-  (`PentestHubClient`, `HttpClient`, `McpClient`) for the REST API and
+  (`SecoraClient`, `HttpClient`, `McpClient`) for the REST API and
   the MCP server.
 - `packages/agent-sdk` — `@pentesthub/agent-sdk`: the AI Agent SDK
   runtime and eleven built-in specialist agents.

@@ -1,4 +1,4 @@
-# PentestHub AI — Monitoring stack (Module 14)
+# Secora AI — Monitoring stack (Module 14)
 
 `prometheus.yml` + `alerts.yml` + `alertmanager.yml` here, paired with
 `deploy/grafana/` for dashboards, back the optional `docker-compose.monitoring.yml`

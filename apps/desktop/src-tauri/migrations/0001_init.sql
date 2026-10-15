@@ -1,4 +1,4 @@
--- PentestHub AI Desktop Agent — local SQLite schema (Module 7).
+-- Secora AI Desktop Agent — local SQLite schema (Module 7).
 -- Mirrors the shape of the backend's Prisma models (apps/api/prisma/schema.prisma)
 -- closely enough that the Sync Engine's Metadata-Only tier can map rows
 -- 1:1 without a translation layer, while staying a plain hand-written

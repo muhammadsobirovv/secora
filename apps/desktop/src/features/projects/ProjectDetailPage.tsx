@@ -60,7 +60,7 @@ export function ProjectDetailPage() {
 function TargetsTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [value, setValue] = useState("");
-  const [type, setType] = useState(TARGET_TYPES[0]);
+  const [type, setType] = useState(TARGET_TYPES[0] ?? "DOMAIN");
   const [runFor, setRunFor] = useState<string | null>(null);
 
   const targetsQuery = useQuery({ queryKey: ["targets", projectId], queryFn: () => desktopApi.listTargets(projectId) });

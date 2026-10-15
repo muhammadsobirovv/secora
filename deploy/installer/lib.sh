@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — installer suite shared helpers (Module 14: Installer).
+# Secora AI — installer suite shared helpers (Module 14: Installer).
 # Sourced by every script in this directory; never run directly.
 #
 # State file: every script in this directory reads/writes a small
@@ -42,7 +42,7 @@ state_set() {
 }
 
 # detect_deployment_type — best-effort guess at how this machine is
-# running PentestHub AI, used to pick sensible defaults in the other
+# running Secora AI, used to pick sensible defaults in the other
 # scripts. Always overridable with an explicit --type flag.
 detect_deployment_type() {
   local recorded

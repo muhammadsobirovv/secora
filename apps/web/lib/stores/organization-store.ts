@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const SELECTED_ORGANIZATION_KEY = "pentesthub_selected_organization_id";
+const SELECTED_ORGANIZATION_KEY = "secora_selected_organization_id";
 
 interface OrganizationState {
   /// Just a UI preference — which of the caller's own organizations to

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PentestHub AI Desktop",
+  "productName": "Secora AI Desktop",
   "version": "0.1.0",
   "identifier": "ai.pentesthub.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "PentestHub AI",
+        "title": "Secora AI",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -38,7 +38,7 @@
     ],
     "resources": [],
     "shortDescription": "Local-first penetration testing workspace",
-    "longDescription": "PentestHub AI Desktop Agent runs recon, vulnerability scanning, local AI, RAG, voice, and report generation entirely on your machine.",
+    "longDescription": "Secora AI Desktop Agent runs recon, vulnerability scanning, local AI, RAG, voice, and report generation entirely on your machine.",
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     },

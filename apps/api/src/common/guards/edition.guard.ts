@@ -34,7 +34,7 @@ export class EditionGuard implements CanActivate {
     if (!enabled) {
       throw new AppException(
         'EDITION_FEATURE_UNAVAILABLE',
-        'This feature requires PentestHub AI Enterprise Edition. See docs/adr/0014-cloud-platform-enterprise-saas-ha.md for how to enable it.',
+        'This feature requires Secora AI Enterprise Edition. See docs/adr/0014-cloud-platform-enterprise-saas-ha.md for how to enable it.',
         HttpStatus.FORBIDDEN,
       );
     }

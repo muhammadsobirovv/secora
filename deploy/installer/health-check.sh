@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Health Check (Module 14: Installer). Exercises the
+# Secora AI — Health Check (Module 14: Installer). Exercises the
 # same liveness/readiness endpoints Kubernetes probes hit (see
 # deploy/k8s/10-api-deployment.yaml and
 # apps/api/src/modules/observability/controllers/health.controller.ts),
@@ -39,7 +39,7 @@ check() {
   fi
 }
 
-[[ "${QUIET}" == true ]] || log "PentestHub AI — Health Check (${URL})"
+[[ "${QUIET}" == true ]] || log "Secora AI — Health Check (${URL})"
 
 # Liveness — "is the process up at all", no dependency checks. Should
 # recover on its own or be worth a process restart if this fails.

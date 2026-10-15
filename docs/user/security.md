@@ -1,6 +1,6 @@
 # Security & Vulnerability Disclosure
 
-We welcome reports of security vulnerabilities in PentestHub AI. The full policy is on the [Security page](/security).
+We welcome reports of security vulnerabilities in Secora AI. The full policy is on the [Security page](/security).
 
 ## How to report
 

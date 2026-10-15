@@ -35,7 +35,7 @@ function Logo() {
       <span className="flex size-7 items-center justify-center rounded-md border border-primary/50 bg-primary/15">
         <ShieldCheck className="size-4 text-primary" />
       </span>
-      <span>PentestHub AI</span>
+      <span>Secora AI</span>
     </span>
   );
 }

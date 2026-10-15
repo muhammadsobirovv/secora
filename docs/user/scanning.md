@@ -1,6 +1,6 @@
 # Scanning Guide
 
-PentestHub AI runs recon and vulnerability tools against your targets and collects the results as findings you can triage, track and export.
+Secora AI runs recon and vulnerability tools against your targets and collects the results as findings you can triage, track and export.
 
 > Before any active scan, the target must have a valid authorization (see [Getting Started](/docs/getting-started#4-add-your-first-target)) and its scope status must be **In scope**. Stay inside the scope, time window and methods you were authorized for.
 

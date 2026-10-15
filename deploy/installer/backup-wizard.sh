@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Backup Wizard (Module 14: Installer / Backup System).
+# Secora AI — Backup Wizard (Module 14: Installer / Backup System).
 #
 # Thin operator-facing wrapper around the real Backup System built in
 # apps/api/src/modules/backups/backup.service.ts — it does not
@@ -105,7 +105,7 @@ run_api_backup() {
   return 0
 }
 
-log "PentestHub AI — Backup Wizard"
+log "Secora AI — Backup Wizard"
 
 if [[ "${OFFLINE}" == true ]]; then
   run_offline_backup

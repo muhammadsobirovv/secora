@@ -153,8 +153,8 @@ export class RegisterUseCase {
     const frontendUrl = this.configService.get('FRONTEND_URL', { infer: true });
     await this.mailService.send({
       to: user.email,
-      subject: 'Verify your PentestHub AI account',
-      text: `Welcome to PentestHub AI. Verify your email: ${frontendUrl}/auth/verify-email?token=${rawToken}`,
+      subject: 'Verify your Secora AI account',
+      text: `Welcome to Secora AI. Verify your email: ${frontendUrl}/auth/verify-email?token=${rawToken}`,
     });
 
     await this.auditService.log({

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Upgrade Wizard (Module 14: Installer). Safe-by-default
+# Secora AI — Upgrade Wizard (Module 14: Installer). Safe-by-default
 # upgrade flow: records the current git ref (for rollback.sh), takes a
 # backup via backup-wizard.sh, pulls the target ref, rebuilds, runs a
 # schema update, restarts services, then health-checks the result. If

@@ -202,7 +202,7 @@ export class McpToolRegistryService {
       {
         model: provider.getDefaultModel(credential),
         messages: [
-          { role: 'system', content: 'You are the PentestHub AI Security Copilot, answering one standalone question with no prior conversation context.' },
+          { role: 'system', content: 'You are the Secora AI Security Copilot, answering one standalone question with no prior conversation context.' },
           { role: 'user', content: question },
         ],
         maxTokens: 1024,

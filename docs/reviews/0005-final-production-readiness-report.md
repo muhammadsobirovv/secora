@@ -1,4 +1,4 @@
-# Final Production Readiness Report — PentestHub AI, Modules 1-10
+# Final Production Readiness Report — Secora AI, Modules 1-10
 
 Reviewer stance: Release Engineering, go/no-go gate after Module 10.
 Synthesizes the Architecture Review (0002), Security Review (0003), and

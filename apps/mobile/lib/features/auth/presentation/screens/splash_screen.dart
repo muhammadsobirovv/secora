@@ -24,7 +24,7 @@ class SplashScreen extends ConsumerWidget {
             const Icon(Icons.shield_outlined, size: 64, color: AppColors.primary),
             const SizedBox(height: 16),
             const Text(
-              'PentestHub AI',
+              'Secora AI',
               style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 24),

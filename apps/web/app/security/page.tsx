@@ -6,7 +6,7 @@ import { LegalDocumentView } from "@/features/legal/legal-document-view";
 // DRAFT: requires review by a qualified Uzbekistan lawyer before launch.
 export const metadata: Metadata = {
   title: "Security & Vulnerability Disclosure",
-  description: "How to report a security vulnerability in PentestHub AI and what to expect.",
+  description: "How to report a security vulnerability in Secora AI and what to expect.",
   alternates: { canonical: "https://secora.group/security" },
 };
 

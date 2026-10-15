@@ -3,7 +3,7 @@ import { generateSecret, generateURI, verify } from 'otplib';
 import { toDataURL } from 'qrcode';
 import { randomBytes } from 'node:crypto';
 
-const ISSUER = 'PentestHub AI';
+const ISSUER = 'Secora AI';
 const BACKUP_CODE_COUNT = 10;
 
 @Injectable()

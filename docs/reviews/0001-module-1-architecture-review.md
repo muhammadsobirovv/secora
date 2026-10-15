@@ -120,7 +120,7 @@ The highest-value section. Findings ordered by severity.
   strategies do not add CSRF state protection by default without explicit
   configuration. Without it, an attacker can craft a malicious OAuth
   callback link that links *the attacker's* provider account to *the
-  victim's* PentestHub session, or otherwise manipulate the callback flow.
+  victim's* Secora session, or otherwise manipulate the callback flow.
   **Solution:** enable `state: true` on both strategies with a stateless
   store (e.g. a signed nonce in the redirect, verified in the callback) —
   cheap, no architecture change. **Fix before Module 2: Yes** (before any

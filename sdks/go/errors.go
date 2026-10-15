@@ -4,10 +4,10 @@ import "fmt"
 
 // APIError is returned for any non-2xx REST response. It carries the
 // parsed AppErrorResponseDto shape (statusCode/code/message) every
-// PentestHub AI API handler produces on error — see
+// Secora AI API handler produces on error — see
 // packages/shared/src/errors.ts's AppErrorCode union — so callers can
 // branch on Code instead of string-matching Message, the same contract
-// the TypeScript and Python SDKs expose as PentestHubApiError.
+// the TypeScript and Python SDKs expose as SecoraApiError.
 type APIError struct {
 	StatusCode int    `json:"statusCode"`
 	Code       string `json:"code"`

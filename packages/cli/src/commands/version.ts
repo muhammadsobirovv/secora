@@ -62,7 +62,7 @@ export async function updateCommand(): Promise<void> {
     // `HttpClient` (see http-client.ts's `timeoutMs` option), applied
     // here with the same `AbortController` mechanism since this command
     // doesn't go through `HttpClient` at all (it's a direct registry
-    // fetch, not a PentestHub AI API call).
+    // fetch, not a Secora AI API call).
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10_000);
     let response: Response;

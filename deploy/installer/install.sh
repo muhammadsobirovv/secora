@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Interactive + CLI Installer (Module 14: Installer).
+# Secora AI — Interactive + CLI Installer (Module 14: Installer).
 #
 # Serves double duty as both the "Interactive Installer" (prompts for
 # every choice) and the "CLI Installer" (fully non-interactive when
@@ -66,7 +66,7 @@ prompt() {
   printf -v "${var_name}" '%s' "${answer:-${default}}"
 }
 
-log "PentestHub AI — Installer"
+log "Secora AI — Installer"
 echo "This sets up the Docker Compose deployment (Postgres + api + worker + web)."
 echo "Community Edition is fully functional with zero paid services — see"
 echo "docker-compose.yml's header comment. Enterprise Edition adds optional"
@@ -153,7 +153,7 @@ log "Done. Verifying health..."
 "${SCRIPT_DIR}/health-check.sh" --url "http://localhost:3000" || warn "Health check did not pass yet — services may still be starting; re-run deploy/installer/health-check.sh in a minute."
 
 echo
-log "PentestHub AI is up. Web UI: http://localhost:3001  API: http://localhost:3000"
+log "Secora AI is up. Web UI: http://localhost:3001  API: http://localhost:3000"
 echo "    Next steps:"
 echo "    - Review .env (and .env.enterprise, if applicable) for any blank OAuth/observability values."
 echo "    - Run deploy/installer/configure.sh any time you need to change settings."

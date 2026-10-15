@@ -9,7 +9,7 @@ Context: architecture-refactor directive covering Modules 1-6; audit at
 `docs/migration/local-first-architecture-migration.md`; build plan at
 `docs/migration/desktop-agent-roadmap.md`.
 
-This records the decision to pivot PentestHub AI from "NestJS backend
+This records the decision to pivot Secora AI from "NestJS backend
 executes everything" to "backend is a thin metadata/coordination layer;
 a new Desktop Agent executes everything expensive." It supersedes no
 prior ADR outright — Modules 1-6's *internal* patterns (CQRS, repository
@@ -55,7 +55,7 @@ responsibilities execute.
 
 Rejected. This scales the *existing* problem (server pays for every
 user's compute, private target data transits and rests on
-PentestHub-operated infrastructure, users cannot work offline, and the
+Secora-operated infrastructure, users cannot work offline, and the
 product cannot ethically claim "your recon data never leaves your
 machine") rather than solving it. It also directly contradicts the
 explicit product requirement driving this refactor.

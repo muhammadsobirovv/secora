@@ -1,4 +1,4 @@
-# PentestHub AI — Installer Suite (Module 14)
+# Secora AI — Installer Suite (Module 14)
 
 Operator-facing scripts covering the full lifecycle of a Docker Compose
 deployment: install, configure, back up, upgrade, roll back, and health-check.

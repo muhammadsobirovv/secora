@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "PentestHub AI",
-  "short_name": "PentestHub AI",
+  "name": "Secora AI",
+  "short_name": "Secora AI",
   "version": "1.0.0",
-  "description": "Offensive security workflow companion for PentestHub AI — capture, recon shortcuts, AI analysis, and Burp/Desktop Agent sync, without leaving the page you're on.",
+  "description": "Offensive security workflow companion for Secora AI — capture, recon shortcuts, AI analysis, and Burp/Desktop Agent sync, without leaving the page you're on.",
   "icons": {
     "16": "public/icons/16.png",
     "32": "public/icons/32.png",
@@ -34,7 +34,7 @@
     "open_in_tab": true
   },
   "sidebar_action": {
-    "default_title": "PentestHub AI",
+    "default_title": "Secora AI",
     "default_panel": "sidepanel/index.html",
     "default_icon": "public/icons/32.png"
   },
@@ -55,15 +55,15 @@
   "commands": {
     "open-side-panel": {
       "suggested_key": { "default": "Ctrl+Shift+P", "mac": "Command+Shift+P" },
-      "description": "Open the PentestHub AI sidebar"
+      "description": "Open the Secora AI sidebar"
     },
     "capture-url": {
       "suggested_key": { "default": "Ctrl+Shift+U", "mac": "Command+Shift+U" },
-      "description": "Save current URL to PentestHub"
+      "description": "Save current URL to Secora"
     },
     "capture-screenshot": {
       "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
-      "description": "Capture screenshot to PentestHub"
+      "description": "Capture screenshot to Secora"
     },
     "toggle-voice": {
       "suggested_key": { "default": "Ctrl+Shift+V", "mac": "Command+Shift+V" },

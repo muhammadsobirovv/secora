@@ -56,8 +56,8 @@ export class OpenRouterProvider implements AiProvider {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://pentesthub.local',
-        'X-Title': 'PentestHub AI',
+        'HTTP-Referer': 'https://secora.group',
+        'X-Title': 'Secora AI',
       },
       signal: options.signal,
       body: JSON.stringify({

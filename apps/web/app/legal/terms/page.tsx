@@ -4,7 +4,7 @@ import { LegalDocumentView } from "@/features/legal/legal-document-view";
 // DRAFT: requires review by a qualified Uzbekistan lawyer before launch.
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The rules for using PentestHub AI, an authorized security testing platform.",
+  description: "The rules for using Secora AI, an authorized security testing platform.",
   alternates: { canonical: "https://secora.group/legal/terms" },
 };
 

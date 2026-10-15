@@ -1,0 +1,1242 @@
+app/(auth)/layout.tsx:16  Documentation
+app/(dashboard)/activity/page.tsx:13  Activity
+app/(dashboard)/activity/page.tsx:15  Everything that&apos;s happened across your workspace.
+app/(dashboard)/admin/page.tsx:33  Infrastructure
+app/(dashboard)/admin/page.tsx:35  Cluster, queue, cache, storage, database, backups, plugins, and licensing — deployment-wide, not scoped to one
+app/(dashboard)/admin/page.tsx:70  Cluster
+app/(dashboard)/admin/page.tsx:72  Instance ID:
+app/(dashboard)/admin/page.tsx:76  No active leader-election leases.
+app/(dashboard)/admin/page.tsx:81  Lease
+app/(dashboard)/admin/page.tsx:82  Holder
+app/(dashboard)/admin/page.tsx:83  Expires
+app/(dashboard)/admin/page.tsx:84  Status
+app/(dashboard)/admin/page.tsx:105  Queue
+app/(dashboard)/admin/page.tsx:113  No named queues with pending work.
+app/(dashboard)/admin/page.tsx:118  Queue
+app/(dashboard)/admin/page.tsx:119  Pending
+app/(dashboard)/admin/page.tsx:120  Delayed
+app/(dashboard)/admin/page.tsx:121  Dead-lettered
+app/(dashboard)/admin/page.tsx:142  Database & cache
+app/(dashboard)/admin/page.tsx:147  Pool max
+app/(dashboard)/admin/page.tsx:151  Read replica
+app/(dashboard)/admin/page.tsx:155  Migrations applied
+app/(dashboard)/admin/page.tsx:160  Cache (
+app/(dashboard)/admin/page.tsx:164  Entries
+app/(dashboard)/admin/page.tsx:168  Hit rate
+app/(dashboard)/admin/page.tsx:177  Storage & backups
+app/(dashboard)/admin/page.tsx:182  Storage (
+app/(dashboard)/admin/page.tsx:186  Used
+app/(dashboard)/admin/page.tsx:191  Last backup
+app/(dashboard)/admin/page.tsx:195  Last status
+app/(dashboard)/admin/page.tsx:199  Policies configured
+app/(dashboard)/admin/page.tsx:208  Licensing
+app/(dashboard)/admin/page.tsx:215  Issued to
+app/(dashboard)/admin/page.tsx:219  Status
+app/(dashboard)/admin/page.tsx:225  Seats
+app/(dashboard)/admin/page.tsx:229  Expires
+app/(dashboard)/admin/page.tsx:235  No active license — running on
+app/(dashboard)/admin/page.tsx:236  mode.
+app/(dashboard)/admin/page.tsx:245  Health
+app/(dashboard)/admin/page.tsx:250  Liveness
+app/(dashboard)/admin/page.tsx:254  Readiness (DB reachable)
+app/(dashboard)/admin/page.tsx:258  Unhealthy workers
+app/(dashboard)/agent/page.tsx:20  Agent Copilot
+app/(dashboard)/agent/page.tsx:23  Give the Master AI Orchestrator a goal — it plans, delegates to specialist agents, and reports back.
+app/(dashboard)/agent/page.tsx:29  Start a new run
+app/(dashboard)/agent/page.tsx:38  Recent runs
+app/(dashboard)/agent/runs/[runId]/page.tsx:41  toast.success(Cancellation requested)
+app/(dashboard)/agent/runs/[runId]/page.tsx:43  toast.error(Couldn't cancel this run.)
+app/(dashboard)/agent/runs/[runId]/page.tsx:50  toast.success(Run queued for retry)
+app/(dashboard)/agent/runs/[runId]/page.tsx:52  toast.error(Couldn't retry this run.)
+app/(dashboard)/agent/runs/[runId]/page.tsx:75  Orchestration run
+app/(dashboard)/agent/runs/[runId]/page.tsx:81  Started
+app/(dashboard)/agent/runs/[runId]/page.tsx:82  Finished
+app/(dashboard)/agent/runs/[runId]/page.tsx:93  Cancel
+app/(dashboard)/agent/runs/[runId]/page.tsx:99  Retry
+app/(dashboard)/agent/runs/[runId]/page.tsx:107  Live activity
+app/(dashboard)/agent/runs/[runId]/page.tsx:118  Task tree
+app/(dashboard)/agent/runs/[runId]/page.tsx:119  Explainability
+app/(dashboard)/agent/runs/[runId]/page.tsx:130  No explanation available yet.
+app/(dashboard)/ai/page.tsx:30  AI Security Copilot
+app/(dashboard)/ai/page.tsx:62  AI Security Copilot
+app/(dashboard)/ai/page.tsx:71  obj.label: "Switch project"
+app/(dashboard)/ai/page.tsx:71  obj.description: "Change which project's context the assistant uses."
+app/(dashboard)/ai/page.tsx:72  obj.label: "New conversation"
+app/(dashboard)/ai/page.tsx:72  obj.description: "Start a fresh chat thread (previous ones aren't lost)."
+app/(dashboard)/ai/page.tsx:73  obj.label: "Context panel"
+app/(dashboard)/ai/page.tsx:73  obj.description: "Shows what the assistant currently knows about the project and suggested next questions."
+app/(dashboard)/ai/page.tsx:79  Switch project
+app/(dashboard)/ai/page.tsx:83  New conversation
+app/(dashboard)/bugbounty/assets/page.tsx:30  Asset Inventory
+app/(dashboard)/bugbounty/assets/page.tsx:33  Targets aggregated with recon, vulnerability, note, and evidence data.
+app/(dashboard)/bugbounty/assets/page.tsx:39  placeholder="Select a program"
+app/(dashboard)/bugbounty/assets/page.tsx:51  title="Select a program"
+app/(dashboard)/bugbounty/assets/page.tsx:59  title="No assets found"
+app/(dashboard)/bugbounty/assets/page.tsx:69  Risk
+app/(dashboard)/bugbounty/assets/page.tsx:73  vuln findings (
+app/(dashboard)/bugbounty/assets/page.tsx:73  critical)
+app/(dashboard)/bugbounty/assets/page.tsx:74  open ports
+app/(dashboard)/bugbounty/assets/page.tsx:75  technologies
+app/(dashboard)/bugbounty/assets/page.tsx:76  notes
+app/(dashboard)/bugbounty/assets/page.tsx:77  evidence
+app/(dashboard)/bugbounty/assets/page.tsx:78  Last scan
+app/(dashboard)/bugbounty/bookmarks/page.tsx:26  Bookmarks
+app/(dashboard)/bugbounty/bookmarks/page.tsx:28  Targets, findings, reports, payloads, and notes you&apos;ve saved.
+app/(dashboard)/bugbounty/bookmarks/page.tsx:38  title="No bookmarks yet"
+app/(dashboard)/bugbounty/bookmarks/page.tsx:59  toast.success(Removed)
+app/(dashboard)/bugbounty/calendar/page.tsx:56  toast.success(Event created)
+app/(dashboard)/bugbounty/calendar/page.tsx:62  toast.error(Couldn't create this event.)
+app/(dashboard)/bugbounty/calendar/page.tsx:70  New event
+app/(dashboard)/bugbounty/calendar/page.tsx:75  New calendar event
+app/(dashboard)/bugbounty/calendar/page.tsx:76  Submission deadlines, follow-ups, retests, disclosures.
+app/(dashboard)/bugbounty/calendar/page.tsx:80  Type
+app/(dashboard)/bugbounty/calendar/page.tsx:95  Title
+app/(dashboard)/bugbounty/calendar/page.tsx:99  Due at
+app/(dashboard)/bugbounty/calendar/page.tsx:103  Notes
+app/(dashboard)/bugbounty/calendar/page.tsx:110  Create event
+app/(dashboard)/bugbounty/calendar/page.tsx:127  Calendar
+app/(dashboard)/bugbounty/calendar/page.tsx:129  Submission deadlines, follow-ups, retests, disclosures.
+app/(dashboard)/bugbounty/calendar/page.tsx:141  title="No events yet"
+app/(dashboard)/bugbounty/calendar/page.tsx:183  Done
+app/(dashboard)/bugbounty/calendar/page.tsx:188  Overdue
+app/(dashboard)/bugbounty/calendar/page.tsx:200  toast.success(Marked complete)
+app/(dashboard)/bugbounty/findings/page.tsx:55  toast.success(Finding created)
+app/(dashboard)/bugbounty/findings/page.tsx:60  toast.error(Couldn't create this finding.)
+app/(dashboard)/bugbounty/findings/page.tsx:68  New finding
+app/(dashboard)/bugbounty/findings/page.tsx:73  New finding
+app/(dashboard)/bugbounty/findings/page.tsx:74  Track a vulnerability you plan to report.
+app/(dashboard)/bugbounty/findings/page.tsx:78  Program
+app/(dashboard)/bugbounty/findings/page.tsx:81  placeholder="Select a program"
+app/(dashboard)/bugbounty/findings/page.tsx:93  Title
+app/(dashboard)/bugbounty/findings/page.tsx:97  Description
+app/(dashboard)/bugbounty/findings/page.tsx:107  Severity
+app/(dashboard)/bugbounty/findings/page.tsx:128  Create finding
+app/(dashboard)/bugbounty/findings/page.tsx:147  Findings
+app/(dashboard)/bugbounty/findings/page.tsx:149  Track vulnerabilities through triage to report.
+app/(dashboard)/bugbounty/findings/page.tsx:157  placeholder="Search findings..."
+app/(dashboard)/bugbounty/findings/page.tsx:171  title="No findings"
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:48  toast.success(`Moved to ${nextStage}`)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:51  toast.error(Couldn't transition this finding — check the allowed transition table.)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:59  toast.success(Finding deleted)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:62  toast.error(Couldn't delete this finding.)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:78  toast.success(Draft report created)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:81  toast.error(Couldn't create a report from this finding.)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:96  toast.error(Duplicate check failed.)
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:110  title="Finding not found"
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:117  Back to findings
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:128  Check duplicates
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:131  Create report
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:134  Delete
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:142  Description
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:147  Endpoint:
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:148  Type:
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:160  Transition stage
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:165  placeholder="Select stage"
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:177  Apply
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:185  Duplicate matches
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:189  No similar findings found.
+app/(dashboard)/bugbounty/findings/[findingId]/page.tsx:200  % match
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:37  toast.success(Note created)
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:42  toast.error(Couldn't create this note.)
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:50  New note
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:55  New knowledge base note
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:56  Personal notes, techniques, and checklists.
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:60  Title
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:64  Content (Markdown)
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:77  Create note
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:95  Knowledge Base
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:97  Your personal notes and checklists.
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:102  placeholder="Search notes..."
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:111  title="No notes yet"
+app/(dashboard)/bugbounty/knowledge-base/page.tsx:122  toast.success(Deleted)
+app/(dashboard)/bugbounty/notifications/page.tsx:27  Notifications
+app/(dashboard)/bugbounty/notifications/page.tsx:29  Deadline reminders and program updates.
+app/(dashboard)/bugbounty/notifications/page.tsx:36  Mark all read
+app/(dashboard)/bugbounty/notifications/page.tsx:48  title="No notifications"
+app/(dashboard)/bugbounty/notifications/page.tsx:64  Mark read
+app/(dashboard)/bugbounty/page.tsx:48  Bug Bounty
+app/(dashboard)/bugbounty/page.tsx:57  obj.label: "Programs"
+app/(dashboard)/bugbounty/page.tsx:57  obj.description: "The bug bounty programs you're enrolled in — scope, policy, safe-harbor terms, reward tiers.
+app/(dashboard)/bugbounty/page.tsx:58  obj.label: "Findings"
+app/(dashboard)/bugbounty/page.tsx:58  obj.description: "Confirmed vulnerabilities that are in-scope for a program, waiting to become a report."
+app/(dashboard)/bugbounty/page.tsx:59  obj.label: "Reports"
+app/(dashboard)/bugbounty/page.tsx:59  obj.description: "Draft, submit, and track bug reports and their payout status."
+app/(dashboard)/bugbounty/page.tsx:64  Programs, findings, and reports across every bug bounty engagement.
+app/(dashboard)/bugbounty/page.tsx:70  Programs
+app/(dashboard)/bugbounty/page.tsx:75  Findings
+app/(dashboard)/bugbounty/page.tsx:80  Reports
+app/(dashboard)/bugbounty/page.tsx:101  Success rate
+app/(dashboard)/bugbounty/page.tsx:105  Accepted or resolved / decided reports
+app/(dashboard)/bugbounty/page.tsx:110  Acceptance rate
+app/(dashboard)/bugbounty/page.tsx:114  Accepted / (accepted + rejected)
+app/(dashboard)/bugbounty/page.tsx:119  Duplicate rate
+app/(dashboard)/bugbounty/page.tsx:123  Duplicate / decided reports
+app/(dashboard)/bugbounty/page.tsx:130  Recent findings
+app/(dashboard)/bugbounty/page.tsx:132  View all →
+app/(dashboard)/bugbounty/page.tsx:142  title="No findings yet"
+app/(dashboard)/bugbounty/page.tsx:166  Recent activity
+app/(dashboard)/bugbounty/page.tsx:171  No recent activity.
+app/(dashboard)/bugbounty/page.tsx:192  Payload library
+app/(dashboard)/bugbounty/page.tsx:196  Knowledge base
+app/(dashboard)/bugbounty/page.tsx:199  Calendar
+app/(dashboard)/bugbounty/page.tsx:202  Bookmarks
+app/(dashboard)/bugbounty/page.tsx:205  Notifications
+app/(dashboard)/bugbounty/page.tsx:208  Search
+app/(dashboard)/bugbounty/payloads/page.tsx:50  toast.success(Payload added)
+app/(dashboard)/bugbounty/payloads/page.tsx:56  toast.error(Couldn't add this payload.)
+app/(dashboard)/bugbounty/payloads/page.tsx:64  New payload
+app/(dashboard)/bugbounty/payloads/page.tsx:69  New payload
+app/(dashboard)/bugbounty/payloads/page.tsx:70  Add a custom payload to your workspace library.
+app/(dashboard)/bugbounty/payloads/page.tsx:74  Category
+app/(dashboard)/bugbounty/payloads/page.tsx:89  Title
+app/(dashboard)/bugbounty/payloads/page.tsx:93  Description
+app/(dashboard)/bugbounty/payloads/page.tsx:97  Example
+app/(dashboard)/bugbounty/payloads/page.tsx:110  Add payload
+app/(dashboard)/bugbounty/payloads/page.tsx:144  toast.success(Deleted)
+app/(dashboard)/bugbounty/payloads/page.tsx:159  toast.success(Explained)
+app/(dashboard)/bugbounty/payloads/page.tsx:163  Explain with AI
+app/(dashboard)/bugbounty/payloads/page.tsx:183  Payload Library
+app/(dashboard)/bugbounty/payloads/page.tsx:185  Seed payloads plus your workspace&apos;s custom entries.
+app/(dashboard)/bugbounty/payloads/page.tsx:193  placeholder="Search payloads..."
+app/(dashboard)/bugbounty/payloads/page.tsx:200  All categories
+app/(dashboard)/bugbounty/payloads/page.tsx:217  title="No payloads found"
+app/(dashboard)/bugbounty/programs/page.tsx:69  toast.success(Program created)
+app/(dashboard)/bugbounty/programs/page.tsx:75  toast.error(Couldn't create this program.)
+app/(dashboard)/bugbounty/programs/page.tsx:83  New program
+app/(dashboard)/bugbounty/programs/page.tsx:88  New bug bounty program
+app/(dashboard)/bugbounty/programs/page.tsx:89  Track scope, findings, and reports for a program.
+app/(dashboard)/bugbounty/programs/page.tsx:93  Name
+app/(dashboard)/bugbounty/programs/page.tsx:97  Platform
+app/(dashboard)/bugbounty/programs/page.tsx:112  Organization
+app/(dashboard)/bugbounty/programs/page.tsx:121  Program URL
+app/(dashboard)/bugbounty/programs/page.tsx:128  Create program
+app/(dashboard)/bugbounty/programs/page.tsx:153  toast.success(`Imported "${result.program.name}" (${result.scopeItemsImported} scope items)`)
+app/(dashboard)/bugbounty/programs/page.tsx:160  toast.error(Import failed — check the payload format.)
+app/(dashboard)/bugbounty/programs/page.tsx:168  Import
+app/(dashboard)/bugbounty/programs/page.tsx:173  Import a program
+app/(dashboard)/bugbounty/programs/page.tsx:175  Paste a HackerOne/Bugcrowd/Intigriti API export, a Markdown scope doc, or a raw JSON payload.
+app/(dashboard)/bugbounty/programs/page.tsx:180  Source
+app/(dashboard)/bugbounty/programs/page.tsx:195  Payload
+app/(dashboard)/bugbounty/programs/page.tsx:219  Import
+app/(dashboard)/bugbounty/programs/page.tsx:235  Programs
+app/(dashboard)/bugbounty/programs/page.tsx:237  Bug bounty programs, scope, and linked targets.
+app/(dashboard)/bugbounty/programs/page.tsx:252  title="No programs yet"
+app/(dashboard)/bugbounty/programs/page.tsx:267  scope items
+app/(dashboard)/bugbounty/programs/page.tsx:268  targets
+app/(dashboard)/bugbounty/programs/page.tsx:269  findings
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:70  toast.success(Scope item added)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:74  toast.error(Couldn't add scope item.)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:82  Add scope item
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:87  Add scope item
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:88  Domains, wildcards, URLs, IP ranges, ASNs, etc.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:92  Type
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:107  Pattern
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:110  placeholder="*.example.com, 10.0.0.0/24, ..."
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:117  Classification
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:135  Add
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:152  toast.error(Classification failed.)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:160  Classify value
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:165  Classify a value against scope
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:166  Test whether a domain/URL/IP falls in or out of scope.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:170  placeholder="app.example.com or 10.0.0.5"
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:176  Classify
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:183  Matched pattern:
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:204  toast.success(Target linked)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:206  toast.error(Couldn't link this target.)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:214  Link target
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:219  Link a target
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:220  Pick a project, then a target to link to this program.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:224  Project
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:227  placeholder="Select a project"
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:245  Link
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:250  No targets in this project yet.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:273  toast.success(Program deleted)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:276  toast.error(Couldn't delete this program.)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:290  title="Program not found"
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:297  Back to programs
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:306  Findings
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:309  Reports
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:312  Delete
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:323  Scope
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:331  No scope items yet.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:345  toast.success(Removed)
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:359  Linked targets (
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:364  No targets linked yet.
+app/(dashboard)/bugbounty/programs/[programId]/page.tsx:374  toast.success(Unlinked)
+app/(dashboard)/bugbounty/reports/page.tsx:44  toast.success(Draft report created)
+app/(dashboard)/bugbounty/reports/page.tsx:48  toast.error(Couldn't create this report.)
+app/(dashboard)/bugbounty/reports/page.tsx:56  New report
+app/(dashboard)/bugbounty/reports/page.tsx:61  New bug report
+app/(dashboard)/bugbounty/reports/page.tsx:62  Starts as a draft — use the Report Draft Assistant to fill it in.
+app/(dashboard)/bugbounty/reports/page.tsx:66  Program
+app/(dashboard)/bugbounty/reports/page.tsx:69  placeholder="Select a program"
+app/(dashboard)/bugbounty/reports/page.tsx:81  Title
+app/(dashboard)/bugbounty/reports/page.tsx:88  Create report
+app/(dashboard)/bugbounty/reports/page.tsx:106  Reports
+app/(dashboard)/bugbounty/reports/page.tsx:108  Draft, submit, and track bug bounty reports.
+app/(dashboard)/bugbounty/reports/page.tsx:120  title="No reports yet"
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:72  toast.success(Report saved)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:74  toast.error(Couldn't save — someone else may have updated this report (version conflict).)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:82  toast.success(Report submitted)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:84  toast.error(Couldn't submit this report.)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:92  toast.success(Report deleted)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:95  toast.error(Couldn't delete this report.)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:102  toast.success(Draft generated)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:107  toast.error(Draft generation failed.)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:122  toast.error(Export failed.)
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:136  title="Report not found"
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:143  Back to reports
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:153  AI draft
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:161  Submit
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:165  Delete
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:173  Content
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:177  Template
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:192  Summary
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:196  Steps to reproduce
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:206  Impact
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:212  Save changes
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:221  Preview (
+app/(dashboard)/bugbounty/reports/[reportId]/page.tsx:238  Export
+app/(dashboard)/bugbounty/rewards/page.tsx:45  Rewards
+app/(dashboard)/bugbounty/rewards/page.tsx:47  Reward tracking and submission outcome analytics for this workspace.
+app/(dashboard)/bugbounty/rewards/page.tsx:72  Monthly rewards
+app/(dashboard)/bugbounty/rewards/page.tsx:76  No reward entries yet.
+app/(dashboard)/bugbounty/rewards/page.tsx:94  Yearly rewards
+app/(dashboard)/bugbounty/rewards/page.tsx:98  No reward entries yet.
+app/(dashboard)/bugbounty/search/page.tsx:41  Search
+app/(dashboard)/bugbounty/search/page.tsx:43  Search programs, findings, reports, payloads, and notes.
+app/(dashboard)/bugbounty/search/page.tsx:47  placeholder="Search bug bounty workspace..."
+app/(dashboard)/bugbounty/search/page.tsx:55  Type at least 2 characters to search.
+app/(dashboard)/bugbounty/search/page.tsx:57  Searching...
+app/(dashboard)/bugbounty/search/page.tsx:59  title="No results"
+app/(dashboard)/bugbounty/submissions/page.tsx:89  toast.success(Submission created.)
+app/(dashboard)/bugbounty/submissions/page.tsx:101  Submissions
+app/(dashboard)/bugbounty/submissions/page.tsx:103  Track findings submitted to bug bounty platforms and their outcomes.
+app/(dashboard)/bugbounty/submissions/page.tsx:109  placeholder="All statuses"
+app/(dashboard)/bugbounty/submissions/page.tsx:112  All statuses
+app/(dashboard)/bugbounty/submissions/page.tsx:123  New submission
+app/(dashboard)/bugbounty/submissions/page.tsx:128  New submission
+app/(dashboard)/bugbounty/submissions/page.tsx:130  Submit an existing bug bounty finding to a platform for review.
+app/(dashboard)/bugbounty/submissions/page.tsx:135  Finding ID
+app/(dashboard)/bugbounty/submissions/page.tsx:140  placeholder="Finding UUID"
+app/(dashboard)/bugbounty/submissions/page.tsx:144  Title
+app/(dashboard)/bugbounty/submissions/page.tsx:153  Severity
+app/(dashboard)/bugbounty/submissions/page.tsx:168  Platform
+app/(dashboard)/bugbounty/submissions/page.tsx:184  External URL (optional)
+app/(dashboard)/bugbounty/submissions/page.tsx:192  Notes (optional)
+app/(dashboard)/bugbounty/submissions/page.tsx:205  Submit
+app/(dashboard)/bugbounty/submissions/page.tsx:222  title="No submissions yet"
+app/(dashboard)/bugbounty/submissions/page.tsx:227  Title
+app/(dashboard)/bugbounty/submissions/page.tsx:228  Platform
+app/(dashboard)/bugbounty/submissions/page.tsx:229  Severity
+app/(dashboard)/bugbounty/submissions/page.tsx:230  Status
+app/(dashboard)/bugbounty/submissions/page.tsx:231  Reward
+app/(dashboard)/bugbounty/submissions/page.tsx:232  Submitted
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:62  toast.success(Submission updated.)
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:78  Submission not found.
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:96  Details
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:123  Update status
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:127  Status
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:143  Reward
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:147  Currency
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:152  Setting a reward on ACCEPTED / RESOLVED / BOUNTY_PAID records an entry in the reward ledger, visible on the Re
+app/(dashboard)/bugbounty/submissions/[id]/page.tsx:156  Save
+app/(dashboard)/error.tsx:28  This page ran into a problem.
+app/(dashboard)/error.tsx:34  Try again
+app/(dashboard)/error.tsx:37  Back to dashboard
+app/(dashboard)/evidence/new/page.tsx:19  Add evidence
+app/(dashboard)/evidence/new/page.tsx:44  toast.success(Evidence added)
+app/(dashboard)/evidence/new/page.tsx:47  toast.error(Couldn't add evidence. Please try again.)
+app/(dashboard)/evidence/new/page.tsx:55  Add evidence
+app/(dashboard)/evidence/page.tsx:9  Evidence
+app/(dashboard)/evidence/[evidenceId]/page.tsx:37  toast.success(Evidence deleted)
+app/(dashboard)/evidence/[evidenceId]/page.tsx:40  toast.error(Something went wrong.)
+app/(dashboard)/evidence/[evidenceId]/page.tsx:72  ← Back to project
+app/(dashboard)/evidence/[evidenceId]/page.tsx:75  aria-label="Delete evidence"
+app/(dashboard)/evidence/[evidenceId]/page.tsx:102  Delete this evidence?
+app/(dashboard)/evidence/[evidenceId]/page.tsx:103  This can&apos;t be undone from the dashboard.
+app/(dashboard)/evidence/[evidenceId]/page.tsx:106  Cancel
+app/(dashboard)/evidence/[evidenceId]/page.tsx:111  Delete
+app/(dashboard)/executive-security/page.tsx:41  Executive Security
+app/(dashboard)/executive-security/page.tsx:44  90-day security posture summary: response-time KPIs, incident mix, and remediation backlog.
+app/(dashboard)/executive-security/page.tsx:63  Incidents by severity
+app/(dashboard)/executive-security/page.tsx:83  12-week trend
+app/(dashboard)/exposure/page.tsx:37  Exposure Management
+app/(dashboard)/exposure/page.tsx:40  Remediation progress and response-time metrics across the workspace, last 30 days.
+app/(dashboard)/exposure/page.tsx:60  Response-time metrics
+app/(dashboard)/exposure/page.tsx:86  Weekly trend
+app/(dashboard)/exposure/page.tsx:96  Open remediation tasks
+app/(dashboard)/intel/indicators/page.tsx:52  Indicators
+app/(dashboard)/intel/indicators/page.tsx:55  Indicators of compromise from provider feeds, STIX/TAXII imports, and manual entry — shown with confidence and
+app/(dashboard)/intel/indicators/page.tsx:66  placeholder="Search indicators…"
+app/(dashboard)/intel/indicators/page.tsx:74  placeholder="Type"
+app/(dashboard)/intel/indicators/page.tsx:77  All types
+app/(dashboard)/intel/indicators/page.tsx:87  placeholder="Status"
+app/(dashboard)/intel/indicators/page.tsx:90  All statuses
+app/(dashboard)/knowledge-base/page.tsx:41  toast.success(`Indexed ${result.indexed} entries into this workspace's RAG store`)
+app/(dashboard)/knowledge-base/page.tsx:43  toast.error(Couldn't reindex the knowledge base.)
+app/(dashboard)/knowledge-base/page.tsx:60  Knowledge Base
+app/(dashboard)/knowledge-base/page.tsx:63  The OWASP/CWE/CAPEC/MITRE ATT&amp;CK/NIST/CVE reference catalog specialist agents draw on.
+app/(dashboard)/knowledge-base/page.tsx:68  Reindex into RAG
+app/(dashboard)/knowledge-base/page.tsx:76  placeholder="Search the catalog…"
+app/(dashboard)/knowledge-base/page.tsx:84  placeholder="Framework"
+app/(dashboard)/knowledge-base/page.tsx:87  All frameworks
+app/(dashboard)/notes/new/page.tsx:17  New note
+app/(dashboard)/notes/new/page.tsx:41  toast.error(Couldn't create note. Please try again.)
+app/(dashboard)/notes/new/page.tsx:47  Creating note…
+app/(dashboard)/notes/page.tsx:9  Notes
+app/(dashboard)/notes/[noteId]/page.tsx:36  toast.success(Note deleted)
+app/(dashboard)/notes/[noteId]/page.tsx:39  toast.error(Something went wrong.)
+app/(dashboard)/notes/[noteId]/page.tsx:63  ← Back to project
+app/(dashboard)/notes/[noteId]/page.tsx:65  aria-label="Delete note"
+app/(dashboard)/notes/[noteId]/page.tsx:75  Delete this note?
+app/(dashboard)/notes/[noteId]/page.tsx:76  This can&apos;t be undone from the dashboard.
+app/(dashboard)/notes/[noteId]/page.tsx:79  Cancel
+app/(dashboard)/notes/[noteId]/page.tsx:84  Delete
+app/(dashboard)/page.tsx:20  obj.title: "PentestHub AI — AI-Powered Offensive Security Platform"
+app/(dashboard)/page.tsx:23  obj.title: "PentestHub AI — AI-Powered Offensive Security Platform"
+app/(dashboard)/page.tsx:24  obj.description: "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one worksp
+app/(dashboard)/page.tsx:32  obj.title: "PentestHub AI — AI-Powered Offensive Security Platform"
+app/(dashboard)/page.tsx:33  obj.description: "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one worksp
+app/(dashboard)/page.tsx:86  obj.name: "Muhammad Sobirov"
+app/(dashboard)/playbooks/approvals/page.tsx:35  Playbook approvals
+app/(dashboard)/playbooks/approvals/page.tsx:37  Approval-gated playbook steps pause here until a human decides. Rejecting stops every step downstream of the g
+app/(dashboard)/playbooks/approvals/page.tsx:51  title="No pending approvals"
+app/(dashboard)/playbooks/approvals/page.tsx:56  Execution
+app/(dashboard)/playbooks/approvals/page.tsx:57  Status
+app/(dashboard)/playbooks/approvals/page.tsx:58  Requested
+app/(dashboard)/playbooks/approvals/page.tsx:76  Approve
+app/(dashboard)/playbooks/approvals/page.tsx:79  Reject
+app/(dashboard)/playbooks/page.tsx:37  obj.label: "Target"
+app/(dashboard)/playbooks/page.tsx:38  obj.label: "Verify in-scope"
+app/(dashboard)/playbooks/page.tsx:39  obj.label: "Subdomain enumeration"
+app/(dashboard)/playbooks/page.tsx:79  toast.error(Graph must be valid JSON.)
+app/(dashboard)/playbooks/page.tsx:89  toast.success(Playbook draft created.)
+app/(dashboard)/playbooks/page.tsx:100  toast.success(Playbook cloned.)
+app/(dashboard)/playbooks/page.tsx:110  Playbooks
+app/(dashboard)/playbooks/page.tsx:112  Reusable, auditable step graphs for recon, pentest, and bug bounty workflows. 8 built-in playbooks are seeded 
+app/(dashboard)/playbooks/page.tsx:119  New playbook
+app/(dashboard)/playbooks/page.tsx:124  New playbook draft
+app/(dashboard)/playbooks/page.tsx:126  Define the step graph as JSON. It will be validated before you can publish it.
+app/(dashboard)/playbooks/page.tsx:131  Name
+app/(dashboard)/playbooks/page.tsx:135  Category
+app/(dashboard)/playbooks/page.tsx:143  Description (optional)
+app/(dashboard)/playbooks/page.tsx:151  Step graph (JSON)
+app/(dashboard)/playbooks/page.tsx:163  Create draft
+app/(dashboard)/playbooks/page.tsx:179  title="No playbooks yet"
+app/(dashboard)/playbooks/page.tsx:184  Name
+app/(dashboard)/playbooks/page.tsx:185  Category
+app/(dashboard)/playbooks/page.tsx:186  Status
+app/(dashboard)/playbooks/page.tsx:187  Built-in
+app/(dashboard)/playbooks/page.tsx:205  title="Clone"
+app/(dashboard)/playbooks/[id]/page.tsx:51  title="Playbook not found"
+app/(dashboard)/playbooks/[id]/page.tsx:71  toast.success(Playbook published.)
+app/(dashboard)/playbooks/[id]/page.tsx:80  toast.success(Playbook archived.)
+app/(dashboard)/playbooks/[id]/page.tsx:91  toast.success(Dry run complete — no tools were executed, no findings modified, no notifications sent.)
+app/(dashboard)/playbooks/[id]/page.tsx:101  toast.success(Playbook execution started.)
+app/(dashboard)/playbooks/[id]/page.tsx:117  Validate
+app/(dashboard)/playbooks/[id]/page.tsx:121  Publish
+app/(dashboard)/playbooks/[id]/page.tsx:126  Archive
+app/(dashboard)/playbooks/[id]/page.tsx:135  Validation result —
+app/(dashboard)/playbooks/[id]/page.tsx:139  No issues.
+app/(dashboard)/playbooks/[id]/page.tsx:153  Step graph (version
+app/(dashboard)/playbooks/[id]/page.tsx:164  Run against a target
+app/(dashboard)/playbooks/[id]/page.tsx:169  Target ID
+app/(dashboard)/playbooks/[id]/page.tsx:170  placeholder="Target UUID"
+app/(dashboard)/playbooks/[id]/page.tsx:173  Dry run
+app/(dashboard)/playbooks/[id]/page.tsx:176  Run
+app/(dashboard)/playbooks/[id]/page.tsx:180  Publish this playbook before running it for real (dry-run works on any draft&apos;s latest version).
+app/(dashboard)/playbooks/[id]/page.tsx:185  Dry run — target scope:
+app/(dashboard)/playbooks/[id]/page.tsx:185  , estimated
+app/(dashboard)/playbooks/[id]/page.tsx:198  requires approval
+app/(dashboard)/playbooks/[id]/page.tsx:209  Executions
+app/(dashboard)/playbooks/[id]/page.tsx:213  No executions yet.
+app/(dashboard)/playbooks/[id]/page.tsx:229  steps
+app/(dashboard)/pricing/page.tsx:16  Pricing
+app/(dashboard)/pricing/page.tsx:18  Choose a plan for your organization. Community Edition (self-hosted, no organization) is always free with no l
+app/(dashboard)/projects/new/page.tsx:21  toast.success(Project created)
+app/(dashboard)/projects/new/page.tsx:24  toast.error(Couldn't create project. Please try again.)
+app/(dashboard)/projects/new/page.tsx:32  New project
+app/(dashboard)/projects/new/page.tsx:33  Projects group targets, notes, and evidence for an engagement.
+app/(dashboard)/projects/page.tsx:26  Projects
+app/(dashboard)/projects/page.tsx:33  All statuses
+app/(dashboard)/projects/page.tsx:34  Active
+app/(dashboard)/projects/page.tsx:35  On hold
+app/(dashboard)/projects/page.tsx:36  Completed
+app/(dashboard)/projects/page.tsx:37  Archived
+app/(dashboard)/projects/page.tsx:46  aria-label="Card view"
+app/(dashboard)/projects/page.tsx:55  aria-label="Table view"
+app/(dashboard)/projects/page.tsx:62  New project
+app/(dashboard)/projects/page.tsx:75  title="No projects yet"
+app/(dashboard)/projects/page.tsx:80  New project
+app/(dashboard)/projects/[projectId]/edit/page.tsx:30  toast.success(Project updated)
+app/(dashboard)/projects/[projectId]/edit/page.tsx:33  toast.error(Couldn't update project. Please try again.)
+app/(dashboard)/projects/[projectId]/edit/page.tsx:41  Edit project
+app/(dashboard)/projects/[projectId]/page.tsx:100  Targets
+app/(dashboard)/projects/[projectId]/page.tsx:101  Notes
+app/(dashboard)/projects/[projectId]/page.tsx:102  Evidence
+app/(dashboard)/projects/[projectId]/page.tsx:103  Scan History
+app/(dashboard)/projects/[projectId]/page.tsx:104  Vulnerabilities
+app/(dashboard)/projects/[projectId]/page.tsx:105  Attack Surface
+app/(dashboard)/projects/[projectId]/page.tsx:106  Activity
+app/(dashboard)/projects/[projectId]/page.tsx:146  title="No attack surface data yet"
+app/(dashboard)/projects/[projectId]/page.tsx:153  obj.label: "Total assets"
+app/(dashboard)/projects/[projectId]/page.tsx:154  obj.label: "Live hosts"
+app/(dashboard)/projects/[projectId]/page.tsx:155  obj.label: "Open ports"
+app/(dashboard)/projects/[projectId]/page.tsx:156  obj.label: "HTTP services"
+app/(dashboard)/projects/[projectId]/page.tsx:157  obj.label: "Technologies"
+app/(dashboard)/projects/[projectId]/page.tsx:158  obj.label: "High-risk assets"
+app/(dashboard)/projects/[projectId]/page.tsx:159  obj.label: "New (7d)"
+app/(dashboard)/projects/[projectId]/page.tsx:160  obj.label: "Removed (7d)"
+app/(dashboard)/projects/[projectId]/page.tsx:185  Add target
+app/(dashboard)/projects/[projectId]/page.tsx:190  title="No targets yet"
+app/(dashboard)/projects/[projectId]/page.tsx:220  New note
+app/(dashboard)/projects/[projectId]/page.tsx:225  title="No notes yet"
+app/(dashboard)/projects/[projectId]/page.tsx:253  Add evidence
+app/(dashboard)/projects/[projectId]/page.tsx:258  title="No evidence yet"
+app/(dashboard)/projects/[projectId]/page.tsx:284  title="No scan history yet"
+app/(dashboard)/projects/[projectId]/page.tsx:301  title="No vulnerability scans yet"
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:37  toast.success(Cancellation requested)
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:39  toast.error(Couldn't cancel this job.)
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:46  toast.success(Job queued for retry)
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:48  toast.error(Couldn't retry this job.)
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:73  Recon job
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:79  Target →
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:82  Project →
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:84  Started
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:85  Completed
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:98  Cancel
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:108  Retry
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:116  Progress
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:125  Live log
+app/(dashboard)/recon/jobs/[jobId]/page.tsx:134  Findings (
+app/(dashboard)/recon/page.tsx:20  Recon
+app/(dashboard)/recon/page.tsx:29  obj.label: "Recent scans"
+app/(dashboard)/recon/page.tsx:29  obj.description: "Every recon job across all your projects, newest first — click one to see its live logs and 
+app/(dashboard)/recon/page.tsx:30  obj.label: "Target"
+app/(dashboard)/recon/page.tsx:30  obj.description: "Jumps to the target page a given scan ran against, where you can start more scans."
+app/(dashboard)/recon/page.tsx:35  Recent scans across every project. Start new scans from a target&apos;s page.
+app/(dashboard)/recon/page.tsx:41  Recent scans
+app/(dashboard)/research-sessions/page.tsx:53  toast.success(Research session started.)
+app/(dashboard)/research-sessions/page.tsx:66  Research Sessions
+app/(dashboard)/research-sessions/page.tsx:68  Group Recon, Vuln, Findings, Notes, Evidence, and AI activity from one engagement.
+app/(dashboard)/research-sessions/page.tsx:75  New session
+app/(dashboard)/research-sessions/page.tsx:80  Start a research session
+app/(dashboard)/research-sessions/page.tsx:84  Name
+app/(dashboard)/research-sessions/page.tsx:92  placeholder="e.g. acme.com — Q3 engagement"
+app/(dashboard)/research-sessions/page.tsx:96  Description (optional)
+app/(dashboard)/research-sessions/page.tsx:117  All sessions
+app/(dashboard)/research-sessions/page.tsx:135  Started
+app/(dashboard)/research-sessions/page.tsx:145  No research sessions yet — start one to group your work on an engagement.
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:84  Started
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:93  Pause
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:98  Resume
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:103  Complete
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:108  Archive
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:124  Linked activity
+app/(dashboard)/research-sessions/[sessionId]/page.tsx:145  Nothing linked yet — link Recon jobs, findings, notes, or evidence to this session from their own pages as you
+app/(dashboard)/security-reports/page.tsx:22  Security Reports
+app/(dashboard)/security-reports/page.tsx:25  Point-in-time incident, threat intel, and posture summary reports for this workspace.
+app/(dashboard)/security-reports/[reportId]/page.tsx:30  Back to reports
+app/(dashboard)/security-reports/[reportId]/page.tsx:43  Generated
+app/(dashboard)/security-reports/[reportId]/page.tsx:87  Incidents in this snapshot
+app/(dashboard)/security-reports/[reportId]/page.tsx:91  title="No incidents in this snapshot"
+app/(dashboard)/security-reports/[reportId]/page.tsx:121  Most recently seen indicators
+app/(dashboard)/security-reports/[reportId]/page.tsx:125  title="No indicators in this snapshot"
+app/(dashboard)/security-reports/[reportId]/page.tsx:160  Incidents by severity
+app/(dashboard)/security-reports/[reportId]/page.tsx:173  Remediation backlog by priority
+app/(dashboard)/settings/diagnostics/page.tsx:52  toast.success(Diagnostics report copied to clipboard)
+app/(dashboard)/settings/diagnostics/page.tsx:54  toast.error(Couldn't copy to clipboard.)
+app/(dashboard)/settings/diagnostics/page.tsx:63  Diagnostics
+app/(dashboard)/settings/diagnostics/page.tsx:65  Run a self-test before contacting support — checks server reachability, database health, and version sync.
+app/(dashboard)/settings/diagnostics/page.tsx:71  Run again
+app/(dashboard)/settings/diagnostics/page.tsx:74  Copy report
+app/(dashboard)/settings/diagnostics/page.tsx:87  Running diagnostics…
+app/(dashboard)/settings/diagnostics/page.tsx:132  Still stuck?
+app/(dashboard)/settings/diagnostics/page.tsx:134  Contact support
+app/(dashboard)/settings/diagnostics/page.tsx:136  — this report can be attached automatically.
+app/(dashboard)/settings/layout.tsx:8  obj.label: "Profile"
+app/(dashboard)/settings/layout.tsx:9  obj.label: "Security"
+app/(dashboard)/settings/layout.tsx:10  obj.label: "Sessions"
+app/(dashboard)/settings/layout.tsx:11  obj.label: "API Keys"
+app/(dashboard)/settings/layout.tsx:12  obj.label: "AI Providers"
+app/(dashboard)/settings/layout.tsx:13  obj.label: "Preferences"
+app/(dashboard)/settings/layout.tsx:14  obj.label: "Workspace"
+app/(dashboard)/settings/layout.tsx:17  obj.label: "Billing"
+app/(dashboard)/settings/layout.tsx:18  obj.label: "Usage"
+app/(dashboard)/settings/layout.tsx:20  obj.label: "Diagnostics"
+app/(dashboard)/settings/layout.tsx:22  obj.label: "Support"
+app/(dashboard)/settings/layout.tsx:30  Settings
+app/(dashboard)/settings/profile/page.tsx:20  Profile
+app/(dashboard)/settings/profile/page.tsx:21  Your account details.
+app/(dashboard)/settings/profile/page.tsx:35  Email verified
+app/(dashboard)/settings/profile/page.tsx:38  Verified
+app/(dashboard)/settings/profile/page.tsx:42  Not verified
+app/(dashboard)/settings/profile/page.tsx:47  Two-factor authentication
+app/(dashboard)/settings/profile/page.tsx:50  Enabled
+app/(dashboard)/settings/profile/page.tsx:53  Disabled
+app/(dashboard)/settings/sessions/page.tsx:19  toast.success(Session revoked)
+app/(dashboard)/settings/sessions/page.tsx:21  toast.error(Couldn't revoke session.)
+app/(dashboard)/settings/sessions/page.tsx:28  Active sessions
+app/(dashboard)/settings/sessions/page.tsx:29  Devices currently signed in to your account.
+app/(dashboard)/settings/sessions/page.tsx:43  This device
+app/(dashboard)/settings/sessions/page.tsx:46  · Last active
+app/(dashboard)/settings/sessions/page.tsx:57  Revoke
+app/(dashboard)/settings/support/page.tsx:86  toast.success(Support request sent — we'll reply to your email.)
+app/(dashboard)/settings/support/page.tsx:100  Contact support
+app/(dashboard)/settings/support/page.tsx:103  Describe the problem and we&apos;ll reply to your email — no ticket portal login required.
+app/(dashboard)/settings/support/page.tsx:111  Category
+app/(dashboard)/settings/support/page.tsx:126  Your email
+app/(dashboard)/settings/support/page.tsx:137  Subject
+app/(dashboard)/settings/support/page.tsx:148  Message
+app/(dashboard)/settings/support/page.tsx:166  Attach diagnostics (app/server version, connectivity) to help us troubleshoot faster
+app/(dashboard)/settings/support/page.tsx:180  Your requests
+app/(dashboard)/settings/support/page.tsx:181  Past support tickets tied to your account email.
+app/(dashboard)/settings/support/page.tsx:201  No support requests yet.
+app/(dashboard)/settings/workspace/page.tsx:45  toast.success(Workspace updated)
+app/(dashboard)/settings/workspace/page.tsx:47  toast.error(Couldn't update workspace.)
+app/(dashboard)/settings/workspace/page.tsx:57  toast.success(Avatar updated)
+app/(dashboard)/settings/workspace/page.tsx:59  toast.error(Couldn't upload avatar.)
+app/(dashboard)/settings/workspace/page.tsx:77  Workspace settings
+app/(dashboard)/settings/workspace/page.tsx:78  These details are visible to everyone in your workspace.
+app/(dashboard)/settings/workspace/page.tsx:95  Change avatar
+app/(dashboard)/settings/workspace/page.tsx:108  Name
+app/(dashboard)/settings/workspace/page.tsx:112  Description
+app/(dashboard)/settings/workspace/page.tsx:117  Save changes
+app/(dashboard)/soc/page.tsx:31  Security Operations Center
+app/(dashboard)/soc/page.tsx:34  Live incident, SLA, and threat-intelligence overview for this workspace&apos;s analysts.
+app/(dashboard)/soc/page.tsx:57  Recent incidents
+app/(dashboard)/targets/new/page.tsx:25  Add a target
+app/(dashboard)/targets/new/page.tsx:56  toast.success(Target added)
+app/(dashboard)/targets/new/page.tsx:71  Add a target
+app/(dashboard)/targets/page.tsx:9  Targets
+app/(dashboard)/targets/[targetId]/edit/page.tsx:27  toast.success(Target updated)
+app/(dashboard)/targets/[targetId]/edit/page.tsx:30  toast.error(Couldn't update target. Please try again.)
+app/(dashboard)/targets/[targetId]/edit/page.tsx:38  Edit target
+app/(dashboard)/targets/[targetId]/page.tsx:87  ← Back to project
+app/(dashboard)/targets/[targetId]/page.tsx:98  Recon
+app/(dashboard)/targets/[targetId]/page.tsx:114  Vulnerabilities
+app/(dashboard)/targets/[targetId]/page.tsx:130  Technologies &amp; changes
+app/(dashboard)/targets/[targetId]/page.tsx:138  No technologies detected yet — run a Recon scan (HTTPX/WhatWeb) to fingerprint this target.
+app/(dashboard)/targets/[targetId]/page.tsx:167  Notes
+app/(dashboard)/targets/[targetId]/page.tsx:174  title="No notes for this target"
+app/(dashboard)/targets/[targetId]/page.tsx:195  Evidence
+app/(dashboard)/targets/[targetId]/page.tsx:202  title="No evidence for this target"
+app/(dashboard)/terminal/page.tsx:45  toast.info(`${tool} requires approval — decide it from Security Approvals, then run it again.`)
+app/(dashboard)/terminal/page.tsx:47  toast.success(`${tool} finished with status ${result.status}.`)
+app/(dashboard)/terminal/page.tsx:57  Terminal
+app/(dashboard)/terminal/page.tsx:59  Run a single recon/scanner tool against a target. Every command is scope-checked, policy-checked, and audit-lo
+app/(dashboard)/terminal/page.tsx:66  Run a command
+app/(dashboard)/terminal/page.tsx:71  Target ID
+app/(dashboard)/terminal/page.tsx:72  placeholder="Target UUID"
+app/(dashboard)/terminal/page.tsx:75  Tool
+app/(dashboard)/terminal/page.tsx:78  placeholder="Select a tool"
+app/(dashboard)/terminal/page.tsx:90  Run
+app/(dashboard)/terminal/page.tsx:97  commands on the allowlist. Anything not listed here is refused before execution.
+app/(dashboard)/terminal/page.tsx:105  Your command history
+app/(dashboard)/terminal/page.tsx:115  title="No commands yet"
+app/(dashboard)/terminal/page.tsx:120  Tool
+app/(dashboard)/terminal/page.tsx:121  Status
+app/(dashboard)/terminal/page.tsx:122  Exit code
+app/(dashboard)/terminal/page.tsx:123  Requested
+app/(dashboard)/vuln/findings/page.tsx:71  Findings
+app/(dashboard)/vuln/findings/page.tsx:74  Every vulnerability finding across the workspace. Select rows for bulk status updates.
+app/(dashboard)/vuln/findings/page.tsx:83  placeholder="Search findings… (press / to focus)"
+app/(dashboard)/vuln/findings/page.tsx:91  placeholder="Severity"
+app/(dashboard)/vuln/findings/page.tsx:94  All severities
+app/(dashboard)/vuln/findings/page.tsx:104  placeholder="Status"
+app/(dashboard)/vuln/findings/page.tsx:107  All statuses
+app/(dashboard)/vuln/findings/page.tsx:117  placeholder="Scanner"
+app/(dashboard)/vuln/findings/page.tsx:120  All scanners
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:40  Back to findings
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:50  Target →
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:53  Scan job →
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:65  Description
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:70  Path:
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:77  Classification
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:92  Tags & references
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:121  Evidence
+app/(dashboard)/vuln/findings/[findingId]/page.tsx:131  Timeline
+app/(dashboard)/vuln/jobs/page.tsx:15  Scan jobs
+app/(dashboard)/vuln/jobs/page.tsx:18  Recent vulnerability scans across every project. Start new scans from a target&apos;s page.
+app/(dashboard)/vuln/jobs/page.tsx:24  Recent scans
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:42  toast.success(Stop requested)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:44  toast.error(Couldn't stop this job.)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:51  toast.success(Pause requested)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:53  toast.error(Couldn't pause this job.)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:60  toast.success(Job resumed)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:62  toast.error(Couldn't resume this job.)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:69  toast.success(Job queued for retry)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:71  toast.error(Couldn't retry this job.)
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:96  Vulnerability scan
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:102  Target →
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:105  Project →
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:107  Priority
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:108  Started
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:109  Completed
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:117  Pause
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:123  Resume
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:129  Stop
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:135  Retry
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:143  Progress
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:152  Live log
+app/(dashboard)/vuln/jobs/[jobId]/page.tsx:161  Findings (
+app/(dashboard)/vuln/page.tsx:26  Vulnerabilities
+app/(dashboard)/vuln/page.tsx:35  obj.label: "Scan jobs"
+app/(dashboard)/vuln/page.tsx:35  obj.description: "Every vulnerability scan run across your projects — status, progress, and logs."
+app/(dashboard)/vuln/page.tsx:36  obj.label: "Templates"
+app/(dashboard)/vuln/page.tsx:36  obj.description: "Reusable bundles of scanner configs so you don't set up the same checks every time."
+app/(dashboard)/vuln/page.tsx:37  obj.label: "Scanners"
+app/(dashboard)/vuln/page.tsx:37  obj.description: "Which scanning tools are available and their current status."
+app/(dashboard)/vuln/page.tsx:38  obj.label: "Findings by severity / Recent findings"
+app/(dashboard)/vuln/page.tsx:38  obj.description: "A quick read on what's Critical/High right now, and the newest results to triage first."
+app/(dashboard)/vuln/page.tsx:43  Findings and scan activity across every project. Start new scans from a target&apos;s page.
+app/(dashboard)/vuln/page.tsx:49  Scan jobs
+app/(dashboard)/vuln/page.tsx:54  Templates
+app/(dashboard)/vuln/page.tsx:59  Scanners
+app/(dashboard)/vuln/page.tsx:80  Findings by severity
+app/(dashboard)/vuln/page.tsx:93  Scanner status
+app/(dashboard)/vuln/page.tsx:103  Recent findings
+app/(dashboard)/vuln/page.tsx:105  View all →
+app/(dashboard)/vuln/scanners/page.tsx:15  Scanner history
+app/(dashboard)/vuln/scanners/page.tsx:18  Run counts and findings totals for every scanner used in this workspace.
+app/(dashboard)/vuln/scanners/page.tsx:24  Scanners
+app/(dashboard)/vuln/templates/page.tsx:16  Scan templates
+app/(dashboard)/vuln/templates/page.tsx:19  Reusable scanner selections. Built-in templates can&apos;t be deleted.
+app/(dashboard)/workspace/page.tsx:22  Workspace
+app/(dashboard)/workspace/page.tsx:25  Settings
+app/(dashboard)/workspace/page.tsx:49  Created
+app/(dashboard)/workspace/page.tsx:63  Projects
+app/(dashboard)/workspace/page.tsx:72  Members
+app/(dashboard)/workspace/page.tsx:80  Members
+app/error.tsx:58  Something went wrong
+app/error.tsx:61  An unexpected error occurred while rendering this page. You can try again, or copy the error details if you ne
+app/error.tsx:68  ref:
+app/error.tsx:73  Try again
+app/global-error.tsx:33  PentestHub AI failed to load
+app/global-error.tsx:36  A critical error occurred. Reloading usually fixes this.
+app/global-error.tsx:51  Reload
+app/layout.tsx:22  obj.description: "Enterprise-grade pentesting and bug bounty platform: recon, vulnerability scanning, bug boun
+app/legal/accept/page.tsx:6  obj.title: "Updated terms"
+app/legal/acceptable-use/page.tsx:6  obj.title: "Acceptable Use Policy"
+app/legal/acceptable-use/page.tsx:7  obj.description: "What you may and may not do with PentestHub AI, including the Rules of Engagement."
+app/legal/privacy/page.tsx:6  obj.title: "Privacy Policy"
+app/legal/privacy/page.tsx:7  obj.description: "What personal data PentestHub AI processes, why, and your rights."
+app/legal/terms/page.tsx:6  obj.title: "Terms of Service"
+app/legal/terms/page.tsx:7  obj.description: "The rules for using PentestHub AI, an authorized security testing platform."
+app/not-found.tsx:10  Page not found
+app/not-found.tsx:11  The page you&apos;re looking for doesn&apos;t exist.
+app/not-found.tsx:14  Go home
+app/security/page.tsx:8  obj.title: "Security & Vulnerability Disclosure"
+app/security/page.tsx:9  obj.description: "How to report a security vulnerability in PentestHub AI and what to expect."
+features/agent/components/agent-run-explanation.tsx:14  Planning reasoning
+features/agent/components/agent-run-explanation.tsx:21  Alternatives considered
+features/agent/components/agent-run-explanation.tsx:34  overall confidence
+features/agent/components/agent-run-explanation.tsx:40  Result summary
+features/agent/components/agent-run-explanation.tsx:46  Task-by-task reasoning
+features/agent/components/agent-run-explanation.tsx:73  Sources:
+features/agent/components/agent-run-list.tsx:22  title="No orchestration runs yet"
+features/agent/components/agent-run-list.tsx:29  Status
+features/agent/components/agent-run-list.tsx:30  Goal
+features/agent/components/agent-run-list.tsx:31  Tasks
+features/agent/components/agent-run-list.tsx:32  Confidence
+features/agent/components/agent-run-list.tsx:33  Started
+features/agent/components/agent-run-stream-panel.tsx:26  obj.text: "Run completed."
+features/agent/components/agent-run-stream-panel.tsx:30  obj.text: "Run cancelled."
+features/agent/components/agent-run-stream-panel.tsx:32  obj.text: "Unknown event"
+features/agent/components/agent-run-stream-panel.tsx:51  Live activity
+features/agent/components/agent-task-tree.tsx:16  No tasks yet — the orchestrator is still planning.
+features/agent/components/agent-task-tree.tsx:56  % confidence
+features/agent/components/agent-task-tree.tsx:74  failed
+features/agent/components/agent-task-tree.tsx:75  ms
+features/agent/components/start-orchestration-run-form.tsx:26  toast.success(Orchestration run started)
+features/agent/components/start-orchestration-run-form.tsx:29  toast.error(Couldn't start this run.)
+features/agent/components/start-orchestration-run-form.tsx:38  placeholder="Describe a goal for the Copilot to work on, e.g. &quot;Recon this target and draft a findings sum
+features/agent/components/start-orchestration-run-form.tsx:49  Start run
+features/ai/components/ai-artifact-panel.tsx:34  Artifact
+features/ai/components/ai-artifact-panel.tsx:36  aria-label="Copy artifact"
+features/ai/components/ai-artifact-panel.tsx:45  aria-label="Download artifact"
+features/ai/components/ai-artifact-panel.tsx:49  aria-label="Close artifact panel"
+features/ai/components/ai-chat-input.tsx:82  aria-label="Stop generating"
+features/ai/components/ai-chat-input.tsx:86  aria-label="Send"
+features/ai/components/ai-chat-message.tsx:129  Generation stopped.
+features/ai/components/ai-chat-message.tsx:134  aria-label="Copy"
+features/ai/components/ai-chat-message.tsx:156  aria-label="Download"
+features/ai/components/ai-chat-message.tsx:168  aria-label="Open in artifact panel"
+features/ai/components/ai-chat-message.tsx:179  aria-label="Bookmark"
+features/ai/components/ai-chat-message.tsx:189  aria-label="Pin"
+features/ai/components/ai-chat-message.tsx:200  aria-label="Regenerate"
+features/ai/components/ai-chat-message.tsx:212  aria-label="Continue"
+features/ai/components/ai-chat-message.tsx:217  aria-label="Delete"
+features/ai/components/ai-chat-panel.tsx:104  title="Start a conversation"
+features/ai/components/ai-chat-panel.tsx:138  aria-label="Export conversation"
+features/ai/components/ai-chat-panel.tsx:139  title="Export conversation as Markdown"
+features/ai/components/ai-chat-panel.tsx:149  aria-label="Toggle terminal mode"
+features/ai/components/ai-chat-panel.tsx:150  title="Toggle terminal mode"
+features/ai/components/ai-chat-panel.tsx:159  Ask about findings, recon results, CVEs, or request a PoC — the AI already knows this project&apos;s context.
+features/ai/components/ai-context-panel.tsx:25  What the AI knows
+features/ai/components/ai-context-panel.tsx:32  targets
+features/ai/components/ai-context-panel.tsx:36  recon
+features/ai/components/ai-context-panel.tsx:40  findings
+features/ai/components/ai-context-panel.tsx:44  notes
+features/ai/components/ai-context-panel.tsx:49  critical/high
+features/ai/components/ai-context-panel.tsx:58  Suggested questions
+features/ai/components/ai-conversation-sidebar.tsx:49  placeholder="Search conversations..."
+features/ai/components/ai-conversation-sidebar.tsx:53  aria-label="New conversation"
+features/ai/components/ai-conversation-sidebar.tsx:66  No conversations yet.
+features/ai/components/ai-conversation-sidebar.tsx:94  aria-label="Pin conversation"
+features/ai/components/ai-conversation-sidebar.tsx:108  aria-label="Delete conversation"
+features/ai/components/ai-message-markdown.tsx:119  aria-label="Toggle line wrap"
+features/ai/components/ai-message-markdown.tsx:129  aria-label="Download snippet"
+features/ai/components/ai-message-markdown.tsx:139  aria-label="View fullscreen"
+features/ai/components/ai-message-markdown.tsx:149  aria-label="Copy code"
+features/ai/components/ai-message-markdown.tsx:166  Show all
+features/ai/components/ai-message-markdown.tsx:166  lines
+features/ai/components/ai-message-markdown.tsx:180  Collapse
+features/ai/components/ai-provider-credentials-section.tsx:98  toast.success(`${PROVIDER_LABELS[provider]} credential saved`)
+features/ai/components/ai-provider-credentials-section.tsx:100  toast.error(`Couldn't save ${PROVIDER_LABELS[provider]} credential.`)
+features/ai/components/ai-provider-credentials-section.tsx:111  toast.success(`${PROVIDER_LABELS[provider]} credential removed`)
+features/ai/components/ai-provider-credentials-section.tsx:113  toast.error(`Couldn't remove ${PROVIDER_LABELS[provider]} credential.`)
+features/ai/components/ai-provider-credentials-section.tsx:124  AI provider credentials
+features/ai/components/ai-provider-credentials-section.tsx:126  Bring your own API key for any provider. Your key is encrypted at rest and always used in place of the operato
+features/ai/components/ai-provider-credentials-section.tsx:133  Loading providers…
+features/ai/components/ai-provider-credentials-section.tsx:155  Using your key
+features/ai/components/ai-provider-credentials-section.tsx:157  Using server key
+features/ai/components/ai-provider-credentials-section.tsx:159  Not configured
+features/ai/components/ai-provider-credentials-section.tsx:171  Remove
+features/ai/components/ai-provider-credentials-section.tsx:186  Docs
+features/ai/components/ai-provider-credentials-section.tsx:194  API key
+features/ai/components/ai-provider-credentials-section.tsx:205  Base URL (optional)
+features/ai/components/ai-provider-credentials-section.tsx:214  Default model (optional)
+features/ai/components/ai-provider-credentials-section.tsx:226  Save
+features/ai/components/mermaid-diagram.tsx:83  aria-label="Zoom out"
+features/ai/components/mermaid-diagram.tsx:86  aria-label="Zoom in"
+features/ai/components/mermaid-diagram.tsx:89  aria-label="Reset view"
+features/ai/components/mermaid-diagram.tsx:111  Rendering diagram…
+features/api-keys/components/api-keys-section.tsx:40  Your new API key
+features/api-keys/components/api-keys-section.tsx:42  Copy this now — for your security, it won&apos;t be shown again. If you lose it, you&apos;ll need to rotate or
+features/api-keys/components/api-keys-section.tsx:55  toast.success(Copied to clipboard.)
+features/api-keys/components/api-keys-section.tsx:63  Done
+features/api-keys/components/api-keys-section.tsx:88  toast.error(Couldn't create the API key.)
+features/api-keys/components/api-keys-section.tsx:97  Create API key
+features/api-keys/components/api-keys-section.tsx:99  Personal key — usable with your own permissions from the CLI, SDKs, or automation. Optionally set an expiry.
+features/api-keys/components/api-keys-section.tsx:105  Name
+features/api-keys/components/api-keys-section.tsx:108  placeholder="e.g. CI pipeline"
+features/api-keys/components/api-keys-section.tsx:116  Expires in (days, optional)
+features/api-keys/components/api-keys-section.tsx:122  placeholder="Never expires"
+features/api-keys/components/api-keys-section.tsx:130  Cancel
+features/api-keys/components/api-keys-section.tsx:134  Create key
+features/api-keys/components/api-keys-section.tsx:153  toast.success(`"${apiKey.name}" revoked.`)
+features/api-keys/components/api-keys-section.tsx:155  toast.error(Couldn't revoke the key.)
+features/api-keys/components/api-keys-section.tsx:164  toast.success(`"${apiKey.name}" rotated — the old key stopped working immediately.`)
+features/api-keys/components/api-keys-section.tsx:167  toast.error(Couldn't rotate the key.)
+features/api-keys/components/api-keys-section.tsx:177  Revoked
+features/api-keys/components/api-keys-section.tsx:179  Expired
+features/api-keys/components/api-keys-section.tsx:181  Active
+features/api-keys/components/api-keys-section.tsx:191  Rotate
+features/api-keys/components/api-keys-section.tsx:195  Revoke
+features/api-keys/components/api-keys-section.tsx:204  Revoke &quot;
+features/api-keys/components/api-keys-section.tsx:206  Anything using this key will immediately stop working. This can&apos;t be undone.
+features/api-keys/components/api-keys-section.tsx:210  Keep key
+features/api-keys/components/api-keys-section.tsx:215  Revoke
+features/api-keys/components/api-keys-section.tsx:240  Loading your API keys…
+features/api-keys/components/api-keys-section.tsx:250  Couldn&apos;t load your API keys. Try refreshing the page.
+features/api-keys/components/api-keys-section.tsx:260  API keys
+features/api-keys/components/api-keys-section.tsx:261  Personal keys for the CLI, SDKs, and automation. Revoked keys stop working immediately.
+features/api-keys/components/api-keys-section.tsx:264  New key
+features/api-keys/components/api-keys-section.tsx:271  title="No API keys yet"
+features/api-keys/components/api-keys-section.tsx:275  Create your first key
+features/api-keys/components/api-keys-section.tsx:283  Name
+features/api-keys/components/api-keys-section.tsx:284  Prefix
+features/api-keys/components/api-keys-section.tsx:285  Status
+features/api-keys/components/api-keys-section.tsx:286  Last used
+features/api-keys/components/api-keys-section.tsx:287  Expires
+features/api-keys/components/api-keys-section.tsx:288  Actions
+features/attachments/components/attachments-panel.tsx:30  toast.success(File attached)
+features/attachments/components/attachments-panel.tsx:32  toast.error(Upload failed. Please try again.)
+features/attachments/components/attachments-panel.tsx:39  Attachments
+features/attachments/components/attachments-panel.tsx:51  Upload file
+features/attachments/components/attachments-panel.tsx:57  title="No attachments"
+features/attachments/components/attachments-panel.tsx:66  title="Download"
+features/attachments/components/attachments-panel.tsx:78  toast.error(Couldn't delete attachment.)
+features/auth/components/forgot-password-form.tsx:44  Check your email
+features/auth/components/forgot-password-form.tsx:46  If an account exists for that address, a reset link is on its way.
+features/auth/components/forgot-password-form.tsx:51  Back to sign in
+features/auth/components/forgot-password-form.tsx:61  Forgot password
+features/auth/components/forgot-password-form.tsx:62  We&apos;ll email you a link to reset it.
+features/auth/components/forgot-password-form.tsx:67  Email
+features/auth/components/forgot-password-form.tsx:75  Send reset link
+features/auth/components/forgot-password-form.tsx:78  Back to sign in
+features/auth/components/login-form.tsx:71  toast.error(Something went wrong. Please try again.)
+features/auth/components/login-form.tsx:91  toast.error(Demo mode isn't available on this deployment.)
+features/auth/components/login-form.tsx:93  toast.error(Couldn't start a demo session. Please try again.)
+features/auth/components/login-form.tsx:103  Sign in
+features/auth/components/login-form.tsx:104  Welcome back. Sign in to your workspace.
+features/auth/components/login-form.tsx:109  Email
+features/auth/components/login-form.tsx:117  Password
+features/auth/components/login-form.tsx:119  Forgot password?
+features/auth/components/login-form.tsx:135  Remember me
+features/auth/components/login-form.tsx:140  Sign in
+features/auth/components/login-form.tsx:146  Try the demo — no account needed
+features/auth/components/login-form.tsx:149  Don&apos;t have an account?
+features/auth/components/login-form.tsx:151  Create one
+features/auth/components/mfa-challenge-form.tsx:53  toast.error(This challenge expired. Please sign in again.)
+features/auth/components/mfa-challenge-form.tsx:57  toast.error(Invalid code. Please try again.)
+features/auth/components/mfa-challenge-form.tsx:68  Two-factor authentication
+features/auth/components/mfa-challenge-form.tsx:69  Enter the 6-digit code from your authenticator app, or a backup code.
+features/auth/components/mfa-challenge-form.tsx:75  Code
+features/auth/components/mfa-challenge-form.tsx:92  Verify
+features/auth/components/oauth-buttons.tsx:11  Or continue with
+features/auth/components/oauth-callback-handler.tsx:39  Sign-in failed
+features/auth/components/oauth-callback-handler.tsx:40  We couldn&apos;t complete the OAuth sign-in.
+features/auth/components/oauth-callback-handler.tsx:44  Back to sign in
+features/auth/components/oauth-callback-handler.tsx:55  Signing you in…
+features/auth/components/register-form.tsx:48  toast.error(An account with this email already exists.)
+features/auth/components/register-form.tsx:52  toast.error(Something went wrong. Please try again.)
+features/auth/components/register-form.tsx:64  Check your email
+features/auth/components/register-form.tsx:66  We sent a verification link to
+features/auth/components/register-form.tsx:71  Back to sign in
+features/auth/components/register-form.tsx:81  Create your account
+features/auth/components/register-form.tsx:82  Start your personal workspace in seconds.
+features/auth/components/register-form.tsx:87  Name
+features/auth/components/register-form.tsx:94  Email
+features/auth/components/register-form.tsx:101  Password
+features/auth/components/register-form.tsx:113  Confirm password
+features/auth/components/register-form.tsx:129  Create account
+features/auth/components/register-form.tsx:134  Already have an account?
+features/auth/components/register-form.tsx:136  Sign in
+features/auth/components/reset-password-form.tsx:31  toast.error(Missing or invalid reset link.)
+features/auth/components/reset-password-form.tsx:40  toast.error(This reset link has expired. Request a new one.)
+features/auth/components/reset-password-form.tsx:42  toast.error(Something went wrong. Please try again.)
+features/auth/components/reset-password-form.tsx:54  Password reset
+features/auth/components/reset-password-form.tsx:55  All other sessions have been signed out for your security.
+features/auth/components/reset-password-form.tsx:59  Sign in
+features/auth/components/reset-password-form.tsx:69  Reset your password
+features/auth/components/reset-password-form.tsx:70  Choose a new password for your account.
+features/auth/components/reset-password-form.tsx:75  New password
+features/auth/components/reset-password-form.tsx:87  Confirm new password
+features/auth/components/reset-password-form.tsx:102  Reset password
+features/auth/components/reset-password-form.tsx:105  Back to sign in
+features/auth/components/verify-email-status.tsx:47  Continue to sign in
+features/auth/validators/auth.schemas.ts:18  obj.message: "Passwords don't match."
+features/auth/validators/auth.schemas.ts:34  obj.message: "Passwords don't match."
+features/billing/components/billing-summary-section.tsx:43  obj.label: "Trial"
+features/billing/components/billing-summary-section.tsx:44  obj.label: "Active"
+features/billing/components/billing-summary-section.tsx:45  obj.label: "Past due"
+features/billing/components/billing-summary-section.tsx:46  obj.label: "Canceled"
+features/billing/components/billing-summary-section.tsx:47  obj.label: "Expired"
+features/billing/components/billing-summary-section.tsx:48  obj.label: "No subscription"
+features/billing/components/billing-summary-section.tsx:74  Loading your organizations…
+features/billing/components/billing-summary-section.tsx:84  Couldn&apos;t load your organizations. Try refreshing the page.
+features/billing/components/billing-summary-section.tsx:96  Loading billing summary…
+features/billing/components/billing-summary-section.tsx:106  Couldn&apos;t load billing information for
+features/billing/components/billing-summary-section.tsx:106  . You may not have access, or the request failed — try refreshing the page.
+features/billing/components/billing-summary-section.tsx:119  toast.success(Subscription will cancel at the end of the current period.)
+features/billing/components/billing-summary-section.tsx:121  toast.error(Couldn't cancel the subscription.)
+features/billing/components/billing-summary-section.tsx:130  toast.success(Subscription reactivated.)
+features/billing/components/billing-summary-section.tsx:132  toast.error(Couldn't reactivate the subscription.)
+features/billing/components/billing-summary-section.tsx:154  Your last payment failed. Some features may be restricted until this is resolved.
+features/billing/components/billing-summary-section.tsx:162  Plan
+features/billing/components/billing-summary-section.tsx:166  Current period
+features/billing/components/billing-summary-section.tsx:172  Price
+features/billing/components/billing-summary-section.tsx:183  This subscription is set to cancel on
+features/billing/components/billing-summary-section.tsx:189  Change plan
+features/billing/components/billing-summary-section.tsx:194  Undo cancellation
+features/billing/components/billing-summary-section.tsx:200  Cancel subscription
+features/billing/components/billing-summary-section.tsx:211  Payment methods
+features/billing/components/billing-summary-section.tsx:229  Default
+features/billing/components/billing-summary-section.tsx:240  Invoices
+features/billing/components/billing-summary-section.tsx:245  No invoices yet.
+features/billing/components/billing-summary-section.tsx:276  View
+features/billing/components/billing-summary-section.tsx:291  Cancel subscription?
+features/billing/components/billing-summary-section.tsx:293  will stay on the
+features/billing/components/billing-summary-section.tsx:293  plan until
+features/billing/components/billing-summary-section.tsx:294  , then revert to the free plan.
+features/billing/components/billing-summary-section.tsx:298  Keep subscription
+features/billing/components/billing-summary-section.tsx:303  Cancel subscription
+features/billing/components/no-organization-state.tsx:16  No organization yet
+features/billing/components/no-organization-state.tsx:18  Billing, plans, and usage limits are managed at the organization level. You&apos;re currently using PentestHub
+features/billing/components/plan-picker-section.tsx:51  toast.success(`Switched to the ${session.subscription.plan.name} plan.`)
+features/billing/components/plan-picker-section.tsx:54  toast.error(Only an organization admin can change the plan.)
+features/billing/components/plan-picker-section.tsx:56  toast.error(Couldn't change the plan. Try again.)
+features/billing/components/plan-picker-section.tsx:66  Loading plans…
+features/billing/components/plan-picker-section.tsx:89  Current plan
+features/billing/components/plan-picker-section.tsx:97  Standard platform features
+features/billing/components/plan-picker-section.tsx:123  No plans are configured yet.
+features/billing/components/usage-summary-section.tsx:34  Loading your organizations…
+features/billing/components/usage-summary-section.tsx:44  Loading usage…
+features/billing/components/usage-summary-section.tsx:50  Couldn&apos;t load usage data.
+features/billing/components/usage-summary-section.tsx:61  No metered usage recorded for this billing period yet.
+features/billing/components/usage-summary-section.tsx:86  Limit reached
+features/billing/components/usage-summary-section.tsx:88  Near limit
+features/evidence/components/evidence-form.tsx:33  Type
+features/evidence/components/evidence-form.tsx:48  Title
+features/evidence/components/evidence-form.tsx:55  Description (optional)
+features/exposure/components/remediation-tasks-table.tsx:36  title="No remediation tasks yet"
+features/exposure/components/remediation-tasks-table.tsx:46  Task
+features/exposure/components/remediation-tasks-table.tsx:47  Priority
+features/exposure/components/remediation-tasks-table.tsx:48  Status
+features/exposure/components/remediation-tasks-table.tsx:49  Owner
+features/exposure/components/remediation-tasks-table.tsx:50  Due
+features/exposure/components/security-metrics-trend-table.tsx:27  title="No trend data yet"
+features/exposure/components/security-metrics-trend-table.tsx:37  Week
+features/exposure/components/security-metrics-trend-table.tsx:38  Incidents resolved
+features/exposure/components/security-metrics-trend-table.tsx:39  MTTR (incident)
+features/exposure/components/security-metrics-trend-table.tsx:40  SLA compliance
+features/intel/components/create-indicator-dialog.tsx:60  toast.success(Indicator added)
+features/intel/components/create-indicator-dialog.tsx:67  toast.error(Couldn't add this indicator.)
+features/intel/components/create-indicator-dialog.tsx:75  Add indicator
+features/intel/components/create-indicator-dialog.tsx:80  Add indicator
+features/intel/components/create-indicator-dialog.tsx:82  Manually add a private indicator to this workspace. Treated as unverified data — confidence and source are sho
+features/intel/components/create-indicator-dialog.tsx:89  Type
+features/intel/components/create-indicator-dialog.tsx:104  Value
+features/intel/components/create-indicator-dialog.tsx:109  placeholder="e.g. 203.0.113.5, evil.example.com, 44d88612fea8a8f36de82e1278abb02f"
+features/intel/components/create-indicator-dialog.tsx:114  Description
+features/intel/components/create-indicator-dialog.tsx:124  Tags (comma-separated)
+features/intel/components/create-indicator-dialog.tsx:129  placeholder="e.g. ransomware, c2"
+features/intel/components/create-indicator-dialog.tsx:138  Add indicator
+features/intel/components/indicator-status-select.tsx:27  toast.success(`Marked as ${STATUS_LABEL[next as IndicatorStatus]}`)
+features/intel/components/indicator-status-select.tsx:29  toast.error(Couldn't update this indicator's status.)
+features/intel/components/indicators-table.tsx:30  title="No indicators yet"
+features/intel/components/indicators-table.tsx:40  Value
+features/intel/components/indicators-table.tsx:41  Type
+features/intel/components/indicators-table.tsx:42  Confidence
+features/intel/components/indicators-table.tsx:43  Source
+features/intel/components/indicators-table.tsx:44  Last seen
+features/intel/components/indicators-table.tsx:45  Status
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:22  title="No reference entries found"
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:30  Framework
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:31  Code
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:32  Title
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:33  Summary
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:34  Relevance
+features/knowledge-base-reference/components/knowledge-base-reference-list.tsx:64  Source
+features/marketing/attack-path-graph.tsx:18  obj.label: "example.com"
+features/marketing/attack-path-graph.tsx:19  obj.label: "api.example.com"
+features/marketing/attack-path-graph.tsx:20  obj.label: "app.example.com"
+features/marketing/attack-path-graph.tsx:21  obj.label: "SQLi"
+features/marketing/hero-terminal.tsx:23  obj.text: "phai scan example.com"
+features/marketing/hero-terminal.tsx:24  obj.text: "landing.terminal.subdomains"
+features/marketing/hero-terminal.tsx:25  obj.text: "landing.terminal.ports"
+features/marketing/hero-terminal.tsx:26  obj.text: "landing.terminal.sqli"
+features/marketing/hero-terminal.tsx:27  obj.text: "landing.terminal.jwt"
+features/marketing/hero-terminal.tsx:28  obj.text: "landing.terminal.chain"
+features/marketing/hero-terminal.tsx:29  obj.text: "landing.terminal.done"
+features/marketing/hero-terminal.tsx:112  phai — scan
+features/marketing/landing-page.tsx:194  Muhammad Sobirov
+features/notes/components/note-editor.tsx:49  placeholder="Untitled note"
+features/notes/components/note-editor.tsx:67  placeholder="Write in markdown… supports tables, checklists, code blocks, and links."
+features/notes/components/note-editor.tsx:84  Saving…
+features/notes/components/note-editor.tsx:91  Saved
+features/onboarding/onboarding-flow.tsx:41  obj.title: "Welcome to PentestHub AI"
+features/onboarding/onboarding-flow.tsx:48  obj.title: "Create your first project"
+features/onboarding/onboarding-flow.tsx:49  obj.description: "Projects group targets, findings, notes, and evidence for one engagement or program."
+features/onboarding/onboarding-flow.tsx:50  obj.label: "New project"
+features/onboarding/onboarding-flow.tsx:54  obj.title: "Run recon, or ask the AI Copilot"
+features/onboarding/onboarding-flow.tsx:55  obj.description: "Kick off a recon job against a target, or describe a goal in plain language and let the Agen
+features/onboarding/onboarding-flow.tsx:57  obj.label: "Open AI Assistant"
+features/onboarding/onboarding-flow.tsx:61  obj.title: "Know where to find help"
+features/onboarding/onboarding-flow.tsx:62  obj.description: "Every module has a guide — architecture decisions, security reviews, release notes."
+features/onboarding/onboarding-flow.tsx:63  obj.label: "Browse documentation"
+features/onboarding/onboarding-flow.tsx:114  Skip
+features/onboarding/onboarding-flow.tsx:127  Next
+features/organizations/components/organization-switcher.tsx:31  aria-label="Switch organization"
+features/projects/components/project-actions-menu.tsx:39  toast.error(Something went wrong.)
+features/projects/components/project-actions-menu.tsx:46  toast.success(Project deleted)
+features/projects/components/project-actions-menu.tsx:49  toast.error(Something went wrong.)
+features/projects/components/project-actions-menu.tsx:57  aria-label="Project actions"
+features/projects/components/project-actions-menu.tsx:63  Edit
+features/projects/components/project-actions-menu.tsx:68  Unarchive
+features/projects/components/project-actions-menu.tsx:72  Archive
+features/projects/components/project-actions-menu.tsx:78  Delete
+features/projects/components/project-actions-menu.tsx:86  Delete &ldquo;
+features/projects/components/project-actions-menu.tsx:88  This soft-deletes the project — it can be restored later from the API, but won&apos;t appear in your project l
+features/projects/components/project-actions-menu.tsx:93  Cancel
+features/projects/components/project-actions-menu.tsx:98  Delete
+features/projects/components/project-form.tsx:56  Name
+features/projects/components/project-form.tsx:63  Description
+features/projects/components/project-form.tsx:74  Status
+features/projects/components/project-table.tsx:28  Favorite
+features/projects/components/project-table.tsx:30  Name
+features/projects/components/project-table.tsx:31  Status
+features/projects/components/project-table.tsx:32  Tags
+features/projects/components/project-table.tsx:33  Created
+features/recon/components/create-recon-job-dialog.tsx:37  toast.success(`Recon job started (${tools.length} tool${tools.length === 1 ? "" : "s"})`)
+features/recon/components/create-recon-job-dialog.tsx:50  New scan
+features/recon/components/create-recon-job-dialog.tsx:55  Start a recon scan
+features/recon/components/create-recon-job-dialog.tsx:57  Choose which tools to run against this target. Every scan runs asynchronously — you can close this dialog and 
+features/recon/components/create-recon-job-dialog.tsx:70  Start scan (
+features/recon/components/recon-findings-table.tsx:63  toast.success(`Promoted "${finding.value}" to a target`)
+features/recon/components/recon-findings-table.tsx:65  toast.error(Couldn't promote this finding.)
+features/recon/components/recon-findings-table.tsx:75  title="No findings yet"
+features/recon/components/recon-findings-table.tsx:89  All types (
+features/recon/components/recon-findings-table.tsx:102  Type
+features/recon/components/recon-findings-table.tsx:103  Value
+features/recon/components/recon-findings-table.tsx:104  Source
+features/recon/components/recon-findings-table.tsx:105  Last seen
+features/recon/components/recon-findings-table.tsx:127  Promoted
+features/recon/components/recon-findings-table.tsx:136  Promote
+features/recon/components/recon-job-list.tsx:24  title="No recon jobs yet"
+features/recon/components/recon-job-list.tsx:31  Status
+features/recon/components/recon-job-list.tsx:32  Tools
+features/recon/components/recon-job-list.tsx:33  Target
+features/recon/components/recon-job-list.tsx:34  Findings
+features/recon/components/recon-job-list.tsx:35  Started
+features/recon/components/recon-job-list.tsx:48  tool
+features/recon/components/recon-job-progress.tsx:28  findings
+features/recon/components/recon-live-log-panel.tsx:31  Live log
+features/security-reports/components/generate-report-dialog.tsx:48  toast.success(Report generated)
+features/security-reports/components/generate-report-dialog.tsx:52  toast.error(Couldn't generate this report.)
+features/security-reports/components/generate-report-dialog.tsx:60  Generate report
+features/security-reports/components/generate-report-dialog.tsx:65  Generate security report
+features/security-reports/components/generate-report-dialog.tsx:67  Composes a point-in-time snapshot from current incidents, threat intel, and security metrics.
+features/security-reports/components/generate-report-dialog.tsx:73  Report type
+features/security-reports/components/generate-report-dialog.tsx:88  Title (optional)
+features/security-reports/components/generate-report-dialog.tsx:92  Window (days)
+features/security-reports/components/generate-report-dialog.tsx:108  Generate
+features/security-reports/components/security-reports-table.tsx:19  title="No reports yet"
+features/security-reports/components/security-reports-table.tsx:29  Title
+features/security-reports/components/security-reports-table.tsx:30  Type
+features/security-reports/components/security-reports-table.tsx:31  Period
+features/security-reports/components/security-reports-table.tsx:32  Generated
+features/settings/components/change-password-form.tsx:23  obj.message: "Passwords don't match."
+features/settings/components/change-password-form.tsx:42  toast.success(Password changed)
+features/settings/components/change-password-form.tsx:46  toast.error(Current password is incorrect.)
+features/settings/components/change-password-form.tsx:48  toast.error(Couldn't change password. Please try again.)
+features/settings/components/change-password-form.tsx:58  Password
+features/settings/components/change-password-form.tsx:59  Change your password. You&apos;ll stay signed in on this device.
+features/settings/components/change-password-form.tsx:64  Current password
+features/settings/components/change-password-form.tsx:71  New password
+features/settings/components/change-password-form.tsx:78  Confirm new password
+features/settings/components/change-password-form.tsx:86  Change password
+features/settings/components/mfa-section.tsx:41  toast.error(Couldn't start MFA setup.)
+features/settings/components/mfa-section.tsx:53  toast.success(Two-factor authentication enabled)
+features/settings/components/mfa-section.tsx:55  toast.error(Invalid code. Please try again.)
+features/settings/components/mfa-section.tsx:68  toast.success(Two-factor authentication disabled)
+features/settings/components/mfa-section.tsx:70  toast.error(Invalid code or password. Please try again.)
+features/settings/components/mfa-section.tsx:79  Two-factor authentication
+features/settings/components/mfa-section.tsx:80  Add an authenticator app as a second sign-in factor.
+features/settings/components/mfa-section.tsx:88  Enabled
+features/settings/components/mfa-section.tsx:92  Not enabled
+features/settings/components/mfa-section.tsx:98  Disable
+features/settings/components/mfa-section.tsx:103  Enable
+features/settings/components/mfa-section.tsx:112  Scan this QR code with your authenticator app, then enter the 6-digit code.
+features/settings/components/mfa-section.tsx:116  alt="MFA QR code"
+features/settings/components/mfa-section.tsx:125  Code
+features/settings/components/mfa-section.tsx:136  Confirm
+features/settings/components/mfa-section.tsx:140  Cancel
+features/settings/components/mfa-section.tsx:148  Current password
+features/settings/components/mfa-section.tsx:159  Enter a code to disable
+features/settings/components/mfa-section.tsx:164  placeholder="123456 or backup code"
+features/settings/components/mfa-section.tsx:173  Disable
+features/settings/components/mfa-section.tsx:183  Save your backup codes
+features/settings/components/mfa-section.tsx:185  Store these somewhere safe. Each code can be used once if you lose access to your authenticator app. They won&
+features/settings/components/mfa-section.tsx:193  Done
+features/soc/components/incidents-table.tsx:20  title="No incidents"
+features/soc/components/incidents-table.tsx:30  Title
+features/soc/components/incidents-table.tsx:31  Severity
+features/soc/components/incidents-table.tsx:32  Status
+features/soc/components/incidents-table.tsx:33  Assignee
+features/soc/components/incidents-table.tsx:34  Opened
+features/system/components/update-available-banner.tsx:22  A new version of PentestHub AI is available.
+features/system/components/update-available-banner.tsx:30  Refresh
+features/system/components/update-available-banner.tsx:34  aria-label="Dismiss"
+features/targets/components/target-actions-menu.tsx:35  toast.success(Target deleted)
+features/targets/components/target-actions-menu.tsx:38  toast.error(Something went wrong.)
+features/targets/components/target-actions-menu.tsx:46  aria-label="Target actions"
+features/targets/components/target-actions-menu.tsx:52  Edit
+features/targets/components/target-actions-menu.tsx:55  Delete
+features/targets/components/target-actions-menu.tsx:63  Delete this target?
+features/targets/components/target-actions-menu.tsx:65  &rdquo; will be removed from the project&apos;s target list.
+features/targets/components/target-actions-menu.tsx:69  Cancel
+features/targets/components/target-actions-menu.tsx:74  Delete
+features/targets/components/target-form.tsx:67  Type
+features/targets/components/target-form.tsx:82  Value
+features/targets/components/target-form.tsx:89  Name (optional)
+features/targets/components/target-form.tsx:94  Environment
+features/targets/components/target-form.tsx:112  Scope
+features/targets/components/target-form.tsx:131  Description (optional)
+features/vuln/components/create-vuln-scan-job-dialog.tsx:40  toast.success(`Vulnerability scan started (${scanners.length} scanner${scanners.length === 1 ? "" : "s"})`)
+features/vuln/components/create-vuln-scan-job-dialog.tsx:54  New scan
+features/vuln/components/create-vuln-scan-job-dialog.tsx:59  Start a vulnerability scan
+features/vuln/components/create-vuln-scan-job-dialog.tsx:61  Choose which scanners to run against this target. Every scan runs asynchronously — you can close this dialog a
+features/vuln/components/create-vuln-scan-job-dialog.tsx:70  Priority (0–100, higher runs first)
+features/vuln/components/create-vuln-scan-job-dialog.tsx:89  Start scan (
+features/vuln/components/create-vuln-scan-template-dialog.tsx:47  toast.success(Template created)
+features/vuln/components/create-vuln-scan-template-dialog.tsx:53  toast.error(Couldn't create this template.)
+features/vuln/components/create-vuln-scan-template-dialog.tsx:61  New template
+features/vuln/components/create-vuln-scan-template-dialog.tsx:66  New scan template
+features/vuln/components/create-vuln-scan-template-dialog.tsx:68  Save a reusable scanner selection you can apply to any target&apos;s scans.
+features/vuln/components/create-vuln-scan-template-dialog.tsx:74  Name
+features/vuln/components/create-vuln-scan-template-dialog.tsx:78  Description
+features/vuln/components/create-vuln-scan-template-dialog.tsx:88  Scanners
+features/vuln/components/create-vuln-scan-template-dialog.tsx:109  Create template
+features/vuln/components/vuln-finding-evidence-panel.tsx:9  obj.label: "HTTP request"
+features/vuln/components/vuln-finding-evidence-panel.tsx:10  obj.label: "HTTP response"
+features/vuln/components/vuln-finding-evidence-panel.tsx:11  obj.label: "Command"
+features/vuln/components/vuln-finding-evidence-panel.tsx:12  obj.label: "Payload"
+features/vuln/components/vuln-finding-evidence-panel.tsx:13  obj.label: "Raw scanner output"
+features/vuln/components/vuln-finding-evidence-panel.tsx:14  obj.label: "Screenshot"
+features/vuln/components/vuln-finding-evidence-panel.tsx:27  No evidence attached to this finding.
+features/vuln/components/vuln-finding-status-select.tsx:32  toast.success(`Marked as ${STATUS_LABEL[next as VulnFindingStatus]}`)
+features/vuln/components/vuln-finding-status-select.tsx:34  toast.error(Couldn't update this finding's status.)
+features/vuln/components/vuln-findings-table.tsx:101  toast.success(`Updated ${selected.size} finding${selected.size === 1 ? "" : "s"} to ${STATUS_LABEL[status]}`)
+features/vuln/components/vuln-findings-table.tsx:104  toast.error(Couldn't update the selected findings.)
+features/vuln/components/vuln-findings-table.tsx:111  title="No findings"
+features/vuln/components/vuln-findings-table.tsx:121  selected
+features/vuln/components/vuln-findings-table.tsx:121  (Esc to clear)
+features/vuln/components/vuln-findings-table.tsx:127  Set status…
+features/vuln/components/vuln-findings-table.tsx:149  Severity
+features/vuln/components/vuln-findings-table.tsx:150  Title
+features/vuln/components/vuln-findings-table.tsx:151  Scanner
+features/vuln/components/vuln-findings-table.tsx:152  Target
+features/vuln/components/vuln-findings-table.tsx:153  Status
+features/vuln/components/vuln-findings-table.tsx:154  Last seen
+features/vuln/components/vuln-live-log-panel.tsx:31  Live log
+features/vuln/components/vuln-scan-job-list.tsx:24  title="No scan jobs yet"
+features/vuln/components/vuln-scan-job-list.tsx:31  Status
+features/vuln/components/vuln-scan-job-list.tsx:32  Scanners
+features/vuln/components/vuln-scan-job-list.tsx:33  Target
+features/vuln/components/vuln-scan-job-list.tsx:34  Priority
+features/vuln/components/vuln-scan-job-list.tsx:35  Findings
+features/vuln/components/vuln-scan-job-list.tsx:36  Started
+features/vuln/components/vuln-scan-job-list.tsx:49  scanner
+features/vuln/components/vuln-scan-job-progress.tsx:28  findings
+features/vuln/components/vuln-scan-templates-list.tsx:25  toast.success(Template deleted)
+features/vuln/components/vuln-scan-templates-list.tsx:27  toast.error(Couldn't delete this template.)
+features/vuln/components/vuln-scan-templates-list.tsx:37  title="No scan templates yet"
+features/vuln/components/vuln-scan-templates-list.tsx:59  aria-label="Delete template"
+features/vuln/components/vuln-scanner-status-list.tsx:25  title="No scanner activity yet"
+features/vuln/components/vuln-scanner-status-list.tsx:38  run
+features/vuln/components/vuln-scanner-status-list.tsx:50  findings
+features/workspace/components/demo-banner.tsx:23  You&apos;re exploring a demo workspace with sample data — new scans are disabled.
+features/workspace/components/demo-banner.tsx:25  Create a free account
+features/workspace/components/demo-banner.tsx:27  to run real ones.
+components/common/error-state.tsx:26  Try again
+components/common/project-picker.tsx:36  title="No projects yet"
+components/layout/nav-config.ts:43  obj.label: "Dashboard"
+components/layout/nav-config.ts:44  obj.label: "Workspace"
+components/layout/nav-config.ts:45  obj.label: "Projects"
+components/layout/nav-config.ts:46  obj.label: "Targets"
+components/layout/nav-config.ts:47  obj.label: "Notes"
+components/layout/nav-config.ts:48  obj.label: "Evidence"
+components/layout/nav-config.ts:49  obj.label: "Recon"
+components/layout/nav-config.ts:50  obj.label: "Vulnerabilities"
+components/layout/nav-config.ts:51  obj.label: "Bug Bounty"
+components/layout/nav-config.ts:55  obj.label: "Executive Security"
+components/layout/nav-config.ts:58  obj.label: "Exposure Management"
+components/layout/nav-config.ts:63  obj.label: "Threat Intelligence"
+components/layout/nav-config.ts:67  obj.label: "Security Reports"
+components/layout/nav-config.ts:71  obj.label: "Research Sessions"
+components/layout/nav-config.ts:75  obj.label: "Terminal"
+components/layout/nav-config.ts:77  obj.label: "Playbooks"
+components/layout/nav-config.ts:78  obj.label: "AI Assistant"
+components/layout/nav-config.ts:84  obj.label: "Agent Copilot"
+components/layout/nav-config.ts:85  obj.label: "Knowledge Base"
+components/layout/nav-config.ts:86  obj.label: "Activity"
+components/layout/nav-config.ts:89  obj.label: "Pricing"
+components/layout/nav-config.ts:93  obj.label: "Admin"
+components/layout/nav-config.ts:97  obj.label: "Documentation"
+components/layout/nav-config.ts:101  obj.label: "CVE Center"
+components/layout/nav-config.ts:105  obj.label: "Settings"
+components/ui/dialog.tsx:42  Close

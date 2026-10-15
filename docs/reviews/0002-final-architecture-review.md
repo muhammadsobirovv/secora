@@ -1,4 +1,4 @@
-# Final Architecture Review — PentestHub AI, Modules 1-10
+# Final Architecture Review — Secora AI, Modules 1-10
 
 Reviewer stance: Staff Architect, end-of-program gate after Module 10
 (Enterprise Platform + SaaS + Global Infrastructure). Scope: the whole

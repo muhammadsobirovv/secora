@@ -75,7 +75,7 @@ export class NotificationDispatcherService {
   }
 
   async testChannel(config: NotificationChannelConfig): Promise<DeliveryResult> {
-    return this.deliverToChannel(config, 'PentestHub AI — test notification', 'This confirms the channel is configured correctly.');
+    return this.deliverToChannel(config, 'Secora AI — test notification', 'This confirms the channel is configured correctly.');
   }
 
   private async deliverToChannel(config: NotificationChannelConfig, title: string, body: string | null): Promise<DeliveryResult> {

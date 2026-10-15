@@ -140,7 +140,7 @@ export class MsTeamsAdapter implements IntegrationAdapter {
       const response = await fetch(credentials, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ '@type': 'MessageCard', '@context': 'http://schema.org/extensions', text: 'PentestHub AI connection test' }),
+        body: JSON.stringify({ '@type': 'MessageCard', '@context': 'http://schema.org/extensions', text: 'Secora AI connection test' }),
       });
       const text = await response.text();
       if (response.status >= 300) return { ok: false, message: `Teams webhook test failed (${response.status}): ${text}` };

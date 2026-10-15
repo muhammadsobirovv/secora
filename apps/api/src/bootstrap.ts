@@ -179,7 +179,7 @@ export function configureApp(app: INestApplication): void {
 
 export function setupSwagger(app: INestApplication): void {
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('PentestHub AI API')
+    .setTitle('Secora AI API')
     .setDescription('Module 1 — Auth. See docs/modules/01-auth.md')
     .setVersion('1.0')
     .addBearerAuth()

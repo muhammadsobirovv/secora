@@ -1,7 +1,7 @@
 {
   "name": "@pentesthub/cli",
   "version": "1.0.0",
-  "description": "Official command-line interface for PentestHub AI — MCP tools, Agent SDK runs, Script Engine, and the AI automation platform dashboard.",
+  "description": "Official command-line interface for Secora AI — MCP tools, Agent SDK runs, Script Engine, and the AI automation platform dashboard.",
   "license": "UNLICENSED",
   "private": false,
   "type": "module",

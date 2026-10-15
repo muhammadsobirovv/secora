@@ -24,7 +24,7 @@ principle already established for `apps/web`'s React Query config.
 **Self-correction during this phase**: an earlier version of this same
 phase's work wrote a doc comment on `onTokenRefreshed` calling it
 "unwired dead code." That was wrong. Tracing `client.ts` shows
-`PentestHubClient`'s constructor *does* wire it — it's passed into
+`SecoraClient`'s constructor *does* wire it — it's passed into
 `AuthResource` as the `onLoginSuccess` callback, which fires on both
 `auth.login()` and `auth.refresh()`. The comment has been corrected in
 place. The real, narrower gap: there is no *automatic* refresh-on-401
@@ -39,14 +39,14 @@ here rather than attempted blind.
 ## CLI (`packages/cli`)
 
 Confirmed `http.ts`'s `buildHttpClient()` constructs the SDK's
-`HttpClient` directly (not `PentestHubClient` — the CLI talks to Module
-13 surfaces `PentestHubClient`'s five resource wrappers don't cover), so
+`HttpClient` directly (not `SecoraClient` — the CLI talks to Module
+13 surfaces `SecoraClient`'s five resource wrappers don't cover), so
 every CLI command **automatically inherits** the timeout/retry fix above
 with no CLI-side change needed.
 
 **Fixed**: `commands/version.ts`'s `updateCommand()` does its own direct
 `fetch()` against the npm registry (it doesn't go through `HttpClient`
-at all — it's not a PentestHub AI API call) and had the identical
+at all — it's not a Secora AI API call) and had the identical
 no-timeout gap the SDK fix above addresses. Added the same
 `AbortController`-based 10s timeout directly in that command.
 
@@ -60,7 +60,7 @@ CLI package and no command ever reads that field or calls
 to disk — can never fire from within the CLI regardless of the SDK-level
 finding above, because nothing in the CLI ever triggers a refresh in the
 first place. Net effect: once a CLI-issued access token expires, every
-subsequent command fails with a plain 401 `PentestHubApiError` (handled
+subsequent command fails with a plain 401 `SecoraApiError` (handled
 cleanly — see below — but not silently) and the user must run
 `pentesthub login` again by hand. This is a real, disclosed UX/reliability
 gap, not a crash or data-loss risk; building a real refresh flow into the
@@ -68,7 +68,7 @@ CLI is a behavior change this audit phase should not make unverified in
 a sandbox with no way to run the CLI against a live backend.
 
 **Verified solid, no changes**: `bin/pentesthub.ts`'s top-level
-`main().catch()` already distinguishes `PentestHubApiError` (prints
+`main().catch()` already distinguishes `SecoraApiError` (prints
 `code`+`message`) from any other thrown error, and sets
 `process.exitCode = 1` rather than forcibly calling `process.exit()`
 (which would risk truncating buffered stdout) — a correct, complete

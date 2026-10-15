@@ -1,4 +1,4 @@
-# PentestHub AI — Next.js web frontend (Module 10: Production
+# Secora AI — Next.js web frontend (Module 10: Production
 # Deployment). Build from the monorepo root:
 #
 #   docker build -f apps/web/Dockerfile -t pentesthub-web \

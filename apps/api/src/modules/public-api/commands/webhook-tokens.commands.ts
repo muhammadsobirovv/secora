@@ -42,7 +42,7 @@ export class CreateWebhookTokenHandler implements ICommandHandler<CreateWebhookT
     await assertSafeWebhookUrl(command.data.url);
 
     // HMAC signing secret — sent to the receiving endpoint only indirectly
-    // (as an `X-PentestHub-Signature` header computed from it, never in
+    // (as an `X-Secora-Signature` header computed from it, never in
     // the payload itself), same never-store-plaintext-secrets-if-avoidable
     // posture as the rest of this codebase, though here the secret must
     // remain retrievable (unlike a password) since it's needed on every
@@ -177,7 +177,7 @@ export class TestWebhookTokenHandler
     });
     const rawSecret = decryptCredential(webhook.secret, encryptionKey);
 
-    const body = JSON.stringify({ event: 'test', message: 'PentestHub AI webhook test delivery', sentAt: new Date().toISOString() });
+    const body = JSON.stringify({ event: 'test', message: 'Secora AI webhook test delivery', sentAt: new Date().toISOString() });
     const signature = createHmac('sha256', rawSecret).update(body).digest('hex');
 
     // Module 15 — task #344: re-check at send time, not just at creation
@@ -196,7 +196,7 @@ export class TestWebhookTokenHandler
     try {
       const response = await fetch(webhook.url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-PentestHub-Signature': signature },
+        headers: { 'Content-Type': 'application/json', 'X-Secora-Signature': signature },
         body,
         signal: AbortSignal.timeout(10_000),
       });

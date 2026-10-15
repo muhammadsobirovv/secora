@@ -2,8 +2,8 @@ import type { ApiErrorResponse, ApiSuccessResponse, AppErrorCode } from "@pentes
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-const REFRESH_TOKEN_KEY = "pentesthub_refresh_token";
-const SESSION_COOKIE_NAME = "pentesthub_session";
+const REFRESH_TOKEN_KEY = "secora_refresh_token";
+const SESSION_COOKIE_NAME = "secora_session";
 
 export class ApiError extends Error {
   constructor(

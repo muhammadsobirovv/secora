@@ -1,4 +1,4 @@
-# PentestHub AI — Prometheus scrape config (Module 14: Monitoring).
+# Secora AI — Prometheus scrape config (Module 14: Monitoring).
 #
 # Docker Compose path: mounted into the `prometheus` service by
 # docker-compose.monitoring.yml. Kubernetes path: not used directly —

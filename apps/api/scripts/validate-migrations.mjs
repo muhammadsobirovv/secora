@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PentestHub AI — Migration Validation (Module 14: Database support).
+// Secora AI — Migration Validation (Module 14: Database support).
 //
 // Two checks, run in order:
 //   1. `prisma validate` — schema.prisma is syntactically/referentially

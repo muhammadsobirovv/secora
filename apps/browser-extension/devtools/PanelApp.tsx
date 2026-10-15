@@ -54,7 +54,7 @@ export function PanelApp() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, flex: 1 }}>PentestHub AI</div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, flex: 1 }}>Secora AI</div>
         <Button size="sm" variant="outline" loading={loading} onClick={() => void refresh()}>
           <RefreshCw size={12} /> Refresh
         </Button>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Rollback Support (Module 14: Installer). Reverts to
+# Secora AI — Rollback Support (Module 14: Installer). Reverts to
 # the git ref recorded by the last upgrade.sh run and, if requested,
 # restores the pre-upgrade database backup that upgrade.sh took
 # automatically. This is deliberately a separate, explicit script

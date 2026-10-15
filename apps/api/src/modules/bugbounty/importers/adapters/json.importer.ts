@@ -66,7 +66,7 @@ interface JsonProgramShape {
 
 /// The "our own internal shape" importer — round-trips
 /// ImportProgramResultDto-adjacent JSON (e.g. an export from one
-/// PentestHub workspace re-imported into another) with light validation,
+/// Secora workspace re-imported into another) with light validation,
 /// rather than a platform-specific normalization like the other four
 /// adapters. Also the reasonable target format for any platform not on
 /// the named list (YesWeHack/Synack/Internal/Private/Custom) — export to

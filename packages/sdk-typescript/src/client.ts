@@ -16,12 +16,12 @@ import { RiskResource } from './resources/risk.resource.js';
 import { SlaResource } from './resources/sla.resource.js';
 import { ApiKeysResource } from './resources/api-keys.resource.js';
 
-/// The official PentestHub AI SDK entrypoint.
+/// The official Secora AI SDK entrypoint.
 ///
 /// ```ts
-/// import { PentestHubClient } from '@pentesthub/sdk';
+/// import { SecoraClient } from '@pentesthub/sdk';
 ///
-/// const client = new PentestHubClient({ baseUrl: 'https://api.your-company.com' });
+/// const client = new SecoraClient({ baseUrl: 'https://api.your-company.com' });
 /// await client.auth.login({ email, password });
 /// const orgs = await client.organizations.list();
 /// const jobs = await client.distributedJobs.list(orgs[0].id);
@@ -46,7 +46,7 @@ import { ApiKeysResource } from './resources/api-keys.resource.js';
 /// following the exact same pattern as `knowledge-graph.resource.ts`/
 /// `extensions.resource.ts`/`incidents.resource.ts`/
 /// `api-keys.resource.ts`.
-export class PentestHubClient {
+export class SecoraClient {
   private readonly http: HttpClient;
 
   readonly auth: AuthResource;

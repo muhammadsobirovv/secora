@@ -64,7 +64,7 @@ export function Composer({ onSend, disabled }: { onSend: (content: string, provi
     recognition.onresult = (event) => {
       let transcript = "";
       for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+        transcript += event.results[i]?.[0]?.transcript ?? "";
       }
       setValue(transcript);
     };

@@ -1,4 +1,4 @@
-# PentestHub AI — Grafana datasource provisioning (Module 14: Monitoring).
+# Secora AI — Grafana datasource provisioning (Module 14: Monitoring).
 # Auto-loaded by Grafana on startup (mounted at
 # /etc/grafana/provisioning/datasources/ — see docker-compose.monitoring.yml)
 # so a fresh Grafana container is already wired to the bundled Prometheus

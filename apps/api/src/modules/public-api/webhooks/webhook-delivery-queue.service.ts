@@ -33,7 +33,7 @@ type WebhookDeliveryWithToken = WebhookDelivery & { webhookToken: WebhookToken }
 /// attempts each minute — only the replica holding the
 /// "webhook-delivery-queue" lease actually runs `runTick()`; at-least-
 /// once delivery semantics with idempotent receivers (the
-/// `X-PentestHub-Delivery-Id` header lets a receiver dedupe) remain the
+/// `X-Secora-Delivery-Id` header lets a receiver dedupe) remain the
 /// right mental model regardless, since a lease can still fail over
 /// mid-delivery on a crashed replica.
 @Injectable()
@@ -128,9 +128,9 @@ export class WebhookDeliveryQueueService implements OnModuleInit, OnModuleDestro
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-PentestHub-Signature': signature,
-            'X-PentestHub-Event': delivery.event,
-            'X-PentestHub-Delivery-Id': delivery.id,
+            'X-Secora-Signature': signature,
+            'X-Secora-Event': delivery.event,
+            'X-Secora-Delivery-Id': delivery.id,
           },
           body,
           signal: AbortSignal.timeout(WebhookDeliveryQueueService.REQUEST_TIMEOUT_MS),

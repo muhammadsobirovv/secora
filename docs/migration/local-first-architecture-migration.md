@@ -15,7 +15,7 @@ Desktop Agent build plan).
 The backend becomes a thin, metadata-only coordination layer responsible
 only for: Authentication, User accounts, Workspace/Project/Target/Note
 metadata, Findings metadata, Activity timeline, Team collaboration, API
-keys (PentestHub's own), Preferences, Reports metadata, Sync, Notifications,
+keys (Secora's own), Preferences, Reports metadata, Sync, Notifications,
 RBAC, Audit logs. Everything computationally expensive — tool execution,
 AI inference, file storage, voice, RAG, report rendering — moves to a new
 **Desktop Agent** running on the user's machine. The web app remains a
@@ -68,7 +68,7 @@ adapters, the execution service, and the poller's *tool-invocation*
 responsibility move client-side. The Desktop Agent runs the actual
 binaries (bundled or user-installed) against user-supplied targets, and
 submits results to the backend as pre-normalized JSON. The **normalizer**
-(the logic that turns each tool's raw output into PentestHub's canonical
+(the logic that turns each tool's raw output into Secora's canonical
 `ReconResult` shape) is preserved but relocates conceptually to the
 boundary: it ships inside the Desktop Agent (so raw tool output never
 needs to leave the user's machine) and its schema contract lives in
@@ -134,7 +134,7 @@ This is the largest and most consequential migration.
   underlying LLM call each tool triggers must go through the same
   client-side provider abstraction as chat.
 - `api-keys` module (`modules/api-keys/`) is unrelated to this: it's
-  PentestHub's own programmatic-API-key foundation (scopes, hashing,
+  Secora's own programmatic-API-key foundation (scopes, hashing,
   revoke), not a place where users store their OpenAI/Anthropic keys.
   **No BYOK credential storage exists in this codebase today.**
 
@@ -144,7 +144,7 @@ providers; web app can also call cloud providers directly from the
 browser for users without the Desktop Agent installed, since those are
 plain HTTPS calls). User-supplied keys are stored locally (OS keychain
 via the Desktop Agent, or browser-side encrypted storage for the web-only
-path) and never transit through or get stored by the PentestHub backend.
+path) and never transit through or get stored by the Secora backend.
 RAG moves to a local vector store (SQLite+embeddings or LanceDB) inside
 the Desktop Agent, indexing the same categories of content
 (findings/notes/recon results) but entirely on-device. Voice moves to

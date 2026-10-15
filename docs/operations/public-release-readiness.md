@@ -1,4 +1,4 @@
-# PentestHub AI — Public Release Readiness Report
+# Secora AI — Public Release Readiness Report
 
 **Date:** 2026-09-09
 **Scope:** Requested by the project owner — verify readiness before (1) publishing the repository to GitHub and (2) running a live deployment. This report covers step 1 only; deployment is a separate step gated on the decisions below.

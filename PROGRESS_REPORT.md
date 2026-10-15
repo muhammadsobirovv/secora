@@ -1,4 +1,4 @@
-# PentestHub AI — Holat hisoboti
+# Secora AI — Holat hisoboti
 
 *Sana: 2026-07-12*
 

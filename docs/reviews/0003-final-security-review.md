@@ -1,4 +1,4 @@
-# Final Security Review — PentestHub AI, Modules 1-10
+# Final Security Review — Secora AI, Modules 1-10
 
 Reviewer stance: Staff Security Engineer, end-of-program gate after Module
 10. Scope: `apps/api` end-to-end (auth, RBAC/ABAC, the Public API, GraphQL,

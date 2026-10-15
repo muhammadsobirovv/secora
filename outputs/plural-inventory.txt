@@ -1,0 +1,29 @@
+# Count-based catalog strings (placeholder {count})
+# Key | en | uz | ru | noun agreement needed?
+
+dashboard.members  |  Members: {count}  |  A'zolar: {count}  |  Участников: {count}  |  yes (ru участник/участника/участников)
+recon.job.findingsTitle  |  Findings ({count})  |  Topilmalar ({count})  |  Находки ({count})  |  yes (en Finding/Findings; ru находка/находки/находок)
+recon.progress.findings  |  {count} findings  |  {count} ta topilma  |  находок: {count}  |  yes (en 1 finding; ru 1 находка/2 находки/5 находок)
+recon.findings.allTypes  |  All types ({count})  |  Barcha turlar ({count})  |  Все типы ({count})  |  no - number inside brackets/label
+recon.create.submit  |  Start scan ({count})  |  Skanerlashni boshlash ({count})  |  Запустить сканирование ({count})  |  no - number inside brackets/label
+recon.create.started  |  Recon job started ({count})  |  Razvedka ishi boshlandi ({count})  |  Задача разведки запущена ({count})  |  no - number inside brackets/label
+vuln.findings.count  |  Findings: {count}  |  Topilmalar: {count}  |  Находки: {count}  |  yes (en Finding/Findings; ru находка/находки/находок)
+vuln.bulk.selected  |  {count} selected  |  {count} ta tanlangan  |  выбрано: {count}  |  no - number inside brackets/label
+vuln.bulk.updated  |  Updated: {status} ({count})  |  Yangilandi: {status} ({count})  |  Обновлено: {status} ({count})  |  no - number inside brackets/label
+vuln.create.submit  |  Start scan ({count})  |  Skanerlashni boshlash ({count})  |  Запустить сканирование ({count})  |  no - number inside brackets/label
+vuln.create.started  |  Vulnerability scan started ({count})  |  Zaiflik skanerlash boshlandi ({count})  |  Сканирование уязвимостей запущено ({count})  |  no - number inside brackets/label
+vuln.scannerHistory.runs  |  Runs: {count}  |  Ishga tushirish: {count}  |  Запусков: {count}  |  yes (en Run/Runs; ru запуск/запуска/запусков)
+
+Call sites (files passing count):
+apps/web/app/(dashboard)/dashboard/page.tsx
+apps/web/app/(dashboard)/recon/jobs/[jobId]/page.tsx
+apps/web/app/(dashboard)/vuln/findings/page.tsx
+apps/web/app/(dashboard)/vuln/jobs/[jobId]/page.tsx
+apps/web/features/marketing/product-mocks.tsx
+apps/web/features/recon/components/create-recon-job-dialog.tsx
+apps/web/features/recon/components/recon-findings-table.tsx
+apps/web/features/recon/components/recon-job-progress.tsx
+apps/web/features/vuln/components/create-vuln-scan-job-dialog.tsx
+apps/web/features/vuln/components/vuln-findings-table.tsx
+apps/web/features/vuln/components/vuln-scan-job-progress.tsx
+apps/web/features/vuln/components/vuln-scanner-status-list.tsx

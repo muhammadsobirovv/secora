@@ -31,7 +31,7 @@ export default function GlobalErrorBoundary({
 
   async function handleCopy() {
     const details = [
-      `PentestHub AI — unhandled error`,
+      `Secora AI — unhandled error`,
       `Time: ${new Date().toISOString()}`,
       `Message: ${error.message}`,
       error.digest ? `Digest: ${error.digest}` : null,

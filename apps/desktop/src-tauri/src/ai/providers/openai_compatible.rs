@@ -162,7 +162,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             _ => req,
         };
         if matches!(self.flavor, Flavor::Openrouter) {
-            req = req.header("HTTP-Referer", "https://pentesthub.ai").header("X-Title", "PentestHub AI Desktop");
+            req = req.header("HTTP-Referer", "https://pentesthub.ai").header("X-Title", "Secora AI Desktop");
         }
 
         let response = req.send().await?;

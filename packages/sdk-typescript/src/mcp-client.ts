@@ -1,8 +1,8 @@
 // Module 13 — MCP Client (task #277). A minimal, dependency-free JSON-RPC
 // 2.0 client for the Model Context Protocol — works against **any**
-// MCP-compatible server, not just PentestHub's own (`McpModule`,
+// MCP-compatible server, not just Secora's own (`McpModule`,
 // apps/api/src/modules/mcp). This is the piece that makes the spec's
-// "Allow PentestHub to communicate with any MCP-compatible AI
+// "Allow Secora to communicate with any MCP-compatible AI
 // application" line literal: the CLI's `mcp` command group and (per the
 // Desktop Agent integration notes in docs/mcp/mcp-guide.md) a future
 // Rust port of this same protocol both build on this class.
@@ -29,9 +29,9 @@ export interface McpRpcError {
 
 export interface McpClientOptions {
   /// The server's JSON-RPC endpoint, e.g.
-  /// `https://api.pentesthub.ai/mcp/rpc` for PentestHub's own server.
+  /// `https://api.pentesthub.ai/mcp/rpc` for Secora's own server.
   endpoint: string;
-  /// Sent as `X-API-Key` if provided (PentestHub's own server requires
+  /// Sent as `X-API-Key` if provided (Secora's own server requires
   /// this; a third-party MCP server's auth requirements vary — this
   /// client also accepts arbitrary extra headers via `headers`).
   apiKey?: string;

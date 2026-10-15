@@ -12,7 +12,7 @@ interface PromptTemplateRow {
 
 /// Surfaces the Prompt Registry (task #280, `PromptTemplate` — Module 11)
 /// over MCP's `prompts/list`/`prompts/get`, so any MCP-compatible host's
-/// prompt picker shows every workspace prompt without a PentestHub-
+/// prompt picker shows every workspace prompt without a Secora-
 /// specific integration. Read-only and additive — never writes to
 /// `prompt_templates`; creating/editing prompts stays on the existing
 /// `/ai/prompt-templates` REST surface (Module 11) and its new

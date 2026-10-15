@@ -59,7 +59,7 @@ export class DemoSeedService {
         targetId: webTarget.id,
         title: "You're exploring a demo",
         content:
-          'This workspace is pre-loaded with sample projects, targets, and findings so you can see what PentestHub AI looks like in use. New recon and vulnerability scans are disabled here — sign up for a free account to run real ones against your own targets.',
+          'This workspace is pre-loaded with sample projects, targets, and findings so you can see what Secora AI looks like in use. New recon and vulnerability scans are disabled here — sign up for a free account to run real ones against your own targets.',
         authorId: userId,
       },
     });

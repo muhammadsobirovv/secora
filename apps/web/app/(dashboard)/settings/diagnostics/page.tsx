@@ -29,7 +29,7 @@ export default function DiagnosticsSettingsPage() {
   function formatReportText(): string {
     if (!report) return "";
     return [
-      `PentestHub AI diagnostics — ${report.generatedAt}`,
+      `Secora AI diagnostics — ${report.generatedAt}`,
       `Round-trip latency: ${report.roundTripMs}ms`,
       `App version: ${report.appVersion}`,
       `Server version: ${report.serverVersion} (${report.versionsMatch ? "matches" : "MISMATCH — refresh your browser"})`,

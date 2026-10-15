@@ -48,7 +48,7 @@ export function ExtensionBridgeSettingsPanel() {
           <div style={{ fontSize: 13, fontWeight: 600 }}>Browser Extension & Burp Suite Extension</div>
         </div>
         <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 14, lineHeight: 1.6 }}>
-          Paste these into the PentestHub browser extension's Options page (Desktop Agent Connection section) or the Burp Suite extension's config tab to pair them with this Desktop Agent. The connection is local-only (never leaves 127.0.0.1) and every request/response body is AES-256-GCM encrypted using a key derived from this token.
+          Paste these into the Secora browser extension&apos;s Options page (Desktop Agent Connection section) or the Burp Suite extension&apos;s config tab to pair them with this Desktop Agent. The connection is local-only (never leaves 127.0.0.1) and every request/response body is AES-256-GCM encrypted using a key derived from this token.
         </div>
 
         <Field label="Server URL" value={info.baseUrl} onCopy={() => copy("url", info.baseUrl)} copied={copied === "url"} />
@@ -72,7 +72,7 @@ export function ExtensionBridgeSettingsPanel() {
           <li>Save captured page data (URLs, headers, cookies, forms, endpoints, screenshots, etc.) directly into your current Project.</li>
           <li>Trigger Recon/Nuclei/HTTPX/Katana/Directory Scan jobs on this Desktop Agent from the right-click menu.</li>
           <li>Stream AI Side Panel responses (Explain Page, Analyze Forms, Suggest Payloads, etc.) using your configured AI provider.</li>
-          <li>Create Findings and Notes, kept in sync with the desktop app's Project view.</li>
+          <li>Create Findings and Notes, kept in sync with the desktop app&apos;s Project view.</li>
         </ul>
         <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 10 }}>
           Captures flagged as potentially sensitive (cookies, tokens, storage contents) always require an explicit confirmation in the extension before anything is sent here — this Desktop Agent additionally refuses to save a sensitive capture that arrives without that confirmation flag set.

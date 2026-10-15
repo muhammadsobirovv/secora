@@ -30,7 +30,7 @@ export default function GlobalError({
         >
           <div style={{ maxWidth: 420, textAlign: "center" }}>
             <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-              PentestHub AI failed to load
+              Secora AI failed to load
             </h1>
             <p style={{ color: "#71717a", fontSize: 14, marginBottom: 16 }}>
               A critical error occurred. Reloading usually fixes this.

@@ -79,7 +79,7 @@ export function MessageBubble({ message }: { message: MessageRecord }) {
             code: ({ className, children }) => {
               const match = /language-(\w+)/.exec(className ?? "");
               if (match) {
-                return <CodeBlock language={match[1]} code={String(children).replace(/\n$/, "")} />;
+                return <CodeBlock language={match[1] ?? "text"} code={String(children).replace(/\n$/, "")} />;
               }
               return (
                 <code style={{ background: "color-mix(in srgb, currentColor 10%, transparent)", padding: "1px 5px", borderRadius: 4, fontSize: "0.9em" }}>

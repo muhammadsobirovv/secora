@@ -253,8 +253,8 @@ export class InvokeExtensionHandler implements ICommandHandler<InvokeExtensionCo
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-PentestHub-Extension-Id': extension.id,
-          'X-PentestHub-Extension-Permission': command.data.permission,
+          'X-Secora-Extension-Id': extension.id,
+          'X-Secora-Extension-Permission': command.data.permission,
         },
         body: JSON.stringify({
           extensionId: extension.id,

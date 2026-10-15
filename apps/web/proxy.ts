@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const SESSION_COOKIE_NAME = "pentesthub_session";
+const SESSION_COOKIE_NAME = "secora_session";
 const PUBLIC_PATHS = [
   "/login",
   "/register",

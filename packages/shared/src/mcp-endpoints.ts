@@ -3,7 +3,7 @@
 // resources.read/tools.list/tools.call/prompts.list/prompts.get) POSTs
 // to; `stream` is the same endpoint's SSE counterpart for
 // server-initiated notifications (`notifications/resources/updated`,
-// etc. — Streaming spec section). The rest are PentestHub-specific
+// etc. — Streaming spec section). The rest are Secora-specific
 // management/observability routes, not part of the MCP wire protocol
 // itself.
 

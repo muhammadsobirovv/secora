@@ -55,7 +55,7 @@ export class ForgotPasswordUseCase {
     const frontendUrl = this.configService.get('FRONTEND_URL', { infer: true });
     await this.mailService.send({
       to: user.email,
-      subject: 'Reset your PentestHub AI password',
+      subject: 'Reset your Secora AI password',
       text: `Reset your password: ${frontendUrl}/auth/reset-password?token=${rawToken}`,
     });
 

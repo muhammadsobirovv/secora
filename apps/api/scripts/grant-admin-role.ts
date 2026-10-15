@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx tsx
-// PentestHub AI — Administrator role verification/grant utility.
+// Secora AI — Administrator role verification/grant utility.
 //
 // Purpose: verify whether an existing account holds the platform-wide
 // `ADMIN` role (the global RBAC role — see `Role`/`UserRole` in
@@ -25,7 +25,7 @@
 //   cd apps/api
 //   npx tsx scripts/grant-admin-role.ts <email>
 //
-// Requires DATABASE_URL to point at a reachable PentestHub AI database
+// Requires DATABASE_URL to point at a reachable Secora AI database
 // (loaded via `dotenv/config`, same as prisma/seed.ts). Exits 0 on
 // success or no-op-because-already-correct, exits 1 if the account does
 // not exist or on error. Prints no secrets — only email, user id, role

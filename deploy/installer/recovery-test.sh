@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Disaster Recovery: Recovery Testing (Module 14).
+# Secora AI — Disaster Recovery: Recovery Testing (Module 14).
 #
 # Proves a DATABASE-scope backup is actually restorable, automatically,
 # without touching the real database: downloads the most recent

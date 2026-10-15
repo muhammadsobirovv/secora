@@ -1,6 +1,6 @@
 # Privacy Policy
 
-PentestHub AI is self-hosted, open-source software: this file ships as
+Secora AI is self-hosted, open-source software: this file ships as
 **a template a deployment operator adapts**, not a policy Anthropic-style
 company enforces on your behalf. If you're reading this from the source
 repository (not from a specific operator's deployment), treat it as the
@@ -16,7 +16,7 @@ compliance officer.
 ## Who controls your data
 
 **The organization or individual who deployed this instance** — not the
-authors of this software. PentestHub AI can be self-hosted with zero
+authors of this software. Secora AI can be self-hosted with zero
 external accounts and zero data leaving the operator's own infrastructure
 (see "What never leaves your deployment" below); when that's how an
 instance is run, there is no third party in the loop at all besides the

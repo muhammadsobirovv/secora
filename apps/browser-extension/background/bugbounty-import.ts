@@ -1,4 +1,4 @@
-// Bug Bounty Helpers — "Allow importing targets into PentestHub" from a
+// Bug Bounty Helpers — "Allow importing targets into Secora" from a
 // detected HackerOne/Bugcrowd/Intigriti/YesWeHack/Synack program page
 // (see `content/bugbounty-scope.ts` for the DOM scraping half of this).
 

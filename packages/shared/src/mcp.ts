@@ -3,8 +3,8 @@
 // docs/mcp/mcp-guide.md for the version this was authored against and
 // the sandbox-network caveat on verifying it byte-for-byte against the
 // live spec site) closely enough that any MCP-compatible client/host
-// can talk to `apps/api/src/modules/mcp`'s server without a PentestHub-
-// specific adapter. PentestHub-specific meaning (which Resource/Tool
+// can talk to `apps/api/src/modules/mcp`'s server without a Secora-
+// specific adapter. Secora-specific meaning (which Resource/Tool
 // maps to which internal service) lives in `mcp-resources.ts`/
 // `mcp-tools.ts`'s catalog constants, not here — this file is the
 // protocol envelope only.
@@ -80,7 +80,7 @@ export interface McpInitializeResult {
   protocolVersion: string;
   capabilities: McpServerCapabilities;
   serverInfo: { name: string; version: string };
-  /// Not part of the base MCP spec — PentestHub-specific, returned so a
+  /// Not part of the base MCP spec — Secora-specific, returned so a
   /// client can display/persist which live session this `initialize`
   /// call produced (used by `mcp/sessions` observability views).
   sessionId: string;
@@ -177,7 +177,7 @@ export interface McpGetPromptResult {
   messages: McpPromptMessage[];
 }
 
-// ---- Session / observability DTOs (PentestHub-specific, not MCP-spec) ----
+// ---- Session / observability DTOs (Secora-specific, not MCP-spec) ----
 
 export type McpSessionStatus = "ACTIVE" | "CLOSED" | "EXPIRED";
 export type McpTransport = "http_sse" | "stdio";

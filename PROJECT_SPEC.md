@@ -1,6 +1,6 @@
-# PentestHub AI — Master Specification
+# Secora AI — Master Specification
 
-> This is the canonical Master Specification for PentestHub AI. All architecture,
+> This is the canonical Master Specification for Secora AI. All architecture,
 > module, and roadmap decisions must trace back to this document. Do not fork or
 > rewrite this file casually — amend it deliberately as the product evolves.
 
@@ -37,7 +37,7 @@ Everything should exist inside one unified ecosystem.
 > `docs/adr/0007-local-first-desktop-agent-architecture.md`,
 > `docs/migration/desktop-agent-roadmap.md`.
 
-PentestHub AI is **local-first**. The backend must never be responsible
+Secora AI is **local-first**. The backend must never be responsible
 for expensive computation. It exists only for: Authentication, User
 accounts, Workspace/Project/Target/Note metadata, Findings metadata,
 Activity timeline, Team collaboration, API keys, Preferences, Reports
@@ -54,7 +54,7 @@ Key rules that follow from this:
 
 * Private target/finding/evidence data never leaves the user's machine
   unless the user explicitly opts into sync.
-* AI never requires PentestHub's own API keys — every user brings their
+* AI never requires Secora's own API keys — every user brings their
   own provider (OpenAI, Anthropic, Gemini, OpenRouter, Ollama, LM Studio,
   DeepSeek, Mistral, Groq, Azure OpenAI), defaulting to local Ollama with
   no key, and degrading gracefully (never crashing) if Ollama is also
@@ -1427,7 +1427,7 @@ SDK's full test suite — 5/5 — was re-run after the version bump), and
 the Go SDK was manually cross-checked against real method signatures
 since `go`/`gofmt` are unavailable in this sandbox.
 
-**With this module's completion, the core PentestHub AI development
+**With this module's completion, the core Secora AI development
 roadmap is CLOSED.** Per this module's own standing instruction, no
 Module 21 is started, and no further roadmap is proposed; future work
 awaits explicit human direction. See `docs/reviews/0025` through `0032`

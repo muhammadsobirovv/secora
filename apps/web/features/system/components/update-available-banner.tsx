@@ -19,7 +19,7 @@ export function UpdateAvailableBanner(): React.JSX.Element | null {
 
   return (
     <div className="flex items-center justify-center gap-3 bg-primary px-4 py-2 text-sm text-primary-foreground">
-      <span>A new version of PentestHub AI is available.</span>
+      <span>A new version of Secora AI is available.</span>
       <Button
         variant="secondary"
         size="sm"

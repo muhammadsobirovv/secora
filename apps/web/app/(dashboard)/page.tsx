@@ -61,7 +61,7 @@ const structuredData: JsonLdGraph = {
     {
       "@type": "Organization",
       "@id": ORG_ID,
-      name: "PentestHub AI",
+      name: "Secora AI",
       url: SITE_URL,
       logo: `${SITE_URL}/favicon.ico`,
       description: META_DESCRIPTION,
@@ -94,7 +94,7 @@ const structuredData: JsonLdGraph = {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
-      name: "PentestHub AI",
+      name: "Secora AI",
       publisher: { "@id": ORG_ID },
     },
   ],

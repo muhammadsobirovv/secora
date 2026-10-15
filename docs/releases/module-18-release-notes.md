@@ -180,7 +180,7 @@ response in a way this sandbox could not verify safely. Deferred with
 reasoning recorded, not silently left broken.
 
 **The TypeScript SDK has no automatic refresh-on-401** (Phase 24).
-`PentestHubClient.auth.refresh()` (and the `onTokenRefreshed` option
+`SecoraClient.auth.refresh()` (and the `onTokenRefreshed` option
 that persists its result) only run when a consumer calls them
 explicitly — there is no interceptor that catches a 401 and retries
 after refreshing, unlike `apps/web`'s own `client.ts` or the Mobile
@@ -188,7 +188,7 @@ app's `ApiClient`, both of which do exactly that.
 
 **The CLI never uses the refresh token it stores** (Phase 24). `pentesthub login` saves a `refreshToken` to
 `~/.pentesthub/config.json`, but no CLI command ever reads it or calls
-the refresh endpoint — the CLI also bypasses `PentestHubClient`/
+the refresh endpoint — the CLI also bypasses `SecoraClient`/
 `AuthResource` entirely (it builds a raw `HttpClient` for M13-surface
 coverage reasons predating this module), so even the SDK-level
 `onTokenRefreshed` callback it wires up can never fire. Net effect: a

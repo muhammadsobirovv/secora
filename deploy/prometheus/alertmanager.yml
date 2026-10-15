@@ -1,9 +1,9 @@
-# PentestHub AI — Alertmanager config (Module 14: Monitoring).
+# Secora AI — Alertmanager config (Module 14: Monitoring).
 #
 # Starter config: a single `default` receiver that does nothing but
 # hold alerts (no webhook/email/Slack configured) — every deployment's
 # actual notification channel is an operator decision this repo
-# shouldn't guess at. Add a real receiver (webhook to PentestHub AI's
+# shouldn't guess at. Add a real receiver (webhook to Secora AI's
 # own Notifications system via Module 9's incoming-webhook support,
 # Slack, PagerDuty, email — Alertmanager supports all of these
 # natively) before relying on this in production; until then,
@@ -24,18 +24,18 @@ route:
 receivers:
   - name: default
     # Example webhook receiver — uncomment and point at a real endpoint
-    # (e.g. PentestHub AI's own webhook-ingest URL, or any
+    # (e.g. Secora AI's own webhook-ingest URL, or any
     # Alertmanager-compatible receiver) to actually deliver alerts:
     # webhook_configs:
     #   - url: "https://your-endpoint.example.com/alerts"
     #     send_resolved: true
 
 inhibit_rules:
-  # A firing PentestHubAPIDown alert makes the latency/error-rate alerts
+  # A firing SecoraAPIDown alert makes the latency/error-rate alerts
   # for the same target redundant — no point paging on "slow" when it's
   # actually "down."
   - source_match:
-      alertname: PentestHubAPIDown
+      alertname: SecoraAPIDown
     target_match_re:
-      alertname: "PentestHubHigh.*"
+      alertname: "SecoraHigh.*"
     equal: ["instance"]

@@ -15,7 +15,7 @@ import { mfaChallengeSchema, type MfaChallengeFormValues } from "../validators/a
 import * as authApi from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 
-const CHALLENGE_TOKEN_KEY = "pentesthub_mfa_challenge_token";
+const CHALLENGE_TOKEN_KEY = "secora_mfa_challenge_token";
 
 export function MfaChallengeForm() {
   const router = useRouter();

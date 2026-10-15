@@ -169,5 +169,5 @@ pub fn run() {
             commands::bridge_commands::regenerate_bridge_token,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running PentestHub AI Desktop");
+        .expect("error while running Secora AI Desktop");
 }

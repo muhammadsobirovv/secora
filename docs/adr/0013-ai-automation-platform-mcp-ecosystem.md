@@ -7,13 +7,13 @@ toolchain limits already established in prior modules — see §9).
 
 ## Context
 
-Modules 1-12 built PentestHub AI into a full pentest/bug-bounty product
+Modules 1-12 built Secora AI into a full pentest/bug-bounty product
 with three first-class clients (`apps/web`, `apps/desktop`, `apps/mobile`)
 and, as of Module 11, a Master AI Orchestrator that runs twelve built-in
 agents inside this codebase. What none of that offers yet is a way for
 **outside** software — a third-party AI application, a script a customer
 writes themselves, another vendor's agent framework — to act on a
-workspace's data and tools without PentestHub having to hand-write a
+workspace's data and tools without Secora having to hand-write a
 bespoke integration for each one. Module 13 closes that gap by adopting
 the **Model Context Protocol (MCP)** as the platform's extensibility
 substrate, and building the automation surfaces (agents, workflows,
@@ -40,7 +40,7 @@ MCP's shape to a capability the platform already has.
 **2. A transport-minimal `McpClient` (task #277,
 `packages/sdk-typescript/src/mcp-client.ts`) makes the platform an MCP
 *consumer* too, not just a server.** It speaks JSON-RPC 2.0 over HTTP
-against any compliant MCP server, PentestHub's own or a third party's —
+against any compliant MCP server, Secora's own or a third party's —
 the literal implementation of the spec's "communicate with any
 MCP-compatible AI application" requirement. Deliberately excludes a
 stdio transport (Node's `child_process` piping is CLI-specific plumbing,
@@ -151,7 +151,7 @@ precedent Module 10's SDKs established.
 
 - The platform now has a genuine plugin/extension surface — MCP is a
   published, versioned protocol other vendors' tooling already speaks,
-  not a PentestHub-specific bolt-on, so the integration cost for a new
+  not a Secora-specific bolt-on, so the integration cost for a new
   external AI tool to reach a workspace's projects/findings/tools is
   "point an MCP client at `/mcp/rpc`", not a bespoke connector.
 - `ObservabilityModule` had to become a strict dependency-free leaf: every

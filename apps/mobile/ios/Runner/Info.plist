@@ -14,7 +14,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>PentestHub AI</string>
+	<string>Secora AI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -55,21 +55,21 @@
 
 	<!-- Evidence Capture -->
 	<key>NSCameraUsageDescription</key>
-	<string>PentestHub AI uses the camera to capture evidence (screenshots, photos, video) for your engagements.</string>
+	<string>Secora AI uses the camera to capture evidence (screenshots, photos, video) for your engagements.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>PentestHub AI uses the microphone for voice chat with the AI Copilot and for audio evidence recording.</string>
+	<string>Secora AI uses the microphone for voice chat with the AI Copilot and for audio evidence recording.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>PentestHub AI needs access to your photo library to attach existing images as evidence.</string>
+	<string>Secora AI needs access to your photo library to attach existing images as evidence.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>PentestHub AI saves exported reports and captured evidence to your photo library when you choose to.</string>
+	<string>Secora AI saves exported reports and captured evidence to your photo library when you choose to.</string>
 
 	<!-- Biometric Authentication -->
 	<key>NSFaceIDUsageDescription</key>
-	<string>PentestHub AI uses Face ID to unlock the app after your session locks.</string>
+	<string>Secora AI uses Face ID to unlock the app after your session locks.</string>
 
 	<!-- Voice -->
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>PentestHub AI uses speech recognition for hands-free and push-to-talk chat with the AI Copilot.</string>
+	<string>Secora AI uses speech recognition for hands-free and push-to-talk chat with the AI Copilot.</string>
 
 	<key>CFBundleURLTypes</key>
 	<array>

@@ -1,4 +1,4 @@
-# PentestHub AI — Monitoring overlay (Module 14: Monitoring). Adds
+# Secora AI — Monitoring overlay (Module 14: Monitoring). Adds
 # Prometheus + Grafana + Alertmanager on top of the base
 # docker-compose.yml (and, optionally, docker-compose.enterprise.yml —
 # all three overlays compose freely since none of them redefine the

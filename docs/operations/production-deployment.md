@@ -207,5 +207,5 @@ comprehensive documentation pass):
   timeout, since that's the most likely trigger.
 - **The TypeScript SDK has no automatic refresh-on-401** (Phase 24) —
   relevant if you or your integrators build long-running scripts against
-  `@pentesthub/sdk` directly; `PentestHubClient.auth.refresh()` must be
+  `@pentesthub/sdk` directly; `SecoraClient.auth.refresh()` must be
   called explicitly.

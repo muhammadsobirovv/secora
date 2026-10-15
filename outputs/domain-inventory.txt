@@ -1,0 +1,67 @@
+./AGENT_PROMPT_CONTACT.md:2:- support@pentesthubai.com  (general support)
+./AGENT_PROMPT_CONTACT.md:3:- security@pentesthubai.com (vulnerability reports)
+./AGENT_PROMPT_CONTACT.md:6:1. Footer (apps/web/features/marketing/landing-page.tsx): add "Support" -> mailto:support@pentesthubai.com and "Security" contact -> mailto:security@pentesthubai.com next to the existing footer links. Add i18n keys (en/uz/ru) e.g. landing.footer.support, landing.footer.contact. Keep all three language files in sync.
+./AGENT_PROMPT_CONTACT.md:9:   Contact: mailto:security@pentesthubai.com
+./AGENT_PROMPT_CONTACT.md:12:   Canonical: https://pentesthubai.com/.well-known/security.txt
+./AGENT_PROMPT_CONTACT.md:17:     { "@type": "ContactPoint", contactType: "customer support", email: "support@pentesthubai.com", availableLanguage: ["en","uz","ru"] },
+./AGENT_PROMPT_CONTACT.md:18:     { "@type": "ContactPoint", contactType: "security", email: "security@pentesthubai.com" }
+./AGENT_PROMPT_CONTACT.md:20:   and top-level "email": "support@pentesthubai.com". Re-validate with the Rich Results / Schema validator (0 errors).
+./AGENT_PROMPT_CONTACT.md:22:4. Also update SECURITY.md in the repo root: reporting address security@pentesthubai.com (remove any personal address).
+./AGENT_PROMPT_CONTACT.md:27:   curl -s https://pentesthubai.com/.well-known/security.txt
+./AGENT_PROMPT_DOCS_LEGAL.md:1:Task: (A) trim the public /docs site to user-facing content, (B) add legal pages, (C) add versioned legal acceptance at signup/login, (D) add a per-target authorization attestation before scans, with audit logging. Work in small commits, single author (the user), NO Co-Authored-By trailers. Do not put any personal email anywhere; contact addresses are support@pentesthubai.com and security@pentesthubai.com. Run build/lint/typecheck/tests, then deploy and verify.
+./AGENT_PROMPT_DOCS_LEGAL.md:13:7. Security: Vulnerability Disclosure Policy (from SECURITY.md, contact security@pentesthubai.com).
+./AGENT_PROMPT_DOMAIN.md:1:Task: switch the product's public domain from pentesthubai.com (deleted, no longer ours) to secora.group. Code/config/docs only in this task. Server, DNS and nginx changes are a SEPARATE step (Part B) and must NOT be done without the user's explicit go-ahead.
+./AGENT_PROMPT_DOMAIN.md:10:1. Inventory: grep -rn "pentesthubai" across the repo (excluding node_modules, .git, build output). Save the list to outputs/domain-inventory.txt. Expected ~60 hits in ~27 files.
+./AGENT_PROMPT_DOMAIN.md:14:5. Keep the GitHub repo URLs and any LinkedIn/X links unchanged unless they point to pentesthubai.com.
+./AGENT_PROMPT_DOMAIN.md:20:- grep -rn "pentesthubai" again: the only remaining hits must be the report file and git history references you deliberately kept. List them.
+./apps/api/.env.example:56:# CORS_ADDITIONAL_ORIGINS=https://pentesthubai.com,https://www.pentesthubai.com
+./apps/api/src/bootstrap.ts:124:  // `pentesthubai.com` and `app.pentesthubai.com`), while FRONTEND_URL
+./apps/api/src/config/env.validation.spec.ts:80:      CORS_ADDITIONAL_ORIGINS: 'https://pentesthubai.com,https://www.pentesthubai.com',
+./apps/api/src/config/env.validation.spec.ts:85:      'https://pentesthubai.com,https://www.pentesthubai.com',
+./apps/api/src/config/env.validation.ts:61:  // than one origin at once — e.g. both the bare apex `pentesthubai.com`
+./apps/api/src/config/env.validation.ts:62:  // and the original `app.pentesthubai.com` — while `FRONTEND_URL` above
+./apps/api/src/modules/target-authorization/active-scan-network-guard.ts:146:      reason: `Domains under ".${denied}" (government/military) are refused for active scans by default. If you own this asset and hold written authorization, contact support@pentesthubai.com.`,
+./apps/mobile/lib/core/legal/legal_version.dart:8:const String legalTermsUrl = 'https://pentesthubai.com/legal/terms';
+./apps/mobile/lib/core/legal/legal_version.dart:9:const String legalAcceptableUseUrl = 'https://pentesthubai.com/legal/acceptable-use';
+./apps/mobile/lib/core/legal/legal_version.dart:10:const String legalPrivacyUrl = 'https://pentesthubai.com/legal/privacy';
+./apps/web/app/(dashboard)/page.tsx:26:    url: "https://pentesthubai.com",
+./apps/web/app/(dashboard)/page.tsx:37:    canonical: "https://pentesthubai.com",
+./apps/web/app/(dashboard)/page.tsx:41:const SITE_URL = "https://pentesthubai.com";
+./apps/web/app/(dashboard)/page.tsx:66:      email: "support@pentesthubai.com",
+./apps/web/app/(dashboard)/page.tsx:71:          email: "support@pentesthubai.com",
+./apps/web/app/(dashboard)/page.tsx:77:          email: "security@pentesthubai.com",
+./apps/web/app/layout.tsx:17:  metadataBase: new URL("https://pentesthubai.com"),
+./apps/web/app/legal/acceptable-use/page.tsx:8:  alternates: { canonical: "https://pentesthubai.com/legal/acceptable-use" },
+./apps/web/app/legal/privacy/page.tsx:8:  alternates: { canonical: "https://pentesthubai.com/legal/privacy" },
+./apps/web/app/legal/terms/page.tsx:8:  alternates: { canonical: "https://pentesthubai.com/legal/terms" },
+./apps/web/app/robots.ts:3:const SITE_URL = "https://pentesthubai.com";
+./apps/web/app/security/page.tsx:10:  alternates: { canonical: "https://pentesthubai.com/security" },
+./apps/web/app/sitemap.ts:4:const SITE_URL = "https://pentesthubai.com";
+./apps/web/features/auth/components/login-form.tsx:22:/// — anyone can craft `https://pentesthubai.com/login?next=https://evil.com`
+./apps/web/features/auth/components/login-form.tsx:36:    const resolved = new URL(raw, "https://pentesthubai.com");
+./apps/web/features/auth/components/login-form.tsx:37:    if (resolved.origin !== "https://pentesthubai.com") return "/dashboard";
+./apps/web/features/marketing/landing-page.tsx:217:            <a href="mailto:support@pentesthubai.com" className="transition-colors hover:text-foreground">
+./apps/web/features/marketing/landing-page.tsx:220:            <a href="mailto:security@pentesthubai.com" className="transition-colors hover:text-foreground">
+./apps/web/public/.well-known/security.txt:1:Contact: mailto:security@pentesthubai.com
+./apps/web/public/.well-known/security.txt:4:Canonical: https://pentesthubai.com/.well-known/security.txt
+./apps/web/public/.well-known/security.txt:5:Policy: https://pentesthubai.com/security
+./deploy/windows/install-service.ps1:11:#   .\deploy\windows\install-service.ps1 -RepoPath "C:\path\to\pentesthub-ai" -InstallPath "C:\PentestHubAI"
+./deploy/windows/install-service.ps1:24:    [string]$InstallPath = "C:\PentestHubAI",
+./deploy/windows/install-service.ps1:26:    [string]$ConfigPath = "C:\ProgramData\PentestHubAI"
+./docs/user/api-sdk-cli.md:7:- Base URL: `https://api.pentesthubai.com`
+./docs/user/api-sdk-cli.md:8:- Interactive reference (OpenAPI): [api.pentesthubai.com/api/docs](https://api.pentesthubai.com/api/docs)
+./docs/user/api-sdk-cli.md:13:curl -H "Authorization: Bearer <token>" https://api.pentesthubai.com/auth/me
+./docs/user/api-sdk-cli.md:26:  baseUrl: "https://api.pentesthubai.com",
+./docs/user/faq.md:12:Use the API endpoints `GET /auth/privacy/data-export` and `POST /auth/privacy/delete-account` (see the [API reference](/docs/api-sdk-cli)), or email [support@pentesthubai.com](mailto:support@pentesthubai.com). See the [Privacy Policy](/legal/privacy).
+./docs/user/faq.md:23:The hosted service does not actively scan internal addresses, cloud metadata endpoints, or certain government and military domains by default. If you own such an asset and have written authorization, contact [support@pentesthubai.com](mailto:support@pentesthubai.com).
+./docs/user/faq.md:38:Email [support@pentesthubai.com](mailto:support@pentesthubai.com). For security vulnerabilities in PentestHub AI itself, use [security@pentesthubai.com](mailto:security@pentesthubai.com).
+./docs/user/getting-started.md:9:1. Open [pentesthubai.com](https://pentesthubai.com) and choose **Get started free**, or sign in with Google or GitHub.
+./docs/user/responsible-use.md:29:Questions: [support@pentesthubai.com](mailto:support@pentesthubai.com).
+./docs/user/security.md:7:- Email **[security@pentesthubai.com](mailto:security@pentesthubai.com)**, or
+./packages/shared/src/legal.ts:21:  support: "support@pentesthubai.com",
+./packages/shared/src/legal.ts:22:  security: "security@pentesthubai.com",
+./PRIVACY.md:98:For the hosted service at pentesthubai.com, send privacy and data
+./PRIVACY.md:99:requests to [support@pentesthubai.com](mailto:support@pentesthubai.com);
+./PRIVACY.md:101:[security@pentesthubai.com](mailto:security@pentesthubai.com) (see
+./SECURITY.md:29:   email **[security@pentesthubai.com](mailto:security@pentesthubai.com)**.
+./SECURITY.md:31:   [`/.well-known/security.txt`](https://pentesthubai.com/.well-known/security.txt)

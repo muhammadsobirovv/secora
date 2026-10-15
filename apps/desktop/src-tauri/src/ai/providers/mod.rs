@@ -3,7 +3,7 @@
 //! (same "every feature talks to the trait, never a concrete client"
 //! seam) but calls providers directly from the Desktop Agent instead of
 //! through the NestJS backend — this is what makes Local AI actually
-//! local: no request ever touches PentestHub's servers unless the user
+//! local: no request ever touches Secora's servers unless the user
 //! explicitly enables Sync.
 
 pub mod anthropic;

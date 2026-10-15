@@ -16,7 +16,7 @@ export function NoOrganizationState() {
           <p className="text-sm font-medium">No organization yet</p>
           <p className="text-sm text-muted-foreground">
             Billing, plans, and usage limits are managed at the organization level. You&apos;re
-            currently using PentestHub AI as a self-hosted Community Edition workspace with no
+            currently using Secora AI as a self-hosted Community Edition workspace with no
             organization attached — every core feature works without one. Create or join an
             organization to manage a paid subscription.
           </p>

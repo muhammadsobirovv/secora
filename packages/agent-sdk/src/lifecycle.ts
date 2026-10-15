@@ -18,7 +18,7 @@ export type AgentLifecyclePhase = AgentSdkLifecycleEvent['phase'];
 
 /// Everything a running agent needs, handed to every lifecycle method.
 /// `mcp` is a live, already-`initialize()`d `McpClient` — third-party
-/// agents get one that talks HTTP to a real PentestHub MCP server (see
+/// agents get one that talks HTTP to a real Secora MCP server (see
 /// the SDK Guide's "Hello Agent" walkthrough); the eleven built-in
 /// agents (task #282) get an in-process adapter with the identical
 /// `callTool`/`readResource` surface (see apps/api's

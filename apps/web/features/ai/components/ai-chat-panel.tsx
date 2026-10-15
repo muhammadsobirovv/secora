@@ -18,7 +18,7 @@ import {
   useRegenerateAiMessage,
   useSendAiMessage,
 } from "../hooks/use-ai";
-import { useTextToSpeech } from "../hooks/use-ai-voice";
+import { useSpeechLanguage, useTextToSpeech } from "../hooks/use-ai-voice";
 import { AiChatMessage } from "./ai-chat-message";
 import { AiChatInput } from "./ai-chat-input";
 import { AiArtifactPanel } from "./ai-artifact-panel";
@@ -46,7 +46,8 @@ export const AiChatPanel = React.forwardRef<AiChatPanelHandle, { conversationId:
     const [artifactContent, setArtifactContent] = React.useState<string | null>(null);
     const [terminalMode, setTerminalMode] = React.useState(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
-    const textToSpeech = useTextToSpeech();
+    const [speechLanguage, setSpeechLanguage] = useSpeechLanguage();
+    const textToSpeech = useTextToSpeech(speechLanguage);
 
     React.useEffect(() => {
       setTerminalMode(window.localStorage.getItem(TERMINAL_MODE_STORAGE_KEY) === "true");
@@ -187,6 +188,8 @@ export const AiChatPanel = React.forwardRef<AiChatPanelHandle, { conversationId:
             disabled={sendMessage.isPending || streamState.streaming}
             streaming={streamState.streaming}
             terminalMode={terminalMode}
+            speechLanguage={speechLanguage}
+            onSpeechLanguageChange={setSpeechLanguage}
           />
         </div>
         {artifactContent && <AiArtifactPanel content={artifactContent} onClose={() => setArtifactContent(null)} />}

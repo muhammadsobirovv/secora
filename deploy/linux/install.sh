@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — bare-metal/VM Linux installer (Module 10: Production
+# Secora AI — bare-metal/VM Linux installer (Module 10: Production
 # Deployment). Installs the API + worker as systemd services running
 # directly on the host (no Docker) — the alternative to
 # docker-compose.yml/deploy/k8s for a team that wants a plain VM

@@ -10,6 +10,8 @@ import type {
   AiSuggestedQuestionDto,
   CreateAiConversationRequestDto,
   ListAiConversationsQueryDto,
+  SynthesizeAiSpeechResultDto,
+  TranscribeAiSpeechResultDto,
   UpsertAiProviderCredentialRequestDto,
 } from "@pentesthub/shared";
 import {
@@ -120,6 +122,23 @@ export function deleteAiProviderCredential(provider: string) {
 
 export function listAiSpeechProviders() {
   return apiFetch<AiSpeechProviderStatusDto[]>(AI_SPEECH_ENDPOINTS.list);
+}
+
+/// Azure speech-to-text. `audio` must be 16 kHz mono WAV (see
+/// features/ai/lib/encode-wav.ts); the backend forwards it as-is.
+export function transcribeAiSpeech(audio: Blob, language: string) {
+  const form = new FormData();
+  form.append("provider", "AZURE_SPEECH");
+  form.append("language", language);
+  form.append("audio", audio, "speech.wav");
+  return apiFetch<TranscribeAiSpeechResultDto>(AI_SPEECH_ENDPOINTS.transcribe, { method: "POST", body: form });
+}
+
+export function synthesizeAiSpeech(text: string, voice: string) {
+  return apiFetch<SynthesizeAiSpeechResultDto>(AI_SPEECH_ENDPOINTS.synthesize, {
+    method: "POST",
+    body: { provider: "AZURE_SPEECH", text, voice },
+  });
 }
 
 export function getAiContextSummary(projectId: string) {

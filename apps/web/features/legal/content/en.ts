@@ -13,7 +13,7 @@ export const en: LegalCatalog = {
   terms: {
     title: "Terms of Service",
     intro:
-      "These Terms govern your use of PentestHub AI (the \"Service\"), operated from the Republic of Uzbekistan. By creating an account or using the Service you agree to these Terms, the Acceptable Use Policy and the Privacy Policy.",
+      "These Terms govern your use of Secora AI (the \"Service\"), operated from the Republic of Uzbekistan. By creating an account or using the Service you agree to these Terms, the Acceptable Use Policy and the Privacy Policy.",
     sections: [
       {
         heading: "1. Authorized security testing only",
@@ -63,7 +63,7 @@ export const en: LegalCatalog = {
       {
         heading: "8. Indemnification",
         paragraphs: [
-          "You agree to indemnify and hold harmless PentestHub AI and its operators from any claims, damages, fines and costs (including reasonable legal fees) arising from your use of the Service, your testing activity, or your breach of these Terms or the law. (LEGAL REVIEW)",
+          "You agree to indemnify and hold harmless Secora AI and its operators from any claims, damages, fines and costs (including reasonable legal fees) arising from your use of the Service, your testing activity, or your breach of these Terms or the law. (LEGAL REVIEW)",
         ],
       },
       {
@@ -87,7 +87,7 @@ export const en: LegalCatalog = {
   aup: {
     title: "Acceptable Use Policy & Rules of Engagement",
     intro:
-      "This policy explains what you may and may not do with PentestHub AI. It is part of the Terms of Service. If anything here is unclear, ask before you test.",
+      "This policy explains what you may and may not do with Secora AI. It is part of the Terms of Service. If anything here is unclear, ask before you test.",
     sections: [
       {
         heading: "1. Authorization comes first",
@@ -145,7 +145,7 @@ export const en: LegalCatalog = {
   privacy: {
     title: "Privacy Policy",
     intro:
-      "This policy explains what personal data PentestHub AI processes, why, and the rights you have. (LEGAL REVIEW: confirm alignment with the Law of the Republic of Uzbekistan \"On Personal Data\" and data-localization requirements.)",
+      "This policy explains what personal data Secora AI processes, why, and the rights you have. (LEGAL REVIEW: confirm alignment with the Law of the Republic of Uzbekistan \"On Personal Data\" and data-localization requirements.)",
     sections: [
       {
         heading: "1. Data we collect",
@@ -176,7 +176,7 @@ export const en: LegalCatalog = {
       {
         heading: "4. Where data is stored",
         paragraphs: [
-          "Service data is stored on servers operated for PentestHub AI by our hosting provider. Data you send to third-party AI providers may be processed in other countries. (LEGAL REVIEW: state the hosting region and the legal basis for any cross-border transfer.)",
+          "Service data is stored on servers operated for Secora AI by our hosting provider. Data you send to third-party AI providers may be processed in other countries. (LEGAL REVIEW: state the hosting region and the legal basis for any cross-border transfer.)",
         ],
       },
       {
@@ -206,7 +206,7 @@ export const en: LegalCatalog = {
   security: {
     title: "Vulnerability Disclosure Policy",
     intro:
-      "We welcome reports from security researchers. This policy explains how to report a vulnerability in PentestHub AI and what you can expect from us.",
+      "We welcome reports from security researchers. This policy explains how to report a vulnerability in Secora AI and what you can expect from us.",
     sections: [
       {
         heading: "How to report",

@@ -1,6 +1,6 @@
 # Getting Started
 
-PentestHub AI is a workspace for authorized security testing: reconnaissance, vulnerability scanning, a bug bounty workflow and an AI copilot, in one place. This guide takes you from a new account to your first target.
+Secora AI is a workspace for authorized security testing: reconnaissance, vulnerability scanning, a bug bounty workflow and an AI copilot, in one place. This guide takes you from a new account to your first target.
 
 > **Authorized testing only.** Only add and scan assets you own or are explicitly authorized in writing to test. See [Rules of Engagement & Responsible Use](/docs/responsible-use) and the [Acceptable Use Policy](/legal/acceptable-use).
 

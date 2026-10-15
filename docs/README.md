@@ -1,4 +1,4 @@
-# PentestHub AI — Documentation Index
+# Secora AI — Documentation Index
 
 Module 15, task #350. A single table of contents over every document in
 this repository, organized the same way `apps/web`'s `/docs` portal

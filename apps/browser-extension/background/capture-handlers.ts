@@ -65,7 +65,7 @@ export async function runCapture(captureType: CaptureType, ctx: CaptureContext, 
       chrome.notifications?.create({
         type: "basic",
         iconUrl: "public/icons/48.png",
-        title: "Saved to PentestHub",
+        title: "Saved to Secora",
         message: `${captureType.replace(/_/g, " ")} from ${new URL(tab.url).hostname}`,
       });
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — One Command Installer (Module 14: Installer).
+# Secora AI — One Command Installer (Module 14: Installer).
 #
 # The `curl | bash` entry point: clones the repo (or a specific
 # release tag) into a target directory and hands off to install.sh

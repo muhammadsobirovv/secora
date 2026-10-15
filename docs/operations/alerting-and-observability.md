@@ -2,7 +2,7 @@
 
 Module 18 — task #521 (Phase 19: alerting/operational signals documentation). This
 is the one place an operator should need to read to answer "how do I know
-PentestHub AI is unhealthy, and what do I check first." It documents what
+Secora AI is unhealthy, and what do I check first." It documents what
 already exists and is wired up today — no new alert rules, endpoints, or
 metrics were added to write this doc; it consolidates and cross-references
 real, existing pieces built across Modules 10, 14, and 18.
@@ -78,18 +78,18 @@ superset referencing metrics this codebase doesn't emit.
 
 | Alert | Condition | For | Severity | What it means |
 |---|---|---|---|---|
-| `PentestHubHighErrorRate` | 5xx ratio of `pentesthub_http_requests_total` > 5% | 5m | warning | A meaningful share of requests are failing. Check the API logs (see section 4) for the failing route, filtering by `route` label from the request logs around the alert's firing window. |
-| `PentestHubHighRequestLatency` | p95 of `pentesthub_http_request_duration_seconds` > 2s for a route | 10m | warning | A specific route is slow. `{{ $labels.route }}` in the alert identifies which one. |
-| `PentestHubProcessMemoryHigh` | `pentesthub_process_resident_memory_bytes` > 1.5GB | 15m | warning | Possible memory leak, or the container's memory limit/request in `deploy/k8s/10-api-deployment.yaml` is undersized for real traffic. |
-| `PentestHubAPIDown` | `up{job="pentesthub-api"} == 0` | 2m | critical | Prometheus can't scrape the instance at all — likely a crash or network partition, not a graceful degradation. |
+| `SecoraHighErrorRate` | 5xx ratio of `pentesthub_http_requests_total` > 5% | 5m | warning | A meaningful share of requests are failing. Check the API logs (see section 4) for the failing route, filtering by `route` label from the request logs around the alert's firing window. |
+| `SecoraHighRequestLatency` | p95 of `pentesthub_http_request_duration_seconds` > 2s for a route | 10m | warning | A specific route is slow. `{{ $labels.route }}` in the alert identifies which one. |
+| `SecoraProcessMemoryHigh` | `pentesthub_process_resident_memory_bytes` > 1.5GB | 15m | warning | Possible memory leak, or the container's memory limit/request in `deploy/k8s/10-api-deployment.yaml` is undersized for real traffic. |
+| `SecoraAPIDown` | `up{job="pentesthub-api"} == 0` | 2m | critical | Prometheus can't scrape the instance at all — likely a crash or network partition, not a graceful degradation. |
 
 **`pentesthub-distributed-jobs` group** (only fires for organizations whose
 per-org metrics endpoint is actually scraped — see section 2):
 
 | Alert | Condition | For | Severity | What it means |
 |---|---|---|---|---|
-| `PentestHubNoOnlineWorkers` | `pentesthub_distributed_jobs_online_workers == 0` | 5m | critical | Queued jobs for that organization will not be processed until a worker re-registers or an unhealthy one recovers via `WorkerReaperService`'s crash-recovery path. |
-| `PentestHubQueueBacklogGrowing` | load/capacity ratio > 0.9 | 15m | warning | Worker pool near capacity — consider registering additional WorkerNodes or raising `maxConcurrency`. |
+| `SecoraNoOnlineWorkers` | `pentesthub_distributed_jobs_online_workers == 0` | 5m | critical | Queued jobs for that organization will not be processed until a worker re-registers or an unhealthy one recovers via `WorkerReaperService`'s crash-recovery path. |
+| `SecoraQueueBacklogGrowing` | load/capacity ratio > 0.9 | 15m | warning | Worker pool near capacity — consider registering additional WorkerNodes or raising `maxConcurrency`. |
 
 ## 4. Structured logging and request correlation
 
@@ -125,8 +125,8 @@ fields are redacted before serialization by `redactSensitiveData()`
 Alerts are grouped by `alertname` and `organizationId` (`group_by`), with a
 30s `group_wait`, 5m `group_interval`, and a 4h default `repeat_interval` —
 tightened to 1h for `severity: critical` alerts via a sub-route. An
-`inhibit_rules` block suppresses `PentestHubHigh.*` (error rate, latency)
-alerts for an instance while `PentestHubAPIDown` is already firing for that
+`inhibit_rules` block suppresses `SecoraHigh.*` (error rate, latency)
+alerts for an instance while `SecoraAPIDown` is already firing for that
 same instance, so a full outage doesn't also page for "high error rate" on
 a target that's simply gone.
 

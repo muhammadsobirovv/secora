@@ -1,6 +1,6 @@
 # @pentesthub/sdk (TypeScript / JavaScript)
 
-Official client SDK for the PentestHub AI REST API. Works in Node.js 18+,
+Official client SDK for the Secora AI REST API. Works in Node.js 18+,
 browsers, Deno, and Bun (uses the global `fetch`).
 
 ## Install
@@ -15,9 +15,9 @@ npm install @pentesthub/sdk
 ## Usage
 
 ```ts
-import { PentestHubClient, PentestHubApiError } from '@pentesthub/sdk';
+import { SecoraClient, SecoraApiError } from '@pentesthub/sdk';
 
-const client = new PentestHubClient({ baseUrl: 'https://api.your-company.com' });
+const client = new SecoraClient({ baseUrl: 'https://api.your-company.com' });
 
 const result = await client.auth.login({ email: 'you@example.com', password: '...' });
 if ('mfaRequired' in result) {
@@ -34,7 +34,7 @@ try {
     acceptedPermissions: ['network:fetch'],
   });
 } catch (error) {
-  if (error instanceof PentestHubApiError) {
+  if (error instanceof SecoraApiError) {
     console.error(error.code, error.message);
   }
 }
@@ -43,7 +43,7 @@ try {
 ### API-key auth (service accounts / workers)
 
 ```ts
-const client = new PentestHubClient({
+const client = new SecoraClient({
   baseUrl: 'https://api.your-company.com',
   apiKey: process.env.PENTESTHUB_API_KEY,
 });
@@ -61,7 +61,7 @@ mechanical.
 
 ## Error handling
 
-Every non-2xx response throws `PentestHubApiError`, which carries
+Every non-2xx response throws `SecoraApiError`, which carries
 `.statusCode` and `.code` (one of `@pentesthub/shared`'s `AppErrorCode`
 union, e.g. `"ORGANIZATION_NOT_FOUND"`) so callers can branch on error
 type reliably instead of parsing `.message` strings.

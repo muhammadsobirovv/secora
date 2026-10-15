@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pentesthub-ai"
 version = "1.0.0"
-description = "Official Python SDK for the PentestHub AI REST API."
+description = "Official Python SDK for the Secora AI REST API."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "UNLICENSED" }
-authors = [{ name = "PentestHub AI" }]
+authors = [{ name = "Secora AI" }]
 # Deliberately zero third-party runtime dependencies — every HTTP call
 # goes through the standard library's urllib.request, the same
 # "no dependency this sandbox can't verify installs cleanly" posture the

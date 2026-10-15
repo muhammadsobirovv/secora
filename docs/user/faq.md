@@ -35,4 +35,4 @@ Add your own API key under **Settings → AI providers**, or connect a local Oll
 
 ## Still stuck?
 
-Email [support@secora.group](mailto:support@secora.group). For security vulnerabilities in PentestHub AI itself, use [security@secora.group](mailto:security@secora.group).
+Email [support@secora.group](mailto:support@secora.group). For security vulnerabilities in Secora AI itself, use [security@secora.group](mailto:security@secora.group).

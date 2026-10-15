@@ -1,4 +1,4 @@
-# PentestHub AI — Windows Server installer (Module 10: Production
+# Secora AI — Windows Server installer (Module 10: Production
 # Deployment). Registers the API and worker processes as native Windows
 # Services using NSSM (the Non-Sucking Service Manager) — Node.js has no
 # built-in "run as a Windows Service" capability, and NSSM is the
@@ -8,7 +8,7 @@
 # fragile scheduled-task-at-logon workaround.
 #
 # Usage (run as Administrator, from an elevated PowerShell prompt):
-#   .\deploy\windows\install-service.ps1 -RepoPath "C:\path\to\pentesthub-ai" -InstallPath "C:\PentestHubAI"
+#   .\deploy\windows\install-service.ps1 -RepoPath "C:\path\to\pentesthub-ai" -InstallPath "C:\SecoraAI"
 #
 # Prerequisites: Node.js 20 LTS and pnpm already installed and on PATH
 # (see the Module 7 Desktop Agent verification handoff docs for the same
@@ -21,9 +21,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$RepoPath,
 
-    [string]$InstallPath = "C:\PentestHubAI",
+    [string]$InstallPath = "C:\SecoraAI",
 
-    [string]$ConfigPath = "C:\ProgramData\PentestHubAI"
+    [string]$ConfigPath = "C:\ProgramData\SecoraAI"
 )
 
 $ErrorActionPreference = "Stop"
@@ -85,7 +85,7 @@ if (-not (Test-Path $nssmExe)) {
     Copy-Item (Join-Path $env:TEMP "nssm-2.24\win64\nssm.exe") $nssmExe
 }
 
-function Install-PentestHubService {
+function Install-SecoraService {
     param([string]$ServiceName, [string]$ScriptRelativePath, [string]$EnvFile, [string]$DisplayName)
 
     if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
@@ -123,12 +123,12 @@ function Install-PentestHubService {
     & $nssmExe start $ServiceName
 }
 
-Install-PentestHubService -ServiceName "PentestHubAPI" -ScriptRelativePath "apps\api\dist\src\main.js" -EnvFile $apiEnvPath -DisplayName "PentestHub AI - API Server"
-Install-PentestHubService -ServiceName "PentestHubWorker" -ScriptRelativePath "apps\api\dist\src\worker.main.js" -EnvFile $workerEnvPath -DisplayName "PentestHub AI - Background Worker"
+Install-SecoraService -ServiceName "SecoraAPI" -ScriptRelativePath "apps\api\dist\src\main.js" -EnvFile $apiEnvPath -DisplayName "Secora AI - API Server"
+Install-SecoraService -ServiceName "SecoraWorker" -ScriptRelativePath "apps\api\dist\src\worker.main.js" -EnvFile $workerEnvPath -DisplayName "Secora AI - Background Worker"
 
 Write-Host ""
-Write-Host "==> Done. Services 'PentestHubAPI' and 'PentestHubWorker' are installed and running."
-Write-Host "    Manage them with: Get-Service PentestHub*  /  Restart-Service PentestHubAPI  /  services.msc"
+Write-Host "==> Done. Services 'SecoraAPI' and 'SecoraWorker' are installed and running."
+Write-Host "    Manage them with: Get-Service Secora*  /  Restart-Service SecoraAPI  /  services.msc"
 Write-Host "    Logs: $ConfigPath\*.out.log and *.err.log"
 Write-Host ""
 Write-Host "    First-time schema setup (run once): cd `"$InstallPath`"; pnpm --filter api exec prisma db push --skip-generate"

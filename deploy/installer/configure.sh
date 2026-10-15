@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PentestHub AI — Configuration Wizard (Module 14: Installer). Edits an
+# Secora AI — Configuration Wizard (Module 14: Installer). Edits an
 # existing .env in place (unlike install.sh, which only writes one if
 # absent) — walks through the settings an operator is most likely to
 # need to change after first install: edition, provider selection,
@@ -30,7 +30,7 @@ set_env() {
   echo "${key}=${value}" >> .env
 }
 
-log "PentestHub AI — Configuration Wizard"
+log "Secora AI — Configuration Wizard"
 echo "Editing $(pwd)/.env. Press Enter to keep the current value."
 echo
 

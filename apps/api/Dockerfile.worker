@@ -1,4 +1,4 @@
-# PentestHub AI — background worker process (Module 10: Production
+# Secora AI — background worker process (Module 10: Production
 # Deployment). Runs `dist/src/worker.main.js` — the Recon/Vuln
 # ToolRunner execution loop (Modules 3/4), a separate OS process from
 # the main HTTP API server (`apps/api/Dockerfile`) so a long-running or

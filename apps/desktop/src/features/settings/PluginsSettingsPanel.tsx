@@ -43,7 +43,7 @@ export function PluginsSettingsPanel() {
       <Card style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Add a plugin</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {templatesQuery.data?.map(([name, manifest]) => (
+          {templatesQuery.data?.map(([name]) => (
             <Button key={name} size="sm" variant="outline" onClick={() => setInstalling(installing === name ? null : name)}>
               <Plus size={12} /> {name}
             </Button>

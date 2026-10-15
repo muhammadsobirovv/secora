@@ -1,6 +1,6 @@
 # pentesthub-ai (Python SDK)
 
-Official Python client for the PentestHub AI REST API. Zero third-party
+Official Python client for the Secora AI REST API. Zero third-party
 runtime dependencies (built on `urllib.request`) — `pip install
 pentesthub-ai` will never fail because of an unrelated package's native
 build.
@@ -16,9 +16,9 @@ pip install pentesthub-ai
 ## Usage
 
 ```python
-from pentesthub_ai import PentestHubClient, PentestHubApiError
+from pentesthub_ai import SecoraClient, SecoraApiError
 
-client = PentestHubClient(base_url="https://api.your-company.com")
+client = SecoraClient(base_url="https://api.your-company.com")
 
 tokens = client.auth.login(email="you@example.com", password="...")
 orgs = client.organizations.list()
@@ -31,14 +31,14 @@ try:
         version_id="...",
         accepted_permissions=["network:fetch"],
     )
-except PentestHubApiError as error:
+except SecoraApiError as error:
     print(error.code, error.message)
 ```
 
 ### API-key auth (service accounts / workers)
 
 ```python
-client = PentestHubClient(base_url="https://api.your-company.com", api_key=os.environ["PENTESTHUB_API_KEY"])
+client = SecoraClient(base_url="https://api.your-company.com", api_key=os.environ["PENTESTHUB_API_KEY"])
 ```
 
 ## Scope (v1)
@@ -47,7 +47,7 @@ Auth, Organizations, the Distributed Job System, the Plugin registry/
 installations, Integrations, (Module 16) the Knowledge Graph query layer
 and Extension API registry, (Module 17) SOC/Assets/Threat-Intel/
 Incidents/Remediation/Risk/SLA, and (Module 20) API Keys — the same v1
-subset the TypeScript and Go SDKs cover (`client.py`'s `PentestHubClient`
+subset the TypeScript and Go SDKs cover (`client.py`'s `SecoraClient`
 wires all fifteen resources). This is a deliberately scoped subset of the
 full REST API — Recon, Vulnerability Scanning, Bug Bounty, AI Chat, and
 Billing are out of scope for all three official SDKs today, not a

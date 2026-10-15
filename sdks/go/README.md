@@ -1,6 +1,6 @@
 # pentesthub-go
 
-Official Go client for the PentestHub AI REST API. Zero third-party
+Official Go client for the Secora AI REST API. Zero third-party
 dependencies — built entirely on `net/http` and `encoding/json` from the
 standard library.
 

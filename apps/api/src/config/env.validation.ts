@@ -69,7 +69,7 @@ const envSchema = z.object({
   // for it. Empty by default: a single-domain deployment (the common
   // case) needs no configuration here at all.
   CORS_ADDITIONAL_ORIGINS: z.string().optional(),
-  MAIL_FROM: z.string().default('PentestHub AI <no-reply@pentesthub.local>'),
+  MAIL_FROM: z.string().default('Secora AI <no-reply@secora.group>'),
   // Module 15 — Integrations (task #338). `dev` (default, `DevMailService`)
   // needs no configuration and is Community Edition's default — mail is
   // logged and written to `.mail-outbox/` for manual inspection. `smtp`

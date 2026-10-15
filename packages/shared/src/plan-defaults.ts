@@ -53,7 +53,7 @@ export const DEFAULT_PLAN_SEEDS: Record<PlanTier, PlanSeedDefinition> = {
   CLOUD_FREE: {
     tier: "CLOUD_FREE",
     name: "Cloud Free",
-    description: "A hosted trial tier with limited resources — for trying PentestHub Cloud before upgrading.",
+    description: "A hosted trial tier with limited resources — for trying Secora Cloud before upgrading.",
     priceMonthlyCents: 0,
     priceYearlyCents: 0,
     currency: "usd",

@@ -22,7 +22,7 @@ export class GithubAdapter implements IntegrationAdapter {
 
   async testConnection(credentials: string): Promise<{ ok: boolean; message: string }> {
     const { status, body } = await fetchJson('https://api.github.com/user', {
-      headers: { Authorization: `Bearer ${credentials}`, 'User-Agent': 'PentestHub-AI', Accept: 'application/vnd.github+json' },
+      headers: { Authorization: `Bearer ${credentials}`, 'User-Agent': 'Secora-AI', Accept: 'application/vnd.github+json' },
     });
     if (status !== 200) return { ok: false, message: `GitHub responded ${status}: ${JSON.stringify(body)}` };
     const login = (body as { login?: string }).login ?? 'unknown';
@@ -30,7 +30,7 @@ export class GithubAdapter implements IntegrationAdapter {
   }
 
   async execute(action: string, credentials: string, _config: Record<string, unknown> | null, payload: Record<string, unknown>): Promise<unknown> {
-    const headers = { Authorization: `Bearer ${credentials}`, 'User-Agent': 'PentestHub-AI', Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    const headers = { Authorization: `Bearer ${credentials}`, 'User-Agent': 'Secora-AI', Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
     if (action === 'createIssue') {
       const { owner, repo, title, body: issueBody } = payload as { owner: string; repo: string; title: string; body?: string };
       const { status, body } = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/issues`, {

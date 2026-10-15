@@ -31,7 +31,7 @@ export interface StartDemoSessionInput extends IssueSessionContext {}
 /// (`passwordHash: null`, matching the OAuth-account precedent — nothing
 /// distinguishes this from an OAuth-only account at the schema level),
 /// (2) `emailVerified: true` and no verification email — there's no real
-/// inbox behind a synthetic `demo+<uuid>@demo.pentesthub.local` address,
+/// inbox behind a synthetic `demo+<uuid>@demo.secora.group` address,
 /// (3) the workspace is marked `isDemo` with a `demoExpiresAt`, and gets
 /// pre-seeded sample data instead of starting empty. Reuses
 /// `SessionIssuerService.issue()` — the same primitive login/mfa-
@@ -67,7 +67,7 @@ export class DemoSessionService {
     const demoId = randomUUID();
 
     const user = await this.usersRepository.create({
-      email: `demo+${demoId}@demo.pentesthub.local`,
+      email: `demo+${demoId}@demo.secora.group`,
       passwordHash: null,
       displayName: 'Demo User',
       emailVerified: true,

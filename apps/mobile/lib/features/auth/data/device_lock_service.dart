@@ -64,7 +64,7 @@ class DeviceLockService {
   /// (no enrolled biometrics, disabled by MDM policy, simulator) — the
   /// caller (DeviceLockNotifier) uses that to fall back to the app's own
   /// PIN entry screen instead of silently retrying.
-  Future<bool> authenticateWithBiometrics({String reason = 'Unlock PentestHub AI'}) async {
+  Future<bool> authenticateWithBiometrics({String reason = 'Unlock Secora AI'}) async {
     if (!await isBiometricSupported) {
       throw const AppException(
         code: AppErrorCodes.biometricUnavailable,

@@ -1,4 +1,4 @@
-# Final Performance Review — PentestHub AI, Modules 1-10
+# Final Performance Review — Secora AI, Modules 1-10
 
 Reviewer stance: Staff Performance Engineer, end-of-program gate after
 Module 10. Scope: `apps/api`'s request/response path, background poller

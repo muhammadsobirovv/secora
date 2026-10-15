@@ -1,4 +1,4 @@
-// PentestHub AI — Auth + platform-foundation data model.
+// Secora AI — Auth + platform-foundation data model.
 // See docs/modules/01-auth.md and docs/adr/0001-auth-module.md for rationale.
 
 generator client {
@@ -3084,8 +3084,8 @@ model NotificationDelivery {
 // --- Public API: webhook tokens -----------------------------------------
 
 /// Outbound webhook registration — distinct from ApiKey (which
-/// authenticates *inbound* requests to PentestHub's API). `secret` signs
-/// the outbound payload (HMAC-SHA256, header `X-PentestHub-Signature`) so
+/// authenticates *inbound* requests to Secora's API). `secret` signs
+/// the outbound payload (HMAC-SHA256, header `X-Secora-Signature`) so
 /// the receiving endpoint can verify authenticity; encrypted at rest the
 /// same way NotificationChannelConfig's secrets are.
 model WebhookToken {
@@ -4728,7 +4728,7 @@ enum McpSessionStatus {
 }
 
 /// One live MCP client connection (an external MCP-compatible AI
-/// application, or PentestHub's own CLI/frontend acting as a client of
+/// application, or Secora's own CLI/frontend acting as a client of
 /// its own MCP server), created by `mcp/mcp-server.module.ts`'s
 /// `initialize` handler. `protocolVersion` is the negotiated MCP
 /// protocol date-version string; `capabilitiesJson` mirrors what the

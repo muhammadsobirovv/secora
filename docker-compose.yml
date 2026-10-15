@@ -1,4 +1,4 @@
-# PentestHub AI — self-hosted Docker Compose deployment (Module 10:
+# Secora AI — self-hosted Docker Compose deployment (Module 10:
 # Production Deployment). Brings up the full server-side stack: Postgres
 # (with the `vector` extension for Module 5's AI/RAG layer), the API
 # server, the background worker process (Modules 3/4's Recon/Vuln
@@ -138,7 +138,7 @@ services:
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET:-}
     volumes:
-      - api-storage:/workspace/apps/api/storage
+      - api-storage:/workspace/apps/api/.storage # must match the api service's mount -- LocalDiskStorageService writes to process.cwd()/.storage, so worker-written artifacts (gowitness screenshots) are readable by the API
 
   # One-off helper for applying Prisma schema changes to the database.
   # `api`/`worker`'s runtime image is built from the Dockerfile's `runtime`

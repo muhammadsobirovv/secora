@@ -172,7 +172,7 @@ judgment this system cannot safely automate.
   bucket) — there is no automatic secondary-region copy. An operator
   wanting geographic redundancy should configure their storage provider's
   own cross-region replication (S3 CRR, R2's built-in redundancy, etc.) on
-  top of this system, not expect PentestHub AI to do it.
+  top of this system, not expect Secora AI to do it.
 - **No point-in-time recovery (PITR).** Backups are periodic full
   snapshots (`pg_dump`), not continuous WAL archiving — recovery is only
   possible to the moment of the most recent successful backup, not to an

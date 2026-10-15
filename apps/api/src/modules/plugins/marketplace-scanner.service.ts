@@ -36,7 +36,7 @@ const DANGEROUS_API_PATTERNS: { name: string; pattern: RegExp }[] = [
 /// Module 15 — Marketplace security (task #333). Best-effort static
 /// analysis run in-process at publish time — no external scanning
 /// service or paid API required, so this works identically for a
-/// self-hosted Community Edition instance and for PentestHub Cloud.
+/// self-hosted Community Edition instance and for Secora Cloud.
 /// Never blocks a publish on its own (a scan result is recorded and
 /// surfaced via `PluginChecksumDto.scanResults`/the "Verified" badge
 /// logic, not a hard gate) — see `MarketplaceScanResult`'s doc comment

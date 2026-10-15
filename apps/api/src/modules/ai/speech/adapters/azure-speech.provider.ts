@@ -16,6 +16,13 @@ import { bufferToArrayBuffer } from '../buffer-to-array-buffer.util.js';
 const DEFAULT_LANGUAGE = 'en-US';
 const DEFAULT_VOICE = 'en-US-JennyNeural';
 
+/// Derives the BCP-47 locale ("uz-UZ") from an Azure neural voice name
+/// ("uz-UZ-MadinaNeural"). Falls back to en-US for unexpected names.
+function voiceLocale(voice: string): string {
+  const match = /^([a-z]{2,3}-[A-Za-z]{2,4})-/.exec(voice);
+  return match ? match[1] : DEFAULT_LANGUAGE;
+}
+
 function escapeSsml(text: string): string {
   return text
     .replaceAll('&', '&amp;')
@@ -91,8 +98,12 @@ export class AzureSpeechProvider implements SpeechProvider {
       throw new SpeechProviderNotConfiguredError(this.name);
 
     const voice = options.voice ?? DEFAULT_VOICE;
+    // Azure voice names are "<locale>-<Name>Neural" (e.g. "uz-UZ-MadinaNeural"),
+    // so the SSML xml:lang is derived from the voice to keep pronunciation
+    // matched to the language (Uzbek, Russian, English).
+    const locale = voiceLocale(voice);
     const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
-    const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${voice}">${escapeSsml(options.text)}</voice></speak>`;
+    const ssml = `<speak version="1.0" xml:lang="${escapeSsml(locale)}"><voice xml:lang="${escapeSsml(locale)}" name="${escapeSsml(voice)}">${escapeSsml(options.text)}</voice></speak>`;
 
     const response = await fetch(url, {
       method: 'POST',

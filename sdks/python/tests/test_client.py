@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pentesthub_ai import PentestHubApiError, PentestHubClient  # noqa: E402
+from pentesthub_ai import SecoraApiError, SecoraClient  # noqa: E402
 
 
 class _FakeApiHandler(BaseHTTPRequestHandler):
@@ -57,7 +57,7 @@ class _FakeApiHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"statusCode": 404, "code": "UNKNOWN_ERROR", "message": "no route"})
 
 
-class PentestHubClientTests(unittest.TestCase):
+class SecoraClientTests(unittest.TestCase):
     server: HTTPServer
     thread: threading.Thread
     base_url: str
@@ -75,7 +75,7 @@ class PentestHubClientTests(unittest.TestCase):
         cls.thread.join(timeout=5)
 
     def test_login_success_sets_access_token_and_subsequent_calls_authenticate(self) -> None:
-        client = PentestHubClient(base_url=self.base_url)
+        client = SecoraClient(base_url=self.base_url)
         tokens = client.auth.login(email="user@example.com", password="correct-password")
         self.assertEqual(tokens["accessToken"], "test-access-token")
 
@@ -84,27 +84,27 @@ class PentestHubClientTests(unittest.TestCase):
         self.assertEqual(orgs[0]["slug"], "acme-security")
 
     def test_login_failure_raises_pentesthub_api_error_with_code(self) -> None:
-        client = PentestHubClient(base_url=self.base_url)
-        with self.assertRaises(PentestHubApiError) as ctx:
+        client = SecoraClient(base_url=self.base_url)
+        with self.assertRaises(SecoraApiError) as ctx:
             client.auth.login(email="user@example.com", password="wrong-password")
         self.assertEqual(ctx.exception.code, "INVALID_CREDENTIALS")
         self.assertEqual(ctx.exception.status_code, 401)
 
     def test_unauthenticated_request_raises_401(self) -> None:
-        client = PentestHubClient(base_url=self.base_url)
-        with self.assertRaises(PentestHubApiError) as ctx:
+        client = SecoraClient(base_url=self.base_url)
+        with self.assertRaises(SecoraApiError) as ctx:
             client.organizations.list()
         self.assertEqual(ctx.exception.status_code, 401)
 
     def test_set_access_token_directly(self) -> None:
-        client = PentestHubClient(base_url=self.base_url)
+        client = SecoraClient(base_url=self.base_url)
         client.set_access_token("test-access-token")
         orgs = client.organizations.list()
         self.assertEqual(orgs[0]["id"], "org-1")
 
     def test_not_found_error_propagates_code(self) -> None:
-        client = PentestHubClient(base_url=self.base_url, access_token="test-access-token")
-        with self.assertRaises(PentestHubApiError) as ctx:
+        client = SecoraClient(base_url=self.base_url, access_token="test-access-token")
+        with self.assertRaises(SecoraApiError) as ctx:
             client.organizations.get("org-404")
         self.assertEqual(ctx.exception.code, "ORGANIZATION_NOT_FOUND")
 

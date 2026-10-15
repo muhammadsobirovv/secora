@@ -1,4 +1,4 @@
-# PentestHub AI — Prometheus alert rules (Module 14: Monitoring).
+# Secora AI — Prometheus alert rules (Module 14: Monitoring).
 # Deliberately small and conservative — every rule below references a
 # metric that actually exists today (see
 # apps/api/src/modules/observability/metrics-registry.service.ts and
@@ -9,7 +9,7 @@
 groups:
   - name: pentesthub-api
     rules:
-      - alert: PentestHubHighErrorRate
+      - alert: SecoraHighErrorRate
         expr: |
           sum(rate(pentesthub_http_requests_total{status=~"5.."}[5m]))
           /
@@ -19,10 +19,10 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "PentestHub AI API 5xx rate above 5%"
+          summary: "Secora AI API 5xx rate above 5%"
           description: "More than 5% of HTTP responses over the last 5 minutes were 5xx. Check apps/api logs (structured JSON, correlation IDs — see docs/operations/alerting-and-observability.md) for the failing route."
 
-      - alert: PentestHubHighRequestLatency
+      - alert: SecoraHighRequestLatency
         expr: |
           histogram_quantile(0.95, sum(rate(pentesthub_http_request_duration_seconds_bucket[5m])) by (le, route))
           > 2
@@ -30,25 +30,25 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "PentestHub AI p95 request latency above 2s"
+          summary: "Secora AI p95 request latency above 2s"
           description: "The 95th percentile HTTP request duration for route {{ $labels.route }} has been above 2 seconds for 10 minutes."
 
-      - alert: PentestHubProcessMemoryHigh
+      - alert: SecoraProcessMemoryHigh
         expr: pentesthub_process_resident_memory_bytes > 1.5e9
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "PentestHub AI process RSS above 1.5GB"
+          summary: "Secora AI process RSS above 1.5GB"
           description: "{{ $labels.instance }} resident memory has exceeded 1.5GB for 15 minutes — check for a leak or resize the container's memory limit/request in deploy/k8s/10-api-deployment.yaml."
 
-      - alert: PentestHubAPIDown
+      - alert: SecoraAPIDown
         expr: up{job="pentesthub-api"} == 0
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "PentestHub AI API target down"
+          summary: "Secora AI API target down"
           description: "Prometheus has not been able to scrape {{ $labels.instance }} for 2 minutes."
 
   - name: pentesthub-distributed-jobs
@@ -61,7 +61,7 @@ groups:
       # organization you want alerting on, or aggregate via the
       # Admin Console's Cluster Overview page instead — see Module 14's
       # Admin Console task).
-      - alert: PentestHubNoOnlineWorkers
+      - alert: SecoraNoOnlineWorkers
         expr: pentesthub_distributed_jobs_online_workers == 0
         for: 5m
         labels:
@@ -70,7 +70,7 @@ groups:
           summary: "No online distributed-job workers for organization {{ $labels.organizationId }}"
           description: "Queued jobs will not be processed until a worker re-registers or an unhealthy one recovers — see WorkerReaperService's crash-recovery behavior."
 
-      - alert: PentestHubQueueBacklogGrowing
+      - alert: SecoraQueueBacklogGrowing
         expr: pentesthub_distributed_jobs_current_load / clamp_min(pentesthub_distributed_jobs_total_capacity, 1) > 0.9
         for: 15m
         labels:

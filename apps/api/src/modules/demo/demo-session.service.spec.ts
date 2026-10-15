@@ -11,7 +11,7 @@ import { DemoSessionService } from './demo-session.service.js';
 
 function buildService(opts: { demoModeEnabled: boolean; ttlHours?: number }) {
   const usersRepository: Partial<UsersRepository> = {
-    create: jest.fn(async () => ({ id: 'demo-user-1', email: 'demo+x@demo.pentesthub.local' })) as unknown as UsersRepository['create'],
+    create: jest.fn(async () => ({ id: 'demo-user-1', email: 'demo+x@demo.secora.group' })) as unknown as UsersRepository['create'],
   };
   const workspacesRepository: Partial<WorkspacesRepository> = {
     create: jest.fn(async () => ({ id: 'demo-workspace-1' })) as unknown as WorkspacesRepository['create'],

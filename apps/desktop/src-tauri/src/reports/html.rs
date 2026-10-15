@@ -22,7 +22,7 @@ pub fn render(data: &ReportData) -> String {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{title} — PentestHub AI Report</title>
+<title>{title} — Secora AI Report</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.6; }}
   h1 {{ border-bottom: 3px solid #dc2626; padding-bottom: 12px; }}

@@ -58,7 +58,7 @@ observes `mcpToolInvocationDurationSeconds` (task #290 integration).
 2.0 HTTP client against **any** MCP-compatible server, not just this
 platform's own. Deliberately transport-minimal (HTTP+JSON-RPC only, no
 stdio framing — see ADR 0013 §2). Exported from `@pentesthub/sdk`
-alongside the pre-existing `HttpClient`/`PentestHubClient`
+alongside the pre-existing `HttpClient`/`SecoraClient`
 (Auth/Organizations/Distributed Jobs/Plugins/Integrations resources from
 Module 10); `packages/cli`'s `mcp` command group is its first real
 consumer.

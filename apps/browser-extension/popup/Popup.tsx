@@ -134,7 +134,7 @@ export function Popup() {
   if (!paired) {
     return (
       <div style={{ padding: 16 }}>
-        <EmptyState title="Not connected" description="Pair with your PentestHub AI Desktop Agent to start capturing." />
+        <EmptyState title="Not connected" description="Pair with your Secora AI Desktop Agent to start capturing." />
         <Button variant="primary" style={{ width: "100%" }} onClick={() => chrome.runtime.openOptionsPage()}>
           <Settings size={13} /> Open Settings to Pair
         </Button>
@@ -145,7 +145,7 @@ export function Popup() {
   return (
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: 700 }}>PentestHub AI</div>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>Secora AI</div>
         <div style={{ display: "flex", gap: 4 }}>
           <Button size="icon" variant="ghost" title="Side Panel" onClick={() => void openSidePanelForActiveTab()}>
             <PanelRight size={14} />

@@ -20,7 +20,7 @@ operators a single place to point their own compliance documentation at:
   JSON, generated from a single source of truth in
   `packages/shared/src/gdpr.ts`.
 
-PentestHub AI is self-hostable software, not a hosted service Anthropic-style
+Secora AI is self-hostable software, not a hosted service Anthropic-style
 company operates on your behalf. That means **the deployment operator is the
 data controller** for their instance, and this document is written for that
 operator — it explains what the platform gives you out of the box, and what
@@ -86,7 +86,7 @@ doesn't know your jurisdiction or your users' legal residency.
 
 ## Cross-border data transfers
 
-PentestHub AI is self-hosted: **the operator picks the deployment region**,
+Secora AI is self-hosted: **the operator picks the deployment region**,
 so there's no platform-mandated cross-border transfer to begin with. The only
 transfers the platform introduces on its own are opt-in:
 

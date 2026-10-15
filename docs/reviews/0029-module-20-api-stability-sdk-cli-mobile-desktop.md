@@ -94,7 +94,7 @@ keys SDK/CLI parity) touch either app's code paths.
   `bin/pentesthub.ts`'s pre-existing top-level error handler, confirmed
   unrelated to the new commands by inspection).
 - Python SDK: `python3 -m compileall` clean; live-instantiated
-  `PentestHubClient` and confirmed `client.api_keys` exposes all four
+  `SecoraClient` and confirmed `client.api_keys` exposes all four
   methods; existing `tests/test_client.py` suite still passes (5/5).
 - Go SDK: `go`/`gofmt` unavailable in this sandbox (same disclosed,
   longstanding toolchain limitation as every prior module) —

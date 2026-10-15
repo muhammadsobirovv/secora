@@ -58,7 +58,7 @@ export function LoginForm() {
     try {
       const res = await authApi.login(values);
       if (authApi.isMfaRequired(res)) {
-        sessionStorage.setItem("pentesthub_mfa_challenge_token", res.mfaChallengeToken);
+        sessionStorage.setItem("secora_mfa_challenge_token", res.mfaChallengeToken);
         router.push("/mfa-challenge");
         return;
       }

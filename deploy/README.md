@@ -1,4 +1,4 @@
-# PentestHub AI — Production Deployment (Module 10)
+# Secora AI — Production Deployment (Module 10)
 
 Four deployment paths, covering the full range from a single machine to a
 horizontally-scaled cluster:

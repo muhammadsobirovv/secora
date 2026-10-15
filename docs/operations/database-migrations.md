@@ -1,7 +1,7 @@
 # Database Migrations
 
 Operational guide for changing `apps/api/prisma/schema.prisma` in a running
-PentestHub AI deployment. This is Module 18 (Production Hardening) task
+Secora AI deployment. This is Module 18 (Production Hardening) task
 #509 — it formalizes practices that already existed (the Module 14
 `validate-migrations.mjs` script, `deploy/*/README.md`'s "First-time schema
 setup" sections, ADR 0010 point 14) into one place, and adds the checklist

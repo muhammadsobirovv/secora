@@ -2,16 +2,16 @@ import type { AppErrorCode, AppErrorResponseDto } from '@pentesthub/shared';
 
 /// Thrown for any non-2xx REST response. Carries the parsed
 /// `AppErrorResponseDto` (the same closed error-code union every
-/// PentestHub AI API handler throws — see `@pentesthub/shared`'s
+/// Secora AI API handler throws — see `@pentesthub/shared`'s
 /// `errors.ts`) when the API returned one, so SDK consumers can branch
 /// on `error.code` instead of string-matching `error.message`.
-export class PentestHubApiError extends Error {
+export class SecoraApiError extends Error {
   readonly statusCode: number;
   readonly code: AppErrorCode | 'UNKNOWN_ERROR';
 
   constructor(statusCode: number, body: Partial<AppErrorResponseDto> | undefined) {
-    super(body?.message ?? `PentestHub AI API request failed with status ${statusCode}`);
-    this.name = 'PentestHubApiError';
+    super(body?.message ?? `Secora AI API request failed with status ${statusCode}`);
+    this.name = 'SecoraApiError';
     this.statusCode = statusCode;
     this.code = (body?.code as AppErrorCode | undefined) ?? 'UNKNOWN_ERROR';
   }
@@ -27,7 +27,7 @@ type AttemptOutcome<T> =
   | { result?: undefined; retryableStatus: number; retryAfterMs?: number; retryableBody?: Partial<AppErrorResponseDto> };
 
 export interface HttpClientOptions {
-  /// Base URL of a PentestHub AI API deployment, e.g.
+  /// Base URL of a Secora AI API deployment, e.g.
   /// `https://api.your-company.com` (no trailing slash, no `/api`
   /// prefix — the API mounts every route at root, see bootstrap.ts).
   baseUrl: string;
@@ -41,12 +41,12 @@ export interface HttpClientOptions {
   /// Module 18 — task #526 (Phase 24: desktop/mobile/CLI/SDK reliability
   /// audit) correction of an earlier version of this comment, which
   /// incorrectly called this option unwired dead code — `HttpClient`
-  /// itself never calls it (true), but `PentestHubClient`'s constructor
+  /// itself never calls it (true), but `SecoraClient`'s constructor
   /// does: it passes `(tokens) => { this.http.setAccessToken(...);
   /// options.onTokenRefreshed?.(...) }` into `AuthResource` as its
   /// `onLoginSuccess` callback (see client.ts), which fires on both
   /// `auth.login()` and `auth.refresh()`. So this option is live for any
-  /// `PentestHubClient` consumer.
+  /// `SecoraClient` consumer.
   ///
   /// The real, disclosed gap is narrower: there is no *automatic*
   /// refresh-on-401 anywhere in this SDK — `auth.refresh()` only runs
@@ -54,11 +54,11 @@ export interface HttpClientOptions {
   /// `RefreshRequestDto`/`AUTH_ENDPOINTS.refresh` contract with no
   /// interceptor wired into `request()`. A consumer that never calls
   /// `client.auth.refresh()` before its access token expires gets a
-  /// plain 401 `PentestHubApiError`, same as `apps/web`'s `client.ts`
+  /// plain 401 `SecoraApiError`, same as `apps/web`'s `client.ts`
   /// avoided by building its own coalescing-refresh-on-401 logic
   /// (Phase 23 audit) — that logic was never ported down into this SDK.
   /// This also means anyone who constructs a raw `HttpClient` directly
-  /// instead of going through `PentestHubClient` (e.g. `packages/cli`'s
+  /// instead of going through `SecoraClient` (e.g. `packages/cli`'s
   /// `http.ts`) never reaches `AuthResource` at all, so their
   /// `onTokenRefreshed` never fires regardless — see the CLI-specific
   /// finding in `docs/reviews/0016-m18-cli-desktop-mobile-reliability-audit.md`.
@@ -73,7 +73,7 @@ export interface HttpClientOptions {
   /// meaningful default timeout), hanging any script or long-running
   /// process built on this SDK. Defaults to 30s, matching the general
   /// order of magnitude of `apps/api`'s own request-handling expectations
-  /// (see `PentestHubHighRequestLatency`'s 2s p95 alert threshold in
+  /// (see `SecoraHighRequestLatency`'s 2s p95 alert threshold in
   /// `deploy/prometheus/alerts.yml` — 30s is a generous multiple of that,
   /// not a tight SLA).
   timeoutMs?: number;
@@ -141,7 +141,7 @@ export class HttpClient {
       });
     } catch (err) {
       if (controller.signal.aborted) {
-        throw new Error(`PentestHub AI API request timed out after ${this.timeoutMs}ms: ${method} ${url.pathname}`);
+        throw new Error(`Secora AI API request timed out after ${this.timeoutMs}ms: ${method} ${url.pathname}`);
       }
       throw err;
     } finally {
@@ -163,7 +163,7 @@ export class HttpClient {
           retryableBody: typeof parsed === 'object' ? (parsed as Partial<AppErrorResponseDto>) : undefined,
         };
       }
-      throw new PentestHubApiError(response.status, typeof parsed === 'object' ? (parsed as Partial<AppErrorResponseDto>) : undefined);
+      throw new SecoraApiError(response.status, typeof parsed === 'object' ? (parsed as Partial<AppErrorResponseDto>) : undefined);
     }
     return { result: parsed as T };
   }
@@ -207,11 +207,11 @@ export class HttpClient {
         await sleep(outcome.retryAfterMs ?? 250 * 2 ** attemptNumber);
         continue;
       }
-      throw new PentestHubApiError(lastRetryableStatus, lastRetryableBody);
+      throw new SecoraApiError(lastRetryableStatus, lastRetryableBody);
     }
     // Unreachable (the loop always returns or throws), but keeps
     // TypeScript's control-flow analysis satisfied without an `any` cast.
-    throw new PentestHubApiError(lastRetryableStatus, lastRetryableBody);
+    throw new SecoraApiError(lastRetryableStatus, lastRetryableBody);
   }
 
   get<T>(path: string, query?: Record<string, string | number | boolean | undefined>): Promise<T> {

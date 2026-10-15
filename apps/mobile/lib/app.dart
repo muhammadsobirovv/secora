@@ -18,14 +18,14 @@ import 'features/settings/data/device_integrity_service.dart';
 const _kAppStoreUrl = 'https://apps.apple.com/app/id0000000000';
 const _kPlayStoreUrl = 'https://play.google.com/store/apps/details?id=ai.pentesthub.mobile';
 
-class PentestHubApp extends ConsumerStatefulWidget {
-  const PentestHubApp({super.key});
+class SecoraApp extends ConsumerStatefulWidget {
+  const SecoraApp({super.key});
 
   @override
-  ConsumerState<PentestHubApp> createState() => _PentestHubAppState();
+  ConsumerState<SecoraApp> createState() => _SecoraAppState();
 }
 
-class _PentestHubAppState extends ConsumerState<PentestHubApp> with WidgetsBindingObserver {
+class _SecoraAppState extends ConsumerState<SecoraApp> with WidgetsBindingObserver {
   bool _integrityWarningDismissed = false;
   DeviceIntegrityStatus? _integrityStatus;
 
@@ -59,7 +59,7 @@ class _PentestHubAppState extends ConsumerState<PentestHubApp> with WidgetsBindi
       builder: (ctx) => AlertDialog(
         title: const Text('Update available'),
         content: Text(
-          'A newer version of PentestHub AI is available '
+          'A newer version of Secora AI is available '
           '(you have ${info.currentVersion}). Update from the app store for the latest '
           'features and fixes.',
         ),
@@ -105,7 +105,7 @@ class _PentestHubAppState extends ConsumerState<PentestHubApp> with WidgetsBindi
         !_integrityWarningDismissed && (_integrityStatus?.compromised ?? false);
 
     return MaterialApp.router(
-      title: 'PentestHub AI',
+      title: 'Secora AI',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: AppTheme.light,

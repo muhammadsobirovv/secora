@@ -83,7 +83,7 @@ the risk surface is narrow. Verification performed:
   in both `sdks/python/pyproject.toml` and
   `apps/desktop/src-tauri/Cargo.toml`.
 - **Python SDK live verification**: `import pentesthub_ai` and confirmed
-  `pentesthub_ai.__version__ == "1.0.0"`; instantiated `PentestHubClient`
+  `pentesthub_ai.__version__ == "1.0.0"`; instantiated `SecoraClient`
   and confirmed `.api_keys` is still present (no accidental breakage from
   the `__init__.py` edit); re-ran the existing `tests/test_client.py`
   suite — **5/5 passed**, unchanged from Phase 16-17's verification.

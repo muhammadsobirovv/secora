@@ -1,9 +1,9 @@
-# MCP Guide — PentestHub AI's Model Context Protocol Server & Client
+# MCP Guide — Secora AI's Model Context Protocol Server & Client
 
-PentestHub AI implements the [Model Context Protocol](https://modelcontextprotocol.io)
+Secora AI implements the [Model Context Protocol](https://modelcontextprotocol.io)
 (protocol version `2025-06-18`) as its extensibility substrate: any
 MCP-compatible AI application can list and call this platform's tools,
-read its resources, and pull its prompt library — and PentestHub can
+read its resources, and pull its prompt library — and Secora can
 itself act as an MCP client against any other compliant server. See
 `docs/adr/0013-ai-automation-platform-mcp-ecosystem.md` for the design
 rationale and `docs/modules/13-ai-automation-platform-mcp-ecosystem.md`
@@ -63,7 +63,7 @@ aggregates multiple servers. Creating/editing prompts stays on the
 
 `@pentesthub/sdk` exports `McpClient` (`packages/sdk-typescript/src/mcp-client.ts`)
 — a dependency-free JSON-RPC 2.0 client for calling **any** MCP-compatible
-server, PentestHub's own or a third party's:
+server, Secora's own or a third party's:
 
 ```ts
 import { McpClient } from '@pentesthub/sdk';

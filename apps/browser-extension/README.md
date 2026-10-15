@@ -1,7 +1,7 @@
-# PentestHub AI — Browser Extension
+# Secora AI — Browser Extension
 
 A Manifest V3 browser extension (Chrome/Edge/Brave/Opera, plus a
-separate Firefox build) that pairs with the PentestHub AI Desktop Agent
+separate Firefox build) that pairs with the Secora AI Desktop Agent
 (Module 7) over its Local Bridge Server to capture recon targets,
 trigger scans, and run AI analysis directly from the page you're
 testing. See `../../docs/modules/08-browser-extension.md` for full
@@ -12,7 +12,7 @@ for why this is built the way it is.
 ## Prerequisites
 
 - Node.js 18+ and npm
-- **PentestHub AI Desktop Agent** (Module 7) installed and running —
+- **Secora AI Desktop Agent** (Module 7) installed and running —
   its Local Bridge Server starts automatically with the app
 - Chrome/Edge/Brave/Opera (Manifest V3) and/or Firefox
 

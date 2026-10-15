@@ -6,7 +6,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background p-6">
       <div className="flex items-center gap-2 text-lg font-semibold">
         <ShieldCheck className="size-6 text-primary" />
-        PentestHub AI
+        Secora AI
       </div>
       <div className="w-full max-w-sm">{children}</div>
       {/* Module 15 — task #350 (documentation portal): the only

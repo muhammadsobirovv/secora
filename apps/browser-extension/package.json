@@ -2,7 +2,7 @@
   "name": "@pentesthub-ai/browser-extension",
   "version": "1.0.0",
   "private": true,
-  "description": "PentestHub AI Browser Extension (Manifest V3) — Chrome/Edge/Brave/Opera/Firefox.",
+  "description": "Secora AI Browser Extension (Manifest V3) — Chrome/Edge/Brave/Opera/Firefox.",
   "type": "module",
   "scripts": {
     "dev:chrome": "node scripts/build.mjs --target=chrome --watch",

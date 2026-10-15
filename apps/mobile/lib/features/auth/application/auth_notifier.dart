@@ -98,7 +98,7 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Device Registration (Auth feature spec item): stamps a stable
   /// per-install device ID as the current session's device name context so
   /// `GET /auth/sessions` shows a recognizable entry (e.g. "iPhone 15 Pro —
-  /// PentestHub Mobile") rather than a bare user agent string. The backend
+  /// Secora Mobile") rather than a bare user agent string. The backend
   /// derives `SessionSummaryDto.deviceName` from the `User-Agent` header
   /// already sent by Dio; this call additionally registers the FCM push
   /// token for that device once notification permission is granted (see

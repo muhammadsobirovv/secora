@@ -1,4 +1,4 @@
-# PentestHub AI — API server (Module 10: Production Deployment).
+# Secora AI — API server (Module 10: Production Deployment).
 #
 # Multi-stage build run from the MONOREPO ROOT as build context (Turborepo
 # workspace packages — @pentesthub/shared in particular — are real source

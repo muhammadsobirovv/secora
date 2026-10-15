@@ -15,7 +15,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="flex h-14 items-center gap-2 px-4">
         <ShieldCheck className="size-5 text-primary" />
-        <span className="font-semibold">PentestHub AI</span>
+        <span className="font-semibold">Secora AI</span>
       </div>
       <div className="px-2">
         <WorkspaceSwitcher />
