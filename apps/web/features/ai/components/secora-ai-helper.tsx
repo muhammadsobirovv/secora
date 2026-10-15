@@ -85,7 +85,7 @@ export function SecoraAiHelper() {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 right-4 z-50 flex h-[32rem] max-h-[calc(100svh-7rem)] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
+        <div className="fixed bottom-24 right-6 z-[60] flex h-[32rem] max-h-[calc(100svh-7rem)] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
           <div className="flex items-center justify-between border-b px-3 py-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Bot className="size-4 text-primary" /> Secora AI
@@ -166,9 +166,16 @@ export function SecoraAiHelper() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Secora AI"
-        className="fixed bottom-4 right-4 z-50 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-[60] flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-xl ring-4 ring-primary/30 transition-transform hover:scale-105"
       >
-        {open ? <X className="size-5" /> : <Bot className="size-5" />}
+        {!open && (
+          <span className="absolute -right-1 -top-1 flex size-3">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex size-3 rounded-full bg-primary ring-2 ring-background" />
+          </span>
+        )}
+        {open ? <X className="size-6" /> : <Bot className="size-6" />}
+        {!open && <span className="hidden sm:inline">Secora AI</span>}
       </button>
 
       <AiAccessDialog open={accessOpen} onOpenChange={setAccessOpen} />
