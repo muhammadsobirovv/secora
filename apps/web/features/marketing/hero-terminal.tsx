@@ -20,7 +20,7 @@ interface TerminalLine {
 }
 
 const LINES: TerminalLine[] = [
-  { tag: "$", text: "phai scan example.com", tone: "command" },
+  { tag: "$", text: "secora scan example.com", tone: "command" },
   { tag: "✓", text: "landing.terminal.subdomains", textIsKey: true, tone: "ok" },
   { tag: "✓", text: "landing.terminal.ports", textIsKey: true, tone: "ok" },
   { tag: "landing.severity.critical", tagIsKey: true, text: "landing.terminal.sqli", textIsKey: true, tone: "critical" },
@@ -109,7 +109,7 @@ export function HeroTerminal() {
         <span className="size-2.5 rounded-full bg-border" />
         <span className="size-2.5 rounded-full bg-border" />
         <span className="size-2.5 rounded-full bg-border" />
-        <span className="ml-3 font-mono text-xs text-muted-foreground">phai — scan</span>
+        <span className="ml-3 font-mono text-xs text-muted-foreground">secora — scan</span>
       </div>
 
       <div className="space-y-1.5 px-4 py-4 font-mono text-[13px] leading-relaxed" aria-hidden="true">
