@@ -328,4 +328,76 @@ describe('ReconJobExecutionService', () => {
     // job-level failure.
     expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
   });
+
+  it('marks the job FAILED (not COMPLETED) with every tool error when all tools fail', async () => {
+    const { service, toolRunsRepository, jobsRepository, eventBus } =
+      await buildService({
+        runImpls: {
+          SUBFINDER: () => Promise.reject(new Error('spawn subfinder ENOENT')),
+          DNSX: () => Promise.reject(new Error('spawn dnsx ENOENT')),
+        },
+      });
+    const job = buildJob();
+
+    await service.execute(job, new AbortController().signal);
+
+    expect(toolRunsRepository.markComplete).toHaveBeenCalledWith(
+      'tr-1',
+      expect.objectContaining({ status: 'FAILED' }),
+    );
+    expect(toolRunsRepository.markComplete).toHaveBeenCalledWith(
+      'tr-2',
+      expect.objectContaining({ status: 'FAILED' }),
+    );
+    expect(jobsRepository.markCompleted).not.toHaveBeenCalled();
+    expect(jobsRepository.scheduleRetry).not.toHaveBeenCalled();
+    expect(jobsRepository.markFailed).toHaveBeenCalledWith(
+      'job-1',
+      'Recon execution failed: all configured tools failed.\n' +
+        'subfinder: spawn subfinder ENOENT\n' +
+        'dnsx: spawn dnsx ENOENT',
+    );
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ verb: 'recon_job.failed' }),
+    );
+  });
+
+  it('records a non-zero exit with no parsed findings as a FAILED tool run', async () => {
+    const { service, toolRunsRepository, jobsRepository } = await buildService({
+      runImpls: {
+        SUBFINDER: () =>
+          Promise.resolve({ exitCode: 0, stdout: '', timedOut: false }),
+        DNSX: () =>
+          Promise.resolve({ exitCode: 1, stdout: '', timedOut: false }),
+      },
+    });
+    const job = buildJob();
+
+    await service.execute(job, new AbortController().signal);
+
+    expect(toolRunsRepository.markComplete).toHaveBeenCalledWith(
+      'tr-2',
+      expect.objectContaining({
+        status: 'FAILED',
+        exitCode: 1,
+        errorMessage: 'dnsx exited with code 1 (see job logs for stderr).',
+      }),
+    );
+    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
+  });
+
+  it('still completes when this attempt fails but an earlier attempt already completed a tool', async () => {
+    const { service, jobsRepository } = await buildService({
+      runImpls: {
+        DNSX: () => Promise.reject(new Error('spawn dnsx ENOENT')),
+      },
+    });
+    const job = buildJob();
+    job.toolRuns[0] = { ...job.toolRuns[0], status: 'COMPLETED' };
+
+    await service.execute(job, new AbortController().signal);
+
+    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
+    expect(jobsRepository.markFailed).not.toHaveBeenCalled();
+  });
 });

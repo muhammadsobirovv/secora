@@ -46,7 +46,15 @@ export class ToolProcessSpawner {
     const { command, args, signal, killGraceMs = 5000 } = options;
 
     return new Promise((resolve, reject) => {
-      const child = spawn(command, args, { signal });
+      // stdin 'ignore' (/dev/null), not the default open pipe: the
+      // ProjectDiscovery tools (httpx, katana, naabu, ...) read targets from
+      // stdin whenever it isn't a TTY, so a pipe that's never closed makes
+      // them block until the job timeout. Every adapter passes its target
+      // via argv, never stdin.
+      const child = spawn(command, args, {
+        signal,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
       let stdout = '';
       let timedOut = false;
       let killTimer: NodeJS.Timeout | undefined;

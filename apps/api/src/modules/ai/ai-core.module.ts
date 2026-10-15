@@ -62,6 +62,7 @@ import { AiToolRegistryService } from './tools/ai-tool-registry.service.js';
 
 import { AiChatStreamHubService } from './chat/ai-chat-stream-hub.service.js';
 import { AiChatService } from './chat/ai-chat.service.js';
+import { FreeTierGateService } from './chat/free-tier-gate.service.js';
 import { AiSummaryHandler } from './events/ai-summary.handler.js';
 
 /// Everything the AI HTTP module needs, in one place — mirrors
@@ -154,6 +155,7 @@ import { AiSummaryHandler } from './events/ai-summary.handler.js';
 
     AiChatStreamHubService,
     AiChatService,
+    FreeTierGateService,
     AiSummaryHandler,
   ],
   exports: [

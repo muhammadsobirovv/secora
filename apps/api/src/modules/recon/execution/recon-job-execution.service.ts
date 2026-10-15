@@ -97,16 +97,22 @@ export class ReconJobExecutionService {
         return;
       }
 
+      const failures: { tool: ReconTool; error: string }[] = [];
+      let anyToolSucceeded = job.toolRuns.some(
+        (toolRun) => toolRun.status === 'COMPLETED',
+      );
       for (const toolRun of job.toolRuns) {
         if (signal.aborted) break;
         if (toolRun.status !== 'PENDING') continue;
 
-        await this.runOneTool(
+        const error = await this.runOneTool(
           job,
           toolRun,
           { id: target.id, type: target.type, value: target.value },
           signal,
         );
+        if (error === null) anyToolSucceeded = true;
+        else failures.push({ tool: toolRun.tool, error });
       }
 
       const fresh = await this.jobsRepository.findById(job.id);
@@ -129,6 +135,25 @@ export class ReconJobExecutionService {
 
       if (signal.aborted) {
         await this.retryOrFail(job, 'Job timed out.');
+        return;
+      }
+
+      // Every tool failed (e.g. `spawn subfinder ENOENT` on a worker image
+      // missing its binaries) — reporting that as COMPLETED with zero
+      // findings hides the failure. Not retried: a retry only re-runs
+      // PENDING tool runs, and these are all already FAILED. A partial
+      // success still completes, with the failed tool runs left visible.
+      if (!anyToolSucceeded && failures.length > 0) {
+        await this.finalizeAsFailed(
+          job,
+          [
+            'Recon execution failed: all configured tools failed.',
+            ...failures.map(
+              ({ tool, error }) =>
+                `${tool.toLowerCase()}: ${error.slice(0, 300)}`,
+            ),
+          ].join('\n'),
+        );
         return;
       }
 
@@ -161,12 +186,14 @@ export class ReconJobExecutionService {
     }
   }
 
+  /// Resolves to null when the tool run COMPLETED, or to its error
+  /// message when it was marked FAILED.
   private async runOneTool(
     job: ReconJobWithToolRuns,
     toolRun: ReconJobToolRun,
     target: ToolRunTarget,
     signal: AbortSignal,
-  ): Promise<void> {
+  ): Promise<string | null> {
     await this.toolRunsRepository.markStarted(toolRun.id);
 
     try {
@@ -199,31 +226,56 @@ export class ReconJobExecutionService {
           errorMessage: 'Timed out or cancelled.',
           rawOutputEvidenceId: null,
         });
-        return;
+        return 'Timed out or cancelled.';
       }
 
       let findingInputs = normalizer.normalize(result.stdout, {
         tool: toolRun.tool,
         targetValue: target.value,
       });
+
+      // A non-zero exit with nothing parsed is a failed run (e.g. a CLI
+      // usage error), not "completed with zero findings". Its stderr is
+      // already in the job log via onLog.
+      if (result.exitCode !== 0 && findingInputs.length === 0) {
+        const errorMessage = `${toolRun.tool.toLowerCase()} exited with code ${result.exitCode} (see job logs for stderr).`;
+        await this.toolRunsRepository.markComplete(toolRun.id, {
+          status: 'FAILED',
+          exitCode: result.exitCode,
+          findingsCount: 0,
+          errorMessage,
+          rawOutputEvidenceId: null,
+        });
+        return errorMessage;
+      }
       findingInputs = await this.materializeScreenshots(
         findingInputs,
         job,
         target,
       );
 
-      await this.persistToolResult(job, toolRun, findingInputs, result.stdout);
+      await this.persistToolResult(
+        job,
+        toolRun,
+        findingInputs,
+        result.stdout,
+        result.exitCode,
+      );
+      return null;
     } catch (error) {
       this.logger.warn(
         `Tool ${toolRun.tool} failed for job ${job.id}: ${String(error)}`,
       );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error.';
       await this.toolRunsRepository.markComplete(toolRun.id, {
         status: 'FAILED',
         exitCode: null,
         findingsCount: 0,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error.',
+        errorMessage,
         rawOutputEvidenceId: null,
       });
+      return errorMessage;
     }
   }
 
@@ -289,6 +341,7 @@ export class ReconJobExecutionService {
     toolRun: ReconJobToolRun,
     findings: ReconFindingInput[],
     rawOutput: string,
+    exitCode: number | null,
   ): Promise<void> {
     if (findings.length > 0) {
       await this.findingsRepository.upsertMany(
@@ -325,7 +378,7 @@ export class ReconJobExecutionService {
 
     await this.toolRunsRepository.markComplete(toolRun.id, {
       status: 'COMPLETED',
-      exitCode: 0,
+      exitCode,
       findingsCount: findings.length,
       errorMessage: null,
       rawOutputEvidenceId,

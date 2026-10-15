@@ -23,8 +23,10 @@ export class DnsxToolRunner implements ToolRunner {
     const bin = this.configService.get('RECON_TOOL_BIN_DNSX', { infer: true });
     return this.spawner.spawn({
       command: bin,
+      // `-l` (hosts to resolve), not `-d`: dnsx's `-d` is the subdomain
+      // brute-force input and exits FTL without a `-w` wordlist.
       args: [
-        '-d',
+        '-l',
         ctx.target.value,
         '-silent',
         '-json',

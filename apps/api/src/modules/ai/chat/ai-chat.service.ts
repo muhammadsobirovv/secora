@@ -38,6 +38,7 @@ import { AiChatStreamHubService } from './ai-chat-stream-hub.service.js';
 import { toAiMessageDto } from '../mappers/to-ai-message-dto.mapper.js';
 import type { AiMessageDto } from '@pentesthub/shared';
 import { AiBudgetEnforcerService } from '../../billing/ai-cost/ai-budget-enforcer.service.js';
+import { FreeTierGateService } from './free-tier-gate.service.js';
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
 
@@ -72,6 +73,7 @@ export class AiChatService {
     private readonly streamHub: AiChatStreamHubService,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly budgetEnforcer: AiBudgetEnforcerService,
+    private readonly freeTierGate: FreeTierGateService,
   ) {}
 
   /// Creates the user + placeholder assistant rows synchronously, then
@@ -222,7 +224,8 @@ export class AiChatService {
     conversationId: string,
     forkPointId: string,
   ): Promise<AiMessageRecord[]> {
-    const all = await this.messagesRepository.listForConversation(conversationId);
+    const all =
+      await this.messagesRepository.listForConversation(conversationId);
     const forkPoint = all.find((m) => m.id === forkPointId);
     if (!forkPoint) return all;
 
@@ -294,6 +297,11 @@ export class AiChatService {
         context,
         latestUserContent,
       );
+      // Hosted free tier (server key, daily cap). null for everyone else.
+      const freeTier = await this.freeTierGate.evaluate(
+        conversation.workspaceId,
+        userId,
+      );
       const history: AiChatMessage[] = [
         ...systemMessages,
         ...priorMessages.map((m) => ({
@@ -313,11 +321,21 @@ export class AiChatService {
       // Local-First Migration Phase 1 (BYOK) — resolves this workspace's
       // own credential (if any) for the chosen/default provider before
       // resolving to a fallback; see AiProviderRegistryService.
-      const { provider, credential } = await this.providerRegistry.resolveProvider(
-        conversation.workspaceId,
-        conversation.provider,
-      );
-      const model = conversation.model ?? provider.getDefaultModel(credential);
+      const boundedHistory = freeTier
+        ? this.freeTierGate.trimForFreeTier(history)
+        : history;
+      const { provider, credential } = freeTier
+        ? {
+            provider: this.providerRegistry.get('GEMINI'),
+            credential: undefined,
+          }
+        : await this.providerRegistry.resolveProvider(
+            conversation.workspaceId,
+            conversation.provider,
+          );
+      const model = freeTier
+        ? freeTier.model
+        : (conversation.model ?? provider.getDefaultModel(credential));
       const maxTokens = this.configService.get('AI_CHAT_STREAM_MAX_TOKENS', {
         infer: true,
       });
@@ -333,9 +351,15 @@ export class AiChatService {
       // cheaper alternative is configured, which is always true on a
       // Community Edition deployment with no AiBudgetPolicy/AiModelPricing
       // rows at all (check() returns allowed:true, warning:false, no-op).
-      const budgetCheck = await this.budgetEnforcer.check(conversation.workspaceId, userId, provider.name, model);
+      const budgetCheck = await this.budgetEnforcer.check(
+        conversation.workspaceId,
+        userId,
+        provider.name,
+        model,
+      );
       const effectiveModel =
-        budgetCheck.warning && budgetCheck.fallbackSuggested?.provider === provider.name
+        budgetCheck.warning &&
+        budgetCheck.fallbackSuggested?.provider === provider.name
           ? budgetCheck.fallbackSuggested.model
           : model;
       if (effectiveModel !== model) {
@@ -358,7 +382,7 @@ export class AiChatService {
         for await (const chunk of provider.streamChatCompletion(
           {
             model: effectiveModel,
-            messages: history,
+            messages: boundedHistory,
             maxTokens,
             signal: controller.signal,
           },

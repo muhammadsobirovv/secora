@@ -268,6 +268,16 @@ const envSchema = z.object({
   AI_OPENROUTER_API_KEY: z.string().optional(),
   AI_OPENROUTER_MODEL: z.string().default('anthropic/claude-sonnet-4.5'),
 
+  // Hosted-only free tier (see apps/api/src/modules/ai/chat/free-tier-policy.ts).
+  // When 'true', workspaces on the FREE plan without their own BYOK key are
+  // routed to the server's Gemini key with the free-tier Gemma model and a
+  // per-user daily request cap. Self-hosted (Community) deployments leave
+  // this 'false' and keep their unlimited behavior.
+  AI_HOSTED_FREE_TIER: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // RAG (Retrieval-Augmented Generation) tuning. Embedding dimension must
   // match the `vector(1536)` column width in the ai_memory_chunks table
   // (schema.prisma) — 1536 is OpenAI's text-embedding-3-small width, the
@@ -330,7 +340,11 @@ const envSchema = z.object({
   // marked UNHEALTHY and any DistributedJob still RUNNING on it is
   // migrated back to QUEUED (job migration / dead-worker recovery).
   WORKER_HEARTBEAT_STALE_MS: z.coerce.number().int().positive().default(90_000),
-  WORKER_REAPER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+  WORKER_REAPER_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30_000),
 
   // Module 10 — GraphQL API. Disabled by default (REST remains the
   // primary, documented surface); set to enable GET /graphql (Apollo
@@ -387,9 +401,7 @@ const envSchema = z.object({
   // selection" itself lives in data (Workspace settings / BYOK credential
   // rows from Module 5 Phase 1), not env — this is only the *fallback*
   // mode when a workspace hasn't chosen one.
-  AI_ORCHESTRATOR_MODE: z
-    .enum(['CLOUD', 'LOCAL', 'HYBRID'])
-    .default('CLOUD'),
+  AI_ORCHESTRATOR_MODE: z.enum(['CLOUD', 'LOCAL', 'HYBRID']).default('CLOUD'),
   // Bounds how many AgentTasks within one OrchestrationRun can be RUNNING
   // concurrently — keeps one goal from fanning out into an unbounded number
   // of simultaneous provider calls.
@@ -431,7 +443,11 @@ const envSchema = z.object({
   // An MCP session with no activity for this long is treated as EXPIRED
   // by the same idle-sweep pattern Module 1's Session table already uses
   // (see auth/session-cleanup, mirrored here for McpSession).
-  MCP_SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(60),
+  MCP_SESSION_IDLE_TIMEOUT_MINUTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60),
   // Script Engine (task #286) wall-clock budget per execution — the
   // second argument to `vm.Script#runInContext`'s `timeout`, same
   // mechanism `PluginSandboxService` already uses.
@@ -461,7 +477,11 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   QUEUE_REDIS_KEY_PREFIX: z.string().default('pentesthub:queue:'),
   QUEUE_DEFAULT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
-  QUEUE_DEFAULT_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(2_000),
+  QUEUE_DEFAULT_RETRY_BASE_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(2_000),
 
   // Object storage abstraction (STORAGE_SERVICE token, common/providers/
   // storage/). `local` (default, `LocalDiskStorageService`) needs no
@@ -496,7 +516,11 @@ const envSchema = z.object({
   // to route read-only queries (QueryBus handlers, via
   // `PrismaService.replica()`) to a separate connection pool.
   DATABASE_READ_REPLICA_URL: z.string().optional(),
-  DATABASE_READ_REPLICA_POOL_MAX: z.coerce.number().int().positive().default(10),
+  DATABASE_READ_REPLICA_POOL_MAX: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10),
 
   // Backup System / Disaster Recovery. `BACKUP_ENCRYPTION_KEY` mirrors
   // `CREDENTIAL_ENCRYPTION_KEY`'s AES-256-GCM posture — optional because
@@ -507,7 +531,11 @@ const envSchema = z.object({
   BACKUP_ENCRYPTION_KEY: optionalMinLen(32),
   BACKUP_PG_DUMP_BIN: z.string().default('pg_dump'),
   BACKUP_PG_RESTORE_BIN: z.string().default('pg_restore'),
-  BACKUP_VERIFICATION_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  BACKUP_VERIFICATION_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3_600_000),
 
   // Security — IP Allow Lists (optional, empty = disabled). Comma-
   // separated CIDR blocks/exact IPs; checked after `TRUST_PROXY_HOPS`
@@ -609,7 +637,11 @@ const envSchema = z.object({
   CVE_INTELLIGENCE_PROVIDER: z
     .enum(['none', 'nvd', 'cisa_kev', 'osv', 'github_advisories', 'vendor'])
     .default('none'),
-  CVE_INTELLIGENCE_REFRESH_INTERVAL_HOURS: z.coerce.number().int().positive().default(24),
+  CVE_INTELLIGENCE_REFRESH_INTERVAL_HOURS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(24),
   // Optional — NVD works unauthenticated (5 req/30s); a key raises that to
   // 50 req/30s. Never required, matching the Community Edition guarantee.
   NVD_API_KEY: z.string().optional(),
@@ -634,9 +666,21 @@ const envSchema = z.object({
   // `stix_taxii` polls an operator-configured TAXII 2.1 collection;
   // `vendor` is a deployment-specific feed URL.
   THREAT_INTEL_PROVIDER: z
-    .enum(['none', 'cisa_kev', 'nvd', 'osv', 'github_advisories', 'stix_taxii', 'vendor'])
+    .enum([
+      'none',
+      'cisa_kev',
+      'nvd',
+      'osv',
+      'github_advisories',
+      'stix_taxii',
+      'vendor',
+    ])
     .default('none'),
-  THREAT_INTEL_REFRESH_INTERVAL_HOURS: z.coerce.number().int().positive().default(24),
+  THREAT_INTEL_REFRESH_INTERVAL_HOURS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(24),
   // Required only when THREAT_INTEL_PROVIDER=stix_taxii — a TAXII 2.1
   // server root + collection id an operator has already been granted
   // access to. This platform is a TAXII *client* only; it never stands up
@@ -652,17 +696,29 @@ const envSchema = z.object({
   // Bounds how many indicators a single refresh/import call may write in
   // one request — never unbounded, matching every other bulk-ingest path
   // in this codebase (Recon findings, STIX bundle import, ...).
-  THREAT_INTEL_MAX_INDICATORS_PER_IMPORT: z.coerce.number().int().positive().default(1000),
+  THREAT_INTEL_MAX_INDICATORS_PER_IMPORT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1000),
 
   // Module 16 — Terminal workspace + safe command execution (task #388).
   // Bounds every ad-hoc command the same way RECON_JOB_TIMEOUT_SECONDS
   // already bounds a Recon job — never unbounded.
-  TERMINAL_COMMAND_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(120),
+  TERMINAL_COMMAND_TIMEOUT_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(120),
 
   // Module 16 — Approval gates (task #399). How long an unanswered
   // SecurityApprovalRequest stays PENDING before AiInvestigationExpiryService
   // marks it EXPIRED and fails the operation closed (never open).
-  SECURITY_APPROVAL_DEFAULT_EXPIRY_MINUTES: z.coerce.number().int().positive().default(60),
+  SECURITY_APPROVAL_DEFAULT_EXPIRY_MINUTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

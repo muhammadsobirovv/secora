@@ -78,6 +78,12 @@ COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/generated ./apps/api/generated
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
 COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
+# LocalDiskStorageService's directory (process.cwd()/.storage), the mount
+# point of docker-compose.yml's shared `api-storage` volume. Pre-created
+# and owned by the runtime user so a fresh named volume inherits that
+# ownership — otherwise Docker creates it root-owned and every write from
+# this non-root process fails with EACCES. Same line in Dockerfile.worker.
+RUN mkdir -p apps/api/.storage && chown pentesthub:pentesthub apps/api/.storage
 # DevMailService (used whenever MAIL_PROVIDER is not "smtp") writes every
 # outgoing email to process.cwd()/.mail-outbox. The non-root runtime user
 # cannot create that directory under the root-owned app dir, so without

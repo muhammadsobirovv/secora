@@ -39,6 +39,44 @@ RUN pnpm --filter @pentesthub/agent-sdk build
 # See apps/api/Dockerfile for why this needs an explicit heap ceiling.
 RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 
+# Recon tool binaries (Module 3's ToolRunner adapters spawn these by name
+# from PATH — see RECON_TOOL_BIN_* in src/config/env.validation.ts).
+# Without this stage the runtime image had none of them, so every tool
+# run failed with `spawn <tool> ENOENT`. Built from the official upstream
+# Go modules at pinned versions: `go install module@version` verifies each
+# module (and every dependency) against the Go checksum database
+# (sum.golang.org), so no binaries are downloaded from release URLs and
+# nothing is piped into a shell. Same Debian release (bookworm) as the
+# runtime stage, so naabu's cgo/libpcap link matches the runtime libpcap.
+#
+# Intentionally NOT installed: gowitness (needs a full Chromium) and
+# whatweb (Ruby) — jobs that request those tools record a FAILED tool run.
+FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS recon-tools
+ARG SUBFINDER_VERSION=v2.16.0
+ARG HTTPX_VERSION=v1.12.0
+ARG DNSX_VERSION=v1.3.1
+ARG NAABU_VERSION=v2.6.1
+ARG KATANA_VERSION=v1.8.0
+# v4, not v5: AmassToolRunner calls the v4 CLI (`enum -passive -silent`).
+ARG AMASS_VERSION=v4.2.0
+ARG GAU_VERSION=v2.2.4
+ARG WAYBACKURLS_VERSION=v0.1.0
+ARG ASSETFINDER_VERSION=v0.1.1
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends libpcap-dev \
+  && rm -rf /var/lib/apt/lists/*
+ENV GOBIN=/out GOFLAGS=-trimpath GOTOOLCHAIN=local CGO_ENABLED=0
+RUN go install -ldflags="-s -w" github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION} \
+  && go install -ldflags="-s -w" github.com/projectdiscovery/httpx/cmd/httpx@${HTTPX_VERSION} \
+  && go install -ldflags="-s -w" github.com/projectdiscovery/dnsx/cmd/dnsx@${DNSX_VERSION} \
+  && go install -ldflags="-s -w" github.com/projectdiscovery/katana/cmd/katana@${KATANA_VERSION} \
+  && go install -ldflags="-s -w" github.com/owasp-amass/amass/v4/cmd/amass@${AMASS_VERSION} \
+  && go install -ldflags="-s -w" github.com/lc/gau/v2/cmd/gau@${GAU_VERSION} \
+  && go install -ldflags="-s -w" github.com/tomnomnom/waybackurls@${WAYBACKURLS_VERSION} \
+  && go install -ldflags="-s -w" github.com/tomnomnom/assetfinder@${ASSETFINDER_VERSION}
+# naabu links libpcap via cgo.
+RUN CGO_ENABLED=1 go install -ldflags="-s -w" github.com/projectdiscovery/naabu/v2/cmd/naabu@${NAABU_VERSION}
+
 FROM base AS prod-deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
@@ -49,6 +87,18 @@ RUN pnpm install --prod --frozen-lockfile --filter api...
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
+# whois also backs AsnToolRunner (whois.cymru.com); netbase provides
+# /etc/services, without which whois fails with "Servname not supported";
+# libpcap0.8 is naabu's runtime library; ca-certificates for every tool's
+# outbound HTTPS.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates netbase whois nmap libpcap0.8 \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=recon-tools /out/ /usr/local/bin/
+# This image ships ProjectDiscovery's httpx as plain `httpx` — the
+# `httpx-toolkit` default only exists to dodge Kali's Python `httpx` CLI,
+# which isn't present here.
+ENV RECON_TOOL_BIN_HTTPX=httpx
 RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shell /bin/bash --create-home pentesthub
 WORKDIR /workspace
 COPY --from=prod-deps /workspace/node_modules ./node_modules
@@ -60,6 +110,8 @@ COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/generated ./apps/api/generated
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
 COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
+# Shared `api-storage` volume mount point — see apps/api/Dockerfile.
+RUN mkdir -p apps/api/.storage && chown pentesthub:pentesthub apps/api/.storage
 USER pentesthub
 WORKDIR /workspace/apps/api
 # Same fix as apps/api/Dockerfile's CMD — see that file's comment.
