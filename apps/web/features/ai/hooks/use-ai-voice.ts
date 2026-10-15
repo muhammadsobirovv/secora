@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { synthesizeAiSpeech, transcribeAiSpeech } from "@/lib/api/ai";
 import { useAiSpeechProviders } from "./use-ai";
 import { blobToWav16k } from "../lib/encode-wav";
@@ -267,26 +268,11 @@ export function useTextToSpeech(language: SpeechLanguageCode): UseTextToSpeechRe
       const requestId = requestRef.current;
       setSpeakingMessageId(messageId);
 
-      if (azureAvailable) {
-        const voice = SPEECH_LANGUAGES.find((l) => l.code === language)?.voice ?? SPEECH_LANGUAGES[0].voice;
-        synthesizeAiSpeech(speakable, voice)
-          .then((result) => {
-            if (requestId !== requestRef.current) return;
-            const audio = new Audio(`data:${result.mimeType};base64,${result.audioBase64}`);
-            audioRef.current = audio;
-            const clear = () => {
-              if (requestId === requestRef.current) setSpeakingMessageId(null);
-            };
-            audio.onended = clear;
-            audio.onerror = clear;
-            return audio.play();
-          })
-          .catch(() => {
-            if (requestId === requestRef.current) setSpeakingMessageId(null);
-          });
+      const speakInBrowser = () => {
+      if (!browserSupported) {
+        if (requestId === requestRef.current) setSpeakingMessageId(null);
         return;
       }
-
       const utterance = new SpeechSynthesisUtterance(speakable);
       const prefix = language.slice(0, 2);
       const voices = window.speechSynthesis.getVoices();
@@ -303,8 +289,37 @@ export function useTextToSpeech(language: SpeechLanguageCode): UseTextToSpeechRe
       utterance.onend = clearBrowserSpeaking;
       utterance.onerror = clearBrowserSpeaking;
       window.speechSynthesis.speak(utterance);
+      };
+
+      if (azureAvailable) {
+        const voice = SPEECH_LANGUAGES.find((l) => l.code === language)?.voice ?? SPEECH_LANGUAGES[0].voice;
+        synthesizeAiSpeech(speakable, voice)
+          .then((result) => {
+            if (requestId !== requestRef.current) return;
+            const audio = new Audio(`data:${result.mimeType};base64,${result.audioBase64}`);
+            audioRef.current = audio;
+            const clear = () => {
+              if (requestId === requestRef.current) setSpeakingMessageId(null);
+            };
+            audio.onended = clear;
+            audio.onerror = () => {
+              toast.error("Ovozni ijro etib bo'lmadi.");
+              clear();
+            };
+            return audio.play();
+          })
+          .catch((error: unknown) => {
+            if (requestId !== requestRef.current) return;
+            const message = error instanceof Error ? error.message : "Azure ovozi ishlamadi.";
+            toast.error(`Azure ovozi xatosi: ${message}`);
+            speakInBrowser();
+          });
+        return;
+      }
+
+      speakInBrowser();
     },
-    [azureAvailable, language, stop],
+    [azureAvailable, browserSupported, language, stop],
   );
 
   React.useEffect(() => stop, [stop]);

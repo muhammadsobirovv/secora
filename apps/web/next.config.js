@@ -82,6 +82,8 @@ const nextConfig = {
       // have missed without tracing avatarUrl's actual source.
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
+      // Azure neural voices come back as base64 and play via a data: URL.
+      "media-src 'self' data: blob:",
       `connect-src 'self' ${apiOrigin} ${apiWsOrigin}`,
       "object-src 'none'",
       "frame-ancestors 'none'",
