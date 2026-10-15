@@ -3,7 +3,11 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bot, MessageSquarePlus } from "lucide-react";
+import { Bot, KeyRound, MessageSquarePlus } from "lucide-react";
+import {
+  AiAccessDialog,
+  hasSeenAiAccessDialog,
+} from "@/features/ai/components/ai-access-dialog";
 import { ProjectPicker } from "@/components/common/project-picker";
 import { Button } from "@/components/ui/button";
 import { AiConversationSidebar } from "@/features/ai/components/ai-conversation-sidebar";
@@ -23,11 +27,29 @@ function AiDashboardContent() {
   const [conversationId, setConversationId] = React.useState<string | null>(null);
   const chatPanelRef = React.useRef<AiChatPanelHandle>(null);
   const createConversation = useCreateAiConversation();
+  const [accessOpen, setAccessOpen] = React.useState(false);
+
+  // First visit to the AI module: ask how the user wants to use Secora AI.
+  React.useEffect(() => {
+    if (!hasSeenAiAccessDialog()) setAccessOpen(true);
+  }, []);
+
+  const accessButton = (
+    <Button type="button" variant="outline" size="sm" onClick={() => setAccessOpen(true)}>
+      <KeyRound className="mr-1.5 size-4" />
+      AI rejimi
+    </Button>
+  );
+  const accessDialog = <AiAccessDialog open={accessOpen} onOpenChange={setAccessOpen} />;
 
   if (!projectId) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-2xl font-semibold">AI Security Copilot</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Secora AI</h1>
+          {accessButton}
+        </div>
+        {accessDialog}
         <ProjectPicker
           icon={Bot}
           description="Which project should Secora AI use as context?"
@@ -56,6 +78,7 @@ function AiDashboardContent() {
 
   return (
     <div className="flex h-[calc(100svh-6.5rem)] flex-col gap-4">
+      {accessDialog}
       <div className="flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <Bot className="size-5 text-primary" />
@@ -75,6 +98,7 @@ function AiDashboardContent() {
           />
         </div>
         <div className="flex items-center gap-2">
+          {accessButton}
           <Button type="button" variant="outline" size="sm" onClick={() => router.push("/ai")}>
             Switch project
           </Button>

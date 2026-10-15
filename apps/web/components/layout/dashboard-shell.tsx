@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { OnboardingFlow } from "@/features/onboarding/onboarding-flow";
 import { DemoBanner } from "@/features/workspace/components/demo-banner";
+import { SecoraAiHelper } from "@/features/ai/components/secora-ai-helper";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { CommandPalette } from "./command-palette";
@@ -81,6 +82,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           route a brand-new user lands on first. Self-gates on
           preferences.onboardingCompletedAt — renders nothing once done. */}
       <OnboardingFlow />
+      <SecoraAiHelper />
     </div>
   );
 }

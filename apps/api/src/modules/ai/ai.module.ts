@@ -56,6 +56,7 @@ import { AiMessagesController } from './controllers/ai-messages.controller.js';
 import { AiProvidersController } from './controllers/ai-providers.controller.js';
 import { AiProviderCredentialsController } from './controllers/ai-provider-credentials.controller.js';
 import { AiSpeechController } from './controllers/ai-speech.controller.js';
+import { AiAssistantController } from './controllers/ai-assistant.controller.js';
 import { AiContextController } from './controllers/ai-context.controller.js';
 import { AiMemoryController } from './controllers/ai-memory.controller.js';
 import { PromptTemplatesController } from './controllers/prompt-templates.controller.js';
@@ -87,6 +88,7 @@ import { AiPrivacyController } from './controllers/ai-privacy.controller.js';
     AiProvidersController,
     AiProviderCredentialsController,
     AiSpeechController,
+    AiAssistantController,
     AiContextController,
     AiMemoryController,
     PromptTemplatesController,
