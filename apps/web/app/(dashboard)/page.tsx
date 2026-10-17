@@ -13,16 +13,16 @@ import { LandingPage } from "@/features/marketing/landing-page";
 // so search engines had nothing public to crawl or index. This page is a
 // server component (metadata below is server-only) that renders static,
 // server-rendered marketing content.
+const META_TITLE = "Secora — Offensive Security Scanner";
 const META_DESCRIPTION =
-  "Recon, vulnerability scanning, bug bounty workflow, and an AI security copilot in one workspace. Find vulnerabilities before attackers do.";
+  "Know if your site can be hacked, in minutes. Add your website: Secora scans it, shows what's wrong, and explains how to fix it with AI.";
 
 export const metadata: Metadata = {
-  title: "Secora — Security Platform",
+  title: META_TITLE,
   description: META_DESCRIPTION,
   openGraph: {
-    title: "Secora — Security Platform",
-    description:
-      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    title: META_TITLE,
+    description: META_DESCRIPTION,
     url: "https://secora.group",
     siteName: "Secora",
     type: "website",
@@ -30,9 +30,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Secora — Security Platform",
-    description:
-      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    title: META_TITLE,
+    description: META_DESCRIPTION,
     images: ["/og-image.png"],
   },
   alternates: {

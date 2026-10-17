@@ -13,28 +13,29 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
 });
 
+const SITE_TITLE = "Secora — Offensive Security Scanner";
+const SITE_DESCRIPTION =
+  "Know if your site can be hacked, in minutes. Add your website: Secora scans it, shows what's wrong, and explains how to fix it with AI.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://secora.group"),
   title: {
-    default: "Secora — Security Platform",
+    default: SITE_TITLE,
     template: "%s | Secora",
   },
-  description:
-    "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+  description: SITE_DESCRIPTION,
   openGraph: {
     siteName: "Secora",
     type: "website",
-    title: "Secora — Security Platform",
-    description:
-      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     url: "https://secora.group",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Secora" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Secora — Security Platform",
-    description:
-      "Secora — red team, blue team va ilova xavfsizligi uchun AI platforma. Recon, skanerlash, SOC va Hisobot barchasi bir joyda.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: ["/og-image.png"],
   },
   robots: {
