@@ -52,7 +52,7 @@ export default async function RootLayout({
   // page render per request, which is what a per-visitor language needs.
   const locale = await getLocale();
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <Providers initialLocale={locale}>{children}</Providers>
       </body>

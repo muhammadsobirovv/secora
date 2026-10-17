@@ -123,6 +123,9 @@
 /* Landing hero animations. Motion only when the user hasn't asked for
    reduced motion — otherwise the graph and terminal render static. */
 @media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
   .signal-pulse {
     transform-box: fill-box;
     transform-origin: center;
@@ -158,6 +161,72 @@
 @keyframes signal-blink {
   50% {
     opacity: 0;
+  }
+}
+
+/* Brand reveal (landing brand band): the "S" mark drops in as three bands,
+   then the wordmark wipes out from behind it and the tagline fades in.
+   Without motion preference the final lockup is simply shown. */
+@media (prefers-reduced-motion: no-preference) {
+  .br-idle .br-piece,
+  .br-idle .br-tag {
+    opacity: 0;
+  }
+  .br-idle .br-word {
+    clip-path: inset(0 100% 0 0);
+  }
+  .br-play .br-piece {
+    animation: br-drop 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  .br-play .br-p2 {
+    animation-delay: 0.25s;
+  }
+  .br-play .br-p3 {
+    animation-delay: 0.5s;
+  }
+  .br-play .br-glow {
+    animation: br-glow 1.6s ease-out 0.9s backwards;
+  }
+  .br-play .br-word {
+    animation: br-wipe 0.9s cubic-bezier(0.65, 0, 0.35, 1) 1.2s backwards;
+  }
+  .br-play .br-tag {
+    animation: br-tag 0.9s ease 1.9s backwards;
+  }
+}
+
+@keyframes br-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-45%);
+  }
+}
+
+@keyframes br-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+    transform: translateX(-14%);
+  }
+}
+
+@keyframes br-tag {
+  from {
+    opacity: 0;
+    letter-spacing: 0.7em;
+  }
+}
+
+@keyframes br-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
   }
 }
 

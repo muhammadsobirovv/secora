@@ -30,16 +30,8 @@ type DocMessageKey =
   | "docs.item.getting-started.description"
   | "docs.item.scanning.title"
   | "docs.item.scanning.description"
-  | "docs.item.bug-bounty.title"
-  | "docs.item.bug-bounty.description"
   | "docs.item.ai-copilot.title"
   | "docs.item.ai-copilot.description"
-  | "docs.item.responsible-use.title"
-  | "docs.item.responsible-use.description"
-  | "docs.item.api-sdk-cli.title"
-  | "docs.item.api-sdk-cli.description"
-  | "docs.item.security.title"
-  | "docs.item.security.description"
   | "docs.item.faq.title"
   | "docs.item.faq.description";
 
@@ -52,15 +44,15 @@ function entry(slug: string): DocEntry {
   };
 }
 
-// Order here is the order docs render in on the /docs index page.
+// Order here is the order docs render in on the /docs index page. Only the
+// guides a new user actually needs are published; responsible use lives in
+// the Acceptable Use Policy and vulnerability disclosure on /security.
+// bug-bounty.md, api-sdk-cli.md, responsible-use.md and security.md stay in
+// docs/user for later but are not served.
 export const PUBLIC_DOCS: readonly DocEntry[] = [
   entry("getting-started"),
   entry("scanning"),
-  entry("bug-bounty"),
   entry("ai-copilot"),
-  entry("responsible-use"),
-  entry("api-sdk-cli"),
-  entry("security"),
   entry("faq"),
 ];
 

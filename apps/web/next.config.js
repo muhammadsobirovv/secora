@@ -68,7 +68,9 @@ const nextConfig = {
   async headers() {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      // React's dev build uses eval() to rebuild call stacks (HMR/overlay);
+      // the production build never does, so 'unsafe-eval' is dev-only.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       // `https:` (not just 'self' data: blob:): workspace/user
       // avatarUrl (apps/api/src/modules/workspaces/commands/upload-

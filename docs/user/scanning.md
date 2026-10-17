@@ -1,44 +1,38 @@
 # Scanning Guide
 
-Secora AI runs recon and vulnerability tools against your targets and collects the results as findings you can triage, track and export.
+Secora runs recon and vulnerability tools against your targets and turns the output into findings you can review and fix.
 
-> Before any active scan, the target must have a valid authorization (see [Getting Started](/docs/getting-started#4-add-your-first-target)) and its scope status must be **In scope**. Stay inside the scope, time window and methods you were authorized for.
+> Before a scan, the target needs a valid authorization and the scope status **In scope** (see [Getting Started](/docs/getting-started#3-add-your-first-target)).
 
-## Passive and active recon
+## Recon
 
-Recon jobs run one or more tools against a target. They fall into two groups:
+Recon finds what is exposed: subdomains, open ports, pages and technologies. To start, open a target, choose **Recon → New job**, pick the tools and start. Progress and logs update live, and you can cancel anytime.
 
-| Type | What it does | Examples | Authorization |
-|---|---|---|---|
-| **Passive** | Queries public sources only (certificate logs, archives, public DNS, WHOIS). Sends no traffic to the target's own services. | subfinder, assetfinder, amass (passive), gau, waybackurls, dnsx, whois, ASN lookup | Target must be in scope |
-| **Active** | Connects to the target: probes ports, requests pages, crawls. | httpx, katana, naabu, nmap | In scope **and** a valid, unexpired authorization |
+| Type | What it does | Needs |
+|---|---|---|
+| **Passive** | Reads public sources only (certificate logs, archives, DNS, WHOIS). Sends no traffic to the target. | Target in scope |
+| **Active** | Connects to the target: probes ports, requests pages, crawls. | In scope and a valid authorization |
 
-To start a job: open the target, choose **Recon → New job**, select the tools and start. You can follow the job's progress and logs live, and cancel it at any time.
-
-Some tools may be unavailable on the hosted service; a job that requests one records that tool run as failed with a clear message, and the rest of the job still runs.
+If one tool fails, the rest of the job still runs.
 
 ## Vulnerability scans
 
-Vulnerability scans run scanners such as Nuclei, ffuf, dirsearch, feroxbuster and Nikto. They are always **active**, so they need a valid authorization. Keep scan intensity appropriate for the environment, and never run load or denial-of-service testing without explicit written permission.
+Vulnerability scans look for known weaknesses and are always **active**, so they need a valid authorization. Keep intensity reasonable, and never run load or denial-of-service tests without written permission.
 
 ## Reading findings
 
-Each finding records what was found, which tool found it, and when. Duplicates reported by several tools are merged into one finding.
-
-Severity follows the usual scale:
+Each finding shows what was found, which tool found it, and when. Duplicates from several tools are merged.
 
 | Severity | Meaning |
 |---|---|
-| **Critical** | Direct, easily exploitable compromise (for example remote code execution or authentication bypass). |
-| **High** | Serious impact that needs prompt attention. |
-| **Medium** | Real risk that usually needs additional conditions to exploit. |
-| **Low** | Limited impact or hard to exploit. |
-| **Info** | Useful context, not a vulnerability by itself. |
+| **Critical** | Easy, direct compromise (for example remote code execution). |
+| **High** | Serious impact, fix soon. |
+| **Medium** | Real risk that needs extra conditions. |
+| **Low** | Limited impact. |
+| **Info** | Context only, not a vulnerability. |
 
-Always verify a finding manually before reporting it. Scanners produce false positives, and a proof of concept should demonstrate impact without accessing or changing data beyond what is needed.
+Scanners can be wrong. Check a finding by hand before you act on it or report it.
 
-## Exporting
+## Next steps
 
-- Promote a recon finding (for example a newly discovered subdomain) into a new target with one click. Authorize it before you scan it actively.
-- Build reports from findings in the [bug bounty workflow](/docs/bug-bounty).
-- Use the [API, SDK or CLI](/docs/api-sdk-cli) to export data into your own tooling.
+Ask the [AI Copilot](/docs/ai-copilot) to explain a finding and suggest a fix. You can also promote a new subdomain to a target in one click (authorize it before scanning).
