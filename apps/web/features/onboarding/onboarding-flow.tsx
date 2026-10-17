@@ -45,9 +45,9 @@ function buildSteps(workspaceName: string | undefined): Step[] {
     },
     {
       icon: FolderKanban,
-      title: "Create your first project",
-      description: "Projects group targets, findings, notes, and evidence for one engagement or program.",
-      action: { label: "New project", href: "/projects/new" },
+      title: "Scan your first website",
+      description: "Type your domain, confirm you own it, and Secora starts a scan. A project and target are created for you.",
+      action: { label: "Scan a website", href: "/dashboard#quick-scan" },
     },
     {
       icon: Radar,

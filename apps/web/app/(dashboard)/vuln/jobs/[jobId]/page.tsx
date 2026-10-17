@@ -32,7 +32,8 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
   const { t, plural } = useI18n();
   const { jobId } = use(params);
   const { data: job, isLoading, isError, refetch } = useVulnScanJob(jobId);
-  const { data: findings, isLoading: findingsLoading } = useVulnScanJobFindings(jobId);
+  const jobActive = Boolean(job) && !TERMINAL_STATUSES.includes(job!.status);
+  const { data: findings, isLoading: findingsLoading } = useVulnScanJobFindings(jobId, true, jobActive);
   const stopJob = useStopVulnScanJob();
   const pauseJob = usePauseVulnScanJob();
   const resumeJob = useResumeVulnScanJob();
@@ -154,7 +155,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
           <CardTitle className="text-base">{t("vuln.log.title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <VulnLiveLogPanel jobId={job.id} enabled={isRunning} />
+          <VulnLiveLogPanel jobId={job.id} running={isRunning} />
         </CardContent>
       </Card>
 

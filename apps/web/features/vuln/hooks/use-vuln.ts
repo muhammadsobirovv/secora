@@ -75,11 +75,15 @@ export function useVulnScanJob(id: string) {
   });
 }
 
-export function useVulnScanJobFindings(jobId: string, enabled = true) {
+/// `jobActive` keeps the list fresh while the scan runs. The finished flag is
+/// part of the key, so the list is fetched again the moment the job completes
+/// instead of staying on the empty result loaded mid-scan.
+export function useVulnScanJobFindings(jobId: string, enabled = true, jobActive = false) {
   return useQuery({
-    queryKey: vulnKeys.jobFindings(jobId),
+    queryKey: [...vulnKeys.jobFindings(jobId), jobActive ? "active" : "settled"],
     queryFn: () => vulnApi.listVulnScanJobFindings(jobId),
     enabled: Boolean(jobId) && enabled,
+    refetchInterval: jobActive ? ACTIVE_JOB_POLL_MS : false,
   });
 }
 

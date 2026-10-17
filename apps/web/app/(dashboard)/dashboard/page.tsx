@@ -27,6 +27,7 @@ import { useUiStore } from "@/lib/stores/ui-store";
 import { ProjectCard } from "@/features/projects/components/project-card";
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { WorkspaceAvatar } from "@/features/workspace/components/workspace-avatar";
+import { QuickScanCard } from "@/features/scan/quick-scan-card";
 
 // Moved here from app/(dashboard)/page.tsx — "/" is now the public
 // marketing landing page (SEO fix: an authenticated app screen can't be
@@ -69,6 +70,8 @@ export default function DashboardHomePage() {
           </Button>
         </div>
       </div>
+
+      <QuickScanCard />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard

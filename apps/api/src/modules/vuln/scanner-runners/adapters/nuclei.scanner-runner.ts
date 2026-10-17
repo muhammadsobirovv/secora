@@ -41,7 +41,19 @@ export class NucleiScannerRunner implements ScannerRunner {
     });
     const config = (ctx.config?.NUCLEI ?? {}) as NucleiConfig;
 
-    const args = ['-u', ctx.target.value, '-jsonl', '-silent', '-no-color'];
+    // A bare domain is probed over DNS by nuclei, but its HTTP templates only
+    // run when the input is a URL — so a domain/subdomain target is given as
+    // both the host and its https:// form. That is what makes a quick scan of
+    // "example.com" cover the website, not just its DNS records.
+    const isHostTarget =
+      ctx.target.type === 'DOMAIN' || ctx.target.type === 'SUBDOMAIN';
+    const args = ['-u', ctx.target.value];
+    if (isHostTarget) {
+      args.push('-u', `https://${ctx.target.value}`);
+    }
+    // No -silent: nuclei's own progress lines (templates loaded, targets,
+    // periodic stats) go to stderr and are what the live terminal shows.
+    args.push('-jsonl', '-no-color', '-stats', '-stats-interval', '5');
     if (config.severity && config.severity.length > 0) {
       args.push('-severity', config.severity.join(','));
     }
@@ -52,11 +64,69 @@ export class NucleiScannerRunner implements ScannerRunner {
       args.push('-templates', config.templates.join(','));
     }
 
+    ctx.onLog('INFO', `$ ${bin} ${args.join(' ')}`);
+
     return this.spawner.spawn({
       command: bin,
       args,
       signal: ctx.signal,
-      onStderrLine: (line) => ctx.onLog('WARN', line),
+      onStdoutLine: (line) => {
+        const match = describeMatch(line);
+        if (match) ctx.onLog(match.level, match.message);
+      },
+      onStderrLine: (line) => {
+        const entry = describeProgressLine(line);
+        if (entry) ctx.onLog(entry.level, entry.message);
+      },
     });
   }
+}
+
+type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+interface NucleiMatchLine {
+  'template-id'?: string;
+  'matched-at'?: string;
+  host?: string;
+  info?: { severity?: string; name?: string };
+}
+
+/// One JSONL match -> one readable terminal line, coloured by severity.
+/// Anything on stdout that is not a match (e.g. a stats line) is ignored here.
+function describeMatch(
+  line: string,
+): { level: LogLevel; message: string } | null {
+  let parsed: NucleiMatchLine;
+  try {
+    parsed = JSON.parse(line) as NucleiMatchLine;
+  } catch {
+    return null;
+  }
+  const templateId = parsed['template-id'];
+  if (!templateId) return null;
+  const severity = (parsed.info?.severity ?? 'info').toLowerCase();
+  const where = parsed['matched-at'] ?? parsed.host ?? '';
+  const level: LogLevel =
+    severity === 'critical' || severity === 'high'
+      ? 'ERROR'
+      : severity === 'medium'
+        ? 'WARN'
+        : 'INFO';
+  return {
+    level,
+    message: `FOUND [${severity}] ${parsed.info?.name ?? templateId} (${templateId})${where ? ` -> ${where}` : ''}`,
+  };
+}
+
+/// nuclei writes its own log lines ("[INF] ...", "[WRN] ...", periodic stats
+/// that start with "[0:00:05]") to stderr. The ASCII banner and blank lines
+/// are dropped; everything else keeps its level.
+function describeProgressLine(
+  line: string,
+): { level: LogLevel; message: string } | null {
+  const text = line.trim();
+  if (!text.startsWith('[')) return null;
+  if (/^\[(ERR|FTL)\]/.test(text)) return { level: 'ERROR', message: text };
+  if (/^\[WRN\]/.test(text)) return { level: 'WARN', message: text };
+  return { level: 'INFO', message: text };
 }
