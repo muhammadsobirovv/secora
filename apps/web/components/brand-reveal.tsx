@@ -17,7 +17,16 @@ const PIECES = [
 /// Animated brand lockup: mark assembles, `secora.group` wipes out from
 /// behind it, the tagline fades in. Plays once when scrolled into view and
 /// again on click. With reduced motion the final lockup is shown statically.
-export function BrandReveal({ size = 72, className }: { size?: number; className?: string }) {
+export function BrandReveal({
+  size = 72,
+  className,
+  track,
+}: {
+  size?: number;
+  className?: string;
+  /// Red recolors the mark (the wordmark/glow follow the themed `--primary`).
+  track?: "red" | "blue" | null;
+}) {
   const reducedMotion = usePrefersReducedMotion();
   const ref = React.useRef<HTMLDivElement>(null);
   const [seen, setSeen] = React.useState(false);
@@ -64,7 +73,11 @@ export function BrandReveal({ size = 72, className }: { size?: number; className
               width={size}
               height={size}
               priority
-              className={cn("br-piece absolute inset-0 object-contain", piece.className)}
+              className={cn(
+                "br-piece absolute inset-0 object-contain",
+                piece.className,
+                track === "red" && "trk-redify",
+              )}
               style={{ clipPath: piece.clip }}
             />
           ))}

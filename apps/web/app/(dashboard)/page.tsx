@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { LandingPage } from "@/features/marketing/landing-page";
+import { TrackGate } from "@/features/track/track-gate";
 
-// "/" — the public marketing landing page. It lives inside the (dashboard)
-// route group (so DashboardShell can special-case it — see that file) but
-// is NOT gated by auth: proxy.ts treats "/" as public, and DashboardShell
-// renders these children with no sidebar/header chrome for signed-out
-// visitors. A signed-in visitor never actually reaches this component —
-// proxy.ts redirects them to "/dashboard" (the real authenticated home,
-// moved from here) at the edge.
+// "/" — the public front door: a split screen where the visitor picks the
+// offensive (red) or defensive (blue) track, which then themes the track
+// page (/red, /blue) and sign-in/register. The earlier marketing landing page
+// now lives at /overview. It lives inside the (dashboard) route group (so
+// DashboardShell can special-case it — see that file) but is NOT gated by
+// auth: proxy.ts treats "/" as public, and DashboardShell renders these
+// children with no sidebar/header chrome for signed-out visitors. A signed-in
+// visitor never actually reaches this component — proxy.ts redirects them to
+// "/dashboard" (the real authenticated home, moved from here) at the edge.
 //
 // SEO fix: previously the entire app — including "/" — required a login,
 // so search engines had nothing public to crawl or index. This page is a
 // server component (metadata below is server-only) that renders static,
-// server-rendered marketing content.
+// server-rendered content.
 const META_TITLE = "Secora — Offensive Security Scanner";
 const META_DESCRIPTION =
   "Know if your site can be hacked, in minutes. Add your website: Secora scans it, shows what's wrong, and explains how to fix it with AI.";
@@ -108,7 +110,7 @@ export default function MarketingHomePage() {
           __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
         }}
       />
-      <LandingPage />
+      <TrackGate />
     </>
   );
 }

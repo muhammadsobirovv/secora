@@ -1,6 +1,7 @@
 "use client";
 
-import { ShieldCheck, X } from "lucide-react";
+import { X } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -14,7 +15,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       <div className="flex h-14 items-center gap-2 px-4">
-        <ShieldCheck className="size-5 text-primary" />
+        <BrandMark size={24} />
         <span className="font-semibold">Secora AI</span>
       </div>
       <div className="px-2">

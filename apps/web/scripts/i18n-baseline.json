@@ -103,7 +103,6 @@
   "features/intel/components/indicators-table.tsx": 7,
   "features/knowledge-base-reference/components/knowledge-base-reference-list.tsx": 7,
   "features/marketing/hero-terminal.tsx": 1,
-  "features/marketing/landing-page.tsx": 1,
   "features/notes/components/note-editor.tsx": 4,
   "features/onboarding/onboarding-flow.tsx": 2,
   "features/organizations/components/organization-switcher.tsx": 1,

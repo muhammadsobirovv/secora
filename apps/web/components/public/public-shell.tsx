@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
+import { TrackMark } from "@/features/track/track-mark";
+import type { Track } from "@/features/track/track";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
 import { LanguageSwitcher } from "@/features/i18n/language-switcher";
 import { useI18n } from "@/features/i18n/i18n-context";
 import { cn } from "@/lib/utils";
 
-export function PublicLogo() {
+export function PublicLogo({ track }: { track?: Track | null }) {
   return (
     <span className="flex shrink-0 items-center gap-2 font-semibold whitespace-nowrap">
-      <BrandMark size={28} />
+      {/* On a track page the mark follows the track (red recolors it). */}
+      {track ? <TrackMark track={track} size={28} /> : <BrandMark size={28} />}
       <span>{"Secora AI"}</span>
     </span>
   );
@@ -67,7 +70,7 @@ export function PublicHeader({ active }: { active?: PublicSection }) {
 }
 
 /// Footer shared by the landing page and every public page.
-export function PublicFooter() {
+export function PublicFooter({ track }: { track?: Track | null }) {
   const { t } = useI18n();
   const year = new Date().getFullYear();
 
@@ -75,7 +78,7 @@ export function PublicFooter() {
     <footer className="border-t border-border/70">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <PublicLogo />
+          <PublicLogo track={track} />
           <span>
             © {year}. {t("landing.footer.rights")}
           </span>

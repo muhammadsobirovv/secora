@@ -18,7 +18,12 @@ const PUBLIC_PATHS = [
 // public reference material a signed-in user should still be able to read.
 // /.well-known holds security.txt (RFC 9116); /legal/* and /security are
 // the public legal and vulnerability-disclosure pages.
-const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known", "/legal", "/security"];
+const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known", "/legal", "/security", "/overview"];
+
+// The two public track pages (red = offensive, blue = defensive). Matched
+// exactly, like "/", and handled like the landing: open to signed-out
+// visitors, a signed-in visitor is sent on to the dashboard.
+const TRACK_PATHS = ["/red", "/blue"];
 
 /// This is a UX nicety only — redirects at the edge based on a plain
 /// (non-httpOnly) marker cookie so an unauthenticated visitor doesn't see
@@ -38,7 +43,10 @@ export function proxy(request: NextRequest) {
   // dashboard — the authenticated home moved to "/dashboard". It's
   // matched exactly (not via startsWith, which would otherwise make
   // every path "public") alongside the auth-flow paths below.
-  const isPublicPath = pathname === "/" || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isPublicPath =
+    pathname === "/" ||
+    TRACK_PATHS.includes(pathname) ||
+    PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!hasSession && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);
