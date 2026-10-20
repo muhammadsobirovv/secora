@@ -701,10 +701,37 @@ model Target {
   scheduledJobs         ScheduledJob[]
   // Authorization attestations (append-only).
   authorizations        TargetAuthorization[]
+  ownershipVerification TargetOwnershipVerification?
 
   @@index([projectId])
   @@index([type])
   @@map("targets")
+}
+
+/// Proof that the user controls the asset. Active scans of a target require
+/// verifiedAt to be set; passive recon does not. One row per target; the
+/// token is rotated only while the target is still unverified.
+enum TargetOwnershipMethod {
+  DNS_TXT
+  HTTP_FILE
+  META_TAG
+}
+
+model TargetOwnershipVerification {
+  id            String                @id @default(uuid())
+  targetId      String                @unique
+  workspaceId   String
+  token         String
+  method        TargetOwnershipMethod?
+  verifiedAt    DateTime?
+  lastCheckedAt DateTime?
+  lastError     String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  target Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@map("target_ownership_verifications")
 }
 
 enum TargetAuthorizationBasis {
@@ -1724,6 +1751,11 @@ enum AuditEventType {
   TARGET_AUTHORIZATION_ATTESTED
   SCAN_STARTED
   ACTIVE_SCAN_BLOCKED
+  // Ownership verification (proof of control before active scans).
+  TARGET_OWNERSHIP_CHALLENGE_ISSUED
+  TARGET_OWNERSHIP_VERIFIED
+  TARGET_OWNERSHIP_CHECK_FAILED
+  TARGET_OWNERSHIP_BLOCKED
 }
 
 // ---------------------------------------------------------------------------

@@ -291,6 +291,21 @@ export class TargetAuthorizationService {
         HttpStatus.FORBIDDEN,
       );
     }
+
+    // Proof of control (DNS / file / meta tag) is required on top of the
+    // attestation: an attestation alone is not evidence of ownership.
+    const ownership =
+      await this.txHost.tx.targetOwnershipVerification.findUnique({
+        where: { targetId: input.target.id },
+      });
+    if (!ownership?.verifiedAt) {
+      await this.auditBlocked(input, 'OWNERSHIP_NOT_VERIFIED');
+      throw new AppException(
+        'TARGET_OWNERSHIP_NOT_VERIFIED',
+        'Verify that you control this website before running active scans. Passive checks are still available.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
     return status.current;
   }
 

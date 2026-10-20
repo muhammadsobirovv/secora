@@ -64,7 +64,7 @@ async function defaultResolve(hostname: string): Promise<string[]> {
   }
 }
 
-function hostFromTarget(type: string, value: string): string {
+export function hostFromTarget(type: string, value: string): string {
   const trimmed = value.trim().toLowerCase();
   if (type === 'URL') {
     try {

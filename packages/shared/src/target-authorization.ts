@@ -86,3 +86,36 @@ export const targetAuthorizationEndpoints = {
   status: (targetId: string) => `/targets/${targetId}/authorization`,
   attest: (targetId: string) => `/targets/${targetId}/authorization`,
 } as const;
+
+/// Ownership verification: the user proves control of the asset before any
+/// ACTIVE scan. Passive recon does not need it. Unverified targets are limited
+/// to passive checks.
+export type TargetOwnershipMethodName = "DNS_TXT" | "HTTP_FILE" | "META_TAG";
+
+export interface TargetOwnershipChallengeDto {
+  /// TXT record name to create: `_secora-verify.<host>`.
+  dnsRecordName: string;
+  /// TXT record value to create: `secora-verify=<token>`.
+  dnsRecordValue: string;
+  /// File to publish, with the token as its whole content.
+  httpUrl: string;
+  /// Meta tag to put on the home page, with the token as its content.
+  metaTag: string;
+}
+
+export interface TargetOwnershipStatusDto {
+  verified: boolean;
+  method: TargetOwnershipMethodName | null;
+  verifiedAt: string | null;
+  lastCheckedAt: string | null;
+  /// Why the last check failed (plain English code, never raw output).
+  lastError: "DNS_RECORD_NOT_FOUND" | "HTTP_FILE_NOT_FOUND" | "META_TAG_NOT_FOUND" | "NETWORK_BLOCKED" | "UNREACHABLE" | null;
+  /// Present while the target is not verified.
+  challenge: TargetOwnershipChallengeDto | null;
+}
+
+export const TARGET_OWNERSHIP_ENDPOINTS = {
+  status: (targetId: string) => `/targets/${targetId}/ownership`,
+  challenge: (targetId: string) => `/targets/${targetId}/ownership/challenge`,
+  verify: (targetId: string) => `/targets/${targetId}/ownership/verify`,
+} as const;

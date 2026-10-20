@@ -23,6 +23,7 @@ interface AuthzRow {
 
 interface Db {
   authorizations: AuthzRow[];
+  ownership: { targetId: string; verifiedAt: Date | null }[];
   programLinks: { programId: string; targetId: string }[];
   scopeItems: {
     id: string;
@@ -82,6 +83,13 @@ function buildService(db: Db) {
           ),
       ),
     },
+    targetOwnershipVerification: {
+      findUnique: jest.fn(({ where }: { where: { targetId: string } }) =>
+        Promise.resolve(
+          db.ownership.find((o) => o.targetId === where.targetId) ?? null,
+        ),
+      ),
+    },
     bugBountyProgramTarget: {
       findMany: jest.fn(({ where }: { where: { targetId: string } }) =>
         Promise.resolve(
@@ -122,7 +130,7 @@ function buildService(db: Db) {
 }
 
 function emptyDb(): Db {
-  return { authorizations: [], programLinks: [], scopeItems: [] };
+  return { authorizations: [], ownership: [], programLinks: [], scopeItems: [] };
 }
 
 const user = 'user-1';
@@ -205,6 +213,7 @@ describe('TargetAuthorizationService', () => {
       },
     });
 
+    db.ownership.push({ targetId: 'target-1', verifiedAt: new Date() });
     const used = await service.assertActiveScanAllowed({
       userId: user,
       workspaceId,
@@ -235,6 +244,29 @@ describe('TargetAuthorizationService', () => {
         attestationVersion: TARGET_ATTESTATION_VERSION,
       },
     });
+  });
+
+  it('blocks an active scan on an attested target that has not proven ownership', async () => {
+    const db = emptyDb();
+    const { service, auditService } = buildService(db);
+    await service.attestTarget({
+      userId: user,
+      workspaceId,
+      target: publicTarget,
+      data: { basis: 'WRITTEN_PERMISSION', attested: true },
+    });
+    await expect(
+      service.assertActiveScanAllowed({
+        userId: user,
+        workspaceId,
+        target: publicTarget,
+        operationType: 'VULN_SCAN',
+      }),
+    ).rejects.toMatchObject({
+      code: 'TARGET_OWNERSHIP_NOT_VERIFIED',
+      status: 403,
+    });
+    expect(auditTypes(auditService)).toContain('ACTIVE_SCAN_BLOCKED');
   });
 
   it('refuses an attestation without the explicit checkbox', async () => {

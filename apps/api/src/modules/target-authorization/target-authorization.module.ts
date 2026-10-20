@@ -4,14 +4,21 @@ import { ProjectsModule } from '../projects/projects.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
 import { TargetAuthorizationController } from './target-authorization.controller.js';
 import { TargetAuthorizationService } from './target-authorization.service.js';
+import { TargetOwnershipController } from './target-ownership.controller.js';
+import { TargetOwnershipService } from './target-ownership.service.js';
+import { NetworkOwnershipProbe, OWNERSHIP_PROBE } from './target-ownership.probe.js';
 
 /// Global so the recon/vuln scan handlers, target creation and bug bounty
 /// import can all reach TargetAuthorizationService without new imports.
 @Global()
 @Module({
   imports: [WorkspacesModule, ProjectsModule, TargetsModule],
-  controllers: [TargetAuthorizationController],
-  providers: [TargetAuthorizationService],
-  exports: [TargetAuthorizationService],
+  controllers: [TargetAuthorizationController, TargetOwnershipController],
+  providers: [
+    TargetAuthorizationService,
+    TargetOwnershipService,
+    { provide: OWNERSHIP_PROBE, useClass: NetworkOwnershipProbe },
+  ],
+  exports: [TargetAuthorizationService, TargetOwnershipService],
 })
 export class TargetAuthorizationModule {}

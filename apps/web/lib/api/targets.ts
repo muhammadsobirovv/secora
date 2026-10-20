@@ -1,9 +1,10 @@
-import { TARGET_ENDPOINTS, targetAuthorizationEndpoints } from "@pentesthub/shared";
+import { TARGET_ENDPOINTS, TARGET_OWNERSHIP_ENDPOINTS, targetAuthorizationEndpoints } from "@pentesthub/shared";
 import type {
   AttestTargetAuthorizationRequestDto,
   CreateTargetRequestDto,
   TargetAuthorizationDto,
   TargetAuthorizationStatusDto,
+  TargetOwnershipStatusDto,
   ListTargetsQueryDto,
   TargetDto,
   UpdateTargetRequestDto,
@@ -49,4 +50,16 @@ export function getTargetAuthorization(id: string) {
 
 export function attestTargetAuthorization(id: string, data: AttestTargetAuthorizationRequestDto) {
   return apiFetch<TargetAuthorizationDto>(targetAuthorizationEndpoints.attest(id), { method: "POST", body: data });
+}
+
+export function getTargetOwnership(id: string) {
+  return apiFetch<TargetOwnershipStatusDto>(TARGET_OWNERSHIP_ENDPOINTS.status(id));
+}
+
+export function createTargetOwnershipChallenge(id: string) {
+  return apiFetch<TargetOwnershipStatusDto>(TARGET_OWNERSHIP_ENDPOINTS.challenge(id), { method: "POST" });
+}
+
+export function verifyTargetOwnership(id: string) {
+  return apiFetch<TargetOwnershipStatusDto>(TARGET_OWNERSHIP_ENDPOINTS.verify(id), { method: "POST" });
 }

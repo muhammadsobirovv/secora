@@ -19,6 +19,7 @@ import * as targetsApi from "@/lib/api/targets";
 import * as vulnApi from "@/lib/api/vuln";
 import { cn } from "@/lib/utils";
 import { parseScanInput } from "./parse-scan-input";
+import { OwnershipVerifyPanel } from "./ownership-verify-panel";
 
 const BASES: { value: TargetAuthorizationBasis; labelKey: "quickScan.owner" | "quickScan.permission" }[] = [
   { value: "OWNER", labelKey: "quickScan.owner" },
@@ -39,6 +40,24 @@ export function QuickScanCard() {
   const [attested, setAttested] = React.useState(false);
   const [invalid, setInvalid] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  // Target waiting for proof of ownership before an active scan may start.
+  const [pending, setPending] = React.useState<{ id: string; label: string } | null>(null);
+
+  async function startScan(targetId: string) {
+    const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"] });
+    await queryClient.invalidateQueries();
+    router.push(`/vuln/jobs/${job.id}`);
+  }
+
+  async function handleOwnershipVerified(targetId: string) {
+    setBusy(true);
+    try {
+      await startScan(targetId);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : t("quickScan.error"));
+      setBusy(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -75,9 +94,15 @@ export function QuickScanCard() {
         targetId = created.id;
       }
 
-      const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"] });
-      await queryClient.invalidateQueries();
-      router.push(`/vuln/jobs/${job.id}`);
+      // Active scans need proof of control. Until it is verified, show the
+      // verification step; the scan starts from the panel's onVerified.
+      const ownership = await targetsApi.getTargetOwnership(targetId);
+      if (!ownership.verified) {
+        setPending({ id: targetId, label: `${parsed.type} ${parsed.value}` });
+        setBusy(false);
+        return;
+      }
+      await startScan(targetId);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : t("quickScan.error"));
       setBusy(false);
@@ -174,6 +199,14 @@ export function QuickScanCard() {
             </div>
           </div>
         </form>
+
+        {pending && (
+          <OwnershipVerifyPanel
+            targetId={pending.id}
+            targetLabel={pending.label}
+            onVerified={() => void handleOwnershipVerified(pending.id)}
+          />
+        )}
 
         <p className="text-xs text-muted-foreground">{t("quickScan.note")}</p>
       </CardContent>
