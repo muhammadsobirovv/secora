@@ -45,7 +45,7 @@ const SITE_URL = "https://secora.group";
 const FOUNDER_ID = `${SITE_URL}/#founder`;
 const ORG_ID = `${SITE_URL}/#organization`;
 const LINKEDIN = "https://www.linkedin.com/in/muhammadsobirov";
-const GITHUB = "https://github.com/dotuz";
+const GITHUB = "https://github.com/muhammadsobirovv";
 const X_PROFILE = "https://x.com/Immukhammed";
 
 // schema.org structured data (Knowledge Panel signals). Static, no user

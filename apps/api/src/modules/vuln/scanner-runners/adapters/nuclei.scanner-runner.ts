@@ -8,8 +8,13 @@ import type {
   ScannerRunResult,
 } from '../scanner-runner.interface.js';
 import type { TargetType } from '../../../../prisma-types.js';
+import {
+  buildNucleiArgs,
+  type ScanProfile,
+} from '../../pipeline/tool-catalog.js';
 
 interface NucleiConfig {
+  profile?: ScanProfile;
   severity?: string[];
   tags?: string[];
   templates?: string[];
@@ -41,28 +46,27 @@ export class NucleiScannerRunner implements ScannerRunner {
     });
     const config = (ctx.config?.NUCLEI ?? {}) as NucleiConfig;
 
-    // A bare domain is probed over DNS by nuclei, but its HTTP templates only
-    // run when the input is a URL — so a domain/subdomain target is given as
-    // both the host and its https:// form. That is what makes a quick scan of
-    // "example.com" cover the website, not just its DNS records.
-    const isHostTarget =
-      ctx.target.type === 'DOMAIN' || ctx.target.type === 'SUBDOMAIN';
-    const args = ['-u', ctx.target.value];
-    if (isHostTarget) {
-      args.push('-u', `https://${ctx.target.value}`);
+    // IP targets cannot prove ownership (no DNS or web identity), so they are
+    // never scanned. The gate refuses them earlier; this is the second lock.
+    if (ctx.target.type === 'IP_ADDRESS' || ctx.target.type === 'CIDR') {
+      return Promise.reject(
+        new Error('IP targets cannot be verified and are not scanned.'),
+      );
     }
-    // No -silent: nuclei's own progress lines (templates loaded, targets,
-    // periodic stats) go to stderr and are what the live terminal shows.
-    args.push('-jsonl', '-no-color', '-stats', '-stats-interval', '5');
-    if (config.severity && config.severity.length > 0) {
-      args.push('-severity', config.severity.join(','));
-    }
-    if (config.tags && config.tags.length > 0) {
-      args.push('-tags', config.tags.join(','));
-    }
-    if (config.templates && config.templates.length > 0) {
-      args.push('-templates', config.templates.join(','));
-    }
+
+    // The tool catalog builds the argv: it is the single source for nuclei's
+    // flags (rate limit, no interactsh callbacks, profile tag ceiling). A
+    // domain becomes both host and https:// form inside the builder.
+    const args = buildNucleiArgs({
+      target: {
+        kind: ctx.target.type as 'URL' | 'DOMAIN' | 'SUBDOMAIN',
+        value: ctx.target.value,
+      },
+      profile: config.profile,
+      severity: config.severity,
+      tags: config.tags,
+      templates: config.templates,
+    });
 
     ctx.onLog('INFO', `$ ${bin} ${args.join(' ')}`);
 

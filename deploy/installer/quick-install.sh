@@ -22,7 +22,7 @@
 # this script.
 set -euo pipefail
 
-REPO_URL="${PENTESTHUB_REPO_URL:-https://github.com/pentesthub-ai/pentesthub-ai.git}"
+REPO_URL="${PENTESTHUB_REPO_URL:-https://github.com/muhammadsobirovv/secora.git}"
 TARGET_DIR="${HOME}/pentesthub-ai"
 REF="main"
 EDITION="community"

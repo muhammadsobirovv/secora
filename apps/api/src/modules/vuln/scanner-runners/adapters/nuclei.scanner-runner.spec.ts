@@ -54,10 +54,18 @@ describe('NucleiScannerRunner', () => {
       '-stats',
       '-stats-interval',
       '5',
-      '-severity',
-      'high,critical',
+      '-ni',
+      '-duc',
+      '-rl',
+      '30',
+      '-timeout',
+      '10',
+      '-retries',
+      '1',
       '-tags',
       'cve',
+      '-severity',
+      'high,critical',
     ]);
   });
 
@@ -162,6 +170,8 @@ describe('NucleiScannerRunner', () => {
     });
 
     const call = spawner.spawn.mock.calls[0][0];
+    // Hardened defaults from the tool catalog: no interactsh callbacks (-ni),
+    // no update check (-duc), rate limit and timeouts always set.
     expect(call.args).toEqual([
       '-u',
       'https://example.com',
@@ -170,6 +180,14 @@ describe('NucleiScannerRunner', () => {
       '-stats',
       '-stats-interval',
       '5',
+      '-ni',
+      '-duc',
+      '-rl',
+      '30',
+      '-timeout',
+      '10',
+      '-retries',
+      '1',
     ]);
   });
 });

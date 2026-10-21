@@ -17,7 +17,7 @@ const optionalMinLen = (min: number) =>
 
 /// Fails fast at boot if a required secret/config value is missing or
 /// malformed, instead of surfacing as a confusing runtime error later.
-const envSchema = z.object({
+const envObjectSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
@@ -165,6 +165,11 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
   // Comma-separated domain suffixes refused for active scans by default
   // (government and military). Owners can ask support to be allow-listed.
+  // DEEP scan profile (adds detection-only checks). Off unless an operator enables it.
+  SCAN_DEEP_PROFILE_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   ACTIVE_SCAN_DENYLIST: z.string().default('gov.uz,mil.uz,gov,mil'),
   // Comma-separated hostnames or suffixes exempted from the denylist after
   // an owner's request was approved via support.
@@ -719,6 +724,20 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(60),
+});
+
+/// Production must never allow active scans of private, loopback or metadata
+/// addresses. This is refused at startup (rather than silently overridden) so
+/// a misconfigured deployment is visible immediately.
+const envSchema = envObjectSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV === 'production' && env.ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS'],
+      message:
+        'must be false when NODE_ENV=production: private, loopback and cloud metadata targets cannot be actively scanned from the hosted service',
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

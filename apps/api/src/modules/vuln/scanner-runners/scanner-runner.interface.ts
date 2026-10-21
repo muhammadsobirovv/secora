@@ -28,6 +28,8 @@ export interface ScannerRunResult {
   exitCode: number | null;
   stdout: string;
   timedOut: boolean;
+  /// True when stdout exceeded the size cap and the tail was dropped.
+  stdoutTruncated?: boolean;
 }
 
 /// Every scanner implements this — no feature/module code may depend on a

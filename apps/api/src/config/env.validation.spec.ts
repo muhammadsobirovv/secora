@@ -260,3 +260,28 @@ describe('validateEnv — never logs secret values on failure', () => {
     }
   });
 });
+
+describe('validateEnv — production refuses private-target active scans', () => {
+  it('fails startup when ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS=true in production', () => {
+    const env = {
+      ...minimalValidEnv(),
+      NODE_ENV: 'production',
+      ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: 'true',
+    };
+    expect(() => validateEnv(env)).toThrow(/ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS/);
+  });
+
+  it('allows the flag to be true outside production (self-hosted lab use)', () => {
+    const env = {
+      ...minimalValidEnv(),
+      NODE_ENV: 'development',
+      ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: 'true',
+    };
+    expect(validateEnv(env).ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS).toBe(true);
+  });
+
+  it('keeps the production default (false) when the flag is unset', () => {
+    const env = { ...minimalValidEnv(), NODE_ENV: 'production' };
+    expect(validateEnv(env).ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS).toBe(false);
+  });
+});
