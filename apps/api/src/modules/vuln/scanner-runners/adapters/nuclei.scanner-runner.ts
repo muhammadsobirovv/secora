@@ -12,9 +12,15 @@ import {
   buildNucleiArgs,
   type ScanProfile,
 } from '../../pipeline/tool-catalog.js';
+import type { PinnedHost } from '../../pipeline/pin.util.js';
+import { redactArgv } from '../../pipeline/redact-argv.util.js';
 
 interface NucleiConfig {
   profile?: ScanProfile;
+  /// Set by the pipeline: connect to this IP, send the real name as Host.
+  pin?: PinnedHost;
+  /// Live URLs on the pinned host found by the recon stage.
+  urls?: string[];
   severity?: string[];
   tags?: string[];
   templates?: string[];
@@ -66,20 +72,36 @@ export class NucleiScannerRunner implements ScannerRunner {
       severity: config.severity,
       tags: config.tags,
       templates: config.templates,
+      pin: config.pin,
+      urls: config.urls,
+      templatesDir: this.configService.get('VULN_NUCLEI_TEMPLATES_DIR', {
+        infer: true,
+      }),
+      // Private-network connections stay blocked unless the operator opted in
+      // to private targets (dev/lab only; the env validation refuses it in production).
+      restrictLocalNetwork:
+        this.configService.get('ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS', {
+          infer: true,
+        }) !== true,
     });
 
-    ctx.onLog('INFO', `$ ${bin} ${args.join(' ')}`);
+    // A pinned run prints the IP in its output; show the real hostname.
+    const unpin = (text: string): string =>
+      config.pin ? text.split(config.pin.ip).join(config.pin.host) : text;
+
+    ctx.onLog('INFO', `$ ${bin} ${redactArgv(args).join(' ')}`);
+    ctx.onCommand?.({ tool: 'nuclei', command: bin, argv: args });
 
     return this.spawner.spawn({
       command: bin,
       args,
       signal: ctx.signal,
       onStdoutLine: (line) => {
-        const match = describeMatch(line);
+        const match = describeMatch(unpin(line));
         if (match) ctx.onLog(match.level, match.message);
       },
       onStderrLine: (line) => {
-        const entry = describeProgressLine(line);
+        const entry = describeProgressLine(unpin(line));
         if (entry) ctx.onLog(entry.level, entry.message);
       },
     });

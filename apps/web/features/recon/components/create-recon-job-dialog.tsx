@@ -41,7 +41,7 @@ export function CreateReconJobDialog({
       setTools([]);
       onCreated?.(job.id);
     } catch (error) {
-      toast.error(scanErrorMessage(error, t("recon.create.error")));
+      toast.error(scanErrorMessage(error, t("recon.create.error"), t));
     }
   }
 

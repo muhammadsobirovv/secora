@@ -270,4 +270,27 @@ export class PrismaVulnScanJobsRepository implements VulnScanJobsRepository {
       where: { workspaceId, status: 'RUNNING' },
     });
   }
+
+  countActiveForTarget(targetId: string): Promise<number> {
+    return this.txHost.tx.vulnScanJob.count({
+      where: {
+        targetId,
+        status: { in: ['PENDING', 'RUNNING', 'RETRYING', 'PAUSED'] },
+      },
+    });
+  }
+
+  countCreatedSince(filter: {
+    since: Date;
+    targetId?: string;
+    workspaceId?: string;
+  }): Promise<number> {
+    return this.txHost.tx.vulnScanJob.count({
+      where: {
+        createdAt: { gte: filter.since },
+        ...(filter.targetId ? { targetId: filter.targetId } : {}),
+        ...(filter.workspaceId ? { workspaceId: filter.workspaceId } : {}),
+      },
+    });
+  }
 }

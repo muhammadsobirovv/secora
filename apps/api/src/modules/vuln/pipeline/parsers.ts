@@ -10,6 +10,11 @@ export interface HttpxRecord {
   title: string | null;
   webServer: string | null;
   technologies: string[];
+  /// Redirect target (Location) when the answer was a 3xx. httpx does not
+  /// follow it; the pipeline only logs it, or drops it when out of scope.
+  location: string | null;
+  /// The address httpx actually connected to.
+  hostIp: string | null;
 }
 
 export function parseHttpxJsonl(stdout: string): HttpxRecord[] {
@@ -33,6 +38,8 @@ export function parseHttpxJsonl(stdout: string): HttpxRecord[] {
       technologies: Array.isArray(raw.tech)
         ? raw.tech.filter((t): t is string => typeof t === 'string')
         : [],
+      location: typeof raw.location === 'string' && raw.location ? raw.location : null,
+      hostIp: typeof raw.host_ip === 'string' && raw.host_ip ? raw.host_ip : null,
     });
   }
   return records;

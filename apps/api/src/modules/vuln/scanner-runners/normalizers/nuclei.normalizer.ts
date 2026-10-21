@@ -16,6 +16,7 @@ interface NucleiInfo {
   name?: string;
   severity?: string;
   description?: string;
+  remediation?: string;
   reference?: string[] | string;
   tags?: string[] | string;
   classification?: NucleiClassification;
@@ -93,7 +94,15 @@ export class NucleiNormalizer implements Normalizer {
         path,
         signature: templateId,
         matchedAt,
-        data: { templateId, tags, host: parsed.host ?? null },
+        data: {
+          templateId,
+          tags,
+          host: parsed.host ?? null,
+          // The template's own fix advice, when it has one.
+          ...(typeof info.remediation === 'string' && info.remediation.trim()
+            ? { remediation: info.remediation.trim() }
+            : {}),
+        },
         dedupKey: vulnFindingDedupKey(path, vulnType, templateId),
         tags,
         references,

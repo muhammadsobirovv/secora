@@ -359,4 +359,9 @@ export type AppErrorCode =
   // Ownership verification (proof of control before active scans).
   | "TARGET_OWNERSHIP_NOT_VERIFIED"
   | "TARGET_OWNERSHIP_CHALLENGE_REQUIRED"
-  | "TARGET_OWNERSHIP_UNSUPPORTED";
+  | "TARGET_OWNERSHIP_UNSUPPORTED"
+  // Scan admission (rate limits, profile availability).
+  | "SCAN_RATE_LIMITED"
+  | "SCAN_TARGET_BUSY"
+  | "SCAN_PROFILE_DISABLED"
+  | "SCAN_DEEP_CONFIRMATION_REQUIRED";

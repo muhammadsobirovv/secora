@@ -10,8 +10,18 @@ import { z } from 'zod';
 /// deleting the line, instead of crash-looping the container.
 const emptyToUndefined = (value: unknown): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
-const optionalUrl = () =>
-  z.preprocess(emptyToUndefined, z.string().url().optional());
+/// An absolute http(s) URL. z.string().url() alone also accepts values such as
+/// "localhost:3000/callback", which WHATWG URL parsing reads as the scheme
+/// "localhost:" -- a value that is never a usable endpoint. Every optional URL
+/// setting here is an http(s) endpoint, so require the scheme and "//".
+const httpUrl = () =>
+  z
+    .string()
+    .url()
+    .refine((value) => /^https?:[/][/]/i.test(value), {
+      message: 'must be an absolute http(s) URL, e.g. https://example.com/path',
+    });
+const optionalUrl = () => z.preprocess(emptyToUndefined, httpUrl().optional());
 const optionalMinLen = (min: number) =>
   z.preprocess(emptyToUndefined, z.string().min(min).optional());
 
@@ -184,6 +194,10 @@ const envObjectSchema = z.object({
   // docs/adr/0004-vulnerability-engine-module.md. Mirrors the RECON_WORKER_*
   // keys above field-for-field, plus heartbeat (Job System: Worker
   // Heartbeat / Dead Worker Recovery), which Module 3 didn't need.
+  // Admission limits for new vulnerability scans (per rolling hour). A target
+  // also never has more than one scan queued or running at a time.
+  VULN_SCAN_MAX_PER_TARGET_PER_HOUR: z.coerce.number().int().positive().default(6),
+  VULN_SCAN_MAX_PER_WORKSPACE_PER_HOUR: z.coerce.number().int().positive().default(30),
   VULN_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
   VULN_WORKER_POLL_INTERVAL_MS: z.coerce
     .number()
@@ -224,7 +238,16 @@ const envObjectSchema = z.object({
     .default(60000),
 
   // Tool binary names — same rationale as RECON_TOOL_BIN_* above.
+  // httpx for the pentest pipeline's probe stage. The binary is called
+  // "httpx" in the worker image; on Kali "httpx" is an unrelated Python CLI.
+  VULN_TOOL_BIN_HTTPX: z.string().default('httpx'),
   VULN_TOOL_BIN_NUCLEI: z.string().default('nuclei'),
+  // Directory of the pinned nuclei template set baked into the worker image.
+  // Unset = nuclei's own default (~/nuclei-templates).
+  VULN_NUCLEI_TEMPLATES_DIR: z.preprocess(
+    emptyToUndefined,
+    z.string().startsWith('/').optional(),
+  ),
   VULN_TOOL_BIN_FFUF: z.string().default('ffuf'),
   VULN_TOOL_BIN_DIRSEARCH: z.string().default('dirsearch'),
   VULN_TOOL_BIN_FEROXBUSTER: z.string().default('feroxbuster'),

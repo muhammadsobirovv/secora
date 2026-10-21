@@ -53,7 +53,6 @@ RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 # whatweb (Ruby) — jobs that request those tools record a FAILED tool run.
 FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS recon-tools
 ARG SUBFINDER_VERSION=v2.16.0
-ARG HTTPX_VERSION=v1.12.0
 ARG DNSX_VERSION=v1.3.1
 ARG NAABU_VERSION=v2.6.1
 ARG KATANA_VERSION=v1.8.0
@@ -67,7 +66,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 ENV GOBIN=/out GOFLAGS=-trimpath GOTOOLCHAIN=local CGO_ENABLED=0
 RUN go install -ldflags="-s -w" github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION} \
-  && go install -ldflags="-s -w" github.com/projectdiscovery/httpx/cmd/httpx@${HTTPX_VERSION} \
   && go install -ldflags="-s -w" github.com/projectdiscovery/dnsx/cmd/dnsx@${DNSX_VERSION} \
   && go install -ldflags="-s -w" github.com/projectdiscovery/katana/cmd/katana@${KATANA_VERSION} \
   && go install -ldflags="-s -w" github.com/owasp-amass/amass/v4/cmd/amass@${AMASS_VERSION} \
@@ -76,6 +74,53 @@ RUN go install -ldflags="-s -w" github.com/projectdiscovery/subfinder/v2/cmd/sub
   && go install -ldflags="-s -w" github.com/tomnomnom/assetfinder@${ASSETFINDER_VERSION}
 # naabu links libpcap via cgo.
 RUN CGO_ENABLED=1 go install -ldflags="-s -w" github.com/projectdiscovery/naabu/v2/cmd/naabu@${NAABU_VERSION}
+
+# Pentest pipeline tools: httpx and nuclei from the official ProjectDiscovery
+# GitHub releases, plus the nuclei template set at a pinned tag. Everything is
+# verified with SHA256 before it is unpacked; a mismatch fails the build.
+#
+# The httpx/nuclei values are copied from the official release files
+#   httpx_1.12.0_checksums.txt and nuclei_3.11.1_checksums.txt
+# (the same file the upstream project publishes next to each release). The
+# nuclei-templates archive has no upstream checksum file, so its SHA256 below
+# was computed once from the v10.5.0 tag archive and is pinned here: the build
+# fails if the archive ever changes.
+#
+# To update: pick the new release, copy its checksums for linux_amd64 and
+# linux_arm64 into the ARGs below, recompute the templates archive hash, and
+# run  docker build --target pd-tools  (see docs/operations/pentest-tools.md).
+# TARGETARCH is set by BuildKit / buildx (compose uses BuildKit by default).
+FROM debian:bookworm-slim AS pd-tools
+ARG TARGETARCH
+ARG HTTPX_VERSION=1.12.0
+ARG NUCLEI_VERSION=3.11.1
+ARG NUCLEI_TEMPLATES_VERSION=v10.5.0
+ARG HTTPX_SHA256_AMD64=9d8439e8b6c9aa7d1e2314817a392e00d5178da3af5652f7475f88868f418f76
+ARG HTTPX_SHA256_ARM64=fd7b123c1dfbc3d69f19f524e4eebcd6ec06b9a6cbd56813c76f11645197331e
+ARG NUCLEI_SHA256_AMD64=ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6
+ARG NUCLEI_SHA256_ARM64=8044e3d9768ba0a744b2872c1a87e813006f013da97ca9f50f7661a4203bec07
+ARG NUCLEI_TEMPLATES_SHA256=80fbabceca095fac40afecc7f023748df22b9576b9ff10a4422bd2fbf81f9a41
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+  && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  case "${TARGETARCH}" in \
+    amd64) httpx_sha="${HTTPX_SHA256_AMD64}"; nuclei_sha="${NUCLEI_SHA256_AMD64}" ;; \
+    arm64) httpx_sha="${HTTPX_SHA256_ARM64}"; nuclei_sha="${NUCLEI_SHA256_ARM64}" ;; \
+    *) echo "unsupported architecture: ${TARGETARCH:-unset} (build with BuildKit)" >&2; exit 1 ;; \
+  esac; \
+  mkdir -p /out/bin /out/nuclei-templates /tmp/dl; cd /tmp/dl; \
+  curl -fsSL -o httpx.zip "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_${TARGETARCH}.zip"; \
+  echo "${httpx_sha}  httpx.zip" | sha256sum -c -; \
+  unzip -o -q httpx.zip httpx -d /out/bin; \
+  curl -fsSL -o nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip"; \
+  echo "${nuclei_sha}  nuclei.zip" | sha256sum -c -; \
+  unzip -o -q nuclei.zip nuclei -d /out/bin; \
+  curl -fsSL -o templates.tar.gz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/${NUCLEI_TEMPLATES_VERSION}.tar.gz"; \
+  echo "${NUCLEI_TEMPLATES_SHA256}  templates.tar.gz" | sha256sum -c -; \
+  tar -xzf templates.tar.gz -C /out/nuclei-templates --strip-components=1; \
+  chmod 0755 /out/bin/httpx /out/bin/nuclei; \
+  rm -rf /tmp/dl
 
 FROM base AS prod-deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
@@ -95,10 +140,15 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates netbase whois nmap libpcap0.8 \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=recon-tools /out/ /usr/local/bin/
-# This image ships ProjectDiscovery's httpx as plain `httpx` — the
-# `httpx-toolkit` default only exists to dodge Kali's Python `httpx` CLI,
-# which isn't present here.
-ENV RECON_TOOL_BIN_HTTPX=httpx
+# httpx and nuclei (verified releases) plus the pinned nuclei template set.
+# Resolved through the VULN_TOOL_BIN_* variables, never from PATH. This image
+# ships ProjectDiscovery's httpx, not Kali's Python `httpx` CLI, so recon
+# uses the same binary instead of the `httpx-toolkit` default.
+COPY --from=pd-tools /out/ /opt/secora-tools/
+ENV VULN_TOOL_BIN_HTTPX=/opt/secora-tools/bin/httpx \
+    VULN_TOOL_BIN_NUCLEI=/opt/secora-tools/bin/nuclei \
+    RECON_TOOL_BIN_HTTPX=/opt/secora-tools/bin/httpx \
+    VULN_NUCLEI_TEMPLATES_DIR=/opt/secora-tools/nuclei-templates
 RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shell /bin/bash --create-home pentesthub
 WORKDIR /workspace
 COPY --from=prod-deps /workspace/node_modules ./node_modules

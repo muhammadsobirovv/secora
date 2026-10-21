@@ -62,6 +62,9 @@ describe('NucleiScannerRunner', () => {
       '10',
       '-retries',
       '1',
+      '-lna',
+      '-ept',
+      'code,file,headless,javascript,websocket,whois',
       '-tags',
       'cve',
       '-severity',
@@ -188,6 +191,9 @@ describe('NucleiScannerRunner', () => {
       '10',
       '-retries',
       '1',
+      '-lna',
+      '-ept',
+      'code,file,headless,javascript,websocket,whois',
     ]);
   });
 });

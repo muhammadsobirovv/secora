@@ -15,11 +15,15 @@ import {
   useStopVulnScanJob,
   useVulnScanJob,
   useVulnScanJobFindings,
+  useVulnScanJobLogs,
 } from "@/features/vuln/hooks/use-vuln";
 import { VulnScanJobStatusBadge } from "@/features/vuln/components/vuln-scan-job-status-badge";
 import { VulnScanJobProgress } from "@/features/vuln/components/vuln-scan-job-progress";
 import { VulnLiveLogPanel } from "@/features/vuln/components/vuln-live-log-panel";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
+import { PipelineStepper } from "@/features/scan/pipeline-stepper";
+import { SeverityCounters } from "@/features/scan/severity-counters";
+import { VulnFindingCards } from "@/features/scan/finding-cards";
 import { formatDateTime } from "@/lib/format";
 import { useI18n } from "@/features/i18n/i18n-context";
 import type { VulnScanJobStatus } from "@pentesthub/shared";
@@ -34,6 +38,9 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
   const { data: job, isLoading, isError, refetch } = useVulnScanJob(jobId);
   const jobActive = Boolean(job) && !TERMINAL_STATUSES.includes(job!.status);
   const { data: findings, isLoading: findingsLoading } = useVulnScanJobFindings(jobId, true, jobActive);
+  // One log stream for the page: the stepper reads its stage lines and the
+  // terminal shows the same lines.
+  const logStream = useVulnScanJobLogs(jobId, true);
   const stopJob = useStopVulnScanJob();
   const pauseJob = usePauseVulnScanJob();
   const resumeJob = useResumeVulnScanJob();
@@ -142,6 +149,13 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
       </div>
 
       <Card>
+        <CardContent className="flex flex-col gap-5 pt-6">
+          <PipelineStepper logs={logStream.logs} status={job.status} />
+          <SeverityCounters findings={findings} />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("recon.job.progress")}</CardTitle>
         </CardHeader>
@@ -155,7 +169,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
           <CardTitle className="text-base">{t("vuln.log.title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <VulnLiveLogPanel jobId={job.id} running={isRunning} />
+          <VulnLiveLogPanel jobId={job.id} running={isRunning} stream={logStream} />
         </CardContent>
       </Card>
 
@@ -164,7 +178,13 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
           <CardTitle className="text-base">{plural("recon.job.findingsTitle", job.findingsCount)}</CardTitle>
         </CardHeader>
         <CardContent>
-          <VulnFindingsTable findings={findings} isLoading={findingsLoading} />
+          {/* Cards on phones, the table from md up. */}
+          <div className="md:hidden">
+            <VulnFindingCards findings={findings} isLoading={findingsLoading} />
+          </div>
+          <div className="hidden md:block">
+            <VulnFindingsTable findings={findings} isLoading={findingsLoading} />
+          </div>
         </CardContent>
       </Card>
     </div>

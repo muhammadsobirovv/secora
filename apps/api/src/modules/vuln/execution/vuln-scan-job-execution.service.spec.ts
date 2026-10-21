@@ -28,6 +28,8 @@ import {
   type EvidenceRepository,
 } from '../../evidence/domain/repositories/evidence.repository.interface.js';
 import { ScannerRunnerRegistry } from '../scanner-runners/scanner-runner-registry.service.js';
+import { PipelineProbeStage } from '../pipeline/probe-stage.service.js';
+import { ScanCommandAudit } from '../pipeline/scan-command-audit.service.js';
 import type {
   Target,
   VulnScanJob,
@@ -194,6 +196,8 @@ async function buildService(
     { provide: ScannerRunnerRegistry, useValue: scannerRunnerRegistry },
     { provide: ConfigService, useValue: configService },
     { provide: EventBus, useValue: eventBus },
+    { provide: PipelineProbeStage, useValue: { resolvePin: jest.fn(), run: jest.fn() } },
+    { provide: ScanCommandAudit, useValue: { record: jest.fn() } },
   ]);
 
   return {
@@ -348,6 +352,8 @@ describe('VulnScanJobExecutionService', () => {
       { provide: ScannerRunnerRegistry, useValue: registry },
       { provide: ConfigService, useValue: { get: jest.fn(() => 5000) } },
       { provide: EventBus, useValue: eventBus },
+    { provide: PipelineProbeStage, useValue: { resolvePin: jest.fn(), run: jest.fn() } },
+    { provide: ScanCommandAudit, useValue: { record: jest.fn() } },
     ]);
 
     await moduleRef

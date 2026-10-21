@@ -44,6 +44,7 @@ import {
   TargetAuthorizationService,
   type RequestContextInput,
 } from '../../target-authorization/target-authorization.service.js';
+import { ScanAdmissionService } from '../pipeline/scan-admission.service.js';
 
 export class CreateVulnScanJobCommand implements ICommand {
   constructor(
@@ -82,6 +83,7 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
     private readonly usage: UsageService,
     @Inject(TargetAuthorizationService)
     private readonly targetAuthorization: TargetAuthorizationService,
+    private readonly scanAdmission: ScanAdmissionService,
   ) {}
 
   async execute(command: CreateVulnScanJobCommand): Promise<VulnScanJobDto> {
@@ -137,6 +139,31 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         context: command.context,
       });
 
+    // Rate limits first (cheap), plan quota after: one scan per target at a
+    // time, N per target and M per workspace per hour. 429 with a stable code.
+    await this.scanAdmission.assertAllowed({ workspaceId, targetId: target.id });
+
+    const profile = command.data.profile;
+    if (
+      profile === 'DEEP' &&
+      !this.configService.get('SCAN_DEEP_PROFILE_ENABLED', { infer: true })
+    ) {
+      throw new AppException(
+        'SCAN_PROFILE_DISABLED',
+        'The DEEP scan profile is not enabled on this deployment.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // DEEP includes default-credential checks: the caller must say so.
+    if (profile === 'DEEP' && command.data.confirmDeep !== true) {
+      throw new AppException(
+        'SCAN_DEEP_CONFIRMATION_REQUIRED',
+        'The DEEP scan profile submits default credentials to login forms. Confirm it explicitly to continue.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     let scanners = command.data.scanners;
     let config = command.data.config ?? null;
 
@@ -159,6 +186,16 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       config =
         command.data.config ??
         (template.config as Record<string, unknown> | null);
+    }
+
+    // A profile makes this a pipeline run (recon, then scan). It is stored in
+    // the job config; the worker reads it from there.
+    if (profile) {
+      config = {
+        ...(config ?? {}),
+        profile,
+        ...(profile === 'DEEP' ? { deepConfirmed: true } : {}),
+      };
     }
 
     for (const scanner of scanners) {

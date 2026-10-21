@@ -96,6 +96,14 @@ export interface VulnScanJobsRepository {
   /// Scanner Status / Scanner History dashboard widgets.
   getScannerHistory(workspaceId: string): Promise<ScannerHistoryRow[]>;
   countRunning(workspaceId: string): Promise<number>;
+  /// Jobs of one target that are queued or in progress (not finished).
+  countActiveForTarget(targetId: string): Promise<number>;
+  /// Jobs created at or after `since`, for rate limiting.
+  countCreatedSince(filter: {
+    since: Date;
+    targetId?: string;
+    workspaceId?: string;
+  }): Promise<number>;
 }
 
 export const VULN_SCAN_JOBS_REPOSITORY = Symbol('VULN_SCAN_JOBS_REPOSITORY');

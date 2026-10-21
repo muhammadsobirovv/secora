@@ -8,6 +8,7 @@ import type {
   ToolRunResult,
 } from '../tool-runner.interface.js';
 import type { TargetType } from '../../../../prisma-types.js';
+import { buildHttpxArgs } from '../../../vuln/pipeline/tool-catalog.js';
 
 /// Binary name defaults to "httpx-toolkit", NOT "httpx" — on Kali, plain
 /// "httpx" on PATH resolves to Python's unrelated HTTP client CLI. See
@@ -26,16 +27,7 @@ export class HttpxToolRunner implements ToolRunner {
     const bin = this.configService.get('RECON_TOOL_BIN_HTTPX', { infer: true });
     return this.spawner.spawn({
       command: bin,
-      args: [
-        '-u',
-        ctx.target.value,
-        '-silent',
-        '-json',
-        '-title',
-        '-tech-detect',
-        '-status-code',
-        '-server',
-      ],
+      args: buildHttpxArgs({ target: ctx.target.value }),
       signal: ctx.signal,
       onStderrLine: (line) => ctx.onLog('WARN', line),
     });

@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AuditEventType" ADD VALUE 'SCAN_COMMAND_EXECUTED';
+

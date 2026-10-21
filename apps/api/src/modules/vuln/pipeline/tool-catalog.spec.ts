@@ -75,9 +75,9 @@ describe('tool-catalog — nuclei argv', () => {
     const widened = buildNucleiArgs({
       target: { kind: 'URL', value: 'https://shop.example.org' },
       profile: 'QUICK',
-      tags: ['exposures', 'brute-force'],
+      tags: ['exposure', 'brute-force'],
     });
-    expect(widened[widened.indexOf('-tags') + 1]).toBe('exposures');
+    expect(widened[widened.indexOf('-tags') + 1]).toBe('exposure');
   });
 
   it('refuses a narrowing that leaves no tags, instead of running every template', () => {
@@ -85,7 +85,7 @@ describe('tool-catalog — nuclei argv', () => {
       buildNucleiArgs({
         target: { kind: 'URL', value: 'https://shop.example.org' },
         profile: 'QUICK',
-        tags: ['cves'], // outside QUICK's set
+        tags: ['cve'], // outside QUICK's set
       }),
     ).toThrow(/No nuclei template tags/);
   });
@@ -94,6 +94,37 @@ describe('tool-catalog — nuclei argv', () => {
     for (const profile of ['QUICK', 'STANDARD', 'DEEP'] as const) {
       expect(NUCLEI_PROFILES[profile].tags.join(',')).not.toMatch(/brute|fuzz|dos|sqli|intrusive/);
     }
+  });
+
+  it('blocks local-network access and risky protocol types on every run', () => {
+    for (const profile of ['QUICK', 'STANDARD', 'DEEP'] as const) {
+      const args = buildNucleiArgs({
+        target: { kind: 'URL', value: 'https://shop.example.org' },
+        profile,
+      });
+      expect(args).toContain('-lna');
+      expect(args[args.indexOf('-ept') + 1]).toBe('code,file,headless,javascript,websocket,whois');
+      expect(args).not.toContain('-lfa');
+    }
+  });
+
+  it('lifts the local-network block only when asked to explicitly', () => {
+    const base = { target: { kind: 'URL' as const, value: 'https://shop.example.org' } };
+    expect(buildNucleiArgs({ ...base, restrictLocalNetwork: false })).not.toContain('-lna');
+    expect(buildNucleiArgs({ ...base, restrictLocalNetwork: true })).toContain('-lna');
+    expect(buildNucleiArgs(base)).toContain('-lna');
+  });
+
+  it('default-login runs only in DEEP', () => {
+    expect(NUCLEI_PROFILES.QUICK.tags).not.toContain('default-login');
+    expect(NUCLEI_PROFILES.STANDARD.tags).not.toContain('default-login');
+    expect(NUCLEI_PROFILES.DEEP.tags).toContain('default-login');
+    const standard = buildNucleiArgs({
+      target: { kind: 'URL', value: 'https://shop.example.org' },
+      profile: 'STANDARD',
+      tags: ['default-login', 'exposure'],
+    });
+    expect(standard[standard.indexOf('-tags') + 1]).toBe('exposure');
   });
 
   it('rate-limits per profile', () => {

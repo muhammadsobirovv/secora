@@ -22,6 +22,9 @@ export interface ScannerRunContext {
   /// stderr output — powers the live SSE log view, identical role to
   /// Recon's ToolRunContext.onLog.
   onLog: (level: VulnScanJobLogLevel, message: string) => void;
+  /// Called by an adapter right before it spawns its tool, with the exact
+  /// argv. The orchestrator turns it into one redacted audit entry.
+  onCommand?: (info: { tool: string; command: string; argv: string[] }) => void;
 }
 
 export interface ScannerRunResult {

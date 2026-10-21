@@ -25,6 +25,9 @@ import { ScannerRunnerRegistry } from './scanner-runners/scanner-runner-registry
 import { ScannerProcessSpawner } from './scanner-runners/process/spawn-scanner-process.util.js';
 import { VulnScanJobExecutionService } from './execution/vuln-scan-job-execution.service.js';
 import { VulnScanJobPollerService } from './execution/vuln-scan-job-poller.service.js';
+import { PipelineProbeStage } from './pipeline/probe-stage.service.js';
+import { ScanCommandAudit } from './pipeline/scan-command-audit.service.js';
+import { ScanAdmissionService } from './pipeline/scan-admission.service.js';
 
 /// Everything the Vuln HTTP module AND the separate worker process both
 /// need — repositories, scanner-runners, normalizers, the execution/
@@ -69,10 +72,14 @@ import { VulnScanJobPollerService } from './execution/vuln-scan-job-poller.servi
     FeroxbusterNormalizer,
     NiktoNormalizer,
     ScannerRunnerRegistry,
+    PipelineProbeStage,
+    ScanCommandAudit,
+    ScanAdmissionService,
     VulnScanJobExecutionService,
     VulnScanJobPollerService,
   ],
   exports: [
+    ScanAdmissionService,
     VULN_SCAN_JOBS_REPOSITORY,
     VULN_SCAN_JOB_TOOL_RUNS_REPOSITORY,
     VULN_SCAN_JOB_LOGS_REPOSITORY,

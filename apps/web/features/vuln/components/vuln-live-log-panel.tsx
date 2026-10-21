@@ -4,7 +4,8 @@ import * as React from "react";
 import { Check, ChevronsDown, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/features/i18n/i18n-context";
-import { useVulnScanJobLogs } from "../hooks/use-vuln";
+import { useVulnScanJobLogs, type LogStreamError, type UseVulnScanJobLogsResult } from "../hooks/use-vuln";
+import type { TranslateFn } from "@/features/i18n/catalog";
 
 const LEVEL_COLOR: Record<string, string> = {
   DEBUG: "text-zinc-500",
@@ -18,12 +19,34 @@ function clock(value: string): string {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour12: false });
 }
 
+function streamErrorText(t: TranslateFn, error: LogStreamError): string {
+  const message =
+    error.cause.kind === "status"
+      ? t("scan.stream.statusFailed", { status: error.cause.status })
+      : t("scan.stream.disconnected");
+  return error.attempt === null
+    ? t("scan.stream.gaveUp", { message, max: error.max })
+    : t("scan.stream.reconnecting", { message, attempt: error.attempt, max: error.max });
+}
+
 /// Terminal view of a scan. The log stream replays every stored line from the
 /// start and closes itself once the job is finished, so the same view works
 /// while the scan runs and after it is done.
-export function VulnLiveLogPanel({ jobId, running }: { jobId: string; running: boolean }) {
+///
+/// A page that also needs the log lines (the stage stepper reads them) opens
+/// the stream itself and passes it as `stream`, so there is one connection.
+export function VulnLiveLogPanel({
+  jobId,
+  running,
+  stream,
+}: {
+  jobId: string;
+  running: boolean;
+  stream?: UseVulnScanJobLogsResult;
+}) {
   const { t } = useI18n();
-  const { logs, connected, error } = useVulnScanJobLogs(jobId, true);
+  const own = useVulnScanJobLogs(jobId, !stream);
+  const { logs, connected, error } = stream ?? own;
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [follow, setFollow] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
@@ -85,7 +108,7 @@ export function VulnLiveLogPanel({ jobId, running }: { jobId: string; running: b
           onScroll={handleScroll}
           className="max-h-96 min-h-40 overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed"
         >
-          {error && <p className="text-red-400">{error}</p>}
+          {error && <p className="text-red-400">{streamErrorText(t, error)}</p>}
           {logs.length === 0 && !error && (
             <p className="text-zinc-500">{running ? t("recon.log.waiting") : t("vuln.terminal.empty")}</p>
           )}

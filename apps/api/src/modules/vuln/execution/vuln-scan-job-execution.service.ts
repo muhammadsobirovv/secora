@@ -44,6 +44,22 @@ import {
   VulnFindingUpdatedEvent,
 } from '../events/vuln-finding-events.js';
 import type { VulnScanJobToolRun } from '../../../prisma-types.js';
+import { formatStageMarker } from '@pentesthub/shared';
+import { PipelineProbeStage } from '../pipeline/probe-stage.service.js';
+import { ScanCommandAudit } from '../pipeline/scan-command-audit.service.js';
+import { PinBlockedError, type PinnedHost } from '../pipeline/pin.util.js';
+import {
+  NUCLEI_PROFILES,
+  SCAN_PROFILES,
+  type ScanProfile,
+} from '../pipeline/tool-catalog.js';
+
+/// What the recon stage learned, handed to the scan stage.
+interface PipelineContext {
+  profile: ScanProfile;
+  pin: PinnedHost;
+  liveUrls: string[];
+}
 
 /// The orchestrator for one claimed job: Target -> [ScannerRunner ->
 /// Normalizer -> Deduplication -> Evidence] per scanner, sequentially ->
@@ -74,6 +90,8 @@ export class VulnScanJobExecutionService {
     private readonly scannerRunnerRegistry: ScannerRunnerRegistry,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly eventBus: EventBus,
+    private readonly probeStage: PipelineProbeStage,
+    private readonly commandAudit: ScanCommandAudit,
   ) {}
 
   /// Runs every PENDING tool run for this job in sequence, then finalizes
@@ -95,6 +113,9 @@ export class VulnScanJobExecutionService {
         return;
       }
 
+      const pipeline = await this.prepareProfile(job, target, signal);
+      if (pipeline === 'FAILED') return;
+
       for (const toolRun of job.toolRuns) {
         if (signal.aborted) break;
         if (toolRun.status !== 'PENDING') continue;
@@ -105,12 +126,12 @@ export class VulnScanJobExecutionService {
         const fresh = await this.jobsRepository.findById(job.id);
         if (fresh?.pauseRequestedAt) break;
 
-        await this.runOneScanner(
-          job,
-          toolRun,
-          { id: target.id, type: target.type, value: target.value },
-          signal,
-        );
+        const scanTarget = { id: target.id, type: target.type, value: target.value };
+        if (pipeline && toolRun.scanner === 'NUCLEI' && pipeline.liveUrls.length === 0) {
+          await this.skipScanStage(job, toolRun);
+          continue;
+        }
+        await this.runOneScanner(job, toolRun, scanTarget, signal, pipeline);
       }
 
       const fresh = await this.jobsRepository.findById(job.id);
@@ -178,8 +199,34 @@ export class VulnScanJobExecutionService {
     toolRun: VulnScanJobToolRun,
     target: ScannerRunTarget,
     signal: AbortSignal,
+    pipeline: PipelineContext | null,
   ): Promise<void> {
     await this.toolRunsRepository.markStarted(toolRun.id);
+
+    // The scan stage of a profile run: nuclei gets the pinned address, the
+    // live URLs found by recon, the profile's tag ceiling and its own stage
+    // time limit (on top of the job's overall timeout).
+    const staged = pipeline !== null && toolRun.scanner === 'NUCLEI';
+    const baseConfig = (job.config as Record<string, unknown> | null) ?? null;
+    const scannerConfig = staged
+      ? {
+          ...(baseConfig ?? {}),
+          NUCLEI: {
+            ...(((baseConfig ?? {}).NUCLEI as Record<string, unknown> | undefined) ?? {}),
+            profile: pipeline.profile,
+            pin: pipeline.pin,
+            urls: pipeline.liveUrls,
+          },
+        }
+      : baseConfig;
+    const stageSeconds = staged ? NUCLEI_PROFILES[pipeline.profile].stageTimeoutSeconds : null;
+    const runSignal =
+      stageSeconds === null
+        ? signal
+        : AbortSignal.any([signal, AbortSignal.timeout(stageSeconds * 1000)]);
+    if (staged) {
+      await this.logLine(job.id, toolRun.id, 'INFO', formatStageMarker('scan', 'start'));
+    }
 
     try {
       const runner = this.scannerRunnerRegistry.resolveRunner(
@@ -193,8 +240,10 @@ export class VulnScanJobExecutionService {
       const result = await runner.run({
         target,
         job: { id: job.id, timeoutSeconds: job.timeoutSeconds },
-        config: job.config as Record<string, unknown> | null,
-        signal,
+        config: scannerConfig,
+        signal: runSignal,
+        onCommand: (info) =>
+          this.auditCommand(job, target, info, 'scan', pipeline?.profile ?? null),
         onLog: (level, message) => {
           void this.logsRepository
             .append({ jobId: job.id, toolRunId: toolRun.id, level, message })
@@ -206,7 +255,10 @@ export class VulnScanJobExecutionService {
         },
       });
 
-      if (result.timedOut) {
+      // The stage's own time limit is not the job being cancelled: what the
+      // tool found so far is kept and reported as partial.
+      const stageLimitReached = result.timedOut && stageSeconds !== null && !signal.aborted;
+      if (result.timedOut && !stageLimitReached) {
         await this.toolRunsRepository.markComplete(toolRun.id, {
           status: 'FAILED',
           exitCode: result.exitCode,
@@ -216,13 +268,28 @@ export class VulnScanJobExecutionService {
         });
         return;
       }
+      if (stageLimitReached) {
+        await this.logLine(
+          job.id,
+          toolRun.id,
+          'WARN',
+          `Scan stage reached its ${stageSeconds}s limit; the results below are partial.`,
+        );
+      }
 
-      const findingInputs = normalizer.normalize(result.stdout, {
+      // A pinned run prints the IP; findings must carry the real hostname.
+      const stdout = pipeline
+        ? result.stdout.split(pipeline.pin.ip).join(pipeline.pin.host)
+        : result.stdout;
+      const findingInputs = normalizer.normalize(stdout, {
         scanner: toolRun.scanner,
         targetValue: target.value,
       });
 
-      await this.persistToolResult(job, toolRun, findingInputs, result.stdout);
+      await this.persistToolResult(job, toolRun, findingInputs, stdout);
+      if (staged) {
+        await this.logLine(job.id, toolRun.id, 'INFO', formatStageMarker('scan', 'done'));
+      }
     } catch (error) {
       this.logger.warn(
         `Scanner ${toolRun.scanner} failed for job ${job.id}: ${String(error)}`,
@@ -408,6 +475,120 @@ export class VulnScanJobExecutionService {
         error,
       }),
     );
+  }
+
+  private resolveProfile(job: VulnScanJobWithToolRuns): ScanProfile | null {
+    const raw = (job.config as Record<string, unknown> | null)?.profile;
+    return typeof raw === 'string' && (SCAN_PROFILES as readonly string[]).includes(raw)
+      ? (raw as ScanProfile)
+      : null;
+  }
+
+  /// Profile runs only: refuses a disabled DEEP profile, resolves the target
+  /// host ONCE (every address must be public) and runs the recon stage.
+  /// Returns null for a plain job (no profile), 'FAILED' when the job was
+  /// finalized as failed here, otherwise what the scan stage needs. If the job
+  /// is cancelled or times out during recon, the usual abort handling in
+  /// execute() takes over.
+  private async prepareProfile(
+    job: VulnScanJobWithToolRuns,
+    target: { id: string; type: string; value: string },
+    signal: AbortSignal,
+  ): Promise<PipelineContext | 'FAILED' | null> {
+    const profile = this.resolveProfile(job);
+    if (!profile) return null;
+
+    if (profile === 'DEEP' && !this.configService.get('SCAN_DEEP_PROFILE_ENABLED', { infer: true })) {
+      await this.logLine(job.id, null, 'ERROR', 'The DEEP profile is not enabled on this deployment.');
+      await this.finalizeAsFailed(job, 'The DEEP profile is not enabled on this deployment.');
+      return 'FAILED';
+    }
+    // Defense in depth: a DEEP job that was not confirmed at creation never runs.
+    if (profile === 'DEEP' && (job.config as Record<string, unknown> | null)?.deepConfirmed !== true) {
+      await this.logLine(job.id, null, 'ERROR', 'The DEEP profile was not confirmed for this job.');
+      await this.finalizeAsFailed(job, 'The DEEP profile was not confirmed for this job.');
+      return 'FAILED';
+    }
+
+    let host: string;
+    try {
+      host = target.type === 'URL' ? new URL(target.value).hostname : target.value;
+    } catch {
+      host = target.value;
+    }
+
+    let pin: PinnedHost;
+    try {
+      pin = await this.probeStage.resolvePin(host);
+    } catch (error) {
+      const message =
+        error instanceof PinBlockedError
+          ? `Scan refused: ${error.message}`
+          : `Scan refused: ${error instanceof Error ? error.message : 'invalid target host.'}`;
+      await this.logLine(job.id, null, 'ERROR', message);
+      await this.finalizeAsFailed(job, message);
+      return 'FAILED';
+    }
+    await this.logLine(job.id, null, 'INFO', `Resolved ${pin.host} -> ${pin.ip} (pinned for this scan).`);
+
+    const probe = await this.probeStage.run({
+      pin,
+      signal,
+      onLog: (level, message) => void this.logLine(job.id, null, level, message),
+      onCommand: (info) => this.auditCommand(job, target, info, 'recon', profile),
+    });
+    return { profile, pin, liveUrls: probe.liveUrls };
+  }
+
+  /// Nothing is live, so the scan stage has nothing to test: close its tool run
+  /// without running nuclei.
+  private async skipScanStage(
+    job: VulnScanJobWithToolRuns,
+    toolRun: VulnScanJobToolRun,
+  ): Promise<void> {
+    await this.toolRunsRepository.markStarted(toolRun.id);
+    await this.logLine(job.id, toolRun.id, 'WARN', formatStageMarker('scan', 'skipped'));
+    await this.toolRunsRepository.markComplete(toolRun.id, {
+      status: 'COMPLETED',
+      exitCode: 0,
+      findingsCount: 0,
+      errorMessage: 'No live web service was found, so the scan stage was skipped.',
+      rawOutputEvidenceId: null,
+    });
+  }
+
+  private logLine(
+    jobId: string,
+    toolRunId: string | null,
+    level: Parameters<VulnScanJobLogsRepository['append']>[0]['level'],
+    message: string,
+  ): Promise<void> {
+    return this.logsRepository.append({ jobId, toolRunId, level, message }).then(
+      () => undefined,
+      (err: unknown) => {
+        this.logger.warn(`Failed to persist vuln scan log: ${String(err)}`);
+      },
+    );
+  }
+
+  private auditCommand(
+    job: VulnScanJobWithToolRuns,
+    target: { id: string; value: string },
+    info: { tool: string; command: string; argv: string[] },
+    stage: 'recon' | 'scan',
+    profile: string | null,
+  ): void {
+    void this.commandAudit.record({
+      userId: job.requestedBy,
+      workspaceId: job.workspaceId,
+      jobId: job.id,
+      target: { id: target.id, value: target.value },
+      tool: info.tool,
+      stage,
+      profile,
+      command: info.command,
+      argv: info.argv,
+    });
   }
 
   private async countFindings(

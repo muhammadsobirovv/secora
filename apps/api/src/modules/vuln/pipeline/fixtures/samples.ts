@@ -1,11 +1,10 @@
-/// Sample stdout in the documented output formats of httpx (-json) and nuclei
-/// (-jsonl). These are hand-written to the format, NOT captured from a live
-/// run: real captures must replace them once the pinned binaries are available
-/// in the worker image (see docs/operations/pentest-tools.md).
+/// SYNTHETIC edge-case inputs (a stray non-JSON line, empty fields, an unknown
+/// severity, a redirect). They are not tool output. The real recorded output
+/// is in recorded.ts and is what the main parser tests use.
 
 export const HTTPX_SAMPLE = [
   '{"timestamp":"2026-10-21T10:00:01Z","url":"https://shop.example.org","status_code":200,"title":"Example Shop","webserver":"nginx/1.24.0","tech":["Nginx","PHP"],"port":"443","host":"203.0.113.10"}',
-  '{"timestamp":"2026-10-21T10:00:02Z","url":"http://shop.example.org","status_code":301,"webserver":"nginx/1.24.0","port":"80","host":"203.0.113.10"}',
+  '{"timestamp":"2026-10-21T10:00:02Z","url":"http://shop.example.org","status_code":301,"webserver":"nginx/1.24.0","location":"https://shop.example.org/","port":"80","host_ip":"203.0.113.10"}',
   'not json line that a tool printed to stdout',
   '{"timestamp":"2026-10-21T10:00:03Z","url":"https://api.shop.example.org","status_code":401,"title":"","tech":[],"port":"443"}',
 ].join('\n');

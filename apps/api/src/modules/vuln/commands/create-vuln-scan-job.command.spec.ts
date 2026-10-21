@@ -11,6 +11,7 @@ import type { ScopeEngineService } from '../../security/scope-engine.service.js'
 import type { QuotaService } from '../../billing/quota.service.js';
 import type { UsageService } from '../../billing/usage.service.js';
 import { CreateVulnScanJobCommand, CreateVulnScanJobHandler } from './create-vuln-scan-job.command.js';
+import type { ScanAdmissionService } from '../pipeline/scan-admission.service.js';
 import type { TargetAuthorizationService } from '../../target-authorization/target-authorization.service.js';
 
 function buildTarget(overrides?: Partial<Target>): Target {
@@ -77,6 +78,10 @@ function buildHandler(opts: {
   usageRecord?: jest.Mock;
   /// Target authorization gate; authorized by default.
   assertActiveScanAllowed?: jest.Mock;
+  /// Scan admission (rate limits); allowed by default.
+  admission?: jest.Mock;
+  /// SCAN_DEEP_PROFILE_ENABLED; off by default, like the real env default.
+  deepEnabled?: boolean;
 }) {
   const workspacesRepository: WorkspacesRepository = {
     create: jest.fn(),
@@ -99,7 +104,9 @@ function buildHandler(opts: {
   const vulnScanTemplatesRepository: Partial<VulnScanTemplatesRepository> = {
     findByIdForWorkspace: jest.fn(),
   };
-  const configService = { get: jest.fn(() => 1800) } as unknown as ConfigService;
+  const configService = {
+    get: jest.fn((key: string) => (key === 'SCAN_DEEP_PROFILE_ENABLED' ? (opts.deepEnabled ?? false) : 1800)),
+  } as unknown as ConfigService;
   const eventBus = { publish: jest.fn() } as unknown as EventBus;
   const assertExecutionAllowed = opts.scopeAssert ?? jest.fn(async () => ({ decision: 'ALLOWED' }));
   const scopeEngine: Partial<ScopeEngineService> = {
@@ -129,6 +136,9 @@ function buildHandler(opts: {
     recordScanStarted,
   } as unknown as TargetAuthorizationService;
 
+  const assertAllowed = opts.admission ?? jest.fn(() => Promise.resolve(undefined));
+  const scanAdmission = { assertAllowed } as unknown as ScanAdmissionService;
+
   const handler = new CreateVulnScanJobHandler(
     workspacesRepository,
     projectsRepository as ProjectsRepository,
@@ -141,6 +151,7 @@ function buildHandler(opts: {
     quota as QuotaService,
     usage as UsageService,
     targetAuthorization,
+    scanAdmission,
   );
   return {
     handler,
@@ -151,6 +162,7 @@ function buildHandler(opts: {
     usageRecord,
     assertActiveScanAllowed,
     recordScanStarted,
+    assertAllowed,
   };
 }
 
@@ -331,5 +343,93 @@ describe('CreateVulnScanJobHandler', () => {
     expect(usageRecord).toHaveBeenCalledWith(
       expect.objectContaining({ organizationId: 'org-1', workspaceId: 'workspace-1', resourceType: 'SCANNER_JOBS', quantity: 1 }),
     );
+  });
+
+  // Scan admission and profiles (pentest pipeline).
+
+  it('refuses a scan that hits a rate limit before the plan quota is consumed or a job exists', async () => {
+    const create = jest.fn();
+    const admission = jest.fn(() =>
+      Promise.reject(
+        Object.assign(new Error('rate limited'), { code: 'SCAN_RATE_LIMITED', status: 429 }),
+      ),
+    );
+    const { handler, vulnScanJobsRepository, enforceForWorkspace } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      admission,
+    });
+
+    await expect(
+      handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'] })),
+    ).rejects.toMatchObject({ code: 'SCAN_RATE_LIMITED', status: 429 });
+
+    expect(enforceForWorkspace).not.toHaveBeenCalled();
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the chosen profile in the job config for the worker', async () => {
+    const create = jest.fn(async () => buildJob('job-1'));
+    const { handler, vulnScanJobsRepository } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+    });
+
+    await handler.execute(
+      new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'QUICK' }),
+    );
+
+    const input = (vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as {
+      config: Record<string, unknown>;
+    };
+    expect(input.config).toEqual({ profile: 'QUICK' });
+  });
+
+  it('refuses the DEEP profile unless the deployment enables it', async () => {
+    const create = jest.fn();
+    const off = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create, deepEnabled: false });
+    await expect(
+      off.handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'DEEP' }),
+      ),
+    ).rejects.toMatchObject({ code: 'SCAN_PROFILE_DISABLED', status: 403 });
+    expect(off.vulnScanJobsRepository.create).not.toHaveBeenCalled();
+
+    const created = jest.fn(async () => buildJob('job-2'));
+    const on = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: created, deepEnabled: true });
+    await expect(
+      on.handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', {
+          scanners: ['NUCLEI'],
+          profile: 'DEEP',
+          confirmDeep: true,
+        }),
+      ),
+    ).resolves.toBeDefined();
+    const input = (on.vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as {
+      config: Record<string, unknown>;
+    };
+    expect(input.config).toEqual({ profile: 'DEEP', deepConfirmed: true });
+  });
+
+  it('refuses the DEEP profile without an explicit confirmation', async () => {
+    const create = jest.fn();
+    const { handler, vulnScanJobsRepository } = buildHandler({
+      workspace: buildWorkspace({ isDemo: false }),
+      create,
+      deepEnabled: true,
+    });
+    for (const confirmDeep of [undefined, false]) {
+      await expect(
+        handler.execute(
+          new CreateVulnScanJobCommand('user-1', 'target-1', {
+            scanners: ['NUCLEI'],
+            profile: 'DEEP',
+            confirmDeep,
+          }),
+        ),
+      ).rejects.toMatchObject({ code: 'SCAN_DEEP_CONFIRMATION_REQUIRED', status: 400 });
+    }
+    expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
   });
 });

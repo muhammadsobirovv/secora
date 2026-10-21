@@ -45,7 +45,7 @@ export function CreateVulnScanJobDialog({
       setPriority(0);
       onCreated?.(job.id);
     } catch (error) {
-      toast.error(scanErrorMessage(error, t("vuln.create.error")));
+      toast.error(scanErrorMessage(error, t("vuln.create.error"), t));
     }
   }
 

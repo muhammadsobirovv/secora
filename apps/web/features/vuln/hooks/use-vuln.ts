@@ -210,10 +210,26 @@ export function useDeleteVulnScanTemplate() {
   });
 }
 
-interface UseVulnScanJobLogsResult {
+/// Why the log stream is not delivering. The hook does not know the user's
+/// language, so it reports the cause and the retry state; the view translates.
+export interface LogStreamError {
+  cause: { kind: "status"; status: number } | { kind: "disconnected" };
+  /// Attempt in progress, or null once the hook has given up.
+  attempt: number | null;
+  max: number;
+}
+
+export interface UseVulnScanJobLogsResult {
   logs: VulnScanJobLogDto[];
   connected: boolean;
-  error: string | null;
+  error: LogStreamError | null;
+}
+
+/// Thrown for a non-OK stream response so the cause survives to the catch block.
+class LogStreamStatusError extends Error {
+  constructor(readonly status: number) {
+    super(`Log stream failed with status ${status}`);
+  }
 }
 
 /// Identical approach to Recon's useReconJobLogs (manual fetch+ReadableStream
@@ -231,7 +247,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScanJobLogsResult {
   const [logs, setLogs] = React.useState<VulnScanJobLogDto[]>([]);
   const [connected, setConnected] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<LogStreamError | null>(null);
 
   React.useEffect(() => {
     if (!enabled || !jobId) return;
@@ -240,6 +256,9 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
     setError(null);
     let attempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    // The stream replays every stored line from the start on each connection,
+    // so after a reconnect the same lines arrive again. Keep each id once.
+    const seen = new Set<string>();
 
     async function run(): Promise<void> {
       try {
@@ -252,7 +271,7 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
           signal: controller.signal,
         });
         if (!response.ok || !response.body) {
-          throw new Error(`Log stream failed with status ${response.status}`);
+          throw new LogStreamStatusError(response.status);
         }
         setConnected(true);
         setError(null);
@@ -277,6 +296,8 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
             if (dataLines.length === 0) continue;
             try {
               const entry = JSON.parse(dataLines.join("")) as VulnScanJobLogDto;
+              if (seen.has(entry.id)) continue;
+              seen.add(entry.id);
               setLogs((prev) => [...prev, entry]);
             } catch {
               // Non-JSON keep-alive / comment frame — ignore.
@@ -288,15 +309,18 @@ export function useVulnScanJobLogs(jobId: string, enabled: boolean): UseVulnScan
         // reconnect is attempted.
       } catch (err) {
         if (controller.signal.aborted) return;
-        const message = err instanceof Error ? err.message : "Log stream disconnected.";
+        const cause: LogStreamError["cause"] =
+          err instanceof LogStreamStatusError
+            ? { kind: "status", status: err.status }
+            : { kind: "disconnected" };
         if (attempt < MAX_RECONNECT_ATTEMPTS) {
           attempt += 1;
-          setError(`${message} — reconnecting (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})…`);
+          setError({ cause, attempt, max: MAX_RECONNECT_ATTEMPTS });
           const delayMs = 1000 * 2 ** (attempt - 1);
           retryTimer = setTimeout(() => void run(), delayMs);
           return;
         }
-        setError(`${message} — gave up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts.`);
+        setError({ cause, attempt: null, max: MAX_RECONNECT_ATTEMPTS });
       } finally {
         setConnected(false);
       }

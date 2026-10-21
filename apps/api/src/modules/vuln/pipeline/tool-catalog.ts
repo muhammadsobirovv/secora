@@ -1,4 +1,11 @@
 import type { PlanTier } from '@pentesthub/shared';
+import { assertSafeHost, assertSafeUrl } from './safe-input.js';
+import {
+  pinnedHostArgs,
+  pinnedSchemeUrls,
+  pinUrl,
+  type PinnedHost,
+} from './pin.util.js';
 
 /// Typed registry of the external tools the pentest pipeline may run.
 ///
@@ -18,39 +25,7 @@ export const SCAN_PROFILES: readonly ScanProfile[] = ['QUICK', 'STANDARD', 'DEEP
 /// (SCAN_DEEP_PROFILE_ENABLED). INTRUSIVE tools are never in the catalog yet.
 export const DEEP_PROFILE_FEATURE_FLAG = 'SCAN_DEEP_PROFILE_ENABLED';
 
-const HOST_PATTERN =
-  /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
-
-/// Hostnames only. Rejects anything that could read as a flag ("-x"), a URL
-/// with credentials, whitespace, or shell metacharacters. The argv array
-/// already prevents shell injection; this stops argument injection.
-export function assertSafeHost(host: string): string {
-  const normalized = host.trim().toLowerCase().replace(/\.$/, '');
-  if (!HOST_PATTERN.test(normalized)) {
-    throw new Error(`Refusing to run a tool against "${host}": not a valid hostname.`);
-  }
-  return normalized;
-}
-
-/// URL form used for httpx and nuclei: http(s) only, no credentials.
-export function assertSafeUrl(url: string): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error(`Refusing to run a tool against "${url}": not a URL.`);
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    throw new Error(`Refusing to run a tool against "${url}": only http(s) is allowed.`);
-  }
-  if (parsed.username || parsed.password) {
-    throw new Error('Refusing to run a tool against a URL that contains credentials.');
-  }
-  assertSafeHost(parsed.hostname);
-  // Return the caller's own text (validated), not the normalized form, so the
-  // argv is exactly what was verified.
-  return url.trim();
-}
+export { assertSafeHost, assertSafeUrl } from './safe-input.js';
 
 export interface NucleiProfileSettings {
   /// Template tags for this profile. No brute force, no fuzzing, no DoS.
@@ -63,21 +38,35 @@ export interface NucleiProfileSettings {
   stageTimeoutSeconds: number;
 }
 
+/// Tag names as they exist in the official nuclei-templates repository. They
+/// were checked against a real checkout (14k templates): the singular forms
+/// "exposure", "misconfig", "cve", "tech", "takeover" and "default-login" are
+/// the real tags, while the plural forms an earlier draft used ("exposures",
+/// "cves", "technologies", ...) match almost nothing. Do not rename them
+/// without re-counting templates per tag.
+const NUCLEI_STANDARD_TAGS = ['exposure', 'misconfig', 'cve', 'tech', 'ssl', 'takeover'];
+
+/// Tags only the DEEP profile may run. "default-login" templates submit
+/// vendor-default credentials to login forms, which is more than detection, so
+/// they need DEEP: a verified target, the operator's SCAN_DEEP_PROFILE_ENABLED
+/// flag and the caller's explicit confirmation (see CreateVulnScanJobHandler).
+export const NUCLEI_DEEP_ONLY_TAGS = ['default-login'];
+
 export const NUCLEI_PROFILES: Record<ScanProfile, NucleiProfileSettings> = {
   QUICK: {
-    tags: ['exposures'],
+    tags: ['exposure'],
     rateLimit: 50,
     requestTimeoutSeconds: 10,
     stageTimeoutSeconds: 5 * 60,
   },
   STANDARD: {
-    tags: ['exposures', 'misconfiguration', 'cves', 'technologies', 'ssl', 'takeovers', 'default-logins'],
+    tags: [...NUCLEI_STANDARD_TAGS],
     rateLimit: 30,
     requestTimeoutSeconds: 10,
     stageTimeoutSeconds: 30 * 60,
   },
   DEEP: {
-    tags: ['exposures', 'misconfiguration', 'cves', 'technologies', 'ssl', 'takeovers', 'default-logins'],
+    tags: [...NUCLEI_STANDARD_TAGS, ...NUCLEI_DEEP_ONLY_TAGS],
     rateLimit: 30,
     requestTimeoutSeconds: 10,
     stageTimeoutSeconds: 60 * 60,
@@ -95,7 +84,35 @@ export interface NucleiArgsInput {
   tags?: string[];
   /// Explicit template paths from the job config.
   templates?: string[];
+  /// DNS pin for the target host. When set the tool connects to the pinned IP
+  /// and sends the real name as Host header and SNI.
+  pin?: PinnedHost;
+  /// Live URLs on the pinned host found by the probe stage. When absent, both
+  /// schemes of the host are used.
+  urls?: string[];
+  /// Absolute directory holding the pinned template set (nuclei -ud). From the
+  /// operator's environment, never from a request.
+  templatesDir?: string;
+  /// Block nuclei's connections to local/private networks (-lna). On unless the
+  /// operator allows private targets (dev/lab only; refused in production).
+  restrictLocalNetwork?: boolean;
 }
+
+/// Protocol types excluded from every run (-ept). Checked against nuclei
+/// v3.11.1 `-h`: these are the ones that can reach hosts other than the pinned
+/// target (javascript, websocket, whois), run code or read files on the
+/// worker (code, file) or drive a browser (headless). The http, ssl, tcp and
+/// dns templates the profiles need are kept. nuclei has no flag that blocks
+/// public hosts a template names itself, so this is the strictest restriction
+/// available; the pin and -lna cover the rest.
+export const NUCLEI_EXCLUDED_PROTOCOLS = [
+  'code',
+  'file',
+  'headless',
+  'javascript',
+  'websocket',
+  'whois',
+];
 
 const LEGACY_RATE_LIMIT = 30;
 const LEGACY_REQUEST_TIMEOUT_SECONDS = 10;
@@ -108,7 +125,15 @@ export function buildNucleiArgs(input: NucleiArgsInput): string[] {
   const settings = input.profile ? NUCLEI_PROFILES[input.profile] : undefined;
   const args: string[] = [];
 
-  if (input.target.kind === 'URL') {
+  if (input.pin) {
+    const urls = input.urls?.length
+      ? input.urls.map((url) => pinUrl(assertSafeUrl(url), input.pin!))
+      : input.target.kind === 'URL'
+        ? [pinUrl(assertSafeUrl(input.target.value), input.pin)]
+        : pinnedSchemeUrls(input.pin);
+    for (const url of urls) args.push('-u', url);
+    args.push(...pinnedHostArgs(input.pin));
+  } else if (input.target.kind === 'URL') {
     args.push('-u', assertSafeUrl(input.target.value));
   } else {
     const host = assertSafeHost(input.target.value);
@@ -144,6 +169,11 @@ export function buildNucleiArgs(input: NucleiArgsInput): string[] {
     '-retries',
     '1',
   );
+  // Strict by default: only an explicit false lifts the local-network block.
+  if (input.restrictLocalNetwork !== false) {
+    args.push('-lna');
+  }
+  args.push('-ept', NUCLEI_EXCLUDED_PROTOCOLS.join(','));
   if (tags && tags.length > 0) {
     args.push('-tags', tags.join(','));
   }
@@ -153,26 +183,42 @@ export function buildNucleiArgs(input: NucleiArgsInput): string[] {
   if (input.templates && input.templates.length > 0) {
     args.push('-templates', input.templates.join(','));
   }
+  if (input.templatesDir && input.templatesDir.startsWith('/')) {
+    args.push('-ud', input.templatesDir);
+  }
   return args;
 }
 
+/// The recon (httpx) stage is one short probe; this bounds it.
+export const HTTPX_STAGE_TIMEOUT_SECONDS = 120;
 export const HTTPX_RATE_LIMIT = 50;
 export const HTTPX_TIMEOUT_SECONDS = 10;
 
 export interface HttpxArgsInput {
   /// A URL or a bare hostname (httpx probes both schemes for a bare host).
   target: string;
+  /// DNS pin: connect to this IP, send the real name as Host header and SNI.
+  pin?: PinnedHost;
 }
 
 /// httpx argv. Redirects are not followed (httpx's default; no -fr flag is
 /// ever passed), so a redirect to another host is never fetched.
 export function buildHttpxArgs(input: HttpxArgsInput): string[] {
-  const target = input.target.includes('://')
-    ? assertSafeUrl(input.target)
-    : assertSafeHost(input.target);
+  const targetArgs: string[] = [];
+  if (input.pin) {
+    const urls = input.target.includes('://')
+      ? [pinUrl(assertSafeUrl(input.target), input.pin)]
+      : pinnedSchemeUrls(input.pin);
+    for (const url of urls) targetArgs.push('-u', url);
+    targetArgs.push(...pinnedHostArgs(input.pin));
+  } else {
+    const target = input.target.includes('://')
+      ? assertSafeUrl(input.target)
+      : assertSafeHost(input.target);
+    targetArgs.push('-u', target);
+  }
   return [
-    '-u',
-    target,
+    ...targetArgs,
     '-silent',
     '-json',
     '-title',
@@ -189,7 +235,7 @@ export function buildHttpxArgs(input: HttpxArgsInput): string[] {
 export interface ToolCatalogEntry {
   id: 'httpx' | 'nuclei';
   /// Env var that holds the binary path/name (see env.validation.ts).
-  binaryEnvVar: 'RECON_TOOL_BIN_HTTPX' | 'VULN_TOOL_BIN_NUCLEI';
+  binaryEnvVar: 'VULN_TOOL_BIN_HTTPX' | 'VULN_TOOL_BIN_NUCLEI';
   allowedTargetKinds: CatalogTargetKind[];
   riskLevel: ToolRiskLevel;
   /// Lowest plan that may run this tool; enforced through QuotaService.
@@ -201,7 +247,7 @@ export interface ToolCatalogEntry {
 export const TOOL_CATALOG: Record<'httpx' | 'nuclei', ToolCatalogEntry> = {
   httpx: {
     id: 'httpx',
-    binaryEnvVar: 'RECON_TOOL_BIN_HTTPX',
+    binaryEnvVar: 'VULN_TOOL_BIN_HTTPX',
     allowedTargetKinds: ['URL', 'DOMAIN', 'SUBDOMAIN'],
     riskLevel: 'SAFE_ACTIVE',
     minPlan: 'FREE',

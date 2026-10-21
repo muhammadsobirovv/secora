@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   ArrayUnique,
+  IsBoolean,
   IsIn,
   IsInt,
   IsObject,
@@ -27,6 +28,19 @@ export class CreateVulnScanJobDto implements CreateVulnScanJobShape {
   @ArrayUnique()
   @IsIn(VULN_SCANNERS, { each: true })
   scanners!: VulnScanner[];
+
+  @ApiPropertyOptional({ enum: ['QUICK', 'STANDARD', 'DEEP'] })
+  @IsOptional()
+  @IsIn(['QUICK', 'STANDARD', 'DEEP'])
+  profile?: 'QUICK' | 'STANDARD' | 'DEEP';
+
+  @ApiPropertyOptional({
+    description:
+      'Must be true for the DEEP profile, which includes default-credential checks.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  confirmDeep?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

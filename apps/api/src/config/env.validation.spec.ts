@@ -285,3 +285,29 @@ describe('validateEnv — production refuses private-target active scans', () =>
     expect(validateEnv(env).ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS).toBe(false);
   });
 });
+
+describe('validateEnv — optional URLs must be absolute http(s) URLs', () => {
+  it.each([
+    ['GOOGLE_CALLBACK_URL', 'localhost:3000/callback'],
+    ['STORAGE_S3_ENDPOINT', 'minio.internal:9000'],
+    ['TELEMETRY_ENDPOINT', 'ftp://example.com/x'],
+    ['AI_OLLAMA_BASE_URL', 'javascript:alert(1)'],
+  ])('rejects %s=%s', (key, value) => {
+    expect(() => validateEnv({ ...minimalValidEnv(), [key]: value })).toThrow(
+      new RegExp(key),
+    );
+  });
+
+  it('accepts http and https URLs and treats blank as unset', () => {
+    const env = {
+      ...minimalValidEnv(),
+      GOOGLE_CALLBACK_URL: 'https://secora.group/auth/google/callback',
+      STORAGE_S3_ENDPOINT: 'http://minio.internal:9000',
+      GITHUB_CALLBACK_URL: '   ',
+    };
+    const result = validateEnv(env);
+    expect(result.GOOGLE_CALLBACK_URL).toBe('https://secora.group/auth/google/callback');
+    expect(result.STORAGE_S3_ENDPOINT).toBe('http://minio.internal:9000');
+    expect(result.GITHUB_CALLBACK_URL).toBeUndefined();
+  });
+});

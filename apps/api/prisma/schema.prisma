@@ -1756,6 +1756,8 @@ enum AuditEventType {
   TARGET_OWNERSHIP_VERIFIED
   TARGET_OWNERSHIP_CHECK_FAILED
   TARGET_OWNERSHIP_BLOCKED
+  // One entry per external tool command the pentest pipeline executes.
+  SCAN_COMMAND_EXECUTED
 }
 
 // ---------------------------------------------------------------------------

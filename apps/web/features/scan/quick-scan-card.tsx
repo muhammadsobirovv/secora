@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useI18n } from "@/features/i18n/i18n-context";
 import { EMPTY_TARGET_AUTHORIZATION, toAttestRequest } from "@/features/targets/components/target-authorization-fields";
 import { ApiError } from "@/lib/api/client";
+import { scanErrorKey } from "@/features/targets/scan-error-message";
 import * as projectsApi from "@/lib/api/projects";
 import * as targetsApi from "@/lib/api/targets";
 import * as vulnApi from "@/lib/api/vuln";
@@ -43,8 +45,18 @@ export function QuickScanCard() {
   // Target waiting for proof of ownership before an active scan may start.
   const [pending, setPending] = React.useState<{ id: string; label: string } | null>(null);
 
+  function startErrorMessage(error: unknown): string {
+    const key = scanErrorKey(error);
+    if (key) return t(key);
+    return error instanceof ApiError ? error.message : t("quickScan.error");
+  }
+
+  // "{aup}" in the translated sentence becomes the link, wherever the language
+  // places it.
+  const consentParts = t("scan.aup.consent", { aup: "\u0000" }).split("\u0000");
+
   async function startScan(targetId: string) {
-    const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"] });
+    const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"], profile: "QUICK" });
     await queryClient.invalidateQueries();
     router.push(`/vuln/jobs/${job.id}`);
   }
@@ -54,7 +66,7 @@ export function QuickScanCard() {
     try {
       await startScan(targetId);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("quickScan.error"));
+      toast.error(startErrorMessage(error));
       setBusy(false);
     }
   }
@@ -104,7 +116,7 @@ export function QuickScanCard() {
       }
       await startScan(targetId);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("quickScan.error"));
+      toast.error(startErrorMessage(error));
       setBusy(false);
     }
   }
@@ -198,6 +210,18 @@ export function QuickScanCard() {
               </Label>
             </div>
           </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {consentParts.map((part, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && (
+                  <Link href="/legal/acceptable-use" className="text-primary underline underline-offset-2">
+                    {t("scan.aup.link")}
+                  </Link>
+                )}
+                {part}
+              </React.Fragment>
+            ))}
+          </p>
         </form>
 
         {pending && (

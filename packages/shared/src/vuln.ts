@@ -88,8 +88,28 @@ export interface VulnScanJobDto {
   findingsCount: number;
 }
 
+/// Pentest pipeline profile. QUICK is the default for the one-tap flow;
+/// DEEP is refused unless the deployment enables it.
+export type VulnScanProfile = "QUICK" | "STANDARD" | "DEEP";
+
+/// Pipeline stages. The worker writes one log line per transition in the form
+/// "[stage] <stage> <state>"; the live view reads them to draw the stepper.
+export const PIPELINE_STAGES = ["recon", "scan"] as const;
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
+export type PipelineStageState = "start" | "done" | "skipped";
+
+export function formatStageMarker(stage: PipelineStage, state: PipelineStageState): string {
+  return `[stage] ${stage} ${state}`;
+}
+
+export const STAGE_MARKER_PATTERN = /^\[stage\] (recon|scan) (start|done|skipped)\b/;
+
 export interface CreateVulnScanJobRequestDto {
   scanners: VulnScanner[];
+  profile?: VulnScanProfile;
+  /// Required (true) for the DEEP profile, which includes checks that submit
+  /// default credentials. Ignored for other profiles.
+  confirmDeep?: boolean;
   templateId?: string;
   config?: Record<string, unknown>;
   priority?: number;

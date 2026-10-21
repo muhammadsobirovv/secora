@@ -11,7 +11,7 @@ import type { VulnFindingSeverity } from "@pentesthub/shared";
 /// this layers extra color classes on top of variant="outline" rather
 /// than adding severity-specific variants to the shared component (which
 /// no other module needs).
-const SEVERITY_CLASS: Record<VulnFindingSeverity, string> = {
+export const SEVERITY_CLASS: Record<VulnFindingSeverity, string> = {
   INFO: "border-border text-muted-foreground",
   LOW: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
   MEDIUM: "border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning",
