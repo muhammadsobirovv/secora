@@ -9,7 +9,7 @@
 #
 # Build from the monorepo root:
 #   docker build -f apps/api/Dockerfile.worker -t pentesthub-worker .
-FROM node:22-bookworm-slim AS base
+FROM node:25-bookworm-slim AS base
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /workspace
 
@@ -130,7 +130,7 @@ COPY packages/agent-sdk/package.json packages/agent-sdk/package.json
 COPY packages/sdk-typescript/package.json packages/sdk-typescript/package.json
 RUN pnpm install --prod --frozen-lockfile --filter api...
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 ENV NODE_ENV=production
 # whois also backs AsnToolRunner (whois.cymru.com); netbase provides
 # /etc/services, without which whois fails with "Servname not supported";
