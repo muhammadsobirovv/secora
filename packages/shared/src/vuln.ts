@@ -1,7 +1,18 @@
 // Module 4 — Vulnerability Engine. Mirrors the shape/conventions of
 // recon.ts (Module 3) deliberately; see docs/adr/0004-vulnerability-engine-module.md.
 
-export type VulnScanner = "NUCLEI" | "FFUF" | "DIRSEARCH" | "FEROXBUSTER" | "NIKTO";
+export type VulnScanner =
+  | "NUCLEI"
+  | "FFUF"
+  | "DIRSEARCH"
+  | "FEROXBUSTER"
+  | "NIKTO"
+  // Pipeline-only scanners (profile scans). They are never chosen by hand:
+  // the profile decides which of them run.
+  | "SECORA_CHECKS"
+  | "SUBFINDER"
+  | "NAABU"
+  | "DALFOX";
 
 export type VulnScanJobStatus =
   | "PENDING"
@@ -94,15 +105,47 @@ export type VulnScanProfile = "QUICK" | "STANDARD" | "DEEP";
 
 /// Pipeline stages. The worker writes one log line per transition in the form
 /// "[stage] <stage> <state>"; the live view reads them to draw the stepper.
-export const PIPELINE_STAGES = ["recon", "scan"] as const;
+export const PIPELINE_STAGES = [
+  "recon",
+  "subdomains",
+  "resolve",
+  "ports",
+  "checks",
+  "crawl",
+  "scan",
+  "content",
+  "xss",
+] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
-export type PipelineStageState = "start" | "done" | "skipped";
+/// "failed" means the stage broke or timed out; the scan carries on with the
+/// stages after it and keeps whatever the stage found before it stopped.
+export type PipelineStageState = "start" | "done" | "skipped" | "failed";
+
+/// Stages each profile runs, in order. QUICK is native checks only (no
+/// external binary); STANDARD adds a crawl and nuclei on the crawled URLs;
+/// DEEP adds subdomain/port discovery, content discovery and XSS checks.
+export const PROFILE_STAGES: Record<VulnScanProfile, readonly PipelineStage[]> = {
+  QUICK: ["checks"],
+  STANDARD: ["recon", "checks", "crawl", "scan"],
+  DEEP: ["recon", "subdomains", "resolve", "ports", "checks", "crawl", "scan", "content", "xss"],
+};
+
+/// Scanners (tool-run rows) each profile creates. SECORA_CHECKS is the native
+/// TLS/header/cookie/CORS checks; the others map to the stage that produces
+/// findings.
+export const PROFILE_SCANNERS: Record<VulnScanProfile, readonly VulnScanner[]> = {
+  QUICK: ["SECORA_CHECKS"],
+  STANDARD: ["SECORA_CHECKS", "NUCLEI"],
+  DEEP: ["SUBFINDER", "NAABU", "SECORA_CHECKS", "NUCLEI", "FFUF", "DALFOX"],
+};
 
 export function formatStageMarker(stage: PipelineStage, state: PipelineStageState): string {
   return `[stage] ${stage} ${state}`;
 }
 
-export const STAGE_MARKER_PATTERN = /^\[stage\] (recon|scan) (start|done|skipped)\b/;
+export const STAGE_MARKER_PATTERN = new RegExp(
+  `^\\[stage\\] (${PIPELINE_STAGES.join("|")}) (start|done|skipped|failed)\\b`,
+);
 
 export interface CreateVulnScanJobRequestDto {
   scanners: VulnScanner[];
@@ -247,4 +290,8 @@ export const SCANNER_TARGET_TYPE_COMPATIBILITY: Record<VulnScanner, string[]> = 
   DIRSEARCH: ["URL"],
   FEROXBUSTER: ["URL"],
   NIKTO: ["URL", "DOMAIN", "SUBDOMAIN", "IP_ADDRESS"],
+  SECORA_CHECKS: ["URL", "DOMAIN", "SUBDOMAIN"],
+  SUBFINDER: ["URL", "DOMAIN", "SUBDOMAIN"],
+  NAABU: ["URL", "DOMAIN", "SUBDOMAIN"],
+  DALFOX: ["URL", "DOMAIN", "SUBDOMAIN"],
 };

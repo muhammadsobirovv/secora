@@ -10,17 +10,19 @@ import type {
 import type { TargetType } from '../../../../prisma-types.js';
 import {
   buildNucleiArgs,
-  type ScanProfile,
+  type NucleiProfile,
 } from '../../pipeline/tool-catalog.js';
 import type { PinnedHost } from '../../pipeline/pin.util.js';
 import { redactArgv } from '../../pipeline/redact-argv.util.js';
 
 interface NucleiConfig {
-  profile?: ScanProfile;
+  profile?: NucleiProfile;
   /// Set by the pipeline: connect to this IP, send the real name as Host.
   pin?: PinnedHost;
   /// Live URLs on the pinned host found by the recon stage.
   urls?: string[];
+  /// The pinning proxy: every HTTP request nuclei makes goes through it.
+  proxyUrl?: string;
   severity?: string[];
   tags?: string[];
   templates?: string[];
@@ -74,6 +76,7 @@ export class NucleiScannerRunner implements ScannerRunner {
       templates: config.templates,
       pin: config.pin,
       urls: config.urls,
+      proxyUrl: config.proxyUrl,
       templatesDir: this.configService.get('VULN_NUCLEI_TEMPLATES_DIR', {
         infer: true,
       }),

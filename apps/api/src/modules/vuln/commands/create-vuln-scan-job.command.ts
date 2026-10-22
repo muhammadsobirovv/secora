@@ -6,6 +6,7 @@ import {
 } from '@nestjs/cqrs';
 import { Inject, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PROFILE_SCANNERS } from '@pentesthub/shared';
 import type {
   CreateVulnScanJobRequestDto,
   VulnScanJobDto,
@@ -45,6 +46,7 @@ import {
   type RequestContextInput,
 } from '../../target-authorization/target-authorization.service.js';
 import { ScanAdmissionService } from '../pipeline/scan-admission.service.js';
+import { PROFILE_JOB_TIMEOUT_SECONDS } from '../pipeline/tool-catalog.js';
 
 export class CreateVulnScanJobCommand implements ICommand {
   constructor(
@@ -188,9 +190,13 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         (template.config as Record<string, unknown> | null);
     }
 
-    // A profile makes this a pipeline run (recon, then scan). It is stored in
-    // the job config; the worker reads it from there.
+    // A profile makes this a pipeline run. The profile decides which scanners
+    // run (QUICK: native checks; STANDARD: + nuclei; DEEP: + discovery, content
+    // and XSS checks), not the request, so a caller cannot ask a profile for a
+    // scanner it does not include. The profile is stored in the job config; the
+    // worker reads it from there.
     if (profile) {
+      scanners = [...PROFILE_SCANNERS[profile]];
       config = {
         ...(config ?? {}),
         profile,
@@ -198,7 +204,10 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       };
     }
 
-    for (const scanner of scanners) {
+    // A profile's scanners are driven by the pipeline (against the verified
+    // host, whatever the target type), so the by-hand compatibility table only
+    // applies to jobs that name their own scanners.
+    for (const scanner of profile ? [] : scanners) {
       if (!isScannerCompatibleWithTargetType(scanner, target.type)) {
         throw new AppException(
           'VULN_SCANNER_NOT_SUPPORTED_FOR_TARGET_TYPE',
@@ -221,9 +230,10 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       config,
       priority: command.data.priority ?? 0,
       requestedBy: command.userId,
-      timeoutSeconds: this.configService.get('VULN_JOB_TIMEOUT_SECONDS', {
-        infer: true,
-      }),
+      timeoutSeconds: Math.max(
+        this.configService.get('VULN_JOB_TIMEOUT_SECONDS', { infer: true }),
+        profile ? PROFILE_JOB_TIMEOUT_SECONDS[profile] : 0,
+      ),
       maxRetries: this.configService.get('VULN_JOB_MAX_RETRIES', {
         infer: true,
       }),

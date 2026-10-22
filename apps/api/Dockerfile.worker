@@ -52,28 +52,19 @@ RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 # Intentionally NOT installed: gowitness (needs a full Chromium) and
 # whatweb (Ruby) — jobs that request those tools record a FAILED tool run.
 FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS recon-tools
-ARG SUBFINDER_VERSION=v2.16.0
-ARG DNSX_VERSION=v1.3.1
-ARG NAABU_VERSION=v2.6.1
-ARG KATANA_VERSION=v1.8.0
 # v4, not v5: AmassToolRunner calls the v4 CLI (`enum -passive -silent`).
 ARG AMASS_VERSION=v4.2.0
 ARG GAU_VERSION=v2.2.4
 ARG WAYBACKURLS_VERSION=v0.1.0
 ARG ASSETFINDER_VERSION=v0.1.1
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libpcap-dev \
-  && rm -rf /var/lib/apt/lists/*
 ENV GOBIN=/out GOFLAGS=-trimpath GOTOOLCHAIN=local CGO_ENABLED=0
-RUN go install -ldflags="-s -w" github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION} \
-  && go install -ldflags="-s -w" github.com/projectdiscovery/dnsx/cmd/dnsx@${DNSX_VERSION} \
-  && go install -ldflags="-s -w" github.com/projectdiscovery/katana/cmd/katana@${KATANA_VERSION} \
-  && go install -ldflags="-s -w" github.com/owasp-amass/amass/v4/cmd/amass@${AMASS_VERSION} \
+# subfinder, dnsx, katana and naabu are NOT built here: they ship as
+# checksum-verified releases in the pd-tools stage below, and the recon
+# adapters use those same binaries (RECON_TOOL_BIN_*).
+RUN go install -ldflags="-s -w" github.com/owasp-amass/amass/v4/cmd/amass@${AMASS_VERSION} \
   && go install -ldflags="-s -w" github.com/lc/gau/v2/cmd/gau@${GAU_VERSION} \
   && go install -ldflags="-s -w" github.com/tomnomnom/waybackurls@${WAYBACKURLS_VERSION} \
   && go install -ldflags="-s -w" github.com/tomnomnom/assetfinder@${ASSETFINDER_VERSION}
-# naabu links libpcap via cgo.
-RUN CGO_ENABLED=1 go install -ldflags="-s -w" github.com/projectdiscovery/naabu/v2/cmd/naabu@${NAABU_VERSION}
 
 # Pentest pipeline tools: httpx and nuclei from the official ProjectDiscovery
 # GitHub releases, plus the nuclei template set at a pinned tag. Everything is
@@ -95,31 +86,57 @@ ARG TARGETARCH
 ARG HTTPX_VERSION=1.12.0
 ARG NUCLEI_VERSION=3.11.1
 ARG NUCLEI_TEMPLATES_VERSION=v10.5.0
+ARG KATANA_VERSION=1.7.0
+ARG SUBFINDER_VERSION=2.16.0
+ARG DNSX_VERSION=1.3.1
+ARG NAABU_VERSION=2.6.1
+ARG FFUF_VERSION=2.3.0
+ARG DALFOX_VERSION=3.2.3
 ARG HTTPX_SHA256_AMD64=9d8439e8b6c9aa7d1e2314817a392e00d5178da3af5652f7475f88868f418f76
 ARG HTTPX_SHA256_ARM64=fd7b123c1dfbc3d69f19f524e4eebcd6ec06b9a6cbd56813c76f11645197331e
 ARG NUCLEI_SHA256_AMD64=ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6
 ARG NUCLEI_SHA256_ARM64=8044e3d9768ba0a744b2872c1a87e813006f013da97ca9f50f7661a4203bec07
+ARG KATANA_SHA256_AMD64=fe1142d92f418549338ea46d67a472124878482e225d279e9a42700c75d76a4d
+ARG KATANA_SHA256_ARM64=9a6885fe9fda850129b110e0f079d42529b0693dd81b59c316f04084935300f0
+ARG SUBFINDER_SHA256_AMD64=1b7f9c608e9a5bd59e609a5e09710d63c5485e92d3d49dc2c16eb4fdbe10cb60
+ARG SUBFINDER_SHA256_ARM64=c81d49559c0f630177be9e347e502e7a3d474aacc6ff78291ffcb4964367d63d
+ARG DNSX_SHA256_AMD64=438b964653056dd51dcfe614b1a16f8bced3cc48a1d27bc07cc6fdf2ef2a9533
+ARG DNSX_SHA256_ARM64=dd657dd1ccee5e137eca2dbad0e97dbd067555f744adb97efcda774f1b2fbde1
+ARG NAABU_SHA256_AMD64=018c4c9884dea971eda860435ede3021d1150732f34cfd245498c6726d8cab90
+ARG NAABU_SHA256_ARM64=3adc2bb2395c3efff89623499b20eea66ef54924c485d3ae86762393a31736ea
+ARG FFUF_SHA256_AMD64=b2a3c725fcb9da175159682f54d6e9149f2905b00d84d155e7efc5d599975ceb
+ARG FFUF_SHA256_ARM64=e2d712615d53da797ee929006e41f2df5a7960a5353133db9c150ddaa22ae4e8
+ARG DALFOX_SHA256_AMD64=66fc27d8d3ab223f0bc79616f0baf55a493b9ebe32941a14fe77ea2fb5f5364d
+ARG DALFOX_SHA256_ARM64=766ad472a1445e73a5b4920af46ffefb2d8de8f0f8ff941fddac2dcb8f5025d8
 ARG NUCLEI_TEMPLATES_SHA256=80fbabceca095fac40afecc7f023748df22b9576b9ff10a4422bd2fbf81f9a41
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl unzip \
   && rm -rf /var/lib/apt/lists/*
 RUN set -eux; \
   case "${TARGETARCH}" in \
-    amd64) httpx_sha="${HTTPX_SHA256_AMD64}"; nuclei_sha="${NUCLEI_SHA256_AMD64}" ;; \
-    arm64) httpx_sha="${HTTPX_SHA256_ARM64}"; nuclei_sha="${NUCLEI_SHA256_ARM64}" ;; \
+    amd64) ARCH=AMD64; DFX_ARCH=x86_64 ;; \
+    arm64) ARCH=ARM64; DFX_ARCH=aarch64 ;; \
     *) echo "unsupported architecture: ${TARGETARCH:-unset} (build with BuildKit)" >&2; exit 1 ;; \
   esac; \
   mkdir -p /out/bin /out/nuclei-templates /tmp/dl; cd /tmp/dl; \
-  curl -fsSL -o httpx.zip "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_${TARGETARCH}.zip"; \
-  echo "${httpx_sha}  httpx.zip" | sha256sum -c -; \
-  unzip -o -q httpx.zip httpx -d /out/bin; \
-  curl -fsSL -o nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip"; \
-  echo "${nuclei_sha}  nuclei.zip" | sha256sum -c -; \
-  unzip -o -q nuclei.zip nuclei -d /out/bin; \
+  # fetch <TOOL> <url> <file>: download, then fail the build unless the SHA256
+  # in the <TOOL>_SHA256_<ARCH> ARG matches.
+  fetch() { curl -fsSL -o "$3" "$2"; echo "$(printenv "$1_SHA256_${ARCH}")  $3" | sha256sum -c -; }; \
+  pd() { fetch "$1" "https://github.com/projectdiscovery/$2/releases/download/v$3/$2_$3_linux_${TARGETARCH}.zip" "$2.zip"; unzip -o -q "$2.zip" "$2" -d /out/bin; }; \
+  pd HTTPX httpx "${HTTPX_VERSION}"; \
+  pd NUCLEI nuclei "${NUCLEI_VERSION}"; \
+  pd KATANA katana "${KATANA_VERSION}"; \
+  pd SUBFINDER subfinder "${SUBFINDER_VERSION}"; \
+  pd DNSX dnsx "${DNSX_VERSION}"; \
+  pd NAABU naabu "${NAABU_VERSION}"; \
+  fetch FFUF "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffuf_${FFUF_VERSION}_linux_${TARGETARCH}.tar.gz" ffuf.tar.gz; \
+  tar -xzf ffuf.tar.gz -C /out/bin ffuf; \
+  fetch DALFOX "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox-v${DALFOX_VERSION}-linux-${DFX_ARCH}-musl.tar.gz" dalfox.tar.gz; \
+  tar -xzf dalfox.tar.gz -C /out/bin --strip-components=1 "dalfox-v${DALFOX_VERSION}-linux-${DFX_ARCH}-musl/dalfox"; \
   curl -fsSL -o templates.tar.gz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/${NUCLEI_TEMPLATES_VERSION}.tar.gz"; \
   echo "${NUCLEI_TEMPLATES_SHA256}  templates.tar.gz" | sha256sum -c -; \
   tar -xzf templates.tar.gz -C /out/nuclei-templates --strip-components=1; \
-  chmod 0755 /out/bin/httpx /out/bin/nuclei; \
+  chmod 0755 /out/bin/*; \
   rm -rf /tmp/dl
 
 FROM base AS prod-deps
@@ -140,14 +157,25 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates netbase whois nmap libpcap0.8 \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=recon-tools /out/ /usr/local/bin/
-# httpx and nuclei (verified releases) plus the pinned nuclei template set.
+# httpx, nuclei, katana, subfinder, dnsx, naabu, ffuf and dalfox (verified releases)
+# plus the pinned nuclei template set.
 # Resolved through the VULN_TOOL_BIN_* variables, never from PATH. This image
 # ships ProjectDiscovery's httpx, not Kali's Python `httpx` CLI, so recon
 # uses the same binary instead of the `httpx-toolkit` default.
 COPY --from=pd-tools /out/ /opt/secora-tools/
 ENV VULN_TOOL_BIN_HTTPX=/opt/secora-tools/bin/httpx \
     VULN_TOOL_BIN_NUCLEI=/opt/secora-tools/bin/nuclei \
+    VULN_TOOL_BIN_KATANA=/opt/secora-tools/bin/katana \
+    VULN_TOOL_BIN_SUBFINDER=/opt/secora-tools/bin/subfinder \
+    VULN_TOOL_BIN_DNSX=/opt/secora-tools/bin/dnsx \
+    VULN_TOOL_BIN_NAABU=/opt/secora-tools/bin/naabu \
+    VULN_TOOL_BIN_FFUF=/opt/secora-tools/bin/ffuf \
+    VULN_TOOL_BIN_DALFOX=/opt/secora-tools/bin/dalfox \
     RECON_TOOL_BIN_HTTPX=/opt/secora-tools/bin/httpx \
+    RECON_TOOL_BIN_SUBFINDER=/opt/secora-tools/bin/subfinder \
+    RECON_TOOL_BIN_DNSX=/opt/secora-tools/bin/dnsx \
+    RECON_TOOL_BIN_NAABU=/opt/secora-tools/bin/naabu \
+    RECON_TOOL_BIN_KATANA=/opt/secora-tools/bin/katana \
     VULN_NUCLEI_TEMPLATES_DIR=/opt/secora-tools/nuclei-templates
 RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shell /bin/bash --create-home pentesthub
 WORKDIR /workspace

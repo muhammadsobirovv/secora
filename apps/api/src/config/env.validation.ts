@@ -252,6 +252,13 @@ const envObjectSchema = z.object({
   VULN_TOOL_BIN_DIRSEARCH: z.string().default('dirsearch'),
   VULN_TOOL_BIN_FEROXBUSTER: z.string().default('feroxbuster'),
   VULN_TOOL_BIN_NIKTO: z.string().default('nikto'),
+  // Pipeline tools (STANDARD and DEEP profiles). Resolved from these variables,
+  // never from PATH; the worker image points them at /opt/secora-tools/bin.
+  VULN_TOOL_BIN_KATANA: z.string().default('katana'),
+  VULN_TOOL_BIN_SUBFINDER: z.string().default('subfinder'),
+  VULN_TOOL_BIN_DNSX: z.string().default('dnsx'),
+  VULN_TOOL_BIN_NAABU: z.string().default('naabu'),
+  VULN_TOOL_BIN_DALFOX: z.string().default('dalfox'),
 
   // Wordlist paths for the two content-discovery fuzzers that need one
   // supplied explicitly (dirsearch and feroxbuster both ship/select a

@@ -1139,6 +1139,11 @@ enum VulnScanner {
   DIRSEARCH
   FEROXBUSTER
   NIKTO
+  // Pipeline-only (profile scans): never selected by hand.
+  SECORA_CHECKS
+  SUBFINDER
+  NAABU
+  DALFOX
 }
 
 /// PAUSED is the one addition relative to ReconJobStatus (Module 3 has no

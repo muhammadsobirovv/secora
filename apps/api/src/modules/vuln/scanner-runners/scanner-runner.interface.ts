@@ -10,6 +10,14 @@ export interface ScannerRunTarget {
   value: string;
 }
 
+/// One external command, reported right before it starts so the orchestrator
+/// can audit it.
+export interface ToolCommandInfo {
+  tool: string;
+  command: string;
+  argv: string[];
+}
+
 export interface ScannerRunContext {
   target: ScannerRunTarget;
   job: { id: string; timeoutSeconds: number };
@@ -24,7 +32,7 @@ export interface ScannerRunContext {
   onLog: (level: VulnScanJobLogLevel, message: string) => void;
   /// Called by an adapter right before it spawns its tool, with the exact
   /// argv. The orchestrator turns it into one redacted audit entry.
-  onCommand?: (info: { tool: string; command: string; argv: string[] }) => void;
+  onCommand?: (info: ToolCommandInfo) => void;
 }
 
 export interface ScannerRunResult {

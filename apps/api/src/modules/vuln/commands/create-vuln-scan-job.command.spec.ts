@@ -385,6 +385,52 @@ describe('CreateVulnScanJobHandler', () => {
     expect(input.config).toEqual({ profile: 'QUICK' });
   });
 
+  it('a profile job gets a timeout that covers all of its stage limits', async () => {
+    const timeoutFor = async (profile?: 'QUICK' | 'STANDARD' | 'DEEP') => {
+      const create = jest.fn(async () => buildJob('job-1'));
+      const { handler, vulnScanJobsRepository } = buildHandler({
+        workspace: buildWorkspace({ isDemo: false }),
+        create,
+        deepEnabled: true,
+      });
+      await handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', {
+          scanners: ['NUCLEI'],
+          profile,
+          confirmDeep: profile === 'DEEP',
+        }),
+      );
+      return (vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as { timeoutSeconds: number };
+    };
+    // The test environment's VULN_JOB_TIMEOUT_SECONDS is 1800.
+    expect((await timeoutFor()).timeoutSeconds).toBe(1800);
+    expect((await timeoutFor('QUICK')).timeoutSeconds).toBe(1800);
+    expect((await timeoutFor('STANDARD')).timeoutSeconds).toBe(50 * 60);
+    expect((await timeoutFor('DEEP')).timeoutSeconds).toBe(100 * 60);
+  });
+
+  it('the profile decides which scanners run, not the request', async () => {
+    const scannersFor = async (profile: 'QUICK' | 'STANDARD' | 'DEEP') => {
+      const create = jest.fn(async () => buildJob('job-1'));
+      const { handler, vulnScanJobsRepository } = buildHandler({
+        workspace: buildWorkspace({ isDemo: false }),
+        create,
+        deepEnabled: true,
+      });
+      await handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', {
+          scanners: ['NIKTO', 'FEROXBUSTER'], // ignored: the profile picks
+          profile,
+          confirmDeep: profile === 'DEEP',
+        }),
+      );
+      return (vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as { scanners: string[] };
+    };
+    expect((await scannersFor('QUICK')).scanners).toEqual(['SECORA_CHECKS']);
+    expect((await scannersFor('STANDARD')).scanners).toEqual(['SECORA_CHECKS', 'NUCLEI']);
+    expect((await scannersFor('DEEP')).scanners).toEqual(['SUBFINDER', 'NAABU', 'SECORA_CHECKS', 'NUCLEI', 'FFUF', 'DALFOX']);
+  });
+
   it('refuses the DEEP profile unless the deployment enables it', async () => {
     const create = jest.fn();
     const off = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create, deepEnabled: false });

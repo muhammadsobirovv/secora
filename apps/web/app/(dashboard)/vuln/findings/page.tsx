@@ -30,7 +30,17 @@ const STATUSES: VulnFindingStatus[] = [
   "FIXED",
   "FALSE_POSITIVE",
 ];
-const SCANNERS: VulnScanner[] = ["NUCLEI", "FFUF", "DIRSEARCH", "FEROXBUSTER", "NIKTO"];
+const SCANNERS: VulnScanner[] = [
+  "NUCLEI",
+  "FFUF",
+  "DIRSEARCH",
+  "FEROXBUSTER",
+  "NIKTO",
+  "SECORA_CHECKS",
+  "SUBFINDER",
+  "NAABU",
+  "DALFOX",
+];
 
 /// "Findings" page — workspace-wide, server-filtered (severity/status/
 /// scanner/search all become ListVulnFindingsQueryDto params so the API

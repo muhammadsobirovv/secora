@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Loader2, Minus, X } from "lucide-react";
-import type { VulnScanJobStatus } from "@pentesthub/shared";
+import type { VulnScanJobStatus, VulnScanProfile } from "@pentesthub/shared";
 import { useI18n } from "@/features/i18n/i18n-context";
 import { cn } from "@/lib/utils";
 import { deriveSteps, type StepState } from "./stage-state";
@@ -24,29 +24,33 @@ function StepIcon({ state, index }: { state: StepState; index: number }) {
   return <span aria-hidden="true">{index + 1}</span>;
 }
 
-/// Verify -> Recon -> Scan -> Report, drawn from the worker's "[stage]" log
-/// lines. Four equal columns, so it fits a 360 px screen without scrolling.
+/// Verify -> the profile's stages -> Report, drawn from the worker's "[stage]"
+/// log lines. Two columns on a 360 px phone (a profile can have up to nine
+/// stages), more as the screen grows; each step is a dot beside its name, so
+/// nothing is cut off and nothing scrolls sideways.
 export function PipelineStepper({
   logs,
   status,
+  profile,
 }: {
   logs: ReadonlyArray<{ message: string }>;
   status: VulnScanJobStatus;
+  profile?: VulnScanProfile | null;
 }) {
   const { t } = useI18n();
-  const steps = deriveSteps(logs, status);
+  const steps = deriveSteps(logs, status, profile);
 
   return (
-    <ol aria-label={t("scan.stepper.label")} className="grid grid-cols-4 gap-1">
+    <ol aria-label={t("scan.stepper.label")} className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
       {steps.map((step, index) => (
         <li
           key={step.id}
           aria-current={step.state === "active" ? "step" : undefined}
-          className="flex min-w-0 flex-col items-center gap-1.5 text-center"
+          className="flex min-w-0 items-center gap-2"
         >
           <span
             className={cn(
-              "flex size-9 items-center justify-center rounded-full border text-xs font-medium",
+              "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
               DOT_CLASS[step.state],
             )}
           >
@@ -54,7 +58,7 @@ export function PipelineStepper({
           </span>
           <span
             className={cn(
-              "w-full truncate text-xs",
+              "min-w-0 truncate text-sm",
               step.state === "pending" || step.state === "skipped" ? "text-muted-foreground" : "font-medium",
             )}
           >

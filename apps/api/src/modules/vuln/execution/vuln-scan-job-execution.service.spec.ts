@@ -30,6 +30,8 @@ import {
 import { ScannerRunnerRegistry } from '../scanner-runners/scanner-runner-registry.service.js';
 import { PipelineProbeStage } from '../pipeline/probe-stage.service.js';
 import { ScanCommandAudit } from '../pipeline/scan-command-audit.service.js';
+import { PipelineOrchestrator } from '../pipeline/pipeline-orchestrator.service.js';
+import { OwnershipScopeService } from '../pipeline/ownership-scope.service.js';
 import type {
   Target,
   VulnScanJob,
@@ -198,6 +200,8 @@ async function buildService(
     { provide: EventBus, useValue: eventBus },
     { provide: PipelineProbeStage, useValue: { resolvePin: jest.fn(), run: jest.fn() } },
     { provide: ScanCommandAudit, useValue: { record: jest.fn() } },
+    { provide: PipelineOrchestrator, useValue: { run: jest.fn() } },
+    { provide: OwnershipScopeService, useValue: { ruleFor: jest.fn() } },
   ]);
 
   return {
@@ -354,6 +358,8 @@ describe('VulnScanJobExecutionService', () => {
       { provide: EventBus, useValue: eventBus },
     { provide: PipelineProbeStage, useValue: { resolvePin: jest.fn(), run: jest.fn() } },
     { provide: ScanCommandAudit, useValue: { record: jest.fn() } },
+    { provide: PipelineOrchestrator, useValue: { run: jest.fn() } },
+    { provide: OwnershipScopeService, useValue: { ruleFor: jest.fn() } },
     ]);
 
     await moduleRef

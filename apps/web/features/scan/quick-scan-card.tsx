@@ -28,6 +28,19 @@ const BASES: { value: TargetAuthorizationBasis; labelKey: "quickScan.owner" | "q
   { value: "WRITTEN_PERMISSION", labelKey: "quickScan.permission" },
 ];
 
+/// The two depths offered here. The deep profile (default-credential checks,
+/// port scan, content discovery) needs an explicit confirmation and an operator
+/// switch, so it is only available through the API.
+type QuickProfile = "QUICK" | "STANDARD";
+const PROFILES: {
+  value: QuickProfile;
+  labelKey: "quickScan.profile.quick" | "quickScan.profile.standard";
+  hintKey: "quickScan.profile.quickHint" | "quickScan.profile.standardHint";
+}[] = [
+  { value: "QUICK", labelKey: "quickScan.profile.quick", hintKey: "quickScan.profile.quickHint" },
+  { value: "STANDARD", labelKey: "quickScan.profile.standard", hintKey: "quickScan.profile.standardHint" },
+];
+
 /// One-field "scan my website" flow. It wraps the platform's normal steps
 /// (project → target with a recorded authorization → vulnerability scan job)
 /// so a new user goes from a domain to a running scan in one click. Every
@@ -40,6 +53,7 @@ export function QuickScanCard() {
   const [input, setInput] = React.useState("");
   const [basis, setBasis] = React.useState<TargetAuthorizationBasis>("OWNER");
   const [attested, setAttested] = React.useState(false);
+  const [profile, setProfile] = React.useState<QuickProfile>("QUICK");
   const [invalid, setInvalid] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   // Target waiting for proof of ownership before an active scan may start.
@@ -56,7 +70,7 @@ export function QuickScanCard() {
   const consentParts = t("scan.aup.consent", { aup: "\u0000" }).split("\u0000");
 
   async function startScan(targetId: string) {
-    const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"], profile: "QUICK" });
+    const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"], profile });
     await queryClient.invalidateQueries();
     router.push(`/vuln/jobs/${job.id}`);
   }
@@ -177,6 +191,31 @@ export function QuickScanCard() {
           </div>
 
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <div role="group" aria-label={t("quickScan.profile.label")} className="flex flex-wrap gap-2">
+                {PROFILES.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={profile === option.value}
+                    disabled={busy}
+                    onClick={() => setProfile(option.value)}
+                    className={cn(
+                      "min-h-9 rounded-full border px-3 py-1 text-sm transition-colors",
+                      profile === option.value
+                        ? "border-primary bg-primary/10 font-medium text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t(option.labelKey)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t(PROFILES.find((option) => option.value === profile)!.hintKey)}
+              </p>
+            </div>
+
             <div role="group" aria-label={t("quickScan.basisLabel")} className="flex flex-wrap gap-2">
               {BASES.map((option) => (
                 <button

@@ -28,6 +28,8 @@ import { VulnScanJobPollerService } from './execution/vuln-scan-job-poller.servi
 import { PipelineProbeStage } from './pipeline/probe-stage.service.js';
 import { ScanCommandAudit } from './pipeline/scan-command-audit.service.js';
 import { ScanAdmissionService } from './pipeline/scan-admission.service.js';
+import { PipelineOrchestrator } from './pipeline/pipeline-orchestrator.service.js';
+import { OwnershipScopeService } from './pipeline/ownership-scope.service.js';
 
 /// Everything the Vuln HTTP module AND the separate worker process both
 /// need — repositories, scanner-runners, normalizers, the execution/
@@ -75,6 +77,8 @@ import { ScanAdmissionService } from './pipeline/scan-admission.service.js';
     PipelineProbeStage,
     ScanCommandAudit,
     ScanAdmissionService,
+    PipelineOrchestrator,
+    OwnershipScopeService,
     VulnScanJobExecutionService,
     VulnScanJobPollerService,
   ],

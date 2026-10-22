@@ -1,5 +1,6 @@
 import { basename } from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
+import type { PipelineStage } from '@pentesthub/shared';
 import { AuditService } from '../../audit/audit.service.js';
 import { redactArgv } from './redact-argv.util.js';
 
@@ -9,7 +10,7 @@ export interface ScanCommandRecord {
   jobId: string;
   target: { id: string; value: string };
   tool: string;
-  stage: 'recon' | 'scan';
+  stage: PipelineStage;
   profile: string | null;
   /// Binary path/name as configured.
   command: string;

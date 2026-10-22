@@ -22,6 +22,7 @@ import { VulnScanJobProgress } from "@/features/vuln/components/vuln-scan-job-pr
 import { VulnLiveLogPanel } from "@/features/vuln/components/vuln-live-log-panel";
 import { VulnFindingsTable } from "@/features/vuln/components/vuln-findings-table";
 import { PipelineStepper } from "@/features/scan/pipeline-stepper";
+import { profileOf } from "@/features/scan/stage-state";
 import { SeverityCounters } from "@/features/scan/severity-counters";
 import { VulnFindingCards } from "@/features/scan/finding-cards";
 import { formatDateTime } from "@/lib/format";
@@ -150,7 +151,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
 
       <Card>
         <CardContent className="flex flex-col gap-5 pt-6">
-          <PipelineStepper logs={logStream.logs} status={job.status} />
+          <PipelineStepper logs={logStream.logs} status={job.status} profile={profileOf(job.config)} />
           <SeverityCounters findings={findings} />
         </CardContent>
       </Card>

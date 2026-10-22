@@ -40,6 +40,11 @@ const VULN_SCANNERS: VulnScanner[] = [
   'DIRSEARCH',
   'FEROXBUSTER',
   'NIKTO',
+  // Pipeline scanners: findings from profile scans can be filtered by them too.
+  'SECORA_CHECKS',
+  'SUBFINDER',
+  'NAABU',
+  'DALFOX',
 ];
 
 export class ListVulnFindingsQueryParamsDto implements ListVulnFindingsShape {

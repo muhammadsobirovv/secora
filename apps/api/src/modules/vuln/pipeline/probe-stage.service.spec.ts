@@ -35,8 +35,8 @@ describe('PipelineProbeStage', () => {
     const result = await run();
 
     expect(result).toEqual({ outcome: 'OK', liveUrls: ['http://shop.lab.test'] });
-    expect(logs.map(([, m]) => m)).toContain('[stage] recon start');
-    expect(logs.map(([, m]) => m)).toContain('[stage] recon done');
+    // Stage markers belong to the orchestrator, not to the probe.
+    expect(logs.map(([, m]) => m).some((m) => m.startsWith('[stage]'))).toBe(false);
     expect(logs.some(([, m]) => m.includes('172.24.0.2') && m.startsWith('LIVE'))).toBe(false);
   });
 
@@ -71,11 +71,11 @@ describe('PipelineProbeStage', () => {
     expect(logs.some(([level, m]) => level === 'WARN' && m.includes('outside the verified scope'))).toBe(true);
   });
 
-  it('skips the scan stage when nothing is live', async () => {
+  it('reports that nothing is live', async () => {
     const { run, logs } = build('');
     const result = await run();
     expect(result).toEqual({ outcome: 'OK', liveUrls: [] });
-    expect(logs.map(([, m]) => m)).toContain('[stage] recon skipped');
+    expect(logs.map(([, m]) => m)).toContain('No live web service found on the host.');
   });
 
   it('reports a timeout and a cancellation differently', async () => {
@@ -86,5 +86,22 @@ describe('PipelineProbeStage', () => {
     cancelled.abort();
     const aborted = build('', true);
     expect((await aborted.run(cancelled.signal)).outcome).toBe('ABORTED');
+  });
+
+  it('probes the port of a URL target, still through the pinned address', async () => {
+    const spawn = jest.fn(async () => ({ exitCode: 0, stdout: '', timedOut: false }));
+    const stage = new PipelineProbeStage(
+      { get: jest.fn(() => 'httpx') } as unknown as ConfigService<EnvConfig, true>,
+      { spawn } as unknown as ScannerProcessSpawner,
+    );
+    await stage.run({
+      pin,
+      url: 'http://shop.lab.test:8443/app',
+      signal: new AbortController().signal,
+      onLog: () => undefined,
+    });
+    const args = (spawn.mock.calls[0] as unknown as [{ args: string[] }])[0].args;
+    expect(args.slice(0, 2)).toEqual(['-u', 'http://172.24.0.2:8443/app']);
+    expect(args).toEqual(expect.arrayContaining(['-H', 'Host: shop.lab.test', '-sni', 'shop.lab.test']));
   });
 });

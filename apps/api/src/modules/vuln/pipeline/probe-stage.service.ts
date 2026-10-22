@@ -1,18 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { formatStageMarker } from '@pentesthub/shared';
 import type { EnvConfig } from '../../../config/env.validation.js';
 import type { VulnScanJobLogLevel } from '../../../prisma-types.js';
 import { ScannerProcessSpawner } from '../scanner-runners/process/spawn-scanner-process.util.js';
 import { parseHttpxJsonl } from './parsers.js';
 import { resolvePinnedHost, unpinUrl, type PinnedHost } from './pin.util.js';
 import { redactArgv } from './redact-argv.util.js';
-import { partitionByApex } from './scope.util.js';
+import { isInScope, type ScopeRule } from './scope.util.js';
 import { buildHttpxArgs, HTTPX_STAGE_TIMEOUT_SECONDS } from './tool-catalog.js';
 
 export interface ProbeStageInput {
   /// The verified host, already resolved once and checked (see resolvePinnedHost).
   pin: PinnedHost;
+  /// What the ownership proof covers. Default: the verified host only.
+  rule?: ScopeRule;
+  /// The target URL when the target is a URL (keeps its port, e.g. :8443).
+  /// Without it both default ports of the host are probed.
+  url?: string;
   signal: AbortSignal;
   onLog: (level: VulnScanJobLogLevel, message: string) => void;
   onCommand?: (info: { tool: string; command: string; argv: string[] }) => void;
@@ -43,7 +47,7 @@ function originOf(url: string): string | null {
   }
 }
 
-/// Stage 1 of the pipeline: probe the verified host with httpx to learn which
+/// The recon stage of the pipeline: probe the verified host with httpx to learn which
 /// web services are live, so the scan stage only targets real endpoints.
 ///
 /// The host is reached through its pinned IP (no re-resolution). httpx does
@@ -67,10 +71,10 @@ export class PipelineProbeStage {
 
   async run(input: ProbeStageInput): Promise<ProbeStageResult> {
     const { pin, onLog } = input;
+    const rule: ScopeRule = input.rule ?? { root: pin.host, includeSubdomains: false };
     const bin = this.configService.get('VULN_TOOL_BIN_HTTPX', { infer: true });
-    const args = buildHttpxArgs({ target: pin.host, pin });
+    const args = buildHttpxArgs({ target: input.url ?? pin.host, pin });
 
-    onLog('INFO', formatStageMarker('recon', 'start'));
     onLog('INFO', `$ ${bin} ${redactArgv(args).join(' ')}`);
     input.onCommand?.({ tool: 'httpx', command: bin, argv: args });
 
@@ -103,8 +107,8 @@ export class PipelineProbeStage {
       const origin = originOf(url);
       if (!host || !origin || record.statusCode === null) continue;
 
-      if (partitionByApex([host], pin.host).inScope.length === 0) {
-        onLog('WARN', `Skipped ${url}: outside the verified scope (${pin.host}).`);
+      if (!isInScope(host, rule)) {
+        onLog('WARN', `Skipped ${url}: outside the verified scope (${rule.root}).`);
         continue;
       }
       onLog(
@@ -118,7 +122,7 @@ export class PipelineProbeStage {
       if (record.location) {
         const target = unpinUrl(record.location, pin);
         const targetHost = hostnameOf(target, url);
-        const inScope = targetHost !== null && partitionByApex([targetHost], pin.host).inScope.length > 0;
+        const inScope = targetHost !== null && isInScope(targetHost, rule);
         onLog(
           inScope ? 'INFO' : 'WARN',
           inScope
@@ -128,9 +132,8 @@ export class PipelineProbeStage {
       }
     }
 
-    onLog('INFO', formatStageMarker('recon', live.size > 0 ? 'done' : 'skipped'));
     if (live.size === 0) {
-      onLog('WARN', 'No live web service found on the host; the scan stage will not run.');
+      onLog('WARN', 'No live web service found on the host.');
     }
     return { outcome: 'OK', liveUrls: [...live] };
   }

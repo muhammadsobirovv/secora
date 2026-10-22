@@ -44,21 +44,38 @@ import {
   VulnFindingUpdatedEvent,
 } from '../events/vuln-finding-events.js';
 import type { VulnScanJobToolRun } from '../../../prisma-types.js';
-import { formatStageMarker } from '@pentesthub/shared';
+import type { PipelineStage } from '@pentesthub/shared';
 import { PipelineProbeStage } from '../pipeline/probe-stage.service.js';
 import { ScanCommandAudit } from '../pipeline/scan-command-audit.service.js';
 import { PinBlockedError, type PinnedHost } from '../pipeline/pin.util.js';
 import {
+  PipelineOrchestrator,
+  type NucleiStageResult,
+  type PipelineHost,
+} from '../pipeline/pipeline-orchestrator.service.js';
+import { OwnershipScopeService } from '../pipeline/ownership-scope.service.js';
+import type { ScopeRule } from '../pipeline/scope.util.js';
+import {
   NUCLEI_PROFILES,
   SCAN_PROFILES,
+  type NucleiProfile,
   type ScanProfile,
 } from '../pipeline/tool-catalog.js';
 
-/// What the recon stage learned, handed to the scan stage.
-interface PipelineContext {
+/// What a profile run needs before its stages start: the host, resolved once,
+/// and what the ownership proof lets the scan touch.
+interface ProfileRun {
   profile: ScanProfile;
   pin: PinnedHost;
-  liveUrls: string[];
+  rule: ScopeRule;
+}
+
+/// What the nuclei (scan) stage is handed by the orchestrator.
+interface NucleiStageInput {
+  profile: NucleiProfile;
+  pin: PinnedHost;
+  urls: string[];
+  proxyUrl: string | null;
 }
 
 /// The orchestrator for one claimed job: Target -> [ScannerRunner ->
@@ -92,6 +109,8 @@ export class VulnScanJobExecutionService {
     private readonly eventBus: EventBus,
     private readonly probeStage: PipelineProbeStage,
     private readonly commandAudit: ScanCommandAudit,
+    private readonly orchestrator: PipelineOrchestrator,
+    private readonly ownershipScope: OwnershipScopeService,
   ) {}
 
   /// Runs every PENDING tool run for this job in sequence, then finalizes
@@ -113,25 +132,34 @@ export class VulnScanJobExecutionService {
         return;
       }
 
-      const pipeline = await this.prepareProfile(job, target, signal);
-      if (pipeline === 'FAILED') return;
+      const profileRun = await this.prepareProfile(job, target, signal);
+      if (profileRun === 'FAILED') return;
 
-      for (const toolRun of job.toolRuns) {
-        if (signal.aborted) break;
-        if (toolRun.status !== 'PENDING') continue;
+      if (profileRun) {
+        // A profile job: the orchestrator runs its stages in order. A stage
+        // that fails does not stop the ones after it.
+        await this.orchestrator.run({
+          profile: profileRun.profile,
+          target: { id: target.id, type: target.type, value: target.value },
+          rule: profileRun.rule,
+          pin: profileRun.pin,
+          signal,
+          host: this.buildPipelineHost(job, target, profileRun, signal),
+        });
+      } else {
+        for (const toolRun of job.toolRuns) {
+          if (signal.aborted) break;
+          if (toolRun.status !== 'PENDING') continue;
 
-        // Pause is graceful: checked BETWEEN scanners, never mid-run —
-        // unlike cancel/timeout, pause never aborts a scanner that's
-        // already started (see VulnScanJobStatus schema comment).
-        const fresh = await this.jobsRepository.findById(job.id);
-        if (fresh?.pauseRequestedAt) break;
+          // Pause is graceful: checked BETWEEN scanners, never mid-run —
+          // unlike cancel/timeout, pause never aborts a scanner that's
+          // already started (see VulnScanJobStatus schema comment).
+          const fresh = await this.jobsRepository.findById(job.id);
+          if (fresh?.pauseRequestedAt) break;
 
-        const scanTarget = { id: target.id, type: target.type, value: target.value };
-        if (pipeline && toolRun.scanner === 'NUCLEI' && pipeline.liveUrls.length === 0) {
-          await this.skipScanStage(job, toolRun);
-          continue;
+          const scanTarget = { id: target.id, type: target.type, value: target.value };
+          await this.runOneScanner(job, toolRun, scanTarget, signal, null);
         }
-        await this.runOneScanner(job, toolRun, scanTarget, signal, pipeline);
       }
 
       const fresh = await this.jobsRepository.findById(job.id);
@@ -199,13 +227,14 @@ export class VulnScanJobExecutionService {
     toolRun: VulnScanJobToolRun,
     target: ScannerRunTarget,
     signal: AbortSignal,
-    pipeline: PipelineContext | null,
-  ): Promise<void> {
+    pipeline: NucleiStageInput | null,
+    audit: { stage: PipelineStage; profile: ScanProfile } | null = null,
+  ): Promise<NucleiStageResult> {
     await this.toolRunsRepository.markStarted(toolRun.id);
 
     // The scan stage of a profile run: nuclei gets the pinned address, the
-    // live URLs found by recon, the profile's tag ceiling and its own stage
-    // time limit (on top of the job's overall timeout).
+    // URLs the crawl found, the profile's tag ceiling and its own stage time
+    // limit (on top of the job's overall timeout).
     const staged = pipeline !== null && toolRun.scanner === 'NUCLEI';
     const baseConfig = (job.config as Record<string, unknown> | null) ?? null;
     const scannerConfig = staged
@@ -215,7 +244,8 @@ export class VulnScanJobExecutionService {
             ...(((baseConfig ?? {}).NUCLEI as Record<string, unknown> | undefined) ?? {}),
             profile: pipeline.profile,
             pin: pipeline.pin,
-            urls: pipeline.liveUrls,
+            urls: pipeline.urls,
+            ...(pipeline.proxyUrl ? { proxyUrl: pipeline.proxyUrl } : {}),
           },
         }
       : baseConfig;
@@ -224,9 +254,6 @@ export class VulnScanJobExecutionService {
       stageSeconds === null
         ? signal
         : AbortSignal.any([signal, AbortSignal.timeout(stageSeconds * 1000)]);
-    if (staged) {
-      await this.logLine(job.id, toolRun.id, 'INFO', formatStageMarker('scan', 'start'));
-    }
 
     try {
       const runner = this.scannerRunnerRegistry.resolveRunner(
@@ -243,7 +270,7 @@ export class VulnScanJobExecutionService {
         config: scannerConfig,
         signal: runSignal,
         onCommand: (info) =>
-          this.auditCommand(job, target, info, 'scan', pipeline?.profile ?? null),
+          this.auditCommand(job, target, info, audit?.stage ?? 'scan', audit?.profile ?? null),
         onLog: (level, message) => {
           void this.logsRepository
             .append({ jobId: job.id, toolRunId: toolRun.id, level, message })
@@ -266,7 +293,7 @@ export class VulnScanJobExecutionService {
           errorMessage: 'Timed out or cancelled.',
           rawOutputEvidenceId: null,
         });
-        return;
+        return { failed: true, partial: false, message: 'Timed out or cancelled.' };
       }
       if (stageLimitReached) {
         await this.logLine(
@@ -287,9 +314,7 @@ export class VulnScanJobExecutionService {
       });
 
       await this.persistToolResult(job, toolRun, findingInputs, stdout);
-      if (staged) {
-        await this.logLine(job.id, toolRun.id, 'INFO', formatStageMarker('scan', 'done'));
-      }
+      return { failed: false, partial: stageLimitReached, message: null };
     } catch (error) {
       this.logger.warn(
         `Scanner ${toolRun.scanner} failed for job ${job.id}: ${String(error)}`,
@@ -301,7 +326,82 @@ export class VulnScanJobExecutionService {
         errorMessage: error instanceof Error ? error.message : 'Unknown error.',
         rawOutputEvidenceId: null,
       });
+      return {
+        failed: true,
+        partial: false,
+        message: error instanceof Error ? error.message : 'Unknown error.',
+      };
     }
+  }
+
+  /// The orchestrator's view of this job: logging, audit, persistence of a
+  /// stage's findings and the nuclei run. Log lines are written in order, so
+  /// the stage markers the stepper reads always arrive in the order they
+  /// were produced.
+  private buildPipelineHost(
+    job: VulnScanJobWithToolRuns,
+    target: { id: string; type: string; value: string },
+    run: ProfileRun,
+    signal: AbortSignal,
+  ): PipelineHost {
+    const statuses = new Map<string, string>(job.toolRuns.map((toolRun) => [toolRun.scanner, toolRun.status]));
+    const toolRunFor = (scanner: string) => job.toolRuns.find((toolRun) => toolRun.scanner === scanner);
+    let logChain: Promise<void> = Promise.resolve();
+
+    return {
+      log: (level, message) => {
+        logChain = logChain.then(() => this.logLine(job.id, null, level, message));
+      },
+      audit: (info, stage) => this.auditCommand(job, target, info, stage, run.profile),
+      toolRunStatus: (scanner) => statuses.get(scanner) ?? null,
+      persist: async (scanner, result) => {
+        const toolRun = toolRunFor(scanner);
+        if (!toolRun) {
+          await this.logLine(job.id, null, 'WARN', `No ${scanner} tool run exists for this job; its ${result.findings.length} finding(s) were not saved.`);
+          return;
+        }
+        if (statuses.get(scanner) === 'COMPLETED') return;
+        await this.toolRunsRepository.markStarted(toolRun.id);
+        await logChain;
+        await this.persistToolResult(job, toolRun, result.findings, result.raw);
+        statuses.set(scanner, 'COMPLETED');
+      },
+      closeToolRun: async (scanner, outcome, message) => {
+        const toolRun = toolRunFor(scanner);
+        if (!toolRun || statuses.get(scanner) === 'COMPLETED' || statuses.get(scanner) === 'FAILED') return;
+        await this.toolRunsRepository.markStarted(toolRun.id);
+        await this.toolRunsRepository.markComplete(toolRun.id, {
+          status: outcome,
+          exitCode: outcome === 'COMPLETED' ? 0 : null,
+          findingsCount: 0,
+          errorMessage: message,
+          rawOutputEvidenceId: null,
+        });
+        statuses.set(scanner, outcome);
+      },
+      runNuclei: async (input) => {
+        const toolRun = toolRunFor('NUCLEI');
+        if (!toolRun) {
+          return { failed: true, partial: false, message: 'This job has no NUCLEI tool run.' };
+        }
+        await logChain;
+        const result = await this.runOneScanner(
+          job,
+          toolRun,
+          { id: target.id, type: target.type as ScannerRunTarget['type'], value: target.value },
+          input.signal,
+          { profile: input.profile, pin: input.pin, urls: input.urls, proxyUrl: input.proxyUrl },
+          { stage: 'scan', profile: run.profile },
+        );
+        statuses.set('NUCLEI', result.failed ? 'FAILED' : 'COMPLETED');
+        return result;
+      },
+      shouldStop: async () => {
+        if (signal.aborted) return true;
+        const fresh = await this.jobsRepository.findById(job.id);
+        return Boolean(fresh?.pauseRequestedAt || fresh?.cancelRequestedAt);
+      },
+    };
   }
 
   @Transactional()
@@ -493,8 +593,8 @@ export class VulnScanJobExecutionService {
   private async prepareProfile(
     job: VulnScanJobWithToolRuns,
     target: { id: string; type: string; value: string },
-    signal: AbortSignal,
-  ): Promise<PipelineContext | 'FAILED' | null> {
+    _signal: AbortSignal,
+  ): Promise<ProfileRun | 'FAILED' | null> {
     const profile = this.resolveProfile(job);
     if (!profile) return null;
 
@@ -531,30 +631,16 @@ export class VulnScanJobExecutionService {
     }
     await this.logLine(job.id, null, 'INFO', `Resolved ${pin.host} -> ${pin.ip} (pinned for this scan).`);
 
-    const probe = await this.probeStage.run({
-      pin,
-      signal,
-      onLog: (level, message) => void this.logLine(job.id, null, level, message),
-      onCommand: (info) => this.auditCommand(job, target, info, 'recon', profile),
-    });
-    return { profile, pin, liveUrls: probe.liveUrls };
-  }
-
-  /// Nothing is live, so the scan stage has nothing to test: close its tool run
-  /// without running nuclei.
-  private async skipScanStage(
-    job: VulnScanJobWithToolRuns,
-    toolRun: VulnScanJobToolRun,
-  ): Promise<void> {
-    await this.toolRunsRepository.markStarted(toolRun.id);
-    await this.logLine(job.id, toolRun.id, 'WARN', formatStageMarker('scan', 'skipped'));
-    await this.toolRunsRepository.markComplete(toolRun.id, {
-      status: 'COMPLETED',
-      exitCode: 0,
-      findingsCount: 0,
-      errorMessage: 'No live web service was found, so the scan stage was skipped.',
-      rawOutputEvidenceId: null,
-    });
+    const rule = await this.ownershipScope.ruleFor(target, pin.host);
+    await this.logLine(
+      job.id,
+      null,
+      'INFO',
+      rule.includeSubdomains
+        ? `Scope: ${rule.root} and its subdomains (DNS ownership proof).`
+        : `Scope: ${rule.root} only (the ownership proof covers this host, not its subdomains).`,
+    );
+    return { profile, pin, rule };
   }
 
   private logLine(
@@ -575,7 +661,7 @@ export class VulnScanJobExecutionService {
     job: VulnScanJobWithToolRuns,
     target: { id: string; value: string },
     info: { tool: string; command: string; argv: string[] },
-    stage: 'recon' | 'scan',
+    stage: PipelineStage,
     profile: string | null,
   ): void {
     void this.commandAudit.record({

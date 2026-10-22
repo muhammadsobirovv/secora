@@ -98,7 +98,7 @@ describe('catalog argv with a DNS pin', () => {
   it('nuclei uses only the live URLs the probe found, pinned to the IP', () => {
     const args = buildNucleiArgs({
       target: { kind: 'DOMAIN', value: 'shop.example.org' },
-      profile: 'QUICK',
+      profile: 'STANDARD',
       pin,
       urls: ['https://shop.example.org'],
     });
@@ -111,7 +111,7 @@ describe('catalog argv with a DNS pin', () => {
     expect(() =>
       buildNucleiArgs({
         target: { kind: 'DOMAIN', value: 'shop.example.org' },
-        profile: 'QUICK',
+        profile: 'STANDARD',
         pin,
         urls: ['https://evil.example.net'],
       }),
