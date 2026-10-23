@@ -149,3 +149,34 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   return json.data;
 }
+
+/// Like apiFetch, but returns the raw Response for downloads (HTML, PDF, JSON
+/// files). Sends the access token and retries once after a refresh. A failed
+/// response is turned into an ApiError (its body is the usual JSON envelope).
+export async function apiFetchResponse(path: string, options: { method?: string } = {}): Promise<Response> {
+  async function doFetch(): Promise<Response> {
+    const accessToken = useAuthStore.getState().accessToken;
+    return fetch(`${API_BASE_URL}${path}`, {
+      method: options.method ?? "GET",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+  }
+  let res = await doFetch();
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) res = await doFetch();
+  }
+  if (!res.ok) {
+    let code = "UNKNOWN_ERROR";
+    let message = "Something went wrong.";
+    try {
+      const json = (await res.json()) as { code?: string; message?: string };
+      code = json.code ?? code;
+      message = json.message ?? message;
+    } catch {
+      // Not JSON: keep the defaults.
+    }
+    throw new ApiError(code as AppErrorCode, message, res.status);
+  }
+  return res;
+}

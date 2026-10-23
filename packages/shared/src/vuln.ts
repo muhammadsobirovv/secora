@@ -115,6 +115,7 @@ export const PIPELINE_STAGES = [
   "scan",
   "content",
   "xss",
+  "verify",
 ] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 /// "failed" means the stage broke or timed out; the scan carries on with the
@@ -125,9 +126,9 @@ export type PipelineStageState = "start" | "done" | "skipped" | "failed";
 /// external binary); STANDARD adds a crawl and nuclei on the crawled URLs;
 /// DEEP adds subdomain/port discovery, content discovery and XSS checks.
 export const PROFILE_STAGES: Record<VulnScanProfile, readonly PipelineStage[]> = {
-  QUICK: ["checks"],
-  STANDARD: ["recon", "checks", "crawl", "scan"],
-  DEEP: ["recon", "subdomains", "resolve", "ports", "checks", "crawl", "scan", "content", "xss"],
+  QUICK: ["checks", "verify"],
+  STANDARD: ["recon", "checks", "crawl", "scan", "verify"],
+  DEEP: ["recon", "subdomains", "resolve", "ports", "checks", "crawl", "scan", "content", "xss", "verify"],
 };
 
 /// Scanners (tool-run rows) each profile creates. SECORA_CHECKS is the native

@@ -7,7 +7,7 @@ import type {
   ShareResourceType,
 } from '@pentesthub/shared';
 
-const SHARE_RESOURCE_TYPES: ShareResourceType[] = ['REPORT', 'FINDING', 'EVIDENCE', 'DASHBOARD', 'PROJECT'];
+const SHARE_RESOURCE_TYPES: ShareResourceType[] = ['REPORT', 'FINDING', 'EVIDENCE', 'DASHBOARD', 'PROJECT', 'VULN_SCAN_REPORT'];
 const SHARE_PERMISSIONS: SharePermission[] = ['VIEW', 'COMMENT'];
 
 export class CreateShareLinkDto implements CreateShareLinkShape {

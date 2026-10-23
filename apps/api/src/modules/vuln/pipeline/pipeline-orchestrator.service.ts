@@ -25,8 +25,18 @@ import {
 } from './parsers.js';
 import type { PinnedHost } from './pin.util.js';
 import { PinningProxy, type BlockedConnection } from './pinning-proxy.js';
+import { createProxyFetch } from './checks/proxy-fetch.js';
+import {
+  createVerifyContext,
+  planVerification,
+  verifyFinding,
+  type FetchOnce,
+  type VerificationOutcome,
+  type VerifiableFinding,
+} from './reverify.js';
 import { PipelineProbeStage } from './probe-stage.service.js';
 import { redactArgv } from './redact-argv.util.js';
+import { redactSecrets } from '../report/redact.util.js';
 import { ScopeGuard, type ScopeGuardOptions } from './scope-guard.js';
 import { partitionByScope, type ScopeRule } from './scope.util.js';
 import {
@@ -117,6 +127,10 @@ export interface PipelineHost {
   }): Promise<NucleiStageResult>;
   /// True when the user asked to pause or cancel the job; checked between stages.
   shouldStop(): Promise<boolean>;
+  /// The findings this job has saved so far (for the re-verification stage).
+  listFindings(): Promise<VerifiableFinding[]>;
+  /// Saves the result of a re-check on a finding and sets its confidence.
+  recordVerification(findingId: string, outcome: VerificationOutcome): Promise<void>;
 }
 
 export interface PipelineRunInput {
@@ -170,6 +184,9 @@ const SKIP_WHEN_COMPLETE = new Set<PipelineStage>([
 const STATIC_ASSET =
   /\.(?:js|mjs|css|map|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|eot|otf|mp[34]|webm|pdf)$/i;
 const MAX_LOGGED_DROPS = 10;
+/// At most this many re-checks per scan, five per second.
+const MAX_VERIFICATIONS = 40;
+const VERIFY_DELAY_MS = 200;
 
 @Injectable()
 export class PipelineOrchestrator {
@@ -204,6 +221,15 @@ export class PipelineOrchestrator {
     });
     await proxy.start();
     return proxy;
+  }
+
+  /// Spacing between re-checks (five per second); a seam so specs do not wait.
+  protected pause(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  protected createFetch(proxyUrl: string): FetchOnce {
+    return createProxyFetch(proxyUrl);
   }
 
   protected writeWordlist(): Promise<{
@@ -241,9 +267,8 @@ export class PipelineOrchestrator {
       crawledUrls: [],
     };
 
-    const needsProxy = stages.some(
-      (stage) => stage === 'crawl' || stage === 'content' || stage === 'xss',
-    );
+    // Every profile ends with the re-verification stage, which also goes through the proxy.
+    const needsProxy = stages.length > 0;
     const blocked = new Map<string, number>();
     let proxy: PinningProxy | null = null;
     try {
@@ -369,6 +394,8 @@ export class PipelineOrchestrator {
         return this.contentStage(ctx);
       case 'xss':
         return this.xssStage(ctx);
+      case 'verify':
+        return this.verifyStage(ctx);
     }
   }
 
@@ -840,6 +867,46 @@ export class PipelineOrchestrator {
     } finally {
       await wordlist.cleanup();
     }
+  }
+
+  /// Re-checks findings of four classes (exposed file, missing header, open
+  /// redirect, reflected XSS marker) with one GET each through the pinning
+  /// proxy. See reverify.ts for what each check sends. Only a reproduced result
+  /// makes a finding CONFIRMED; severity is never touched.
+  private async verifyStage(ctx: StageContext): Promise<StageOutcome> {
+    const proxyUrl = ctx.proxyUrl;
+    if (!proxyUrl) return { state: 'failed', note: 'the pinning proxy is not running' };
+    const findings = await ctx.host.listFindings();
+    const plans = findings
+      .map((finding) => planVerification(finding))
+      .filter((plan): plan is NonNullable<typeof plan> => plan !== null)
+      .slice(0, MAX_VERIFICATIONS);
+    if (plans.length === 0) return { state: 'skipped', note: 'no finding is of a class that can be re-checked safely' };
+
+    const verifyContext = createVerifyContext(this.createFetch(proxyUrl));
+    let reproduced = 0;
+    let checked = 0;
+    for (const plan of plans) {
+      if (ctx.signal.aborted) break;
+      const admitted = await ctx.guard.admitUrl(plan.url);
+      const outcome: VerificationOutcome = admitted.ok
+        ? await verifyFinding(plan, verifyContext)
+        : {
+            status: 'FAILED',
+            method: plan.kind,
+            checkedAt: new Date().toISOString(),
+            detail: `Not re-checked: ${admitted.detail}`,
+          };
+      if (admitted.ok) {
+        ctx.host.audit({ tool: 'secora-verify', command: 'internal', argv: ['GET', plan.kind, plan.url] }, 'verify');
+        checked += 1;
+      }
+      if (outcome.status === 'REPRODUCED') reproduced += 1;
+      ctx.host.log('INFO', `Verify: ${plan.kind} ${shorten(redactSecrets(plan.url))} -> ${outcome.status}`);
+      await ctx.host.recordVerification(plan.findingId, outcome);
+      await this.pause(VERIFY_DELAY_MS);
+    }
+    return { state: 'done', note: `${checked} re-checked, ${reproduced} reproduced` };
   }
 
   private async xssStage(ctx: StageContext): Promise<StageOutcome> {

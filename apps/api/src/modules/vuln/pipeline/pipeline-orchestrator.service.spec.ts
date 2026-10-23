@@ -20,6 +20,7 @@ import {
 } from './fixtures/recorded-stage3.js';
 import type { PinnedHost, AddressLookup } from './pin.util.js';
 import type { PinningProxy, BlockedConnection } from './pinning-proxy.js';
+import type { FetchOnce, VerificationOutcome, VerifiableFinding } from './reverify.js';
 import {
   PipelineOrchestrator,
   type PipelineHost,
@@ -62,6 +63,8 @@ const dnsxLine = (host: string, a: string[], internal = false) =>
   });
 
 interface Scenario {
+  findings?: VerifiableFinding[];
+  fetch?: FetchOnce;
   rule?: ScopeRule;
   profile?: 'QUICK' | 'STANDARD' | 'DEEP';
   liveUrls?: string[];
@@ -98,6 +101,7 @@ function build(scenario: Scenario = {}) {
     Object.entries(scenario.toolRunStatus ?? {}),
   );
   let stagesStarted = 0;
+  const verifications: ({ findingId: string } & VerificationOutcome)[] = [];
 
   const host: PipelineHost = {
     log: (level, message) => {
@@ -115,6 +119,10 @@ function build(scenario: Scenario = {}) {
       statuses.set(scanner, outcome);
     },
     toolRunStatus: (scanner) => statuses.get(scanner) ?? 'PENDING',
+    listFindings: async () => scenario.findings ?? [],
+    recordVerification: async (findingId, outcome) => {
+      verifications.push({ findingId, ...outcome });
+    },
     runNuclei: async (input) => {
       nucleiCalls.push({ urls: input.urls, profile: input.profile });
       statuses.set('NUCLEI', 'COMPLETED');
@@ -220,6 +228,12 @@ function build(scenario: Scenario = {}) {
       blockedCallbacks.push(onBlocked);
       return proxyInstance as unknown as PinningProxy;
     }
+    protected override pause(): Promise<void> {
+      return Promise.resolve();
+    }
+    protected override createFetch(): FetchOnce {
+      return scenario.fetch ?? (async () => ({ status: 200, headers: {}, body: '' }));
+    }
     protected override writeWordlist() {
       return Promise.resolve({
         path: '/tmp/secora-wordlist-x/words.txt',
@@ -261,6 +275,7 @@ function build(scenario: Scenario = {}) {
     nucleiCalls,
     spawned,
     proxyInstance,
+    verifications,
     blockedCallbacks,
     checksRun,
     wordlistCleanup,
@@ -270,13 +285,15 @@ function build(scenario: Scenario = {}) {
 }
 
 describe('PipelineOrchestrator — QUICK', () => {
-  it('runs only the native checks, with no external binary and no proxy', async () => {
+  it('runs only the native checks, with no external binary', async () => {
     const h = build({ profile: 'QUICK' });
     await h.run('QUICK');
 
     expect(h.markers()).toEqual([
       '[stage] checks start',
       '[stage] checks done',
+      '[stage] verify start',
+      '[stage] verify skipped',
     ]);
     expect(h.spawned).toEqual([]);
     expect(h.probe.run).not.toHaveBeenCalled();
@@ -311,6 +328,8 @@ describe('PipelineOrchestrator — QUICK', () => {
     expect(h.markers()).toEqual([
       '[stage] checks start',
       '[stage] checks failed',
+      '[stage] verify start',
+      '[stage] verify skipped',
     ]);
   });
 });
@@ -342,6 +361,8 @@ describe('PipelineOrchestrator — STANDARD', () => {
       '[stage] crawl done',
       '[stage] scan start',
       '[stage] scan done',
+      '[stage] verify start',
+      '[stage] verify skipped',
     ]);
     expect(h.nucleiCalls).toHaveLength(1);
     expect(h.nucleiCalls[0].profile).toBe('STANDARD');
@@ -634,6 +655,7 @@ describe('PipelineOrchestrator — DEEP', () => {
       '[stage] scan start',
       '[stage] content start',
       '[stage] xss start',
+      '[stage] verify start',
     ]);
     expect(h.markers().filter((m) => m.endsWith('failed'))).toEqual([]);
     expect(h.persisted.map((entry) => entry.scanner)).toEqual([
@@ -859,6 +881,8 @@ describe('PipelineOrchestrator — recorded lab output (Juice Shop)', () => {
         void persisted.push({ scanner, findings: result.findings }),
       closeToolRun: async () => undefined,
       toolRunStatus: () => 'PENDING',
+      listFindings: async () => [],
+      recordVerification: async () => undefined,
       runNuclei: async (input) => {
         nuclei.push(input.urls);
         return { failed: false, partial: false, message: null };
@@ -1011,5 +1035,105 @@ describe('PipelineOrchestrator — job control', () => {
     expect(h.messages().find((m) => m.startsWith('$ /bin/katana'))).toContain(
       '-proxy http://127.0.0.1:45678',
     );
+  });
+});
+
+describe('PipelineOrchestrator — safe re-verification', () => {
+  const headerFinding = (id: string, vulnType: string, matchedAt = 'https://shop.example.org') => ({
+    id,
+    scanner: 'SECORA_CHECKS',
+    vulnType,
+    signature: 's',
+    path: '/',
+    matchedAt,
+    tags: [],
+    data: {},
+  });
+  const fileFinding = (id: string, matchedAt: string) => ({
+    id,
+    scanner: 'FFUF',
+    vulnType: 'exposed-content',
+    signature: 's',
+    path: null,
+    matchedAt,
+    tags: [],
+    data: { status: 200 },
+  });
+
+  it('re-checks supported classes with one GET each through the fetch it is given, and records the result', async () => {
+    const urls: string[] = [];
+    const h = build({
+      profile: 'QUICK',
+      findings: [
+        headerFinding('h1', 'header-csp-missing'),
+        { ...headerFinding('c1', 'cors-reflected-credentials') }, // not a re-checkable class
+        fileFinding('x1', 'https://shop.example.org/.env'),
+      ],
+      fetch: async (url) => {
+        urls.push(url);
+        return url.includes('baseline') ? { status: 404, headers: {}, body: 'nf' } : { status: 200, headers: {}, body: 'APP_ENV=lab' };
+      },
+    });
+    await h.run('QUICK');
+
+    expect(h.verifications.map((v) => [v.findingId, v.status])).toEqual([
+      ['h1', 'REPRODUCED'],
+      ['x1', 'REPRODUCED'],
+    ]);
+    expect(urls).toEqual([
+      'https://shop.example.org/',
+      'https://shop.example.org/.env',
+      expect.stringMatching(/^https:\/\/shop\.example\.org\/secora-baseline-/),
+    ]);
+    expect(h.markers()).toContain('[stage] verify done');
+    expect(h.audits.filter((a) => a.tool === 'secora-verify').map((a) => a.argv[1])).toEqual(['missing-header', 'exposed-file']);
+  });
+
+  it('never fetches a URL outside the verified scope; it records a failed re-check instead', async () => {
+    const urls: string[] = [];
+    const h = build({
+      profile: 'QUICK',
+      findings: [headerFinding('h1', 'header-csp-missing', 'https://evil.test')],
+      fetch: async (url) => {
+        urls.push(url);
+        return { status: 200, headers: {}, body: '' };
+      },
+    });
+    await h.run('QUICK');
+    expect(urls).toEqual([]);
+    expect(h.verifications[0]).toMatchObject({ findingId: 'h1', status: 'FAILED' });
+    expect(h.verifications[0].detail).toContain('outside the verified scope');
+  });
+
+  it('a re-check that does not reproduce is recorded as such; severity is not part of the result', async () => {
+    const h = build({
+      profile: 'QUICK',
+      findings: [headerFinding('h1', 'header-hsts-missing')],
+      fetch: async () => ({ status: 200, headers: { 'strict-transport-security': 'max-age=31536000' }, body: '' }),
+    });
+    await h.run('QUICK');
+    expect(h.verifications[0].status).toBe('NOT_REPRODUCED');
+    expect(h.verifications[0]).not.toHaveProperty('severity');
+  });
+
+  it('caps the number of re-checks per scan', async () => {
+    let calls = 0;
+    const many = Array.from({ length: 70 }, (_, i) => headerFinding(`h${i}`, 'header-csp-missing', `https://shop.example.org/p${i}`));
+    const h = build({ profile: 'QUICK', findings: many, fetch: async () => (calls++, { status: 200, headers: {}, body: '' }) });
+    await h.run('QUICK');
+    expect(h.verifications.length).toBeLessThanOrEqual(40);
+  });
+
+  it('a failing fetch does not break the scan', async () => {
+    const h = build({
+      profile: 'QUICK',
+      findings: [headerFinding('h1', 'header-csp-missing')],
+      fetch: async () => {
+        throw new Error('proxy refused');
+      },
+    });
+    await h.run('QUICK');
+    expect(h.verifications[0].status).toBe('FAILED');
+    expect(h.markers()).toContain('[stage] verify done');
   });
 });

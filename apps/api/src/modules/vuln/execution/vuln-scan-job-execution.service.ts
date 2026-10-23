@@ -396,6 +396,27 @@ export class VulnScanJobExecutionService {
         statuses.set('NUCLEI', result.failed ? 'FAILED' : 'COMPLETED');
         return result;
       },
+      listFindings: async () => {
+        const rows = await this.findingsRepository.list({ workspaceId: job.workspaceId, jobId: job.id });
+        return rows.map((row) => ({
+          id: row.id,
+          scanner: row.scanner,
+          vulnType: row.vulnType,
+          signature: row.signature,
+          path: row.path,
+          matchedAt: row.matchedAt,
+          tags: row.tags,
+          data: (row.data && typeof row.data === 'object' && !Array.isArray(row.data) ? row.data : {}) as Record<string, unknown>,
+        }));
+      },
+      recordVerification: async (findingId, outcome) => {
+        await this.findingsRepository.applyVerification(
+          findingId,
+          { status: outcome.status, method: outcome.method, checkedAt: outcome.checkedAt, detail: outcome.detail },
+          // Only a reproduced re-check is CONFIRMED; a tool's own claim is not enough.
+          outcome.status === 'REPRODUCED' ? 'CONFIRMED' : 'MEDIUM',
+        );
+      },
       shouldStop: async () => {
         if (signal.aborted) return true;
         const fresh = await this.jobsRepository.findById(job.id);

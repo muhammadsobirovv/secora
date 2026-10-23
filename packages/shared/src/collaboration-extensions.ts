@@ -37,7 +37,7 @@ export interface ToggleReactionRequestDto {
 
 // --- Public sharing ----------------------------------------------------------
 
-export type ShareResourceType = "REPORT" | "FINDING" | "EVIDENCE" | "DASHBOARD" | "PROJECT";
+export type ShareResourceType = "REPORT" | "FINDING" | "EVIDENCE" | "DASHBOARD" | "PROJECT" | "VULN_SCAN_REPORT";
 export type SharePermission = "VIEW" | "COMMENT";
 
 export interface ShareLinkDto {

@@ -10,6 +10,7 @@ import type {
 import type {
   Prisma,
   VulnFinding,
+  VulnFindingConfidence,
   VulnFindingSeverity,
   VulnFindingStatus,
 } from '../../../../../prisma-types.js';
@@ -171,6 +172,23 @@ export class PrismaVulnFindingsRepository implements VulnFindingsRepository {
     return this.txHost.tx.vulnFinding.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async applyVerification(
+    id: string,
+    verification: Record<string, unknown>,
+    confidence: VulnFindingConfidence,
+  ): Promise<void> {
+    const current = await this.txHost.tx.vulnFinding.findUnique({ where: { id }, select: { data: true } });
+    if (!current) return;
+    const data = (current.data && typeof current.data === 'object' && !Array.isArray(current.data)
+      ? current.data
+      : {}) as Record<string, unknown>;
+    await this.txHost.tx.vulnFinding.update({
+      where: { id },
+      // Severity is deliberately not part of this write.
+      data: { data: { ...data, verification } as never, confidence },
     });
   }
 

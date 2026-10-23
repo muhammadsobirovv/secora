@@ -478,6 +478,7 @@ export function normalizeDalfox(records: DalfoxRecord[]): VulnFindingInput[] {
           method: record.method,
           injectType: record.injectType,
           kind,
+          url: record.url,
         },
         evidence: {
           request: record.request ?? undefined,

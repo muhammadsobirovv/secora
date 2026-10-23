@@ -8,7 +8,9 @@ import {
   type VulnScanProfile,
 } from "@pentesthub/shared";
 
-export type StepId = "verify" | PipelineStage | "report";
+/// "ownership" is the proof-of-ownership step every job has already passed;
+/// it is not the pipeline's "verify" (re-check) stage.
+export type StepId = "ownership" | PipelineStage | "report";
 export type StepState = "pending" | "active" | "done" | "skipped" | "failed";
 export interface StepView {
   id: StepId;
@@ -17,7 +19,7 @@ export interface StepView {
 
 /// What the stage stepper shows. The worker writes one "[stage] <name> <state>"
 /// log line per transition; this reads the latest one per stage.
-///  - "verify" is always done: a job only exists for a verified target;
+///  - "ownership" is always done: a job only exists for a verified target;
 ///  - "report" is done once the job completed;
 ///  - the stages shown are the profile's own (QUICK has one, DEEP nine); with
 ///    no profile they are recon, scan and any other stage that has reported;
@@ -65,7 +67,7 @@ export function deriveSteps(
   };
 
   return [
-    { id: "verify", state: "done" },
+    { id: "ownership", state: "done" },
     ...stages.map((name): StepView => ({ id: name, state: stage(name) })),
     { id: "report", state: status === "COMPLETED" ? "done" : "pending" },
   ];

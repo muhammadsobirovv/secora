@@ -89,6 +89,7 @@ async function harness(options: {
       inputs.map((input, index) => ({ finding: { id: `f-${index}`, severity: 'LOW', scanner: input.scanner }, wasCreated: true })),
     ),
     list: jest.fn(async () => []),
+    applyVerification: jest.fn(async () => undefined),
   };
   const targetsRepository = {
     findById: jest.fn(async () => ({ id: 'target-1', projectId: 'proj-1', type: 'DOMAIN', value: 'shop.example.org' })),
@@ -412,5 +413,44 @@ describe('the host the orchestrator is given', () => {
     expect(answers).toEqual([false, true, true]);
     expect(paused.jobsRepository.markPaused).toHaveBeenCalled();
     expect(cancelled.jobsRepository.markCancelled).toHaveBeenCalled();
+  });
+});
+
+describe('the host: re-verification', () => {
+  it('lists the job findings for the verify stage and saves a re-check result without touching severity', async () => {
+    let listed: unknown[] = [];
+    const h = await harness({
+      config: { profile: 'STANDARD' },
+      orchestrate: async (input) => {
+        listed = await input.host.listFindings();
+        await input.host.recordVerification('f-1', {
+          status: 'REPRODUCED',
+          method: 'missing-header',
+          checkedAt: '2026-10-22T10:00:00.000Z',
+          detail: 'still absent',
+        });
+        await input.host.recordVerification('f-2', {
+          status: 'NOT_REPRODUCED',
+          method: 'exposed-file',
+          checkedAt: '2026-10-22T10:00:01.000Z',
+          detail: 'catch-all page',
+        });
+      },
+    });
+    h.findingsRepository.list.mockResolvedValueOnce([
+      { id: 'f-1', scanner: 'SECORA_CHECKS', vulnType: 'header-csp-missing', signature: 's', path: '/', matchedAt: 'https://shop.example.org', tags: [], data: { a: 1 }, severity: 'LOW' },
+    ] as never);
+    await h.execute();
+
+    expect(h.findingsRepository.list).toHaveBeenCalledWith({ workspaceId: 'ws-1', jobId: 'job-1' });
+    expect(listed).toEqual([
+      { id: 'f-1', scanner: 'SECORA_CHECKS', vulnType: 'header-csp-missing', signature: 's', path: '/', matchedAt: 'https://shop.example.org', tags: [], data: { a: 1 } },
+    ]);
+    // Only a reproduced re-check makes a finding CONFIRMED; anything else is MEDIUM.
+    expect(h.findingsRepository.applyVerification).toHaveBeenNthCalledWith(1, 'f-1', expect.objectContaining({ status: 'REPRODUCED' }), 'CONFIRMED');
+    expect(h.findingsRepository.applyVerification).toHaveBeenNthCalledWith(2, 'f-2', expect.objectContaining({ status: 'NOT_REPRODUCED' }), 'MEDIUM');
+    for (const call of h.findingsRepository.applyVerification.mock.calls) {
+      expect(JSON.stringify(call)).not.toMatch(/severity/i);
+    }
   });
 });

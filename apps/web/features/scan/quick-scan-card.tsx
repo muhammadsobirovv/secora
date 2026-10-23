@@ -28,6 +28,14 @@ const BASES: { value: TargetAuthorizationBasis; labelKey: "quickScan.owner" | "q
   { value: "WRITTEN_PERMISSION", labelKey: "quickScan.permission" },
 ];
 
+const STEP_KEYS = [
+  "quickScan.steps.add",
+  "quickScan.steps.verify",
+  "quickScan.steps.choose",
+  "quickScan.steps.watch",
+  "quickScan.steps.read",
+] as const;
+
 /// The two depths offered here. The deep profile (default-credential checks,
 /// port scan, content discovery) needs an explicit confirmation and an operator
 /// switch, so it is only available through the API.
@@ -147,6 +155,20 @@ export function QuickScanCard() {
             <p className="text-sm text-muted-foreground">{t("quickScan.subtitle")}</p>
           </div>
         </div>
+
+        <ol
+          aria-label={t("quickScan.steps.label")}
+          className="grid grid-cols-1 gap-1 text-xs text-muted-foreground sm:grid-cols-5"
+        >
+          {STEP_KEYS.map((key, index) => (
+            <li key={key} className="flex items-center gap-2">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px]">
+                {index + 1}
+              </span>
+              {t(key)}
+            </li>
+          ))}
+        </ol>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <div className="flex flex-col gap-2 sm:flex-row">

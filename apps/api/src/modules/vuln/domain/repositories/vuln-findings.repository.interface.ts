@@ -86,6 +86,13 @@ export interface VulnFindingsRepository {
   ): Promise<VulnFinding | null>;
   list(filter: ListVulnFindingsFilter): Promise<VulnFinding[]>;
   updateStatus(id: string, status: VulnFindingStatus): Promise<VulnFinding>;
+  /// Records the result of a safe re-check in the finding's data
+  /// (data.verification) and sets its confidence. Severity is never touched.
+  applyVerification(
+    id: string,
+    verification: Record<string, unknown>,
+    confidence: VulnFindingConfidence,
+  ): Promise<void>;
   /// Only findings that exist AND belong to workspaceId are updated;
   /// returns the updated rows (silently skipping any id that didn't
   /// match — the command handler diffs requested vs. returned ids if it

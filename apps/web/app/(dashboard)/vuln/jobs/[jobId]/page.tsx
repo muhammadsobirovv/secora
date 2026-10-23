@@ -140,6 +140,9 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
               {t("vuln.job.stop")}
             </Button>
           )}
+          <Button size="sm" variant={job.status === "COMPLETED" ? "default" : "outline"} asChild>
+            <Link href={`/vuln/jobs/${job.id}/report`}>{t("report.viewReport")}</Link>
+          </Button>
           {job.status === "FAILED" && (
             <Button size="sm" disabled={retryJob.isPending} onClick={() => void handleRetry()}>
               {retryJob.isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}

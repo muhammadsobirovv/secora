@@ -62,6 +62,14 @@ export async function resolveShareResource(
       if (!row || row.deletedAt) throw resourceNotFound();
       return { workspaceId: row.workspaceId, title: row.name };
     }
+    case 'VULN_SCAN_REPORT': {
+      const row = await prisma.vulnScanJob.findUnique({
+        where: { id: resourceId },
+        select: { workspaceId: true, target: { select: { value: true } } },
+      });
+      if (!row) throw resourceNotFound();
+      return { workspaceId: row.workspaceId, title: `Security report: ${row.target.value}` };
+    }
     default: {
       const exhaustive: never = resourceType;
       throw resourceNotFound(exhaustive);

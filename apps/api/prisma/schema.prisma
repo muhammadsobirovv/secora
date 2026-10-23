@@ -6398,6 +6398,8 @@ enum ShareResourceType {
   EVIDENCE
   DASHBOARD
   PROJECT
+  /// A read-only vulnerability scan report (VulnScanJob id).
+  VULN_SCAN_REPORT
 }
 
 enum SharePermission {
@@ -6435,6 +6437,24 @@ model ShareLink {
 
   @@index([workspaceId, resourceType, resourceId])
   @@map("share_links")
+}
+
+/// Explanations of scanner checks ("what is this / why it matters / how to fix"),
+/// written once per (check id, detected stack, language) and reused for every
+/// scan. They are generated from the check's own metadata only, never from a
+/// scan's evidence, so one tenant's page content cannot end up in another's report.
+model FindingExplanationCache {
+  id        String   @id @default(uuid())
+  cacheKey  String   @unique
+  checkId   String
+  stack     String
+  language  String
+  content   Json
+  provider  String?
+  createdAt DateTime @default(now())
+
+  @@index([checkId])
+  @@map("finding_explanation_cache")
 }
 
 // --- Extension API registry -------------------------------------------------------

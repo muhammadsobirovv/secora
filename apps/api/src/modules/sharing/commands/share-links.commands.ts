@@ -11,6 +11,7 @@ import { resolveShareResource } from '../sharing-resource-resolver.util.js';
 import { toShareLinkDto } from '../mappers/to-share-link-dto.mapper.js';
 
 const MAX_EXPIRES_IN_DAYS = 365;
+const MAX_REPORT_EXPIRES_IN_DAYS = 30;
 
 /// Raw token format `shl_<32 random bytes, base64url>` — same
 /// crypto-random-then-sha256-hash pattern as API keys
@@ -61,6 +62,19 @@ export class CreateShareLinkHandler implements ICommandHandler<CreateShareLinkCo
       throw new AppException(
         'INVALID_SHARE_EXPIRY',
         `expiresInDays must be between 1 and ${MAX_EXPIRES_IN_DAYS}.`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // A shared scan report always expires, and within a month: it lists the
+    // weaknesses of a live site.
+    if (
+      command.data.resourceType === 'VULN_SCAN_REPORT' &&
+      (command.data.expiresInDays == null || command.data.expiresInDays > MAX_REPORT_EXPIRES_IN_DAYS)
+    ) {
+      throw new AppException(
+        'INVALID_SHARE_EXPIRY',
+        `A shared scan report must expire within ${MAX_REPORT_EXPIRES_IN_DAYS} days.`,
         HttpStatus.BAD_REQUEST,
       );
     }

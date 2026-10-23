@@ -5,6 +5,10 @@ import { ProjectsModule } from '../projects/projects.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
 import { SecurityModule } from '../security/security.module.js';
 import { BillingCoreModule } from '../billing/billing-core.module.js';
+import { AiCoreModule } from '../ai/ai-core.module.js';
+import { VulnReportController, PublicVulnReportController } from './controllers/vuln-report.controller.js';
+import { FindingExplanationService } from './report/finding-explanation.service.js';
+import { VulnReportService } from './report/vuln-report.service.js';
 import { CreateVulnScanJobHandler } from './commands/create-vuln-scan-job.command.js';
 import { StopVulnScanJobHandler } from './commands/stop-vuln-scan-job.command.js';
 import { PauseVulnScanJobHandler } from './commands/pause-vuln-scan-job.command.js';
@@ -42,7 +46,16 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
 /// `CreateVulnScanJobHandler` can enforce the `SCANNER_JOBS` quota at
 /// job-creation time — mirrors the identical `ReconModule` change exactly.
 @Module({
-  imports: [VulnCoreModule, WorkspacesModule, ProjectsModule, TargetsModule, SecurityModule, BillingCoreModule],
+  imports: [
+    VulnCoreModule,
+    WorkspacesModule,
+    ProjectsModule,
+    TargetsModule,
+    SecurityModule,
+    BillingCoreModule,
+    // AiProviderRegistryService, for the finding explanations.
+    AiCoreModule,
+  ],
   controllers: [
     TargetVulnScanJobsController,
     ProjectVulnScanJobsController,
@@ -51,6 +64,8 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
     VulnFindingsController,
     VulnScanTemplatesController,
     VulnDashboardController,
+    VulnReportController,
+    PublicVulnReportController,
   ],
   providers: [
     CreateVulnScanJobHandler,
@@ -71,6 +86,8 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
     GetVulnScanTemplateHandler,
     GetVulnDashboardSummaryHandler,
     ListVulnScannerHistoryHandler,
+    FindingExplanationService,
+    VulnReportService,
   ],
 })
 export class VulnModule {}

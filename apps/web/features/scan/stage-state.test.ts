@@ -8,7 +8,7 @@ const states = (steps: ReturnType<typeof deriveSteps>) => steps.map((s) => `${s.
 
 test("a running job with no markers yet only shows verify as done", () => {
   assert.deepEqual(states(deriveSteps([], "RUNNING")), [
-    "verify:done",
+    "ownership:done",
     "recon:pending",
     "scan:pending",
     "report:pending",
@@ -17,13 +17,13 @@ test("a running job with no markers yet only shows verify as done", () => {
 
 test("recon in progress, then scan in progress", () => {
   const recon = deriveSteps([log("$ httpx -u x"), log("[stage] recon start")], "RUNNING");
-  assert.deepEqual(states(recon), ["verify:done", "recon:active", "scan:pending", "report:pending"]);
+  assert.deepEqual(states(recon), ["ownership:done", "recon:active", "scan:pending", "report:pending"]);
 
   const scan = deriveSteps(
     [log("[stage] recon start"), log("[stage] recon done"), log("[stage] scan start")],
     "RUNNING",
   );
-  assert.deepEqual(states(scan), ["verify:done", "recon:done", "scan:active", "report:pending"]);
+  assert.deepEqual(states(scan), ["ownership:done", "recon:done", "scan:active", "report:pending"]);
 });
 
 test("a completed pipeline run is done end to end", () => {
@@ -36,22 +36,22 @@ test("a completed pipeline run is done end to end", () => {
     ],
     "COMPLETED",
   );
-  assert.deepEqual(states(steps), ["verify:done", "recon:done", "scan:done", "report:done"]);
+  assert.deepEqual(states(steps), ["ownership:done", "recon:done", "scan:done", "report:done"]);
 });
 
 test("nothing live: recon and scan are skipped, the job still completes", () => {
   const steps = deriveSteps([log("[stage] recon start"), log("[stage] recon skipped"), log("[stage] scan skipped")], "COMPLETED");
-  assert.deepEqual(states(steps), ["verify:done", "recon:skipped", "scan:skipped", "report:done"]);
+  assert.deepEqual(states(steps), ["ownership:done", "recon:skipped", "scan:skipped", "report:done"]);
 });
 
 test("a failed job marks the stage that was running as failed", () => {
   const steps = deriveSteps([log("[stage] recon start"), log("[stage] recon done"), log("[stage] scan start")], "FAILED");
-  assert.deepEqual(states(steps), ["verify:done", "recon:done", "scan:failed", "report:pending"]);
+  assert.deepEqual(states(steps), ["ownership:done", "recon:done", "scan:failed", "report:pending"]);
 });
 
 test("a plain job without a pipeline profile is shown sensibly when it completes", () => {
   assert.deepEqual(states(deriveSteps([log("$ nuclei -u x")], "COMPLETED")), [
-    "verify:done",
+    "ownership:done",
     "recon:skipped",
     "scan:done",
     "report:done",
@@ -60,20 +60,24 @@ test("a plain job without a pipeline profile is shown sensibly when it completes
 
 test("unrelated log lines are ignored", () => {
   const steps = deriveSteps([log("FOUND [high] something"), log("[INF] stage recon start")], "RUNNING");
-  assert.deepEqual(states(steps), ["verify:done", "recon:pending", "scan:pending", "report:pending"]);
+  assert.deepEqual(states(steps), ["ownership:done", "recon:pending", "scan:pending", "report:pending"]);
 });
 
 test("QUICK shows only its one stage", () => {
-  assert.deepEqual(states(deriveSteps([], "RUNNING", "QUICK")), ["verify:done", "checks:pending", "report:pending"]);
-  const done = deriveSteps([log("[stage] checks start"), log("[stage] checks done")], "COMPLETED", "QUICK");
-  assert.deepEqual(states(done), ["verify:done", "checks:done", "report:done"]);
+  assert.deepEqual(states(deriveSteps([], "RUNNING", "QUICK")), ["ownership:done", "checks:pending", "verify:pending", "report:pending"]);
+  const done = deriveSteps(
+    [log("[stage] checks start"), log("[stage] checks done"), log("[stage] verify start"), log("[stage] verify skipped")],
+    "COMPLETED",
+    "QUICK",
+  );
+  assert.deepEqual(states(done), ["ownership:done", "checks:done", "verify:skipped", "report:done"]);
 });
 
 test("DEEP shows all nine stages in order", () => {
   const steps = deriveSteps([log("[stage] recon start")], "RUNNING", "DEEP");
   assert.deepEqual(
     steps.map((s) => s.id),
-    ["verify", "recon", "subdomains", "resolve", "ports", "checks", "crawl", "scan", "content", "xss", "report"],
+    ["ownership", "recon", "subdomains", "resolve", "ports", "checks", "crawl", "scan", "content", "xss", "verify", "report"],
   );
   assert.equal(steps[1]?.state, "active");
   assert.equal(steps[2]?.state, "pending");
@@ -95,11 +99,12 @@ test("a failed stage stays failed while the scan carries on and completes", () =
     "STANDARD",
   );
   assert.deepEqual(states(steps), [
-    "verify:done",
+    "ownership:done",
     "recon:done",
     "checks:done",
     "crawl:failed",
     "scan:done",
+    "verify:skipped",
     "report:done",
   ]);
 });
