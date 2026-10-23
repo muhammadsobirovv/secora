@@ -1763,6 +1763,15 @@ enum AuditEventType {
   TARGET_OWNERSHIP_BLOCKED
   // One entry per external tool command the pentest pipeline executes.
   SCAN_COMMAND_EXECUTED
+  // Client engagement (rules of engagement) authorizations.
+  ROE_REQUESTED
+  ROE_EMAIL_SENT
+  ROE_APPROVED
+  ROE_DECLINED
+  ROE_REVOKED
+  ROE_CANCELLED
+  ROE_SCAN_AUTHORIZED
+  ROE_SCAN_STOPPED
 }
 
 // ---------------------------------------------------------------------------
@@ -6456,6 +6465,103 @@ model FindingExplanationCache {
   @@index([checkId])
   @@map("finding_explanation_cache")
 }
+
+/// Client engagement ("rules of engagement") authorization: written
+/// authorization plus approval by the client's own mailbox, as an alternative
+/// to proving ownership with DNS/file/meta. An ACTIVE authorization lets a
+/// vulnerability scan run against the listed assets inside its window. It
+/// proves that someone at the client's domain approved the request, nothing
+/// more (see docs/operations/authorization-model.md).
+enum RoeStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  EXPIRED
+  REVOKED
+  CANCELLED
+}
+
+model RoeAuthorization {
+  id                       String     @id @default(uuid())
+  workspaceId              String
+  requestedBy              String
+  clientName               String
+  clientEmail              String
+  clientEmailDomain        String
+  signatoryName            String
+  signatoryRole            String
+  windowStart              DateTime
+  windowEnd                DateTime
+  status                   RoeStatus  @default(PENDING)
+  /// sha256 of the single-use approval token (the token itself is only ever in the email).
+  tokenHash                String     @unique
+  tokenExpiresAt           DateTime
+  tokenUsedAt              DateTime?
+  /// sha256 of the revoke token, set when the client approves.
+  revokeTokenHash          String?    @unique
+  evidenceKey              String?
+  evidenceName             String?
+  evidenceMime             String?
+  evidenceSize             Int?
+  evidenceSha256           String?
+  responsibilityAcceptedAt DateTime
+  approvedAt               DateTime?
+  approvedIp               String?
+  approvedUserAgent        String?
+  declinedAt               DateTime?
+  declinedIp               String?
+  declinedUserAgent        String?
+  revokedAt                DateTime?
+  revokedIp                String?
+  revokedUserAgent         String?
+  cancelledAt              DateTime?
+  lastEmailAt              DateTime?
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
+
+  assets      RoeAsset[]
+  emailEvents RoeEmailEvent[]
+
+  @@index([workspaceId, status])
+  @@index([requestedBy, status])
+  @@map("roe_authorizations")
+}
+
+model RoeAsset {
+  id              String @id @default(uuid())
+  authorizationId String
+  /// DOMAIN | SUBDOMAIN | URL (IP and CIDR are not supported).
+  type            String
+  /// The text the requester entered, normalised (host, or origin for a URL).
+  value           String
+  /// Lower-case hostname the asset covers.
+  host            String
+  /// Also covers every subdomain of host. Off by default.
+  wildcard        Boolean @default(false)
+
+  authorization RoeAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+
+  @@index([authorizationId])
+  @@index([host])
+  @@map("roe_assets")
+}
+
+/// One row per approval/confirmation email, for the hourly and daily limits.
+model RoeEmailEvent {
+  id              String   @id @default(uuid())
+  authorizationId String
+  userId          String
+  recipient       String
+  kind            String
+  createdAt       DateTime @default(now())
+
+  authorization RoeAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([recipient, createdAt])
+  @@map("roe_email_events")
+}
+
 
 // --- Extension API registry -------------------------------------------------------
 

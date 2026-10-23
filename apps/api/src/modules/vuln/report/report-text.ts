@@ -1,4 +1,5 @@
 import type {
+  VulnReportDto,
   PipelineStage,
   ReportConfidence,
   ReportLanguage,
@@ -32,6 +33,15 @@ const EN: Dict = {
   scopeHost:
     '{root} only (the ownership proof covers this host, not its subdomains)',
   scopeUnknown: 'Not recorded',
+  scopeApexClient: '{root} and all of its subdomains (client authorization, wildcard approved)',
+  scopeHostClient: '{root} only (client authorization; subdomains were not approved)',
+  authorization: 'Authorization',
+  authOwnership: 'The owner verified control of the website before the scan.',
+  authClient: 'Client engagement: {client} approved this test in writing.',
+  authWindow: 'Approved test window',
+  authApproved: 'Approved on',
+  authApprovedBy: 'Approved by (mailbox)',
+  authNote: 'The approval comes from the mailbox above. It does not prove who the person is or that they may speak for the organisation.',
   notTested: 'What was NOT tested',
   notTestedIntro:
     'A clean result only means that nothing was found by the checks below. These were not covered:',
@@ -137,6 +147,15 @@ const UZ: Dict = {
   scopeHost:
     "Faqat {root} (egalik tasdig'i shu xostni qamrab oladi, subdomenlarni emas)",
   scopeUnknown: 'Qayd etilmagan',
+  scopeApexClient: "{root} va uning barcha subdomenlari (mijoz ruxsati, wildcard tasdiqlangan)",
+  scopeHostClient: "Faqat {root} (mijoz ruxsati; subdomenlar tasdiqlanmagan)",
+  authorization: 'Ruxsat',
+  authOwnership: "Egasi skanerdan oldin veb-sayt ustidan nazoratni tasdiqlagan.",
+  authClient: "Mijoz bilan kelishuv: {client} bu testni yozma ravishda tasdiqlagan.",
+  authWindow: 'Tasdiqlangan test oynasi',
+  authApproved: 'Tasdiqlangan vaqt',
+  authApprovedBy: 'Tasdiqlagan (pochta qutisi)',
+  authNote: "Tasdiq yuqoridagi pochta qutisidan keldi. U shaxsning kimligini yoki tashkilot nomidan gapirishga haqqi borligini isbotlamaydi.",
   notTested: 'Nima TEKSHIRILMADI',
   notTestedIntro:
     'Toza natija faqat quyidagi tekshiruvlar hech narsa topmaganini bildiradi. Quyidagilar qamrab olinmagan:',
@@ -242,6 +261,15 @@ const RU: Dict = {
   scopeHost:
     'Только {root} (подтверждение владения охватывает этот хост, но не поддомены)',
   scopeUnknown: 'Не записано',
+  scopeApexClient: '{root} и все его поддомены (разрешение клиента, подстановка поддоменов одобрена)',
+  scopeHostClient: 'Только {root} (разрешение клиента; поддомены не одобрены)',
+  authorization: 'Разрешение',
+  authOwnership: 'Владелец подтвердил контроль над сайтом до сканирования.',
+  authClient: 'Работа для клиента: {client} письменно одобрил этот тест.',
+  authWindow: 'Одобренное окно тестирования',
+  authApproved: 'Одобрено',
+  authApprovedBy: 'Одобрил (почтовый ящик)',
+  authNote: 'Одобрение пришло с указанного ящика. Оно не доказывает личность человека и его право говорить от имени организации.',
   notTested: 'Что НЕ проверялось',
   notTestedIntro:
     'Чистый результат означает лишь то, что проверки ниже ничего не нашли. Не охвачено:',
@@ -363,4 +391,30 @@ export function notTestedText(
     stage: item.stage ? stageName(l, item.stage) : '',
     detail,
   });
+}
+
+/// The "what was scanned" line, worded for the authorization the scan ran under.
+export function scopeText(report: VulnReportDto): string {
+  const l = report.language;
+  if (report.scope.root === null) return text(l, 'scopeUnknown');
+  const client = report.authorization.kind === 'ROE';
+  const key = report.scope.includesSubdomains
+    ? client ? 'scopeApexClient' : 'scopeApex'
+    : client ? 'scopeHostClient' : 'scopeHost';
+  return text(l, key, { root: report.scope.root });
+}
+
+/// Label/value rows for the authorization block of the report.
+export function authorizationRows(report: VulnReportDto): Array<[string, string]> {
+  const l = report.language;
+  const a = report.authorization;
+  if (a.kind !== 'ROE') return [[text(l, 'authorization'), text(l, 'authOwnership')]];
+  const rows: Array<[string, string]> = [
+    [text(l, 'authorization'), text(l, 'authClient', { client: a.clientName ?? '' })],
+    [text(l, 'authWindow'), `${a.windowStart ?? '-'} - ${a.windowEnd ?? '-'}`],
+  ];
+  if (a.approvedAt) rows.push([text(l, 'authApproved'), a.approvedAt]);
+  if (a.approvedBy) rows.push([text(l, 'authApprovedBy'), a.approvedBy]);
+  rows.push(['', text(l, 'authNote')]);
+  return rows;
 }

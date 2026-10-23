@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { RoeCoreModule } from '../roe/roe-core.module.js';
 import { TargetsModule } from '../targets/targets.module.js';
 import { EvidenceModule } from '../evidence/evidence.module.js';
 import { VULN_SCAN_JOBS_REPOSITORY } from './domain/repositories/vuln-scan-jobs.repository.interface.js';
@@ -40,7 +41,7 @@ import { OwnershipScopeService } from './pipeline/ownership-scope.service.js';
 /// — every v1 scanner's evidence is plain text (Evidence.textContent),
 /// never a file, so there's nothing here that needs blob storage.
 @Module({
-  imports: [TargetsModule, EvidenceModule],
+  imports: [TargetsModule, EvidenceModule, RoeCoreModule],
   providers: [
     {
       provide: VULN_SCAN_JOBS_REPOSITORY,

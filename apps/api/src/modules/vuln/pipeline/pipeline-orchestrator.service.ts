@@ -127,10 +127,23 @@ export interface PipelineHost {
   }): Promise<NucleiStageResult>;
   /// True when the user asked to pause or cancel the job; checked between stages.
   shouldStop(): Promise<boolean>;
+  /// Client-engagement scans only: why the authorization the scan runs under
+  /// no longer holds (withdrawn, window ended), or null while it still does.
+  /// Absent for scans of verified targets.
+  authorizationLost?(): Promise<string | null>;
   /// The findings this job has saved so far (for the re-verification stage).
   listFindings(): Promise<VerifiableFinding[]>;
   /// Saves the result of a re-check on a finding and sets its confidence.
   recordVerification(findingId: string, outcome: VerificationOutcome): Promise<void>;
+}
+
+/// How often a running engagement scan re-checks its authorization, between
+/// the checks made before every stage.
+export const AUTHORIZATION_WATCH_INTERVAL_MS = 15_000;
+
+export interface PipelineRunResult {
+  /// Set when the scan was stopped because its authorization ended.
+  authorizationLost: string | null;
 }
 
 export interface PipelineRunInput {
@@ -247,7 +260,45 @@ export class PipelineOrchestrator {
     );
   }
 
-  async run(input: PipelineRunInput): Promise<void> {
+  async run(input: PipelineRunInput): Promise<PipelineRunResult> {
+    const { host } = input;
+    let lost: string | null = null;
+    const stopper = new AbortController();
+    const signal = AbortSignal.any([input.signal, stopper.signal]);
+    const checkAuthorization = async (): Promise<boolean> => {
+      if (lost !== null || !host.authorizationLost) return lost === null;
+      try {
+        lost = await host.authorizationLost();
+      } catch {
+        // Cannot confirm the authorization still holds: fail closed.
+        lost = 'The client authorization could not be re-checked, so the scan was stopped.';
+      }
+      if (lost !== null) {
+        host.log('ERROR', lost);
+        stopper.abort();
+      }
+      return lost === null;
+    };
+    const watcher = host.authorizationLost
+      ? setInterval(() => void checkAuthorization(), this.watchIntervalMs())
+      : null;
+    watcher?.unref?.();
+    try {
+      await this.runStages({ ...input, signal }, checkAuthorization);
+    } finally {
+      if (watcher) clearInterval(watcher);
+    }
+    return { authorizationLost: lost };
+  }
+
+  protected watchIntervalMs(): number {
+    return AUTHORIZATION_WATCH_INTERVAL_MS;
+  }
+
+  private async runStages(
+    input: PipelineRunInput,
+    checkAuthorization: () => Promise<boolean>,
+  ): Promise<void> {
     const { profile, host, signal } = input;
     const stages = PROFILE_STAGES[profile];
     const targetUrl =
@@ -295,6 +346,7 @@ export class PipelineOrchestrator {
       };
       for (const stage of stages) {
         if (signal.aborted) break;
+        if (!(await checkAuthorization())) break;
         if (await host.shouldStop()) break;
         await this.runStage(stage, ctx);
       }

@@ -27,6 +27,7 @@ import {
   Siren,
   LineChart,
   CreditCard,
+  FileCheck2,
 } from "lucide-react";
 
 export interface NavItem {
@@ -48,6 +49,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Evidence", href: "/evidence", icon: ImageIcon, i18nKey: "nav.evidence" },
   { label: "Recon", href: "/recon", icon: Radar, i18nKey: "nav.recon" },
   { label: "Vulnerabilities", href: "/vuln", icon: ShieldAlert, i18nKey: "nav.vulnerabilities" },
+  { label: "Authorizations", href: "/authorizations", icon: FileCheck2, i18nKey: "nav.authorizations" },
   { label: "Bug Bounty", href: "/bugbounty", icon: Bug, i18nKey: "nav.bugBounty" },
   // Module 17 — task #480. Analyst-facing triage view — distinct from
   // Executive Security below (posture-level KPIs for leadership).

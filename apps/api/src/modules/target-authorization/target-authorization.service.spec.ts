@@ -43,7 +43,7 @@ function newest(rows: AuthzRow[]): AuthzRow | null {
 }
 
 /// In-memory stand-in for the Prisma calls the service makes.
-function buildService(db: Db) {
+function buildService(db: Db, findActiveCovering: jest.Mock = jest.fn(async () => null)) {
   let seq = 0;
   const tx = {
     targetAuthorization: {
@@ -125,8 +125,9 @@ function buildService(db: Db) {
     { tx } as never,
     auditService,
     configService,
+    { findActiveCovering } as never,
   );
-  return { service, auditService, tx };
+  return { service, auditService, tx, findActiveCovering };
 }
 
 function emptyDb(): Db {
@@ -430,5 +431,66 @@ describe('TargetAuthorizationService', () => {
         }),
       ).rejects.toMatchObject({ code: 'TARGET_AUTHORIZATION_INVALID' });
     }
+  });
+
+  describe('client engagement (ROE) path', () => {
+    const site = { id: 'target-roe', type: 'DOMAIN', value: 'shop.example.org' };
+    const coverage = {
+      roeId: 'roe-1',
+      clientName: 'Acme Ltd',
+      windowStart: new Date(Date.now() - 3_600_000),
+      windowEnd: new Date(Date.now() + 86_400_000),
+      approvedAt: new Date(Date.now() - 1_800_000),
+      rule: { root: 'shop.example.org', includeSubdomains: false },
+    };
+    const run = (service: TargetAuthorizationService, target = site, operationType = 'VULN_SCAN') =>
+      service.assertActiveScanAllowed({ userId: user, workspaceId, target, operationType, context: ctx });
+
+    it('lets an approved engagement stand in for attestation and ownership, and says which one', async () => {
+      const { service, auditService, findActiveCovering } = buildService(emptyDb(), jest.fn(async () => coverage));
+      const result = await run(service);
+      expect(result.roeId).toBe('roe-1');
+      expect(result.basis).toBe('WRITTEN_PERMISSION');
+      expect(result.documentReference).toBe('ROE:roe-1');
+      expect(findActiveCovering).toHaveBeenCalledWith(site, workspaceId, user);
+      expect(auditTypes(auditService)).toEqual(['ROE_SCAN_AUTHORIZED']);
+    });
+
+    it('still blocks when no engagement covers the target', async () => {
+      const { service } = buildService(emptyDb());
+      await expect(run(service)).rejects.toMatchObject({ code: 'TARGET_AUTHORIZATION_REQUIRED' });
+    });
+
+    it('never lets an engagement bypass the network guard', async () => {
+      const covered = jest.fn(async () => coverage);
+      for (const value of ['app.localhost', 'portal.gov.uz']) {
+        const { service } = buildService(emptyDb(), covered);
+        await expect(run(service, { id: 't', type: 'DOMAIN', value })).rejects.toMatchObject({
+          code: 'TARGET_FORBIDDEN_FOR_ACTIVE_SCAN',
+        });
+      }
+    });
+
+    it('is only consulted for vulnerability scans', async () => {
+      const { service, findActiveCovering } = buildService(emptyDb(), jest.fn(async () => coverage));
+      await expect(run(service, site, 'RECON_ACTIVE')).rejects.toMatchObject({ code: 'TARGET_AUTHORIZATION_REQUIRED' });
+      expect(findActiveCovering).not.toHaveBeenCalled();
+    });
+
+    it('prefers verified ownership when the user has both', async () => {
+      const db = emptyDb();
+      const { service, findActiveCovering } = buildService(db, jest.fn(async () => coverage));
+      await service.attestTarget({
+        userId: user,
+        workspaceId,
+        target: site,
+        data: { basis: 'OWNER', attested: true },
+        context: ctx,
+      });
+      db.ownership.push({ targetId: site.id, verifiedAt: new Date() });
+      const result = await run(service);
+      expect(result.roeId).toBeUndefined();
+      expect(findActiveCovering).not.toHaveBeenCalled();
+    });
   });
 });

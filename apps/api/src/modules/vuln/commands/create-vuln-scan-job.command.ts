@@ -204,6 +204,17 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       };
     }
 
+    // The engagement a scan runs under is decided here, never by the caller:
+    // a roeId smuggled in through config or a template is dropped.
+    {
+      const { roeId: _ignored, ...rest } = (config ?? {}) as Record<string, unknown>;
+      void _ignored;
+      config =
+        authorization.roeId || Object.keys(rest).length > 0
+          ? { ...rest, ...(authorization.roeId ? { roeId: authorization.roeId } : {}) }
+          : null;
+    }
+
     // A profile's scanners are driven by the pipeline (against the verified
     // host, whatever the target type), so the by-hand compatibility table only
     // applies to jobs that name their own scanners.

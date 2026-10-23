@@ -38,6 +38,7 @@ import { ActivityModule } from './modules/activity/activity.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 import { ReconModule } from './modules/recon/recon.module.js';
 import { VulnModule } from './modules/vuln/vuln.module.js';
+import { RoeModule } from './modules/roe/roe.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { BugBountyModule } from './modules/bugbounty/bugbounty.module.js';
 import { CollaborationModule } from './modules/collaboration/collaboration.module.js';
@@ -182,6 +183,7 @@ import { SocModule } from './modules/soc/soc.module.js';
     ResearchSessionModule,
     ReconModule,
     VulnModule,
+    RoeModule,
     IntelligenceModule,
     AiModule,
     AiInvestigationModule,

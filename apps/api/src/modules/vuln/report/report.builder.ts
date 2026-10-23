@@ -1,4 +1,5 @@
 import {
+  ReportAuthorizationDto,
   PROFILE_STAGES,
   type PipelineStage,
   type ReportExplanationTextDto,
@@ -39,6 +40,8 @@ export interface ReportJobInput {
 }
 
 export interface ReportInput {
+  /// What the scan ran under; verified ownership when absent.
+  authorization?: ReportAuthorizationDto;
   job: ReportJobInput;
   target: { id: string; type: string; value: string };
   findings: RawFinding[];
@@ -302,5 +305,6 @@ export function buildReport(input: ReportInput): VulnReportDto {
     notTested: notTestedFor(profile, stages, scope.includesSubdomains),
     findings,
     language: input.language,
+    authorization: input.authorization ?? { kind: 'OWNERSHIP' },
   };
 }

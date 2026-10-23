@@ -11,6 +11,8 @@ import {
   stageName,
   stateName,
   text,
+  scopeText,
+  authorizationRows,
   verificationName,
 } from './report-text.js';
 
@@ -275,14 +277,12 @@ export function renderReportPdf(
     { color: COLORS.muted },
   );
   doc.gap(6);
-  const scope =
-    report.scope.root === null
-      ? text(l, 'scopeUnknown')
-      : text(l, report.scope.includesSubdomains ? 'scopeApex' : 'scopeHost', {
-          root: report.scope.root,
-        });
+  const scope = scopeText(report);
   doc.line(`${text(l, 'profile')}: ${profileName(l, report.profile)}`);
   doc.line(`${text(l, 'scope')}: ${scope}`);
+  for (const [label, value] of authorizationRows(report)) {
+    doc.line(label ? `${label}: ${value}` : value, { color: COLORS.muted });
+  }
   doc.line(`${text(l, 'started')}: ${report.startedAt}`);
   doc.line(`${text(l, 'finished')}: ${report.completedAt ?? '-'}`);
   doc.line(`${text(l, 'generated')}: ${report.generatedAt}`);

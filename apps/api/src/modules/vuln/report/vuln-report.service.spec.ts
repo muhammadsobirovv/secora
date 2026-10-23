@@ -194,3 +194,20 @@ describe('PublicVulnReportController', () => {
     expect(reports.forJob).not.toHaveBeenCalled();
   });
 });
+
+describe('shared report privacy for client engagements', () => {
+  it('masks the approving mailbox on a public report, and only there', async () => {
+    const { maskEmail } = await import('./vuln-report.service.js');
+    expect(maskEmail('ciso@acme.example')).toBe('ci***@acme.example');
+    expect(maskEmail('a@acme.example')).toBe('a***@acme.example');
+    expect(maskEmail('nonsense')).toBe('***');
+    const { service: s } = service(JOB);
+    const report = {
+      ...(await s.forJob('job-uuid-1', 'en')),
+      authorization: { kind: 'ROE' as const, clientName: 'Acme', approvedBy: 'ciso@acme.example' },
+    };
+    expect(JSON.stringify(toPublicReport(report))).not.toContain('ciso@acme.example');
+    expect(toPublicReport(report).authorization.approvedBy).toBe('ci***@acme.example');
+    expect(report.authorization.approvedBy).toBe('ciso@acme.example');
+  });
+});

@@ -63,14 +63,28 @@ export class NetworkOwnershipProbe implements OwnershipProbe {
   }
 
   async dnsTxtValues(name: string): Promise<string[]> {
-    const resolver = new Resolver({ timeout: 5000, tries: 2 });
-    try {
+    const query = async (servers?: string[]): Promise<string[]> => {
+      const resolver = new Resolver({ timeout: 5000, tries: 2 });
+      if (servers) resolver.setServers(servers);
       const records = await resolver.resolveTxt(name);
       return records.map((chunks) => chunks.join(''));
-    } catch (error) {
+    };
+    const isEmpty = (error: unknown): boolean => {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code === 'ENODATA' || code === 'ENOTFOUND') return [];
-      throw error;
+      return code === 'ENODATA' || code === 'ENOTFOUND';
+    };
+    try {
+      return await query();
+    } catch (error) {
+      if (isEmpty(error)) return [];
+      // The system resolver failed (timeout, refused, SERVFAIL). Retry once
+      // against public resolvers; a TXT proof is public data, so this leaks nothing.
+      try {
+        return await query(['1.1.1.1', '8.8.8.8']);
+      } catch (fallbackError) {
+        if (isEmpty(fallbackError)) return [];
+        throw fallbackError;
+      }
     }
   }
 

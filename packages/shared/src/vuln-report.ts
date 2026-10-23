@@ -5,6 +5,7 @@
 
 import type { OwaspCategory, VulnFindingSeverity, VulnScanProfile, VulnScanner } from "./vuln.js";
 import type { PipelineStage } from "./vuln.js";
+import type { ReportAuthorizationDto } from "./roe.js";
 
 /// CONFIRMED only when a safe re-check reproduced the issue; LIKELY when a
 /// tool reported it but it was not (or could not be) re-checked, or the
@@ -116,6 +117,8 @@ export interface ReportNotTestedDto {
 }
 
 export interface VulnReportDto {
+  /// What allowed this scan to run.
+  authorization: ReportAuthorizationDto;
   jobId: string;
   target: { id: string; type: string; value: string };
   profile: VulnScanProfile | null;

@@ -34,5 +34,8 @@ export class DevMailService implements MailService {
       message.text,
     ].join('\n');
     await writeFile(join(OUTBOX_DIR, filename), content, 'utf-8');
+    if (message.html) {
+      await writeFile(join(OUTBOX_DIR, filename.replace(/\.txt$/, '.html')), message.html, 'utf-8');
+    }
   }
 }

@@ -36,6 +36,9 @@ const MAX_PAGE_BYTES = 512 * 1024;
 
 type LastError = NonNullable<TargetOwnershipStatusDto['lastError']>;
 
+/// Shortest time between two verification checks of one target.
+export const OWNERSHIP_MIN_CHECK_INTERVAL_MS = 20_000;
+
 /// Proof-of-control for active scanning. The user publishes a token in one of
 /// three places; any one of them verifies the target:
 ///  1. a DNS TXT record `secora-verify=<token>` at `_secora-verify.<host>`;
@@ -111,6 +114,29 @@ export class TargetOwnershipService {
       return this.toDto(input.target, row);
     }
 
+    // The page re-checks on its own every 30 seconds; whatever the client does,
+    // the server never runs a check for the same target more often than this.
+    // The claim is one conditional update, so parallel requests cannot both pass.
+    const claimedAt = new Date();
+    const claim = await this.txHost.tx.targetOwnershipVerification.updateMany({
+      where: {
+        id: row.id,
+        verifiedAt: null,
+        OR: [
+          { lastCheckedAt: null },
+          { lastCheckedAt: { lt: new Date(claimedAt.getTime() - OWNERSHIP_MIN_CHECK_INTERVAL_MS) } },
+        ],
+      },
+      data: { lastCheckedAt: claimedAt },
+    });
+    if (claim.count === 0) {
+      throw new AppException(
+        'OWNERSHIP_CHECK_TOO_SOON',
+        'The last check was just now. Wait a few seconds before checking again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const guard = await evaluateActiveScanTarget(input.target, {
       ...this.guardOptions(),
       resolveHost: (name) => this.probe.resolveAddresses(name),
@@ -129,22 +155,31 @@ export class TargetOwnershipService {
     let lastError: LastError = 'DNS_RECORD_NOT_FOUND';
     const now = new Date();
 
-    try {
-      if (await this.hasDnsToken(host, row.token)) {
-        method = 'DNS_TXT';
-      } else if (await this.hasHttpFileToken(host, row.token)) {
-        method = 'HTTP_FILE';
-      } else if (await this.hasMetaTagToken(host, row.token)) {
-        method = 'META_TAG';
-      } else {
-        // All three places were checked; report the last one tried.
-        lastError = 'META_TAG_NOT_FOUND';
+    // Each proof is checked on its own: a failing DNS lookup must not stop the
+    // web-based checks (and vice versa). Every method still needs the exact
+    // token, so this only changes which error is reported, not what verifies.
+    const checks: ['DNS_TXT' | 'HTTP_FILE' | 'META_TAG', () => Promise<boolean>][] = [
+      ['DNS_TXT', () => this.hasDnsToken(host, row.token)],
+      ['HTTP_FILE', () => this.hasHttpFileToken(host, row.token)],
+      ['META_TAG', () => this.hasMetaTagToken(host, row.token)],
+    ];
+    let completedCleanly = false;
+    let blocked = false;
+    for (const [name, check] of checks) {
+      try {
+        if (await check()) {
+          method = name;
+          break;
+        }
+        completedCleanly = true;
+      } catch (error) {
+        if (error instanceof OwnershipNetworkBlockedError) blocked = true;
       }
-    } catch (error) {
-      lastError =
-        error instanceof OwnershipNetworkBlockedError
-          ? 'NETWORK_BLOCKED'
-          : 'UNREACHABLE';
+    }
+    if (!method) {
+      if (blocked) lastError = 'NETWORK_BLOCKED';
+      else if (completedCleanly) lastError = 'META_TAG_NOT_FOUND';
+      else lastError = 'UNREACHABLE';
     }
 
     if (method) {

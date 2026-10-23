@@ -18,6 +18,7 @@ export * from "./recon-endpoints.js";
 export * from "./vuln.js";
 export * from "./vuln-endpoints.js";
 export * from "./vuln-report.js";
+export * from "./roe.js";
 export * from "./ai.js";
 export * from "./ai-endpoints.js";
 export * from "./bugbounty.js";

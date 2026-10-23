@@ -26,6 +26,9 @@ export function toPublicReport(report: VulnReportDto): VulnReportDto {
     ...report,
     jobId: '',
     target: { id: '', type: report.target.type, value: report.target.value },
+    authorization: report.authorization?.approvedBy
+      ? { ...report.authorization, approvedBy: maskEmail(report.authorization.approvedBy) }
+      : report.authorization,
     findings: report.findings.map((finding, index) => ({
       ...finding,
       id: `finding-${index + 1}`,
@@ -35,6 +38,13 @@ export function toPublicReport(report: VulnReportDto): VulnReportDto {
       })),
     })),
   };
+}
+
+/// "ci***@acme.example": enough to recognise the mailbox, not to harvest it.
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at < 1) return '***';
+  return `${email.slice(0, Math.min(2, at))}***${email.slice(at)}`;
 }
 
 export const REPORT_LANGUAGES: readonly ReportLanguage[] = ['en', 'uz', 'ru'];
@@ -139,7 +149,23 @@ export class VulnReportService {
       },
     }));
 
+    const roeId = (job.config as Record<string, unknown> | null)?.roeId;
+    const roe =
+      typeof roeId === 'string'
+        ? await this.prisma.roeAuthorization.findUnique({ where: { id: roeId } })
+        : null;
+
     return buildReport({
+      authorization: roe
+        ? {
+            kind: 'ROE',
+            clientName: roe.clientName,
+            windowStart: roe.windowStart.toISOString(),
+            windowEnd: roe.windowEnd.toISOString(),
+            ...(roe.approvedAt ? { approvedAt: roe.approvedAt.toISOString() } : {}),
+            approvedBy: roe.clientEmail,
+          }
+        : { kind: 'OWNERSHIP' },
       job: {
         id: job.id,
         status: job.status,

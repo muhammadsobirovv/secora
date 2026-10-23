@@ -21,6 +21,7 @@ const TRANSLATED_SCAN_ERRORS: Record<string, MessageKey> = {
   SCAN_PROFILE_DISABLED: "scan.error.profileDisabled",
   SCAN_DEEP_CONFIRMATION_REQUIRED: "scan.error.deepConfirm",
   TARGET_OWNERSHIP_NOT_VERIFIED: "scan.error.notVerified",
+  OWNERSHIP_CHECK_TOO_SOON: "scan.error.checkTooSoon",
 };
 
 /// The catalog key for an error code that has a translated message, if any.

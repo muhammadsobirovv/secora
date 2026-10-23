@@ -19,6 +19,8 @@ import {
   type PipelineRunInput,
 } from '../pipeline/pipeline-orchestrator.service.js';
 import { OwnershipScopeService } from '../pipeline/ownership-scope.service.js';
+import { RoeCoverageService, type RoeLossReason } from '../../roe/roe-coverage.service.js';
+import { AuditService } from '../../audit/audit.service.js';
 import { makeFinding } from '../pipeline/stage-findings.js';
 import type { ScannerRunContext } from '../scanner-runners/scanner-runner.interface.js';
 import type { VulnScanJob, VulnScanJobToolRun } from '../../../prisma-types.js';
@@ -47,7 +49,10 @@ function buildJob(config: Record<string, unknown> | null, scanners: string[]) {
   } as unknown as VulnScanJob & { toolRuns: VulnScanJobToolRun[] };
 }
 
-type OrchestratorBehaviour = (input: PipelineRunInput) => Promise<void>;
+type OrchestratorBehaviour = (input: PipelineRunInput) => Promise<{ authorizationLost: string | null } | void>;
+
+const roeRule = { root: 'shop.example.org', includeSubdomains: false };
+type RoeCheck = { ok: true; coverage: { rule: typeof roeRule } } | { ok: false; reason: RoeLossReason };
 
 async function harness(options: {
   config: Record<string, unknown> | null;
@@ -58,6 +63,8 @@ async function harness(options: {
   runResult?: { exitCode: number | null; stdout: string; timedOut: boolean };
   orchestrate?: OrchestratorBehaviour;
   jobState?: { cancelRequestedAt?: Date | null; pauseRequestedAt?: Date | null };
+  /// What the client-engagement check answers (only used by jobs with a roeId).
+  roe?: () => RoeCheck;
 }) {
   const job = buildJob(options.config, options.scanners ?? ['SECORA_CHECKS', 'NUCLEI']);
   const logs: { level: string; message: string }[] = [];
@@ -109,7 +116,11 @@ async function harness(options: {
   const probeStage = { resolvePin: jest.fn(options.resolvePin ?? (async () => pin)), run: jest.fn() };
   const commandAudit = { record: jest.fn(async () => undefined) };
   const ownershipScope = { ruleFor: jest.fn(async () => options.rule ?? hostRule) };
-  const orchestrator = { run: jest.fn(options.orchestrate ?? (async () => undefined)) };
+  const orchestrator = { run: jest.fn(options.orchestrate ?? (async () => ({ authorizationLost: null }))) };
+  const roeCoverage = {
+    assertStillValid: jest.fn(async () => (options.roe ?? (() => ({ ok: true, coverage: { rule: roeRule } })))()),
+  };
+  const auditLog = jest.fn(async () => undefined);
 
   const configValues: Record<string, unknown> = {
     VULN_JOB_RETRY_BASE_DELAY_MS: 5000,
@@ -130,6 +141,8 @@ async function harness(options: {
     { provide: ScanCommandAudit, useValue: commandAudit },
     { provide: PipelineOrchestrator, useValue: orchestrator },
     { provide: OwnershipScopeService, useValue: ownershipScope },
+    { provide: RoeCoverageService, useValue: roeCoverage },
+    { provide: AuditService, useValue: { log: auditLog } },
     { provide: ConfigService, useValue: { get: jest.fn((key: string) => configValues[key]) } },
     { provide: EventBus, useValue: { publish: jest.fn() } },
   ]);
@@ -148,6 +161,8 @@ async function harness(options: {
     probeStage,
     commandAudit,
     ownershipScope,
+    roeCoverage,
+    auditLog,
     orchestrator,
     registry,
     run,
@@ -452,5 +467,78 @@ describe('the host: re-verification', () => {
     for (const call of h.findingsRepository.applyVerification.mock.calls) {
       expect(JSON.stringify(call)).not.toMatch(/severity/i);
     }
+  });
+});
+
+describe('VulnScanJobExecutionService — client engagement (ROE) jobs', () => {
+  const roeConfig = { profile: 'STANDARD', roeId: 'roe-1' };
+
+  it('re-validates the engagement when the worker starts and scans inside the approved scope', async () => {
+    const h = await harness({ config: roeConfig, rule: apexRule });
+    await h.execute();
+    expect(h.roeCoverage.assertStillValid).toHaveBeenCalledWith('roe-1', expect.objectContaining({ id: 'target-1', type: 'DOMAIN' }));
+    // the scope comes from the engagement, not from the ownership proof
+    expect(h.ownershipScope.ruleFor).not.toHaveBeenCalled();
+    expect(h.orchestrator.run).toHaveBeenCalledWith(expect.objectContaining({ rule: roeRule }));
+    expect(messages(h.logs)).toContain('Scope: shop.example.org only (client authorization; subdomains were not approved).');
+    expect(h.jobsRepository.markCompleted).toHaveBeenCalled();
+  });
+
+  it.each<[RoeLossReason]>([['REVOKED'], ['EXPIRED'], ['NOT_YET'], ['NOT_COVERED'], ['NOT_ACTIVE'], ['MISSING']])(
+    'does not start when the engagement is no longer valid (%s), keeps a clear failure and audits it',
+    async (reason) => {
+      const h = await harness({ config: roeConfig, roe: () => ({ ok: false, reason }) });
+      await h.execute();
+      expect(h.probeStage.resolvePin).not.toHaveBeenCalled();
+      expect(h.orchestrator.run).not.toHaveBeenCalled();
+      expect(h.jobsRepository.markFailed).toHaveBeenCalledTimes(1);
+      expect(h.jobsRepository.markCompleted).not.toHaveBeenCalled();
+      expect(h.auditLog).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'ROE_SCAN_STOPPED', metadata: expect.objectContaining({ roeId: 'roe-1', reason }) }),
+      );
+    },
+  );
+
+  it('hands the orchestrator a check of the engagement that sees a revocation mid-scan', async () => {
+    let state: RoeCheck = { ok: true, coverage: { rule: roeRule } };
+    const h = await harness({ config: roeConfig, roe: () => state });
+    await h.execute();
+    const host = hostOf(h);
+    expect(host.authorizationLost).toBeDefined();
+    expect(await host.authorizationLost!()).toBeNull();
+    state = { ok: false, reason: 'REVOKED' };
+    expect(await host.authorizationLost!()).toMatch(/withdrew their approval/);
+    state = { ok: false, reason: 'EXPIRED' };
+    expect(await host.authorizationLost!()).toMatch(/test window/);
+  });
+
+  it('a scan stopped mid-way ends FAILED with the reason, never COMPLETED, and the stop is audited', async () => {
+    const h = await harness({
+      config: roeConfig,
+      orchestrate: async () => ({ authorizationLost: 'The client withdrew their approval. The scan was stopped; results found so far are kept.' }),
+    });
+    await h.execute();
+    expect(h.jobsRepository.markFailed).toHaveBeenCalledWith('job-1', expect.stringMatching(/withdrew their approval/));
+    expect(h.jobsRepository.markCompleted).not.toHaveBeenCalled();
+    expect(h.auditLog).toHaveBeenCalledWith(expect.objectContaining({ type: 'ROE_SCAN_STOPPED', metadata: expect.objectContaining({ roeId: 'roe-1' }) }));
+  });
+
+  it('an ordinary job never consults the engagement check and has no authorization watcher', async () => {
+    const h = await harness({ config: { profile: 'STANDARD' }, rule: apexRule });
+    await h.execute();
+    expect(h.roeCoverage.assertStillValid).not.toHaveBeenCalled();
+    expect(hostOf(h).authorizationLost).toBeUndefined();
+  });
+
+  it('the engagement does not unlock DEEP: an unconfirmed or disabled DEEP job still refuses to run', async () => {
+    const disabled = await harness({ config: { profile: 'DEEP', roeId: 'roe-1', deepConfirmed: true }, deepEnabled: false });
+    await disabled.execute();
+    expect(disabled.orchestrator.run).not.toHaveBeenCalled();
+    expect(disabled.jobsRepository.markFailed).toHaveBeenCalled();
+
+    const unconfirmed = await harness({ config: { profile: 'DEEP', roeId: 'roe-1' }, deepEnabled: true });
+    await unconfirmed.execute();
+    expect(unconfirmed.orchestrator.run).not.toHaveBeenCalled();
+    expect(unconfirmed.jobsRepository.markFailed).toHaveBeenCalled();
   });
 });

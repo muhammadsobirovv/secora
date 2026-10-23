@@ -78,6 +78,22 @@ function buildService(probe: OwnershipProbe) {
         rows.push(row);
         return Promise.resolve(row);
       }),
+      // Only the shape the interval claim uses: id + unverified + (never checked OR checked before a cutoff).
+      updateMany: jest.fn(
+        ({
+          where,
+          data,
+        }: {
+          where: { id: string; OR: [unknown, { lastCheckedAt: { lt: Date } }] };
+          data: Partial<OwnershipRow>;
+        }) => {
+          const row = rows.find((r) => r.id === where.id && !r.verifiedAt);
+          const cutoff = where.OR[1].lastCheckedAt.lt;
+          if (!row || (row.lastCheckedAt && row.lastCheckedAt >= cutoff)) return Promise.resolve({ count: 0 });
+          Object.assign(row, data);
+          return Promise.resolve({ count: 1 });
+        },
+      ),
       update: jest.fn(({ where, data }: { where: { id: string }; data: Partial<OwnershipRow> }) => {
         const row = rows.find((r) => r.id === where.id)!;
         Object.assign(row, data, { updatedAt: new Date() });
@@ -194,6 +210,29 @@ describe('TargetOwnershipService — verify', () => {
     expect(status.lastError).toBe('META_TAG_NOT_FOUND');
     expect(rows[0].verifiedAt).toBeNull();
     expect(auditTypes(auditService)).toContain('TARGET_OWNERSHIP_CHECK_FAILED');
+  });
+
+  it('refuses a second check inside the minimum interval, without any network I/O', async () => {
+    const { probe, calls } = fakeProbe({});
+    const { service } = buildService(probe);
+    await service.createChallenge({ userId: user, workspaceId, target: domain });
+    const first = await service.verify({ userId: user, workspaceId, target: domain });
+    expect(first.verified).toBe(false);
+    const callsAfterFirst = calls.length;
+    await expect(service.verify({ userId: user, workspaceId, target: domain })).rejects.toMatchObject({
+      code: 'OWNERSHIP_CHECK_TOO_SOON',
+    });
+    expect(calls.length).toBe(callsAfterFirst);
+  });
+
+  it('allows the next check once the interval has passed', async () => {
+    const { probe } = fakeProbe({});
+    const { service, rows } = buildService(probe);
+    await service.createChallenge({ userId: user, workspaceId, target: domain });
+    await service.verify({ userId: user, workspaceId, target: domain });
+    rows[0].lastCheckedAt = new Date(Date.now() - 25_000);
+    const again = await service.verify({ userId: user, workspaceId, target: domain });
+    expect(again.verified).toBe(false);
   });
 
   it('does not follow an HTTP error page as proof', async () => {

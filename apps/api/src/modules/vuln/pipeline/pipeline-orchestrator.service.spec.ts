@@ -84,6 +84,10 @@ interface Scenario {
   target?: PipelineRunInput['target'];
   allowPrivate?: boolean;
   lookup?: AddressLookup;
+  /// Client-engagement scans: why the authorization is gone, or null while it holds.
+  authorizationLost?: () => Promise<string | null>;
+  /// The nuclei stage blocks until the scan's own signal is aborted.
+  nucleiWaitsForAbort?: boolean;
 }
 
 function build(scenario: Scenario = {}) {
@@ -123,8 +127,16 @@ function build(scenario: Scenario = {}) {
     recordVerification: async (findingId, outcome) => {
       verifications.push({ findingId, ...outcome });
     },
+    ...(scenario.authorizationLost ? { authorizationLost: scenario.authorizationLost } : {}),
     runNuclei: async (input) => {
       nucleiCalls.push({ urls: input.urls, profile: input.profile });
+      if (scenario.nucleiWaitsForAbort) {
+        await new Promise<void>((resolve) => {
+          if (input.signal.aborted) resolve();
+          input.signal.addEventListener('abort', () => resolve(), { once: true });
+        });
+        return { failed: true, partial: false, message: 'aborted' };
+      }
       statuses.set('NUCLEI', 'COMPLETED');
       return {
         failed: scenario.nuclei?.failed ?? false,
@@ -230,6 +242,9 @@ function build(scenario: Scenario = {}) {
     }
     protected override pause(): Promise<void> {
       return Promise.resolve();
+    }
+    protected override watchIntervalMs(): number {
+      return 10;
     }
     protected override createFetch(): FetchOnce {
       return scenario.fetch ?? (async () => ({ status: 200, headers: {}, body: '' }));
@@ -518,7 +533,7 @@ describe('PipelineOrchestrator — STANDARD', () => {
 
   it('a nuclei failure or time limit is reported and does not throw', async () => {
     const failed = build({ nuclei: { failed: true } });
-    await expect(failed.run('STANDARD')).resolves.toBeUndefined();
+    await expect(failed.run('STANDARD')).resolves.toEqual({ authorizationLost: null });
     expect(failed.markers()).toContain('[stage] scan failed');
 
     const partial = build({ nuclei: { partial: true } });
@@ -972,6 +987,78 @@ describe('PipelineOrchestrator — recorded lab output (Juice Shop)', () => {
     expect(
       persisted.find((entry) => entry.scanner === 'NAABU')!.findings,
     ).toHaveLength(1);
+  });
+});
+
+describe('PipelineOrchestrator — client engagement authorization', () => {
+  it('a scan whose authorization holds runs normally and reports nothing lost', async () => {
+    const check = jest.fn(async () => null);
+    const h = build({ authorizationLost: check, tools: { katana: () => ({ stdout: '' }) } });
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toBeNull();
+    expect(check.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(h.markers()).toContain('[stage] scan done');
+  });
+
+  it('is checked before every stage: a withdrawal stops the scan at the next stage and keeps earlier results', async () => {
+    let calls = 0;
+    const h = build({
+      // fine for the first two stages (recon, checks), gone before the third
+      authorizationLost: async () => (++calls > 2 ? 'The client withdrew their approval.' : null),
+      tools: { katana: () => ({ stdout: '' }) },
+    });
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toBe('The client withdrew their approval.');
+    expect(h.persisted.map((p) => p.scanner)).toContain('SECORA_CHECKS');
+    expect(h.markers()).not.toContain('[stage] crawl start');
+    expect(h.spawned.some((call) => call.tool === 'katana')).toBe(false);
+    expect(h.nucleiCalls).toHaveLength(0);
+    expect(h.messages()).toContain('The client withdrew their approval.');
+    expect(h.proxyInstance.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('a scan whose authorization is already gone runs no stage at all', async () => {
+    const h = build({ authorizationLost: async () => 'The test window ended.' });
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toBe('The test window ended.');
+    expect(h.markers()).toEqual([]);
+    expect(h.spawned).toEqual([]);
+    expect(h.checksRun).not.toHaveBeenCalled();
+  });
+
+  it('stops a stage that is already running when the authorization ends', async () => {
+    let gone = false;
+    const h = build({
+      nucleiWaitsForAbort: true,
+      authorizationLost: async () => (gone ? 'The test window ended.' : null),
+      tools: { katana: () => ({ stdout: '' }) },
+    });
+    // flip to "gone" once the scan stage is running
+    const original = h.nucleiCalls.push.bind(h.nucleiCalls);
+    h.nucleiCalls.push = (...items) => {
+      setTimeout(() => (gone = true), 20);
+      return original(...items);
+    };
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toBe('The test window ended.');
+    expect(h.markers()).not.toContain('[stage] verify start');
+  });
+
+  it('fails closed when the authorization cannot be re-checked', async () => {
+    const h = build({
+      authorizationLost: async () => {
+        throw new Error('database down');
+      },
+    });
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toMatch(/could not be re-checked/);
+    expect(h.markers()).toEqual([]);
+  });
+
+  it('an ordinary (ownership) scan has no authorization check', async () => {
+    const h = build({ tools: { katana: () => ({ stdout: '' }) } });
+    const result = await h.run('STANDARD');
+    expect(result.authorizationLost).toBeNull();
   });
 });
 

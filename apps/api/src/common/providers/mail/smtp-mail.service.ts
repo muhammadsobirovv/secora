@@ -60,6 +60,7 @@ export class SmtpMailService implements MailService {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.html ? { html: message.html } : {}),
       });
     } catch (error) {
       // Mirrors NotificationDispatcherService's "channel failures are

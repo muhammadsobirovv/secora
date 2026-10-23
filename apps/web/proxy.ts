@@ -18,8 +18,9 @@ const PUBLIC_PATHS = [
 // public reference material a signed-in user should still be able to read.
 // /.well-known holds security.txt (RFC 9116); /legal/* and /security are
 // the public legal and vulnerability-disclosure pages. /shared/<token> is a
-// shared scan report: the unguessable token in the URL is its credential.
-const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known", "/legal", "/security", "/overview", "/shared"];
+// shared scan report: the unguessable token in the URL is its credential. /roe/approve|revoke/<token> are the client's one-time
+// approval pages (no login).
+const OPEN_PATHS = ["/docs", "/robots.txt", "/sitemap.xml", "/.well-known", "/legal", "/security", "/overview", "/shared", "/roe"];
 
 // The two public track pages (red = offensive, blue = defensive). Matched
 // exactly, like "/", and handled like the landing: open to signed-out

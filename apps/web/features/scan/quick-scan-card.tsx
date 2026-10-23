@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
-import type { TargetAuthorizationBasis } from "@pentesthub/shared";
+import type { RoeAssetDto, RoeAuthorizationDto, TargetAuthorizationBasis } from "@pentesthub/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,11 +22,21 @@ import * as vulnApi from "@/lib/api/vuln";
 import { cn } from "@/lib/utils";
 import { parseScanInput } from "./parse-scan-input";
 import { OwnershipVerifyPanel } from "./ownership-verify-panel";
+import { ClientEngagementFlow } from "./client-engagement-flow";
 
-const BASES: { value: TargetAuthorizationBasis; labelKey: "quickScan.owner" | "quickScan.permission" }[] = [
-  { value: "OWNER", labelKey: "quickScan.owner" },
-  { value: "WRITTEN_PERMISSION", labelKey: "quickScan.permission" },
+/// The two ways to be allowed to scan: you own the site (proved with a DNS
+/// record), or you test for a client who approves in writing by email.
+type ScanMode = "own" | "client";
+const MODES: {
+  value: ScanMode;
+  labelKey: "quickScan.modeOwn" | "quickScan.modeClient";
+  hintKey: "quickScan.modeOwnHint" | "quickScan.modeClientHint";
+}[] = [
+  { value: "own", labelKey: "quickScan.modeOwn", hintKey: "quickScan.modeOwnHint" },
+  { value: "client", labelKey: "quickScan.modeClient", hintKey: "quickScan.modeClientHint" },
 ];
+
+const OWN_BASIS: TargetAuthorizationBasis = "OWNER";
 
 const STEP_KEYS = [
   "quickScan.steps.add",
@@ -59,7 +69,11 @@ export function QuickScanCard() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [input, setInput] = React.useState("");
-  const [basis, setBasis] = React.useState<TargetAuthorizationBasis>("OWNER");
+  const searchParams = useSearchParams();
+  const roeParam = searchParams.get("roe");
+  // ?roe=<id> continues an existing request; ?roe=new just opens the client path.
+  const resumeRoe = roeParam && roeParam !== "new" ? roeParam : null;
+  const [mode, setMode] = React.useState<ScanMode>(roeParam ? "client" : "own");
   const [attested, setAttested] = React.useState(false);
   const [profile, setProfile] = React.useState<QuickProfile>("QUICK");
   const [invalid, setInvalid] = React.useState(false);
@@ -93,6 +107,36 @@ export function QuickScanCard() {
     }
   }
 
+  /// Client path: the approved asset becomes a target (recorded as written
+  /// permission) and the scan starts. The API checks the engagement again, so
+  /// a request that was withdrawn a moment ago is refused there.
+  async function scanApprovedAsset(_roe: RoeAuthorizationDto, asset: RoeAssetDto) {
+    try {
+      const projectName = t("quickScan.projectName");
+      const projects = await projectsApi.listProjects();
+      const project =
+        projects.find((p) => p.name === projectName && p.status !== "ARCHIVED") ??
+        (await projectsApi.createProject({ name: projectName }));
+      const authorization = toAttestRequest({ ...EMPTY_TARGET_AUTHORIZATION, basis: "WRITTEN_PERMISSION", attested: true });
+      const type = asset.type === "URL" ? "URL" : "DOMAIN";
+      const existing = (await targetsApi.listTargets(project.id)).find((target) => target.type === type && target.value === asset.value);
+      let targetId: string;
+      if (existing) {
+        await targetsApi.attestTargetAuthorization(existing.id, authorization);
+        targetId = existing.id;
+      } else {
+        const created = await targetsApi.createTarget(project.id, { type, value: asset.value, scopeStatus: "IN_SCOPE", authorization });
+        targetId = created.id;
+      }
+      setBusy(true);
+      await startScan(targetId);
+    } catch (error) {
+      toast.error(startErrorMessage(error));
+      setBusy(false);
+      throw error;
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const parsed = parseScanInput(input);
@@ -109,7 +153,7 @@ export function QuickScanCard() {
         projects.find((p) => p.name === projectName && p.status !== "ARCHIVED") ??
         (await projectsApi.createProject({ name: projectName }));
 
-      const authorization = toAttestRequest({ ...EMPTY_TARGET_AUTHORIZATION, basis, attested });
+      const authorization = toAttestRequest({ ...EMPTY_TARGET_AUTHORIZATION, basis: OWN_BASIS, attested });
       const existing = (await targetsApi.listTargets(project.id)).find(
         (target) => target.type === parsed.type && target.value === parsed.value,
       );
@@ -170,6 +214,37 @@ export function QuickScanCard() {
           ))}
         </ol>
 
+        <div className="flex flex-col gap-1.5">
+          <div role="group" aria-label={t("quickScan.modeLabel")} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {MODES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={mode === option.value}
+                disabled={busy}
+                onClick={() => setMode(option.value)}
+                className={cn(
+                  "min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  mode === option.value
+                    ? "border-primary bg-primary/10 font-medium text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t(option.labelKey)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{t(MODES.find((option) => option.value === mode)!.hintKey)}</p>
+        </div>
+
+        {mode === "client" && (
+          <>
+            <ProfilePicker profile={profile} onChange={setProfile} disabled={busy} />
+            <ClientEngagementFlow resumeId={resumeRoe} onScan={scanApprovedAsset} busy={busy} />
+          </>
+        )}
+
+        {mode === "own" && (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="flex-1">
@@ -213,50 +288,7 @@ export function QuickScanCard() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <div role="group" aria-label={t("quickScan.profile.label")} className="flex flex-wrap gap-2">
-                {PROFILES.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={profile === option.value}
-                    disabled={busy}
-                    onClick={() => setProfile(option.value)}
-                    className={cn(
-                      "min-h-9 rounded-full border px-3 py-1 text-sm transition-colors",
-                      profile === option.value
-                        ? "border-primary bg-primary/10 font-medium text-foreground"
-                        : "border-border text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t(option.labelKey)}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t(PROFILES.find((option) => option.value === profile)!.hintKey)}
-              </p>
-            </div>
-
-            <div role="group" aria-label={t("quickScan.basisLabel")} className="flex flex-wrap gap-2">
-              {BASES.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={basis === option.value}
-                  disabled={busy}
-                  onClick={() => setBasis(option.value)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-sm transition-colors",
-                    basis === option.value
-                      ? "border-primary bg-primary/10 font-medium text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t(option.labelKey)}
-                </button>
-              ))}
-            </div>
+            <ProfilePicker profile={profile} onChange={setProfile} disabled={busy} />
 
             <div className="flex items-start gap-3">
               <Checkbox
@@ -284,6 +316,7 @@ export function QuickScanCard() {
             ))}
           </p>
         </form>
+        )}
 
         {pending && (
           <OwnershipVerifyPanel
@@ -296,5 +329,43 @@ export function QuickScanCard() {
         <p className="text-xs text-muted-foreground">{t("quickScan.note")}</p>
       </CardContent>
     </Card>
+  );
+}
+
+/// The two scan depths offered here (QUICK, STANDARD). DEEP is not offered in
+/// the interface at all.
+function ProfilePicker({
+  profile,
+  onChange,
+  disabled,
+}: {
+  profile: QuickProfile;
+  onChange: (profile: QuickProfile) => void;
+  disabled: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div role="group" aria-label={t("quickScan.profile.label")} className="flex flex-wrap gap-2">
+        {PROFILES.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={profile === option.value}
+            disabled={disabled}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "min-h-11 rounded-full border px-4 py-1 text-sm transition-colors",
+              profile === option.value
+                ? "border-primary bg-primary/10 font-medium text-foreground"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t(option.labelKey)}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{t(PROFILES.find((option) => option.value === profile)!.hintKey)}</p>
+    </div>
   );
 }

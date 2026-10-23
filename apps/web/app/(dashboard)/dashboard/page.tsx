@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   Activity as ActivityIcon,
@@ -71,7 +72,9 @@ export default function DashboardHomePage() {
         </div>
       </div>
 
-      <QuickScanCard />
+      <Suspense fallback={null}>
+        <QuickScanCard />
+      </Suspense>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard

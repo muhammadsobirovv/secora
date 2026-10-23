@@ -38,10 +38,20 @@ export function ReportView({
 }) {
   const { t } = useI18n();
   const notTested = useNotTestedText();
+  const clientEngagement = report.authorization?.kind === "ROE";
   const scope =
     report.scope.root === null
       ? t("report.scope.unknown")
-      : t(report.scope.includesSubdomains ? "report.scope.apex" : "report.scope.host", { root: report.scope.root });
+      : t(
+          report.scope.includesSubdomains
+            ? clientEngagement
+              ? "report.scope.apexClient"
+              : "report.scope.apex"
+            : clientEngagement
+              ? "report.scope.hostClient"
+              : "report.scope.host",
+          { root: report.scope.root },
+        );
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,6 +84,33 @@ export function ReportView({
           <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
             <dt className="text-muted-foreground">{t("report.scopeTitle")}</dt>
             <dd className="break-words">{scope}</dd>
+            <dt className="text-muted-foreground">{t("report.auth.title")}</dt>
+            <dd className="break-words">
+              {clientEngagement
+                ? t("report.auth.client", { client: report.authorization.clientName ?? "" })
+                : t("report.auth.ownership")}
+            </dd>
+            {clientEngagement && (
+              <>
+                <dt className="text-muted-foreground">{t("report.auth.window")}</dt>
+                <dd>
+                  {report.authorization.windowStart ? formatDateTime(report.authorization.windowStart) : "-"} –{" "}
+                  {report.authorization.windowEnd ? formatDateTime(report.authorization.windowEnd) : "-"}
+                </dd>
+                {report.authorization.approvedAt && (
+                  <>
+                    <dt className="text-muted-foreground">{t("report.auth.approved")}</dt>
+                    <dd>{formatDateTime(report.authorization.approvedAt)}</dd>
+                  </>
+                )}
+                {report.authorization.approvedBy && (
+                  <>
+                    <dt className="text-muted-foreground">{t("report.auth.approvedBy")}</dt>
+                    <dd className="break-all">{report.authorization.approvedBy}</dd>
+                  </>
+                )}
+              </>
+            )}
             <dt className="text-muted-foreground">{t("report.profileLabel")}</dt>
             <dd>{t(`report.profile.${report.profile ?? "NONE"}` as const)}</dd>
             <dt className="text-muted-foreground">{t("report.started")}</dt>
@@ -81,6 +118,7 @@ export function ReportView({
             <dt className="text-muted-foreground">{t("report.finished")}</dt>
             <dd>{report.completedAt ? formatDateTime(report.completedAt) : "-"}</dd>
           </dl>
+          {clientEngagement && <p className="text-xs text-muted-foreground">{t("report.auth.note")}</p>}
         </CardContent>
       </Card>
 

@@ -54,6 +54,8 @@ import {
   type PipelineHost,
 } from '../pipeline/pipeline-orchestrator.service.js';
 import { OwnershipScopeService } from '../pipeline/ownership-scope.service.js';
+import { AuditService } from '../../audit/audit.service.js';
+import { ROE_LOSS_MESSAGES, RoeCoverageService } from '../../roe/roe-coverage.service.js';
 import type { ScopeRule } from '../pipeline/scope.util.js';
 import {
   NUCLEI_PROFILES,
@@ -68,6 +70,8 @@ interface ProfileRun {
   profile: ScanProfile;
   pin: PinnedHost;
   rule: ScopeRule;
+  /// Set when the scan runs under an approved client engagement.
+  roeId: string | null;
 }
 
 /// What the nuclei (scan) stage is handed by the orchestrator.
@@ -111,6 +115,8 @@ export class VulnScanJobExecutionService {
     private readonly commandAudit: ScanCommandAudit,
     private readonly orchestrator: PipelineOrchestrator,
     private readonly ownershipScope: OwnershipScopeService,
+    private readonly roeCoverage: RoeCoverageService,
+    private readonly auditService: AuditService,
   ) {}
 
   /// Runs every PENDING tool run for this job in sequence, then finalizes
@@ -132,13 +138,16 @@ export class VulnScanJobExecutionService {
         return;
       }
 
-      const profileRun = await this.prepareProfile(job, target, signal);
+      const roeStart = await this.checkEngagementAtStart(job, target);
+      if (roeStart === 'FAILED') return;
+
+      const profileRun = await this.prepareProfile(job, target, signal, roeStart);
       if (profileRun === 'FAILED') return;
 
       if (profileRun) {
         // A profile job: the orchestrator runs its stages in order. A stage
         // that fails does not stop the ones after it.
-        await this.orchestrator.run({
+        const outcome = await this.orchestrator.run({
           profile: profileRun.profile,
           target: { id: target.id, type: target.type, value: target.value },
           rule: profileRun.rule,
@@ -146,6 +155,11 @@ export class VulnScanJobExecutionService {
           signal,
           host: this.buildPipelineHost(job, target, profileRun, signal),
         });
+        if (outcome?.authorizationLost) {
+          // Partial findings stay saved; the job just ends here, clearly marked.
+          await this.finalizeAuthorizationLost(job, target, outcome.authorizationLost);
+          return;
+        }
       } else {
         for (const toolRun of job.toolRuns) {
           if (signal.aborted) break;
@@ -353,6 +367,14 @@ export class VulnScanJobExecutionService {
         logChain = logChain.then(() => this.logLine(job.id, null, level, message));
       },
       audit: (info, stage) => this.auditCommand(job, target, info, stage, run.profile),
+      ...(run.roeId
+        ? {
+            authorizationLost: async () => {
+              const check = await this.roeCoverage.assertStillValid(run.roeId as string, target);
+              return check.ok ? null : ROE_LOSS_MESSAGES[check.reason];
+            },
+          }
+        : {}),
       toolRunStatus: (scanner) => statuses.get(scanner) ?? null,
       persist: async (scanner, result) => {
         const toolRun = toolRunFor(scanner);
@@ -615,6 +637,7 @@ export class VulnScanJobExecutionService {
     job: VulnScanJobWithToolRuns,
     target: { id: string; type: string; value: string },
     _signal: AbortSignal,
+    engagement: { roeId: string; rule: ScopeRule } | null = null,
   ): Promise<ProfileRun | 'FAILED' | null> {
     const profile = this.resolveProfile(job);
     if (!profile) return null;
@@ -652,16 +675,72 @@ export class VulnScanJobExecutionService {
     }
     await this.logLine(job.id, null, 'INFO', `Resolved ${pin.host} -> ${pin.ip} (pinned for this scan).`);
 
-    const rule = await this.ownershipScope.ruleFor(target, pin.host);
+    const rule = engagement?.rule ?? (await this.ownershipScope.ruleFor(target, pin.host));
     await this.logLine(
       job.id,
       null,
       'INFO',
-      rule.includeSubdomains
+      engagement
+        ? rule.includeSubdomains
+          ? `Scope: ${rule.root} and its subdomains (client authorization, subdomain wildcard approved).`
+          : `Scope: ${rule.root} only (client authorization; subdomains were not approved).`
+        : rule.includeSubdomains
         ? `Scope: ${rule.root} and its subdomains (DNS ownership proof).`
         : `Scope: ${rule.root} only (the ownership proof covers this host, not its subdomains).`,
     );
-    return { profile, pin, rule };
+    return { profile, pin, rule, roeId: engagement?.roeId ?? null };
+  }
+
+  private roeIdOf(job: VulnScanJobWithToolRuns): string | null {
+    const raw = (job.config as Record<string, unknown> | null)?.roeId;
+    return typeof raw === 'string' && raw.length > 0 ? raw : null;
+  }
+
+  /// Worker start: a job created under a client engagement re-validates it now
+  /// (it may have been revoked or expired while the job waited in the queue).
+  /// Returns the engagement scope, null for an ordinary job, or 'FAILED' when
+  /// the job was finalized because the authorization no longer holds.
+  private async checkEngagementAtStart(
+    job: VulnScanJobWithToolRuns,
+    target: { id: string; type: string; value: string },
+  ): Promise<{ roeId: string; rule: ScopeRule } | 'FAILED' | null> {
+    const roeId = this.roeIdOf(job);
+    if (!roeId) return null;
+    const check = await this.roeCoverage.assertStillValid(roeId, target);
+    if (!check.ok) {
+      const message = ROE_LOSS_MESSAGES[check.reason];
+      await this.logLine(job.id, null, 'ERROR', message);
+      await this.finalizeAuthorizationLost(job, target, message, check.reason);
+      return 'FAILED';
+    }
+    return { roeId, rule: check.coverage.rule };
+  }
+
+  private async finalizeAuthorizationLost(
+    job: VulnScanJobWithToolRuns,
+    target: { id: string; value: string },
+    message: string,
+    reason?: string,
+  ): Promise<void> {
+    await this.finalizeAsFailed(job, message);
+    try {
+      await this.auditService.log({
+        userId: job.requestedBy,
+        type: 'ROE_SCAN_STOPPED',
+        ipAddress: 'worker',
+        userAgent: 'vuln-pipeline',
+        metadata: {
+          workspaceId: job.workspaceId,
+          jobId: job.id,
+          targetId: target.id,
+          targetValue: target.value,
+          roeId: this.roeIdOf(job),
+          reason: reason ?? 'LOST_DURING_SCAN',
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Failed to audit ROE scan stop for job ${job.id}: ${String(error)}`);
+    }
   }
 
   private logLine(

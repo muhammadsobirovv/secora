@@ -478,4 +478,55 @@ describe('CreateVulnScanJobHandler', () => {
     }
     expect(vulnScanJobsRepository.create).not.toHaveBeenCalled();
   });
+
+  describe('client engagement (ROE)', () => {
+    const roeGate = () =>
+      jest.fn(() => Promise.resolve({ id: 'roe:roe-1', basis: 'WRITTEN_PERMISSION', attestationVersion: 'v', roeId: 'roe-1' }));
+    const configOf = (h: ReturnType<typeof buildHandler>) =>
+      (h.vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as { config: Record<string, unknown> | null };
+
+    it('stores the engagement id in the job config so the worker can re-check it', async () => {
+      const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), assertActiveScanAllowed: roeGate() });
+      await h.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'STANDARD' }));
+      expect(configOf(h).config).toEqual({ profile: 'STANDARD', roeId: 'roe-1' });
+    });
+
+    it('drops a roeId a caller smuggles in through config when no engagement authorized the scan', async () => {
+      const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')) });
+      await h.handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'QUICK', config: { roeId: 'someone-elses' } }),
+      );
+      expect(configOf(h).config).toEqual({ profile: 'QUICK' });
+    });
+
+    it('replaces a smuggled roeId with the one the gate actually used', async () => {
+      const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), assertActiveScanAllowed: roeGate() });
+      await h.handler.execute(
+        new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'QUICK', config: { roeId: 'forged' } }),
+      );
+      expect(configOf(h).config).toEqual({ profile: 'QUICK', roeId: 'roe-1' });
+    });
+
+    it('does not unlock DEEP: it still needs the deployment flag and the explicit confirmation', async () => {
+      const off = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(), assertActiveScanAllowed: roeGate() });
+      await expect(
+        off.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'DEEP', confirmDeep: true })),
+      ).rejects.toMatchObject({ code: 'SCAN_PROFILE_DISABLED' });
+      const noConfirm = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(), deepEnabled: true, assertActiveScanAllowed: roeGate() });
+      await expect(
+        noConfirm.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'DEEP' })),
+      ).rejects.toMatchObject({ code: 'SCAN_DEEP_CONFIRMATION_REQUIRED' });
+      expect(off.vulnScanJobsRepository.create).not.toHaveBeenCalled();
+      expect(noConfirm.vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('creates no job when the gate refuses (engagement missing, expired or revoked)', async () => {
+      const refuse = jest.fn(() => Promise.reject(Object.assign(new Error('required'), { code: 'TARGET_AUTHORIZATION_REQUIRED' })));
+      const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(), assertActiveScanAllowed: refuse });
+      await expect(
+        h.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'STANDARD' })),
+      ).rejects.toThrow();
+      expect(h.vulnScanJobsRepository.create).not.toHaveBeenCalled();
+    });
+  });
 });

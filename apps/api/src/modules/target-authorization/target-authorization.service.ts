@@ -18,6 +18,7 @@ import {
   classifyScopeValue,
   type ScopeRule,
 } from '../bugbounty/scope/classify-scope-value.util.js';
+import { RoeCoverageService } from '../roe/roe-coverage.service.js';
 import {
   evaluateActiveScanTarget,
   parseSuffixList,
@@ -28,6 +29,12 @@ export interface RequestContextInput {
   ipAddress?: string;
   userAgent?: string;
 }
+
+/// The authorization an active scan runs under. `roeId` is set when it is an
+/// approved client engagement rather than verified ownership.
+export type ActiveScanAuthorization = TargetAuthorizationDto & {
+  roeId?: string;
+};
 
 export interface AuthorizationTargetRef {
   id: string;
@@ -78,6 +85,7 @@ export class TargetAuthorizationService {
     private readonly auditService: AuditService,
     @Inject(ConfigService)
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly roeCoverage: RoeCoverageService,
   ) {}
 
   async attestTarget(input: {
@@ -260,8 +268,56 @@ export class TargetAuthorizationService {
     target: AuthorizationTargetRef;
     operationType: string;
     context?: RequestContextInput;
-  }): Promise<TargetAuthorizationDto> {
+  }): Promise<ActiveScanAuthorization> {
     const status = await this.getStatus(input.target);
+
+    // An approved client engagement stands in for the attestation and the
+    // ownership proof, never for the network guard, and only for vulnerability
+    // scans. Verified ownership is preferred when the user has both.
+    if (input.operationType === 'VULN_SCAN') {
+      const ownership =
+        await this.txHost.tx.targetOwnershipVerification.findUnique({
+          where: { targetId: input.target.id },
+        });
+      const ownsIt = status.authorized && !!status.current && !!ownership?.verifiedAt;
+      if (!ownsIt) {
+        const roe = await this.roeCoverage.findActiveCovering(
+          input.target,
+          input.workspaceId,
+          input.userId,
+        );
+        if (roe) {
+          await this.assertNetworkGuard(input);
+          await this.auditService.log({
+            userId: input.userId,
+            type: 'ROE_SCAN_AUTHORIZED',
+            ipAddress: input.context?.ipAddress ?? 'internal',
+            userAgent: input.context?.userAgent ?? `scan/${input.operationType}`,
+            metadata: {
+              workspaceId: input.workspaceId,
+              targetId: input.target.id,
+              targetValue: input.target.value,
+              roeId: roe.roeId,
+              windowEnd: roe.windowEnd.toISOString(),
+            },
+          });
+          return {
+            id: `roe:${roe.roeId}`,
+            targetId: input.target.id,
+            programId: null,
+            basis: 'WRITTEN_PERMISSION',
+            documentReference: `ROE:${roe.roeId}`,
+            notes: null,
+            attestationVersion: TARGET_ATTESTATION_VERSION,
+            expiresAt: roe.windowEnd.toISOString(),
+            createdAt: (roe.approvedAt ?? roe.windowStart).toISOString(),
+            createdBy: input.userId,
+            roeId: roe.roeId,
+          };
+        }
+      }
+    }
+
     if (!status.authorized || !status.current) {
       const expired = status.reason === 'EXPIRED';
       await this.auditBlocked(
@@ -279,18 +335,7 @@ export class TargetAuthorizationService {
       );
     }
 
-    const guard = await evaluateActiveScanTarget(
-      input.target,
-      this.guardOptions(),
-    );
-    if (!guard.allowed) {
-      await this.auditBlocked(input, 'NETWORK_GUARD', guard.reason);
-      throw new AppException(
-        'TARGET_FORBIDDEN_FOR_ACTIVE_SCAN',
-        guard.reason,
-        HttpStatus.FORBIDDEN,
-      );
-    }
+    await this.assertNetworkGuard(input);
 
     // Proof of control (DNS / file / meta tag) is required on top of the
     // attestation: an attestation alone is not evidence of ownership.
@@ -307,6 +352,27 @@ export class TargetAuthorizationService {
       );
     }
     return status.current;
+  }
+
+  private async assertNetworkGuard(input: {
+    userId: string;
+    workspaceId: string;
+    target: AuthorizationTargetRef;
+    operationType: string;
+    context?: RequestContextInput;
+  }): Promise<void> {
+    const guard = await evaluateActiveScanTarget(
+      input.target,
+      this.guardOptions(),
+    );
+    if (!guard.allowed) {
+      await this.auditBlocked(input, 'NETWORK_GUARD', guard.reason);
+      throw new AppException(
+        'TARGET_FORBIDDEN_FOR_ACTIVE_SCAN',
+        guard.reason,
+        HttpStatus.FORBIDDEN,
+      );
+    }
   }
 
   /// Immutable record of a scan start, written once the job exists.

@@ -273,3 +273,47 @@ describe('renderReportPdf', () => {
     }
   });
 });
+
+describe('report authorization', () => {
+  const roe = (language: 'en' | 'uz' | 'ru' = 'en', clientName = 'Acme Ltd'): VulnReportDto => ({
+    ...sample(language),
+    authorization: {
+      kind: 'ROE',
+      clientName,
+      windowStart: '2026-10-24T09:00:00.000Z',
+      windowEnd: '2026-11-07T17:00:00.000Z',
+      approvedAt: '2026-10-23T10:00:00.000Z',
+      approvedBy: 'ciso@acme.example',
+    },
+  });
+
+  it('a client engagement report names the client, the window, the approval and the approving mailbox', () => {
+    const html = renderReportHtml(roe());
+    expect(html).toContain('Acme Ltd');
+    expect(html).toContain('2026-10-24T09:00:00.000Z');
+    expect(html).toContain('2026-11-07T17:00:00.000Z');
+    expect(html).toContain('2026-10-23T10:00:00.000Z');
+    expect(html).toContain('ciso@acme.example');
+    expect(html).toContain('does not prove who the person is');
+    const pdf = renderReportPdf(roe()).toString('latin1');
+    expect(pdf).toContain('Acme Ltd');
+    expect(pdf).toContain('ciso@acme.example');
+  });
+
+  it('uses the client wording for the scope, and the ownership wording otherwise', () => {
+    expect(renderReportHtml(roe())).toContain('client authorization');
+    const own = renderReportHtml(sample());
+    expect(own).toContain('The owner verified control of the website');
+    expect(own).not.toContain('client authorization');
+  });
+
+  it('is translated', () => {
+    expect(renderReportHtml(roe('uz'))).toContain('Mijoz bilan kelishuv');
+    expect(renderReportHtml(roe('ru'))).toContain('Работа для клиента');
+  });
+
+  it('escapes a hostile client name', () => {
+    const html = renderReportHtml(roe('en', HOSTILE));
+    expect(html).not.toContain('<script>alert(1)</script>');
+  });
+});

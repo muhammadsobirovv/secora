@@ -12,6 +12,8 @@ import {
   stageName,
   stateName,
   text,
+  scopeText,
+  authorizationRows,
   verificationName,
 } from './report-text.js';
 import { STACK_LABEL, type StackId } from './stack-snippets.js';
@@ -137,12 +139,7 @@ export function renderReportHtml(
   options: { explanations?: ReadonlyMap<string, FindingExplanationDto> } = {},
 ): string {
   const l = report.language;
-  const scope =
-    report.scope.root === null
-      ? text(l, 'scopeUnknown')
-      : text(l, report.scope.includesSubdomains ? 'scopeApex' : 'scopeHost', {
-          root: report.scope.root,
-        });
+  const scope = scopeText(report);
   const date = (iso: string | null) =>
     iso
       ? iso
@@ -189,6 +186,7 @@ export function renderReportHtml(
 <dt>${e(text(l, 'target'))}</dt><dd>${e(report.target.value)}</dd>
 <dt>${e(text(l, 'profile'))}</dt><dd>${e(profileName(l, report.profile))}</dd>
 <dt>${e(text(l, 'scope'))}</dt><dd>${e(scope)}</dd>
+${authorizationRows(report).map(([label, value]) => (label ? `<dt>${e(label)}</dt><dd>${e(value)}</dd>` : `<dd class="small muted">${e(value)}</dd>`)).join('')}
 <dt>${e(text(l, 'started'))}</dt><dd>${e(date(report.startedAt))}</dd>
 <dt>${e(text(l, 'finished'))}</dt><dd>${e(date(report.completedAt))}</dd>
 <dt>${e(text(l, 'status'))}</dt><dd>${e(report.status)}</dd>
