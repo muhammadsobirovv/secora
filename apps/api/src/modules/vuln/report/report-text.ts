@@ -37,6 +37,9 @@ const EN: Dict = {
   scopeHostClient: '{root} only (client authorization; subdomains were not approved)',
   authorization: 'Authorization',
   authOwnership: 'The owner verified control of the website before the scan.',
+  authAttested: 'The owner confirmed ownership of this site (not technically verified); scope limited to this host.',
+  scopeHostAttested: '{root} only (owner confirmation; this host only, not its subdomains)',
+  incompleteBanner: 'Incomplete scan: some checks could not run. A good grade does NOT mean the site is clean. See "What was NOT tested".',
   authClient: 'Client engagement: {client} approved this test in writing.',
   authWindow: 'Approved test window',
   authApproved: 'Approved on',
@@ -151,6 +154,9 @@ const UZ: Dict = {
   scopeHostClient: "Faqat {root} (mijoz ruxsati; subdomenlar tasdiqlanmagan)",
   authorization: 'Ruxsat',
   authOwnership: "Egasi skanerdan oldin veb-sayt ustidan nazoratni tasdiqlagan.",
+  authAttested: "Egasi ushbu sayt unga tegishli ekanini tasdiqladi (texnik jihatdan tekshirilmagan); qamrov faqat shu xost bilan cheklangan.",
+  scopeHostAttested: "Faqat {root} (egasining tasdig'i; faqat shu xost, subdomenlar emas)",
+  incompleteBanner: "To'liq bo'lmagan skaner: ba'zi tekshiruvlar ishlamadi. Yaxshi baho saytning toza ekanini BILDIRMAYDI. \"Nima TEKSHIRILMADI\" bo'limiga qarang.",
   authClient: "Mijoz bilan kelishuv: {client} bu testni yozma ravishda tasdiqlagan.",
   authWindow: 'Tasdiqlangan test oynasi',
   authApproved: 'Tasdiqlangan vaqt',
@@ -265,6 +271,9 @@ const RU: Dict = {
   scopeHostClient: 'Только {root} (разрешение клиента; поддомены не одобрены)',
   authorization: 'Разрешение',
   authOwnership: 'Владелец подтвердил контроль над сайтом до сканирования.',
+  authAttested: 'Владелец подтвердил, что сайт принадлежит ему (технически не проверено); охват ограничен этим хостом.',
+  scopeHostAttested: 'Только {root} (подтверждение владельца; только этот хост, без поддоменов)',
+  incompleteBanner: 'Неполное сканирование: часть проверок не выполнилась. Хорошая оценка НЕ значит, что сайт чист. См. «Что НЕ проверялось».',
   authClient: 'Работа для клиента: {client} письменно одобрил этот тест.',
   authWindow: 'Одобренное окно тестирования',
   authApproved: 'Одобрено',
@@ -398,9 +407,10 @@ export function scopeText(report: VulnReportDto): string {
   const l = report.language;
   if (report.scope.root === null) return text(l, 'scopeUnknown');
   const client = report.authorization.kind === 'ROE';
+  const attested = report.authorization.kind === 'ATTESTATION';
   const key = report.scope.includesSubdomains
     ? client ? 'scopeApexClient' : 'scopeApex'
-    : client ? 'scopeHostClient' : 'scopeHost';
+    : client ? 'scopeHostClient' : attested ? 'scopeHostAttested' : 'scopeHost';
   return text(l, key, { root: report.scope.root });
 }
 
@@ -408,6 +418,7 @@ export function scopeText(report: VulnReportDto): string {
 export function authorizationRows(report: VulnReportDto): Array<[string, string]> {
   const l = report.language;
   const a = report.authorization;
+  if (a.kind === 'ATTESTATION') return [[text(l, 'authorization'), text(l, 'authAttested')]];
   if (a.kind !== 'ROE') return [[text(l, 'authorization'), text(l, 'authOwnership')]];
   const rows: Array<[string, string]> = [
     [text(l, 'authorization'), text(l, 'authClient', { client: a.clientName ?? '' })],

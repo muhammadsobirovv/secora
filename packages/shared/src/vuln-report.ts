@@ -139,6 +139,9 @@ export interface VulnReportDto {
   /// what the profile does not cover. Codes are translated by the reader.
   notTested: ReportNotTestedDto[];
   findings: ReportFindingDto[];
+  /// Some stages could not run (a missing tool, a crash). The grade then only
+  /// describes what ran: it is never a statement that the site is clean.
+  incomplete: boolean;
   /// Language the report text was produced in ("en" | "uz" | "ru").
   language: ReportLanguage;
 }

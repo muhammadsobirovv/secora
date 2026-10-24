@@ -36,7 +36,10 @@ export function parseScanInput(raw: string): ParsedScanInput | null {
   if (IPV4.test(host)) return { type: "IP_ADDRESS", value: host };
   if (!isValidHostname(host)) return null;
 
-  const hasPath = url.pathname !== "/" || url.search !== "";
+  // A port other than the scheme default must survive: a bare DOMAIN target is probed on
+  // 80 and 443 only, so "example.com:3000" would silently scan the wrong thing.
+  const hasPort = url.port !== "";
+  const hasPath = hasPort || url.pathname !== "/" || url.search !== "";
   if (hasPath) return { type: "URL", value: `${url.protocol}//${url.host}${url.pathname}${url.search}` };
   return { type: "DOMAIN", value: host };
 }

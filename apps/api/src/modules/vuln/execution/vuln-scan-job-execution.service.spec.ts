@@ -236,7 +236,7 @@ describe('VulnScanJobExecutionService', () => {
     expect(callOrder).toEqual(['NUCLEI', 'FFUF']);
     expect(toolRunsRepository.markStarted).toHaveBeenCalledTimes(2);
     expect(evidenceRepository.create).toHaveBeenCalledTimes(2);
-    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
+    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1', null);
     expect(eventBus.publish).toHaveBeenCalledWith(
       expect.objectContaining({ verb: 'vuln_scan_job.started' }),
     );
@@ -469,6 +469,6 @@ describe('VulnScanJobExecutionService', () => {
       'tr-2',
       expect.objectContaining({ status: 'COMPLETED' }),
     );
-    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1');
+    expect(jobsRepository.markCompleted).toHaveBeenCalledWith('job-1', null);
   });
 });

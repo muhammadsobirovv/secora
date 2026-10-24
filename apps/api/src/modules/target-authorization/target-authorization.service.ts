@@ -34,6 +34,8 @@ export interface RequestContextInput {
 /// approved client engagement rather than verified ownership.
 export type ActiveScanAuthorization = TargetAuthorizationDto & {
   roeId?: string;
+  /// The scan runs on the owner's attestation only (no DNS/file/meta proof).
+  attestedOnly?: boolean;
 };
 
 export interface AuthorizationTargetRef {
@@ -268,6 +270,9 @@ export class TargetAuthorizationService {
     target: AuthorizationTargetRef;
     operationType: string;
     context?: RequestContextInput;
+    /// Accept an owner's attestation without DNS/file/meta proof. Callers pass
+    /// true only for profiles that stay on the single attested host.
+    allowOwnerAttestation?: boolean;
   }): Promise<ActiveScanAuthorization> {
     const status = await this.getStatus(input.target);
 
@@ -338,11 +343,21 @@ export class TargetAuthorizationService {
     await this.assertNetworkGuard(input);
 
     // Proof of control (DNS / file / meta tag) is required on top of the
-    // attestation: an attestation alone is not evidence of ownership.
+    // attestation for deeper scans. For the everyday profiles an owner's signed
+    // attestation (recorded with user, IP and time) is enough; such a scan is
+    // limited to the single host and never reaches its subdomains (see
+    // OwnershipScopeService: no verified method gives the narrowest rule).
     const ownership =
       await this.txHost.tx.targetOwnershipVerification.findUnique({
         where: { targetId: input.target.id },
       });
+    if (
+      !ownership?.verifiedAt &&
+      input.allowOwnerAttestation === true &&
+      status.current.basis === 'OWNER'
+    ) {
+      return { ...status.current, attestedOnly: true };
+    }
     if (!ownership?.verifiedAt) {
       await this.auditBlocked(input, 'OWNERSHIP_NOT_VERIFIED');
       throw new AppException(

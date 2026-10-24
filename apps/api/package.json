@@ -19,6 +19,7 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "check-types": "tsc --noEmit",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
+    "test:safety": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --testPathPatterns \"(vuln/safety/|vuln/pipeline/(scope-guard|pinning-proxy|pin\\.util|scan-admission|scan-command-audit|redact-argv|tool-preflight|probe-stage|pipeline-orchestrator|ownership-scope|reverify)|vuln/execution/|vuln/commands/create-vuln-scan-job|vuln/scanner-runners/process/|target-authorization/|modules/roe/|config/env\\.validation)\"",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage --passWithNoTests",
     "test:debug": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --inspect-brk\" jest --runInBand",

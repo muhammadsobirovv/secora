@@ -207,7 +207,7 @@ describe('TargetOwnershipService — verify', () => {
     const status = await service.verify({ userId: user, workspaceId, target: domain });
 
     expect(status.verified).toBe(false);
-    expect(status.lastError).toBe('META_TAG_NOT_FOUND');
+    expect(status.lastError).toBe('DNS_RECORD_NOT_FOUND');
     expect(rows[0].verifiedAt).toBeNull();
     expect(auditTypes(auditService)).toContain('TARGET_OWNERSHIP_CHECK_FAILED');
   });
@@ -333,5 +333,83 @@ describe('NetworkOwnershipProbe — pinning and rebinding', () => {
   it('resolves addresses for the network guard through the same lookup', async () => {
     const probe = new NetworkOwnershipProbe(async () => [{ address: '93.184.216.34', family: 4 }]);
     await expect(probe.resolveAddresses('shop.example.org')).resolves.toEqual(['93.184.216.34']);
+  });
+});
+
+describe('pinned lookup (real sockets)', () => {
+  it('connects through the pinned address on this Node, whether the caller asks for one address or a list', async () => {
+    const http = await import('node:http');
+    const { pinnedLookup } = await import('./target-ownership.probe.js');
+    const server = http.createServer((_req, res) => res.end('proof'));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+    try {
+      const status = await new Promise<number>((resolve, reject) => {
+        const req = http.request(
+          // the name resolves nowhere: only the pinned address can be used
+          { host: 'proof-host.invalid', port, path: '/', lookup: pinnedLookup({ address: '127.0.0.1', family: 4 }) as never },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+      expect(status).toBe(200);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('answers both call styles', () => {
+    return import('./target-ownership.probe.js').then(({ pinnedLookup }) => {
+      const lookup = pinnedLookup({ address: '93.184.216.34', family: 4 });
+      const list = jest.fn();
+      lookup('x', { all: true }, list);
+      expect(list).toHaveBeenCalledWith(null, [{ address: '93.184.216.34', family: 4 }]);
+      const single = jest.fn();
+      lookup('x', {}, single);
+      expect(single).toHaveBeenCalledWith(null, '93.184.216.34', 4);
+    });
+  });
+});
+
+describe('what a failed check is reported as', () => {
+  const failing = (host: Error | null) => {
+    const { probe } = fakeProbe({});
+    // a probe whose web checks cannot run at all, while DNS answers (and has no record)
+    (probe.fetchText as jest.Mock).mockImplementation(async () => {
+      throw host ?? new Error('UNREACHABLE');
+    });
+    return probe;
+  };
+
+  it('a web check that could not run is never reported as "tag not found"', async () => {
+    const { service } = buildService(failing(null));
+    await service.createChallenge({ userId: user, workspaceId, target: domain });
+    const status = await service.verify({ userId: user, workspaceId, target: domain });
+    // DNS looked and found nothing: that is the message that tells the user what to do
+    expect(status.lastError).toBe('DNS_RECORD_NOT_FOUND');
+  });
+
+  it('when nothing at all could be checked it says the site is unreachable', async () => {
+    const probe = failing(null);
+    (probe.dnsTxtValues as jest.Mock).mockImplementation(async () => {
+      throw new Error('SERVFAIL');
+    });
+    const { service } = buildService(probe);
+    await service.createChallenge({ userId: user, workspaceId, target: domain });
+    expect((await service.verify({ userId: user, workspaceId, target: domain })).lastError).toBe('UNREACHABLE');
+  });
+
+  it('the file and the tag are named when only the web checks looked', async () => {
+    const probe = fakeProbe({ httpFile: { status: 404, body: '' }, page: { status: 200, body: '<html></html>' } }).probe;
+    (probe.dnsTxtValues as jest.Mock).mockImplementation(async () => {
+      throw new Error('SERVFAIL');
+    });
+    const { service } = buildService(probe);
+    await service.createChallenge({ userId: user, workspaceId, target: domain });
+    expect((await service.verify({ userId: user, workspaceId, target: domain })).lastError).toBe('HTTP_FILE_NOT_FOUND');
   });
 });

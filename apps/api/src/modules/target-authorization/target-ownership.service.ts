@@ -163,7 +163,10 @@ export class TargetOwnershipService {
       ['HTTP_FILE', () => this.hasHttpFileToken(host, row.token)],
       ['META_TAG', () => this.hasMetaTagToken(host, row.token)],
     ];
-    let completedCleanly = false;
+    // What each check ended with: it looked and found nothing ("miss"), or it could
+    // not look at all ("error"). A check that failed to run must never be reported as
+    // "not found".
+    const outcome: Partial<Record<'DNS_TXT' | 'HTTP_FILE' | 'META_TAG', 'miss' | 'error'>> = {};
     let blocked = false;
     for (const [name, check] of checks) {
       try {
@@ -171,14 +174,20 @@ export class TargetOwnershipService {
           method = name;
           break;
         }
-        completedCleanly = true;
+        outcome[name] = 'miss';
       } catch (error) {
+        outcome[name] = 'error';
         if (error instanceof OwnershipNetworkBlockedError) blocked = true;
       }
     }
     if (!method) {
+      // The DNS record is the recommended proof, so a clean "not found" there is the
+      // message that tells the user what to do next. Without it, say what the web
+      // checks saw: nothing at the file or tag, or no answer at all.
       if (blocked) lastError = 'NETWORK_BLOCKED';
-      else if (completedCleanly) lastError = 'META_TAG_NOT_FOUND';
+      else if (outcome.DNS_TXT === 'miss') lastError = 'DNS_RECORD_NOT_FOUND';
+      else if (outcome.HTTP_FILE === 'miss') lastError = 'HTTP_FILE_NOT_FOUND';
+      else if (outcome.META_TAG === 'miss') lastError = 'META_TAG_NOT_FOUND';
       else lastError = 'UNREACHABLE';
     }
 

@@ -64,7 +64,8 @@ export interface VulnScanJobsRepository {
   /// System: Priority), transitioning it to RUNNING in the same statement.
   claimNext(claimantId: string): Promise<VulnScanJob | null>;
   markStarted(id: string): Promise<VulnScanJob>;
-  markCompleted(id: string): Promise<VulnScanJob>;
+  /// `error` is set when the job finished but some stages could not run.
+  markCompleted(id: string, error?: string | null): Promise<VulnScanJob>;
   markFailed(id: string, error: string): Promise<VulnScanJob>;
   markCancelled(id: string): Promise<VulnScanJob>;
   /// The worker's own transition once it observes pauseRequestedAt and

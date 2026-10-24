@@ -91,7 +91,10 @@ export type RoePublicOutcome = "APPROVED" | "DECLINED" | "REVOKED";
 
 /// The authorization a report was produced under.
 export interface ReportAuthorizationDto {
-  kind: "OWNERSHIP" | "ROE";
+  /// OWNERSHIP: control of the site was technically verified (DNS, file or meta tag).
+  /// ATTESTATION: the owner confirmed ownership, nothing was verified; one host only.
+  /// ROE: an approved client engagement.
+  kind: "OWNERSHIP" | "ATTESTATION" | "ROE";
   /// ROE only.
   clientName?: string;
   windowStart?: string;

@@ -542,3 +542,36 @@ describe('VulnScanJobExecutionService — client engagement (ROE) jobs', () => {
     expect(unconfirmed.jobsRepository.markFailed).toHaveBeenCalled();
   });
 });
+
+describe('VulnScanJobExecutionService — a scan whose stages could not run', () => {
+  it('is completed WITH ERRORS: the job keeps the reason, the stage list is in it', async () => {
+    const h = await harness({
+      config: { profile: 'STANDARD' },
+      orchestrate: async () => ({
+        authorizationLost: null,
+        failedStages: [
+          { stage: 'recon', note: 'tool httpx is not available on this worker (not found)' },
+          { stage: 'scan', note: 'not run: the recon stage could not run' },
+        ],
+      }),
+    });
+    await h.execute();
+    expect(h.jobsRepository.markCompleted).toHaveBeenCalledTimes(1);
+    const [, error] = h.jobsRepository.markCompleted.mock.calls[0] as unknown as [string, string];
+    expect(error).toMatch(/^2 stages could not run: recon \(tool httpx is not available on this worker \(not found\)\); scan/);
+    expect(h.jobsRepository.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('a clean scan has no error on it', async () => {
+    const h = await harness({ config: { profile: 'STANDARD' }, orchestrate: async () => ({ authorizationLost: null, failedStages: [] }) });
+    await h.execute();
+    expect(h.jobsRepository.markCompleted).toHaveBeenCalledWith('job-1', null);
+  });
+
+  it('summarizeFailures caps its length', async () => {
+    const { summarizeFailures } = await import('./vuln-scan-job-execution.service.js');
+    expect(summarizeFailures([])).toBeNull();
+    const long = summarizeFailures(Array.from({ length: 30 }, (_, i) => ({ stage: `s${i}`, note: 'x'.repeat(40) })));
+    expect(long!.length).toBeLessThanOrEqual(480);
+  });
+});

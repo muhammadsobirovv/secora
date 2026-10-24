@@ -180,6 +180,12 @@ const envObjectSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+  // Resident memory ceiling per scan tool (the tool and everything it started), in
+  // megabytes. A tool past it is stopped like a timeout and its partial output is
+  // kept, so one scan cannot starve the server. 0 turns the guard off. The spawner
+  // reads the same variable (process-memory.ts); it is listed here so it is
+  // validated and documented with the other scan settings.
+  SCAN_TOOL_MAX_RSS_MB: z.coerce.number().int().nonnegative().default(1536),
   ACTIVE_SCAN_DENYLIST: z.string().default('gov.uz,mil.uz,gov,mil'),
   // Comma-separated hostnames or suffixes exempted from the denylist after
   // an owner's request was approved via support.

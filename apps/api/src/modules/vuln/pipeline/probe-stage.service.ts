@@ -133,6 +133,11 @@ export class PipelineProbeStage {
     }
 
     if (live.size === 0) {
+      // Nothing live AND the tool itself failed: that is a broken probe, not a host
+      // with nothing on it.
+      if (result.exitCode !== 0 && result.exitCode !== null) {
+        throw new Error(`httpx exited with code ${result.exitCode} and returned no result`);
+      }
       onLog('WARN', 'No live web service found on the host.');
     }
     return { outcome: 'OK', liveUrls: [...live] };

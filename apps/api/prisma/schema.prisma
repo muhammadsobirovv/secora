@@ -7712,3 +7712,15 @@ model SecurityReport {
   @@index([workspaceId, type, createdAt])
   @@map("security_reports")
 }
+
+/// What the worker found when it checked its pentest tools (existence, executable
+/// bit, version flag). One row per worker, refreshed every few minutes; the admin
+/// endpoint reads it because the API process has no tools of its own.
+model WorkerToolStatus {
+  id         String   @id @default(uuid())
+  workerName String   @unique
+  checkedAt  DateTime
+  tools      Json
+
+  @@map("worker_tool_status")
+}

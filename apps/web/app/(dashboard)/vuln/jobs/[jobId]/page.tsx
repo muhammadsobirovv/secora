@@ -105,7 +105,7 @@ export default function VulnScanJobDetailPage({ params }: { params: Promise<{ jo
           <div className="flex flex-wrap items-center gap-2">
             <ShieldAlert className="size-5 text-muted-foreground" />
             <h1 className="text-xl font-semibold">{t("vuln.job.title")}</h1>
-            <VulnScanJobStatusBadge status={job.status} />
+            <VulnScanJobStatusBadge status={job.status} completedWithErrors={job.completedWithErrors} />
           </div>
           <p className="mt-1 font-mono text-xs text-muted-foreground">{job.id}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">

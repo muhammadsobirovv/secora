@@ -39,6 +39,7 @@ export function ReportView({
   const { t } = useI18n();
   const notTested = useNotTestedText();
   const clientEngagement = report.authorization?.kind === "ROE";
+  const attestedOnly = report.authorization?.kind === "ATTESTATION";
   const scope =
     report.scope.root === null
       ? t("report.scope.unknown")
@@ -49,12 +50,19 @@ export function ReportView({
               : "report.scope.apex"
             : clientEngagement
               ? "report.scope.hostClient"
-              : "report.scope.host",
+              : attestedOnly
+                ? "report.scope.hostAttested"
+                : "report.scope.host",
           { root: report.scope.root },
         );
 
   return (
     <div className="flex flex-col gap-4">
+      {report.incomplete && (
+        <p role="alert" className="rounded-lg border-2 border-warning bg-warning/10 p-3 text-sm font-medium">
+          {t("report.incomplete.banner")}
+        </p>
+      )}
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6">
           <div className="flex items-center gap-4">
@@ -88,7 +96,7 @@ export function ReportView({
             <dd className="break-words">
               {clientEngagement
                 ? t("report.auth.client", { client: report.authorization.clientName ?? "" })
-                : t("report.auth.ownership")}
+                : t(attestedOnly ? "report.auth.attested" : "report.auth.ownership")}
             </dd>
             {clientEngagement && (
               <>

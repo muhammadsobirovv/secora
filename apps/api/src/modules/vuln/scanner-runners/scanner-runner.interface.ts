@@ -41,6 +41,9 @@ export interface ScannerRunResult {
   timedOut: boolean;
   /// True when stdout exceeded the size cap and the tail was dropped.
   stdoutTruncated?: boolean;
+  /// True when the tool was stopped because it used more memory than allowed
+  /// (`timedOut` is set too, so what it printed so far is treated as partial).
+  memoryExceeded?: boolean;
 }
 
 /// Every scanner implements this — no feature/module code may depend on a

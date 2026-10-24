@@ -51,7 +51,7 @@ export function VulnScanJobList({
           <TableRow key={job.id} className="cursor-pointer">
             <TableCell>
               <Link href={`/vuln/jobs/${job.id}`} className="flex items-center gap-2 hover:underline">
-                <VulnScanJobStatusBadge status={job.status} />
+                <VulnScanJobStatusBadge status={job.status} completedWithErrors={job.completedWithErrors} />
               </Link>
             </TableCell>
             <TableCell>

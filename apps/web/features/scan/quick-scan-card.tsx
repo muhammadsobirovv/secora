@@ -21,7 +21,6 @@ import * as targetsApi from "@/lib/api/targets";
 import * as vulnApi from "@/lib/api/vuln";
 import { cn } from "@/lib/utils";
 import { parseScanInput } from "./parse-scan-input";
-import { OwnershipVerifyPanel } from "./ownership-verify-panel";
 import { ClientEngagementFlow } from "./client-engagement-flow";
 
 /// The two ways to be allowed to scan: you own the site (proved with a DNS
@@ -78,8 +77,6 @@ export function QuickScanCard() {
   const [profile, setProfile] = React.useState<QuickProfile>("QUICK");
   const [invalid, setInvalid] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  // Target waiting for proof of ownership before an active scan may start.
-  const [pending, setPending] = React.useState<{ id: string; label: string } | null>(null);
 
   function startErrorMessage(error: unknown): string {
     const key = scanErrorKey(error);
@@ -95,16 +92,6 @@ export function QuickScanCard() {
     const job = await vulnApi.createVulnScanJob(targetId, { scanners: ["NUCLEI"], profile });
     await queryClient.invalidateQueries();
     router.push(`/vuln/jobs/${job.id}`);
-  }
-
-  async function handleOwnershipVerified(targetId: string) {
-    setBusy(true);
-    try {
-      await startScan(targetId);
-    } catch (error) {
-      toast.error(startErrorMessage(error));
-      setBusy(false);
-    }
   }
 
   /// Client path: the approved asset becomes a target (recorded as written
@@ -172,14 +159,9 @@ export function QuickScanCard() {
         targetId = created.id;
       }
 
-      // Active scans need proof of control. Until it is verified, show the
-      // verification step; the scan starts from the panel's onVerified.
-      const ownership = await targetsApi.getTargetOwnership(targetId);
-      if (!ownership.verified) {
-        setPending({ id: targetId, label: `${parsed.type} ${parsed.value}` });
-        setBusy(false);
-        return;
-      }
+      // Quick and Standard run on the owner's attestation alone; the API keeps
+      // such a scan on this single host. Only the deep profile (not offered
+      // here) needs proof of control.
       await startScan(targetId);
     } catch (error) {
       toast.error(startErrorMessage(error));
@@ -316,14 +298,6 @@ export function QuickScanCard() {
             ))}
           </p>
         </form>
-        )}
-
-        {pending && (
-          <OwnershipVerifyPanel
-            targetId={pending.id}
-            targetLabel={pending.label}
-            onVerified={() => void handleOwnershipVerified(pending.id)}
-          />
         )}
 
         <p className="text-xs text-muted-foreground">{t("quickScan.note")}</p>

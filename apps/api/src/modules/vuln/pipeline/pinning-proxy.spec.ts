@@ -214,3 +214,35 @@ describe('PinningProxy', () => {
     expect(result.statusLine).toBe('HTTP/1.1 400 Bad Request');
   });
 });
+
+describe('PinningProxy.close with a client that keeps its connection open', () => {
+  it('still closes promptly, so the scan job that owns it can finish', async () => {
+    const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+    const { port } = new URL(proxy.url);
+    await new Promise<void>((resolve, reject) => {
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: Number(port),
+          agent,
+          method: 'GET',
+          path: `http://app.lab.test:${sitePort}/`,
+          headers: { host: `app.lab.test:${sitePort}` },
+        },
+        (res) => {
+          res.resume();
+          res.on('end', resolve);
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+    // the agent now holds an idle keep-alive connection to the proxy
+    const closed = await Promise.race([
+      proxy.close().then(() => 'closed'),
+      new Promise((resolve) => setTimeout(() => resolve('hung'), 3000)),
+    ]);
+    agent.destroy();
+    expect(closed).toBe('closed');
+  });
+});

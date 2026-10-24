@@ -727,7 +727,7 @@
   "ownership.error.NETWORK_BLOCKED": "This address points to a private or internal network and cannot be verified.",
   "ownership.error.UNREACHABLE": "The website could not be reached. Check that it is online.",
   "scan.stepper.label": "Scan progress",
-  "scan.stage.ownership": "Verify",
+  "scan.stage.ownership": "Authorization",
   "scan.stage.recon": "Recon",
   "scan.stage.scan": "Scan",
   "scan.stage.report": "Report",
@@ -876,7 +876,7 @@
   "report.public.invalid": "This link is not valid.",
   "quickScan.steps.label": "How it works",
   "quickScan.steps.add": "Add your site",
-  "quickScan.steps.verify": "Prove it is yours",
+  "quickScan.steps.verify": "Confirm it is yours",
   "quickScan.steps.choose": "Pick quick or standard",
   "quickScan.steps.watch": "Watch the scan live",
   "quickScan.steps.read": "Read the report",
@@ -896,7 +896,7 @@
   "quickScan.modeLabel": "Why are you allowed to scan this?",
   "quickScan.modeOwn": "I own it",
   "quickScan.modeClient": "I'm testing for a client",
-  "quickScan.modeOwnHint": "Prove you control the site with a DNS record. Usually takes a few minutes.",
+  "quickScan.modeOwnHint": "Your own site: confirm below and the scan starts right away.",
   "quickScan.modeClientHint": "Your client approves in writing by email. Nothing is scanned until they do.",
   "roe.title": "Testing for a client",
   "roe.stepper.label": "Client authorization steps",
@@ -1026,5 +1026,9 @@
   "report.auth.window": "Approved test window",
   "report.auth.approved": "Approved on",
   "report.auth.approvedBy": "Approved by (mailbox)",
-  "report.auth.note": "The approval comes from the mailbox above. It does not prove who the person is or that they may speak for the organisation."
+  "report.auth.note": "The approval comes from the mailbox above. It does not prove who the person is or that they may speak for the organisation.",
+  "vuln.jobStatus.COMPLETED_WITH_ERRORS": "Completed with errors",
+  "report.incomplete.banner": "Incomplete scan: some checks could not run. A good grade does NOT mean the site is clean. See \"What was NOT tested\".",
+  "report.auth.attested": "The owner confirmed ownership of this site (not technically verified); scope limited to this host.",
+  "report.scope.hostAttested": "{root} only (owner confirmation; this host only, not its subdomains)"
 }

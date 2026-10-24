@@ -8,6 +8,7 @@ import { WorkerModule } from './worker.module.js';
 import { ReconJobPollerService } from './modules/recon/execution/recon-job-poller.service.js';
 import { VulnScanJobPollerService } from './modules/vuln/execution/vuln-scan-job-poller.service.js';
 import { BugBountyDeadlineNotifierService } from './modules/bugbounty/notifications/bugbounty-deadline-notifier.service.js';
+import { ToolPreflightService } from './modules/vuln/pipeline/tool-preflight.service.js';
 import { WorkerReaperService } from './modules/distributed-jobs/services/worker-reaper.service.js';
 import { StructuredLoggerService } from './observability/structured-logger.service.js';
 
@@ -51,6 +52,12 @@ async function bootstrap(): Promise<void> {
   // it isn't a distributed-jobs fleet client).
   logger.log(`Worker starting (version ${process.env.npm_package_version ?? 'unknown'})`);
 
+  // Check every pentest binary before taking any job: a missing or broken tool is
+  // logged here as a table and published for the admin endpoint, and the stages
+  // that need it fail with the reason instead of looking like an empty result.
+  const toolPreflight = app.get(ToolPreflightService);
+  await toolPreflight.start(process.env.WORKER_NAME ?? process.env.HOSTNAME ?? 'worker');
+
   const reconPoller = app.get(ReconJobPollerService);
   const vulnPoller = app.get(VulnScanJobPollerService);
   const bugBountyDeadlineNotifier = app.get(BugBountyDeadlineNotifierService);
@@ -62,6 +69,7 @@ async function bootstrap(): Promise<void> {
     vulnPoller.stop();
     bugBountyDeadlineNotifier.stop();
     workerReaper.stop();
+    toolPreflight.stop();
     await app.close();
     process.exit(0);
   };

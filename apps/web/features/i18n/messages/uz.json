@@ -727,7 +727,7 @@
   "ownership.error.NETWORK_BLOCKED": "Bu manzil xususiy yoki ichki tarmoqqa ishora qiladi va tekshirib bo'lmaydi.",
   "ownership.error.UNREACHABLE": "Veb-saytga ulanib bo'lmadi. Sayt ishlayotganini tekshiring.",
   "scan.stepper.label": "Skanerlash jarayoni",
-  "scan.stage.ownership": "Tasdiqlash",
+  "scan.stage.ownership": "Ruxsat",
   "scan.stage.recon": "Razvedka",
   "scan.stage.scan": "Skanerlash",
   "scan.stage.report": "Hisobot",
@@ -876,7 +876,7 @@
   "report.public.invalid": "Bu havola yaroqsiz.",
   "quickScan.steps.label": "Bu qanday ishlaydi",
   "quickScan.steps.add": "Saytingizni qo'shing",
-  "quickScan.steps.verify": "Sizniki ekanini tasdiqlang",
+  "quickScan.steps.verify": "Sizniki ekanini tasdiqlang (katak)",
   "quickScan.steps.choose": "Tezkor yoki standartni tanlang",
   "quickScan.steps.watch": "Skanerlashni jonli kuzating",
   "quickScan.steps.read": "Hisobotni o'qing",
@@ -896,7 +896,7 @@
   "quickScan.modeLabel": "Nima uchun buni skanerlashga haqqingiz bor?",
   "quickScan.modeOwn": "Bu menikiga tegishli",
   "quickScan.modeClient": "Men mijoz uchun tekshiryapman",
-  "quickScan.modeOwnHint": "Saytni nazorat qilishingizni DNS yozuvi bilan isbotlang. Odatda bir necha daqiqa oladi.",
+  "quickScan.modeOwnHint": "O'zingizning saytingiz: quyida tasdiqlang, skan darhol boshlanadi.",
   "quickScan.modeClientHint": "Mijozingiz xat orqali yozma tasdiqlaydi. U tasdiqlamaguncha hech narsa skanerlanmaydi.",
   "roe.title": "Mijoz uchun tekshiruv",
   "roe.stepper.label": "Mijoz ruxsati bosqichlari",
@@ -1026,5 +1026,9 @@
   "report.auth.window": "Tasdiqlangan test oynasi",
   "report.auth.approved": "Tasdiqlangan vaqt",
   "report.auth.approvedBy": "Tasdiqlagan (pochta qutisi)",
-  "report.auth.note": "Tasdiq yuqoridagi pochta qutisidan keldi. U shaxsning kimligini yoki tashkilot nomidan gapirishga haqqi borligini isbotlamaydi."
+  "report.auth.note": "Tasdiq yuqoridagi pochta qutisidan keldi. U shaxsning kimligini yoki tashkilot nomidan gapirishga haqqi borligini isbotlamaydi.",
+  "vuln.jobStatus.COMPLETED_WITH_ERRORS": "Xatolar bilan yakunlandi",
+  "report.incomplete.banner": "To'liq bo'lmagan skaner: ba'zi tekshiruvlar ishlamadi. Yaxshi baho saytning toza ekanini BILDIRMAYDI. \"Nima TEKSHIRILMADI\" bo'limiga qarang.",
+  "report.auth.attested": "Egasi ushbu sayt unga tegishli ekanini tasdiqladi (texnik jihatdan tekshirilmagan); qamrov faqat shu xost bilan cheklangan.",
+  "report.scope.hostAttested": "Faqat {root} (egasining tasdig'i; faqat shu xost, subdomenlar emas)"
 }

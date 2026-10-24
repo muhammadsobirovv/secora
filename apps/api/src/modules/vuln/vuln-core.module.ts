@@ -30,6 +30,7 @@ import { PipelineProbeStage } from './pipeline/probe-stage.service.js';
 import { ScanCommandAudit } from './pipeline/scan-command-audit.service.js';
 import { ScanAdmissionService } from './pipeline/scan-admission.service.js';
 import { PipelineOrchestrator } from './pipeline/pipeline-orchestrator.service.js';
+import { ToolPreflightService } from './pipeline/tool-preflight.service.js';
 import { OwnershipScopeService } from './pipeline/ownership-scope.service.js';
 
 /// Everything the Vuln HTTP module AND the separate worker process both
@@ -63,6 +64,7 @@ import { OwnershipScopeService } from './pipeline/ownership-scope.service.js';
       provide: VULN_SCAN_TEMPLATES_REPOSITORY,
       useClass: PrismaVulnScanTemplatesRepository,
     },
+    ToolPreflightService,
     ScannerProcessSpawner,
     NucleiScannerRunner,
     FfufScannerRunner,
@@ -84,6 +86,7 @@ import { OwnershipScopeService } from './pipeline/ownership-scope.service.js';
     VulnScanJobPollerService,
   ],
   exports: [
+    ToolPreflightService,
     ScanAdmissionService,
     VULN_SCAN_JOBS_REPOSITORY,
     VULN_SCAN_JOB_TOOL_RUNS_REPOSITORY,

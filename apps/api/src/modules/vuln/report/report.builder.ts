@@ -304,6 +304,7 @@ export function buildReport(input: ReportInput): VulnReportDto {
     tools,
     notTested: notTestedFor(profile, stages, scope.includesSubdomains),
     findings,
+    incomplete: stages.some((s) => s.state === 'failed'),
     language: input.language,
     authorization: input.authorization ?? { kind: 'OWNERSHIP' },
   };

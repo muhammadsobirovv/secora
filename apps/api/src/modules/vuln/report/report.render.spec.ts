@@ -317,3 +317,101 @@ describe('report authorization', () => {
     expect(html).not.toContain('<script>alert(1)</script>');
   });
 });
+
+describe('report wording for attested scans', () => {
+  const attested = (language: 'en' | 'uz' | 'ru' = 'en'): VulnReportDto => ({
+    ...sample(language),
+    authorization: { kind: 'ATTESTATION' },
+  });
+  const phrases = {
+    en: 'The owner confirmed ownership of this site (not technically verified); scope limited to this host.',
+    uz: "Egasi ushbu sayt unga tegishli ekanini tasdiqladi (texnik jihatdan tekshirilmagan); qamrov faqat shu xost bilan cheklangan.",
+    ru: 'Владелец подтвердил, что сайт принадлежит ему (технически не проверено); охват ограничен этим хостом.',
+  } as const;
+
+  it.each(['en', 'uz', 'ru'] as const)('says plainly that nothing was verified (%s), in HTML', (language) => {
+    const html = renderReportHtml(attested(language));
+    expect(html).toContain(escapeHtml(phrases[language]));
+    expect(html).not.toContain(escapeHtml(text(language, 'authOwnership')));
+  });
+
+  it('the PDF carries it too (English)', () => {
+    const body = renderReportPdf(attested()).toString('latin1');
+    expect(body).toContain('The owner confirmed ownership of this site');
+  });
+
+  it('the scope line does not claim an ownership proof', () => {
+    const html = renderReportHtml(attested());
+    expect(html).toContain('owner confirmation; this host only');
+    expect(html).not.toContain('the ownership proof covers this host');
+  });
+
+  it('a verified-ownership scan keeps the old wording', () => {
+    const html = renderReportHtml(sample());
+    expect(html).toContain('The owner verified control of the website before the scan.');
+    expect(html).not.toContain('not technically verified');
+  });
+
+  it('the JSON export (the DTO) says which kind it is', () => {
+    expect(JSON.parse(JSON.stringify(attested())).authorization).toEqual({ kind: 'ATTESTATION' });
+    expect(JSON.parse(JSON.stringify(sample())).authorization).toEqual({ kind: 'OWNERSHIP' });
+  });
+});
+
+describe('an incomplete scan is never presented as clean', () => {
+  const incompleteReport = (language: 'en' | 'uz' | 'ru' = 'en'): VulnReportDto =>
+    buildReport({
+      job: {
+        id: 'job-1',
+        status: 'COMPLETED',
+        config: { profile: 'STANDARD' },
+        startedAt: new Date('2026-10-22T11:00:00Z'),
+        completedAt: new Date('2026-10-22T11:12:00Z'),
+        createdAt: new Date('2026-10-22T10:59:00Z'),
+      },
+      target: { id: 't1', type: 'DOMAIN', value: 'shop.example.org' },
+      findings: [],
+      logs: [
+        'Scope: shop.example.org only (x).',
+        '[stage] recon start',
+        '[stage] recon failed - tool httpx is not available on this worker (not found)',
+      ],
+      language,
+      now: new Date('2026-10-22T12:00:00Z'),
+    });
+
+  it('flags the report, shows the banner in HTML and the PDF, and lists the failed stage as not tested', () => {
+    const report = incompleteReport();
+    expect(report.incomplete).toBe(true);
+    const html = renderReportHtml(report);
+    expect(html).toContain('Incomplete scan: some checks could not run');
+    expect(renderReportPdf(report).toString('latin1')).toContain('Incomplete scan');
+    expect(report.notTested.some((item) => item.code === 'STAGE_FAILED' && item.stage === 'recon')).toBe(true);
+    expect(JSON.parse(JSON.stringify(report)).incomplete).toBe(true);
+  });
+
+  it('is translated', () => {
+    expect(renderReportHtml(incompleteReport('uz'))).toContain(escapeHtml("To'liq bo'lmagan skaner"));
+    expect(renderReportHtml(incompleteReport('ru'))).toContain('Неполное сканирование');
+  });
+
+  it('a scan where every stage ran has no banner', () => {
+    const complete = buildReport({
+      job: {
+        id: 'job-1',
+        status: 'COMPLETED',
+        config: { profile: 'QUICK' },
+        startedAt: new Date('2026-10-22T11:00:00Z'),
+        completedAt: new Date('2026-10-22T11:02:00Z'),
+        createdAt: new Date('2026-10-22T10:59:00Z'),
+      },
+      target: { id: 't1', type: 'DOMAIN', value: 'shop.example.org' },
+      findings: [],
+      logs: ['[stage] checks start', '[stage] checks done', '[stage] verify start', '[stage] verify skipped'],
+      language: 'en',
+      now: new Date('2026-10-22T12:00:00Z'),
+    });
+    expect(complete.incomplete).toBe(false);
+    expect(renderReportHtml(complete)).not.toContain('Incomplete scan');
+  });
+});

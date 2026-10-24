@@ -103,10 +103,10 @@ export class PrismaVulnScanJobsRepository implements VulnScanJobsRepository {
     });
   }
 
-  markCompleted(id: string): Promise<VulnScanJob> {
+  markCompleted(id: string, error?: string | null): Promise<VulnScanJob> {
     return this.txHost.tx.vulnScanJob.update({
       where: { id },
-      data: { status: 'COMPLETED', completedAt: new Date() },
+      data: { status: 'COMPLETED', completedAt: new Date(), error: error ?? null },
     });
   }
 

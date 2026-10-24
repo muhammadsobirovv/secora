@@ -102,6 +102,10 @@ export class PinningProxy {
     if (this.closed) return;
     this.closed = true;
     for (const socket of this.sockets) socket.destroy();
+    // A client that keeps its connection open (a re-check with keep-alive, say) would
+    // otherwise hold server.close() for as long as it likes, and the scan job with it:
+    // a DEEP scan sat "running" five minutes after its last stage because of this.
+    this.server.closeAllConnections();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
   }
 

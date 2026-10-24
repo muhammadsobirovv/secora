@@ -43,5 +43,6 @@ export function toVulnScanJobDto(job: VulnScanJobWithToolRuns): VulnScanJobDto {
     updatedAt: job.updatedAt.toISOString(),
     toolRuns: job.toolRuns.map(toToolRunDto),
     findingsCount: job.toolRuns.reduce((sum, tr) => sum + tr.findingsCount, 0),
+    completedWithErrors: job.status === 'COMPLETED' && !!job.error,
   };
 }

@@ -16,7 +16,11 @@ export async function* parseSseTextStream(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      // The SSE spec allows CRLF line ends and Gemini uses them: without this the frame
+      // separator below is never found and the stream reads as empty (every Gemini
+      // answer came back blank). A CR split from its LF by a chunk boundary stays in the
+      // buffer until the LF arrives, so normalising the whole buffer is safe.
+      buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
 
       let separatorIndex: number;
 
@@ -58,7 +62,11 @@ export async function* parseSseEventStream(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      // The SSE spec allows CRLF line ends and Gemini uses them: without this the frame
+      // separator below is never found and the stream reads as empty (every Gemini
+      // answer came back blank). A CR split from its LF by a chunk boundary stays in the
+      // buffer until the LF arrives, so normalising the whole buffer is safe.
+      buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
 
       let separatorIndex: number;
 

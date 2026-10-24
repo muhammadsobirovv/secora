@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { ScannerRunResult } from '../scanner-runner.interface.js';
+import { defaultMaxRssMb, groupResidentMb } from './process-memory.js';
+import { ToolUnavailableError, toolNameOf, type ToolPreflight } from '../../pipeline/tool-preflight.js';
+import { ToolPreflightService } from '../../pipeline/tool-preflight.service.js';
 
 export interface SpawnScannerProcessOptions {
   /// The binary name/path and its argv — ALWAYS an array, never a shell
@@ -23,6 +26,9 @@ export interface SpawnScannerProcessOptions {
   /// POSIX niceness added to the child (`nice -n <n>`), so scans never starve
   /// the API on the 2-CPU host. Ignored on Windows.
   niceLevel?: number;
+  /// Stop the tool (and what it started) when its resident memory passes this many
+  /// megabytes. Default: SCAN_TOOL_MAX_RSS_MB (1536); 0 disables. Linux only.
+  maxRssMb?: number;
 }
 
 export const DEFAULT_MAX_STDOUT_BYTES = 8 * 1024 * 1024;
@@ -75,7 +81,28 @@ function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
 /// jest.fn().
 @Injectable()
 export class ScannerProcessSpawner {
-  spawn(options: SpawnScannerProcessOptions): Promise<ScannerRunResult> {
+  /// When set (the worker always sets it), a tool that is missing, not
+  /// executable or broken is refused BEFORE it is started, with a
+  /// ToolUnavailableError that names it, so the stage fails honestly instead
+  /// of looking like "nothing was found".
+  constructor(@Optional() @Inject(ToolPreflightService) private readonly preflight?: ToolPreflight) {}
+
+  async spawn(options: SpawnScannerProcessOptions): Promise<ScannerRunResult> {
+    await this.preflight?.assertAvailable(options.command);
+    const result = await this.spawnProcess(options);
+    // `nice` reports a program it cannot start as exit 127 (not found) or 126
+    // (not executable) instead of failing the spawn.
+    if (this.preflight && (result.exitCode === 127 || result.exitCode === 126) && result.stdout.length === 0) {
+      this.preflight.invalidate(options.command);
+      throw new ToolUnavailableError(
+        toolNameOf(options.command),
+        result.exitCode === 127 ? 'not found' : 'the file is not executable',
+      );
+    }
+    return result;
+  }
+
+  private spawnProcess(options: SpawnScannerProcessOptions): Promise<ScannerRunResult> {
     const {
       command,
       args,
@@ -84,6 +111,7 @@ export class ScannerProcessSpawner {
       maxStdoutBytes = DEFAULT_MAX_STDOUT_BYTES,
       maxLogLineChars = DEFAULT_MAX_LOG_LINE_CHARS,
       niceLevel = DEFAULT_NICE_LEVEL,
+      maxRssMb = defaultMaxRssMb(),
     } = options;
 
     // `nice` is applied as an argv prefix (still no shell). Process group on
@@ -103,7 +131,9 @@ export class ScannerProcessSpawner {
       let stdoutBytes = 0;
       let stdoutTruncated = false;
       let timedOut = false;
+      let memoryExceeded = false;
       let killTimer: NodeJS.Timeout | undefined;
+      let memTimer: NodeJS.Timeout | undefined;
 
       const handleStdoutLine = lineBuffer(options.onStdoutLine, maxLogLineChars);
       const handleStderrLine = lineBuffer(options.onStderrLine, maxLogLineChars);
@@ -133,16 +163,43 @@ export class ScannerProcessSpawner {
       signal.addEventListener('abort', onAbort, { once: true });
       if (signal.aborted) onAbort();
 
+      // Memory guard: every two seconds, add up the resident memory of the tool's
+      // process group; past the ceiling, stop it like a timeout (partial output is kept).
+      if (IS_POSIX && maxRssMb > 0 && child.pid !== undefined) {
+        const pgid = child.pid;
+        let checking = false;
+        memTimer = setInterval(() => {
+          if (checking || memoryExceeded) return;
+          checking = true;
+          void groupResidentMb(pgid)
+            .then((mb) => {
+              if (mb !== null && mb > maxRssMb && !memoryExceeded) {
+                memoryExceeded = true;
+                options.onStderrLine?.(
+                  `stopped by Secora: ${Math.round(mb)} MB of memory in use, the limit is ${maxRssMb} MB; results so far are kept`,
+                );
+                onAbort();
+              }
+            })
+            .finally(() => {
+              checking = false;
+            });
+        }, 2000);
+        memTimer.unref();
+      }
+
       child.on('error', (error) => {
         signal.removeEventListener('abort', onAbort);
         if (killTimer) clearTimeout(killTimer);
+        if (memTimer) clearInterval(memTimer);
         reject(error);
       });
 
       child.on('close', (exitCode) => {
         signal.removeEventListener('abort', onAbort);
         if (killTimer) clearTimeout(killTimer);
-        resolve({ exitCode, stdout, timedOut, stdoutTruncated });
+        if (memTimer) clearInterval(memTimer);
+        resolve({ exitCode, stdout, timedOut, stdoutTruncated, ...(memoryExceeded ? { memoryExceeded } : {}) });
       });
     });
   }

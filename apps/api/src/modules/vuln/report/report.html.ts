@@ -173,6 +173,7 @@ export function renderReportHtml(
 <body>
 <main>
 <h1>${e(text(l, 'title'))}</h1>
+${report.incomplete ? `<p role="alert" style="border:2px solid #b54708;background:#fffaeb;color:#7a2e0e;padding:10px 12px;border-radius:8px"><strong>${e(text(l, 'incompleteBanner'))}</strong></p>` : ''}
 <p class="muted">${e(report.target.value)}</p>
 
 <section class="score" aria-label="${e(text(l, 'summary'))}">

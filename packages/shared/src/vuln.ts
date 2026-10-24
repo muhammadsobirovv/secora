@@ -97,6 +97,9 @@ export interface VulnScanJobDto {
   updatedAt: string;
   toolRuns: VulnScanJobToolRunDto[];
   findingsCount: number;
+  /// Finished, but some stages could not run (a missing tool, a crash). `error`
+  /// says which. Never a plain "completed": the report lists what was not tested.
+  completedWithErrors: boolean;
 }
 
 /// Pentest pipeline profile. QUICK is the default for the one-tap flow;

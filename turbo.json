@@ -11,6 +11,10 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "e2e": {
+      "cache": false,
+      "env": ["E2E_WEB_URL", "E2E_API_URL"]
+    },
     "check-types": {
       "dependsOn": ["^check-types", "build"]
     },

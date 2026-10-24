@@ -105,3 +105,28 @@ describe('PipelineProbeStage', () => {
     expect(args).toEqual(expect.arrayContaining(['-H', 'Host: shop.lab.test', '-sni', 'shop.lab.test']));
   });
 });
+
+describe('PipelineProbeStage — a probe that itself failed', () => {
+  it('a tool that exits non-zero with no result is an error, not "nothing is live"', async () => {
+    const spawn = jest.fn(async () => ({ exitCode: 2, stdout: '', timedOut: false }));
+    const stage = new PipelineProbeStage(
+      { get: jest.fn(() => 'httpx') } as unknown as ConfigService<EnvConfig, true>,
+      { spawn } as unknown as ScannerProcessSpawner,
+    );
+    await expect(
+      stage.run({ pin, signal: new AbortController().signal, onLog: () => undefined }),
+    ).rejects.toThrow(/httpx exited with code 2/);
+  });
+
+  it('a probe that runs fine and finds nothing is still just "nothing live"', async () => {
+    const spawn = jest.fn(async () => ({ exitCode: 0, stdout: '', timedOut: false }));
+    const stage = new PipelineProbeStage(
+      { get: jest.fn(() => 'httpx') } as unknown as ConfigService<EnvConfig, true>,
+      { spawn } as unknown as ScannerProcessSpawner,
+    );
+    await expect(stage.run({ pin, signal: new AbortController().signal, onLog: () => undefined })).resolves.toEqual({
+      outcome: 'OK',
+      liveUrls: [],
+    });
+  });
+});

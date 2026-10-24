@@ -530,3 +530,35 @@ describe('CreateVulnScanJobHandler', () => {
     });
   });
 });
+
+describe('CreateVulnScanJobHandler — owner attestation', () => {
+  const gate = (attestedOnly: boolean) =>
+    jest.fn(() => Promise.resolve({ id: 'authz-1', basis: 'OWNER', attestationVersion: 'v', ...(attestedOnly ? { attestedOnly: true } : {}) }));
+  const configOf = (h: ReturnType<typeof buildHandler>) =>
+    (h.vulnScanJobsRepository.create as jest.Mock).mock.calls[0][0] as { config: Record<string, unknown> | null };
+
+  it('records that the scan ran on attestation only, and tells the gate when attestation may suffice', async () => {
+    for (const profile of ['QUICK', 'STANDARD'] as const) {
+      const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), assertActiveScanAllowed: gate(true) });
+      await h.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile }));
+      expect(configOf(h).config).toEqual({ profile, attestedOnly: true });
+      expect(h.assertActiveScanAllowed).toHaveBeenCalledWith(expect.objectContaining({ allowOwnerAttestation: true }));
+    }
+  });
+
+  it('DEEP never asks the gate to accept attestation alone', async () => {
+    const h = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), deepEnabled: true, assertActiveScanAllowed: gate(false) });
+    await h.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'DEEP', confirmDeep: true }));
+    expect(h.assertActiveScanAllowed).toHaveBeenCalledWith(expect.objectContaining({ allowOwnerAttestation: false }));
+    expect(configOf(h).config).toEqual({ profile: 'DEEP', deepConfirmed: true });
+  });
+
+  it('a caller cannot claim or hide the flag through config', async () => {
+    const verified = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), assertActiveScanAllowed: gate(false) });
+    await verified.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'QUICK', config: { attestedOnly: true } }));
+    expect(configOf(verified).config).toEqual({ profile: 'QUICK' });
+    const attested = buildHandler({ workspace: buildWorkspace({ isDemo: false }), create: jest.fn(async () => buildJob('j')), assertActiveScanAllowed: gate(true) });
+    await attested.handler.execute(new CreateVulnScanJobCommand('user-1', 'target-1', { scanners: ['NUCLEI'], profile: 'QUICK', config: { attestedOnly: false } }));
+    expect(configOf(attested).config).toEqual({ profile: 'QUICK', attestedOnly: true });
+  });
+});

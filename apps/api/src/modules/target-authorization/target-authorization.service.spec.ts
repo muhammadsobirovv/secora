@@ -494,3 +494,62 @@ describe('TargetAuthorizationService', () => {
     });
   });
 });
+
+describe('owner attestation without proof (QUICK / STANDARD)', () => {
+  const site = { id: 'target-att', type: 'DOMAIN', value: 'shop.example.org' };
+  const attest = (service: TargetAuthorizationService, basis: 'OWNER' | 'WRITTEN_PERMISSION' = 'OWNER') =>
+    service.attestTarget({ userId: user, workspaceId, target: site, data: { basis, attested: true }, context: ctx });
+  const run = (service: TargetAuthorizationService, allowOwnerAttestation?: boolean) =>
+    service.assertActiveScanAllowed({
+      userId: user,
+      workspaceId,
+      target: site,
+      operationType: 'VULN_SCAN',
+      context: ctx,
+      allowOwnerAttestation,
+    });
+
+  it('an OWNER attestation runs on its own when the caller allows it, and the scan is flagged attestedOnly', async () => {
+    const { service } = buildService(emptyDb());
+    await attest(service);
+    const result = await run(service, true);
+    expect(result.attestedOnly).toBe(true);
+    expect(result.roeId).toBeUndefined();
+  });
+
+  it('without the caller opting in (DEEP) the same attestation is refused for lack of proof', async () => {
+    const { service, auditService } = buildService(emptyDb());
+    await attest(service);
+    await expect(run(service, false)).rejects.toMatchObject({ code: 'TARGET_OWNERSHIP_NOT_VERIFIED' });
+    await expect(run(service)).rejects.toMatchObject({ code: 'TARGET_OWNERSHIP_NOT_VERIFIED' });
+    expect(auditTypes(auditService)).toContain('ACTIVE_SCAN_BLOCKED');
+  });
+
+  it('only an OWNER basis qualifies: written permission without proof does not run', async () => {
+    const { service } = buildService(emptyDb());
+    await attest(service, 'WRITTEN_PERMISSION');
+    await expect(run(service, true)).rejects.toMatchObject({ code: 'TARGET_OWNERSHIP_NOT_VERIFIED' });
+  });
+
+  it('no attestation at all is still refused', async () => {
+    const { service } = buildService(emptyDb());
+    await expect(run(service, true)).rejects.toMatchObject({ code: 'TARGET_AUTHORIZATION_REQUIRED' });
+  });
+
+  it('the network guard still applies to an attested scan', async () => {
+    const { service } = buildService(emptyDb());
+    const local = { id: 'target-local', type: 'DOMAIN', value: 'app.localhost' };
+    await service.attestTarget({ userId: user, workspaceId, target: local, data: { basis: 'OWNER', attested: true }, context: ctx });
+    await expect(
+      service.assertActiveScanAllowed({ userId: user, workspaceId, target: local, operationType: 'VULN_SCAN', context: ctx, allowOwnerAttestation: true }),
+    ).rejects.toMatchObject({ code: 'TARGET_FORBIDDEN_FOR_ACTIVE_SCAN' });
+  });
+
+  it('a verified target is not flagged attestedOnly', async () => {
+    const db = emptyDb();
+    const { service } = buildService(db);
+    await attest(service);
+    db.ownership.push({ targetId: site.id, verifiedAt: new Date() });
+    expect((await run(service, true)).attestedOnly).toBeUndefined();
+  });
+});

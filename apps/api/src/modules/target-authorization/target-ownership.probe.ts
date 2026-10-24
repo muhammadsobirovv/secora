@@ -52,6 +52,25 @@ export type AddressLookup = (
   host: string,
 ) => Promise<{ address: string; family: number }[]>;
 
+/// The `lookup` option that pins a connection to one address. Node (20 and later,
+/// "happy eyeballs") calls it with `all: true` and then expects a LIST of addresses;
+/// answering with a bare address makes every connection fail with
+/// ERR_INVALID_IP_ADDRESS. Both call styles are answered here.
+export function pinnedLookup(pinned: { address: string; family: number }) {
+  return (
+    _hostname: string,
+    options: { all?: boolean } | undefined,
+    callback: (
+      error: Error | null,
+      address: string | { address: string; family: number }[],
+      family?: number,
+    ) => void,
+  ): void => {
+    if (options?.all) callback(null, [{ address: pinned.address, family: pinned.family }]);
+    else callback(null, pinned.address, pinned.family);
+  };
+}
+
 export class NetworkOwnershipProbe implements OwnershipProbe {
   constructor(
     private readonly lookupAddresses: AddressLookup = (host) =>
@@ -116,8 +135,7 @@ export class NetworkOwnershipProbe implements OwnershipProbe {
             'user-agent': 'SecoraOwnershipCheck/1.0',
             accept: 'text/html,text/plain;q=0.9,*/*;q=0.1',
           },
-          lookup: (_hostname, _options, callback) =>
-            callback(null, pinned.address, pinned.family),
+          lookup: pinnedLookup(pinned) as never,
         },
         (res) => {
           const status = res.statusCode ?? 0;

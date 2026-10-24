@@ -144,6 +144,10 @@ export const AUTHORIZATION_WATCH_INTERVAL_MS = 15_000;
 export interface PipelineRunResult {
   /// Set when the scan was stopped because its authorization ended.
   authorizationLost: string | null;
+  /// Stages that could not do their work (a missing tool, a crash, a timeout
+  /// with nothing to show). A scan with any of these is not "clean": the job
+  /// is completed WITH ERRORS and the report says what was not tested.
+  failedStages: { stage: PipelineStage; note: string }[];
 }
 
 export interface PipelineRunInput {
@@ -172,6 +176,10 @@ interface PipelineState {
   scanIps: string[];
   hostsByIp: Map<string, string>;
   crawledUrls: string[];
+  /// Why the recon stage could not run (a missing httpx, say). Later stages
+  /// that depend on it say so instead of "nothing was found".
+  reconError: string | null;
+  failed: { stage: PipelineStage; note: string }[];
 }
 
 const STAGE_SCANNER: Partial<Record<PipelineStage, VulnScanner>> = {
@@ -283,12 +291,13 @@ export class PipelineOrchestrator {
       ? setInterval(() => void checkAuthorization(), this.watchIntervalMs())
       : null;
     watcher?.unref?.();
+    let failedStages: PipelineRunResult['failedStages'] = [];
     try {
-      await this.runStages({ ...input, signal }, checkAuthorization);
+      failedStages = await this.runStages({ ...input, signal }, checkAuthorization);
     } finally {
       if (watcher) clearInterval(watcher);
     }
-    return { authorizationLost: lost };
+    return { authorizationLost: lost, failedStages };
   }
 
   protected watchIntervalMs(): number {
@@ -298,7 +307,7 @@ export class PipelineOrchestrator {
   private async runStages(
     input: PipelineRunInput,
     checkAuthorization: () => Promise<boolean>,
-  ): Promise<void> {
+  ): Promise<PipelineRunResult['failedStages']> {
     const { profile, host, signal } = input;
     const stages = PROFILE_STAGES[profile];
     const targetUrl =
@@ -316,6 +325,8 @@ export class PipelineOrchestrator {
       scanIps: [],
       hostsByIp: new Map(),
       crawledUrls: [],
+      reconError: null,
+      failed: [],
     };
 
     // Every profile ends with the re-verification stage, which also goes through the proxy.
@@ -350,6 +361,7 @@ export class PipelineOrchestrator {
         if (await host.shouldStop()) break;
         await this.runStage(stage, ctx);
       }
+      return state.failed;
     } finally {
       await proxy?.close();
       if (blocked.size > 0) {
@@ -387,6 +399,9 @@ export class PipelineOrchestrator {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error.';
       outcome = { state: 'failed', note: message };
+      // Recon could not run (a missing httpx, say): remember why, so the stages
+      // that need it fail with that reason instead of "nothing was found".
+      if (stage === 'recon') ctx.state.reconError = message;
     }
     // The job itself was cancelled or timed out mid-stage: the caller handles it.
     if (signal.aborted && outcome.state === 'failed') {
@@ -397,6 +412,9 @@ export class PipelineOrchestrator {
       return;
     }
 
+    if (outcome.state === 'failed') {
+      ctx.state.failed.push({ stage, note: outcome.note ?? 'The stage failed.' });
+    }
     host.log(
       outcome.state === 'failed' ? 'ERROR' : 'INFO',
       formatStageMarker(stage, outcome.state) +
@@ -490,7 +508,12 @@ export class PipelineOrchestrator {
         `${tool} printed more output than is kept; the rest was dropped.`,
       );
     }
-    if (result.timedOut) {
+    if (result.memoryExceeded) {
+      ctx.host.log(
+        'WARN',
+        `${tool} was stopped because it used more memory than a scan tool may; the results below are partial.`,
+      );
+    } else if (result.timedOut) {
       ctx.host.log(
         'WARN',
         `${tool} reached its ${timeoutSeconds}s limit; the results below are partial.`,
@@ -554,6 +577,14 @@ export class PipelineOrchestrator {
   // -------------------------------------------------------------------------
   // Stages
   // -------------------------------------------------------------------------
+
+  /// A stage that needs the live origins found by recon: when recon itself
+  /// could not run, this stage did not run either, and says why.
+  private needsReconFirst(ctx: StageContext): StageOutcome | null {
+    return ctx.state.reconError
+      ? { state: 'failed', note: `not run: the recon stage could not run (${ctx.state.reconError})` }
+      : null;
+  }
 
   private async reconStage(ctx: StageContext): Promise<StageOutcome> {
     // The existing httpx probe writes its own start/done markers; this stage
@@ -779,6 +810,8 @@ export class PipelineOrchestrator {
   }
 
   private async crawlStage(ctx: StageContext): Promise<StageOutcome> {
+    const blockedByRecon = this.needsReconFirst(ctx);
+    if (blockedByRecon) return blockedByRecon;
     const proxyUrl = ctx.proxyUrl;
     if (!proxyUrl)
       return { state: 'failed', note: 'the pinning proxy is not running' };
@@ -827,6 +860,8 @@ export class PipelineOrchestrator {
   private async scanStage(ctx: StageContext): Promise<StageOutcome> {
     if (ctx.profile === 'QUICK')
       return { state: 'skipped', note: 'the QUICK profile runs no scanner' };
+    const blockedByRecon = this.needsReconFirst(ctx);
+    if (blockedByRecon) return blockedByRecon;
     if (ctx.state.liveOrigins.length === 0) {
       return {
         state: 'skipped',
@@ -872,6 +907,8 @@ export class PipelineOrchestrator {
   }
 
   private async contentStage(ctx: StageContext): Promise<StageOutcome> {
+    const blockedByRecon = this.needsReconFirst(ctx);
+    if (blockedByRecon) return blockedByRecon;
     const proxyUrl = ctx.proxyUrl;
     if (!proxyUrl)
       return { state: 'failed', note: 'the pinning proxy is not running' };
@@ -962,6 +999,8 @@ export class PipelineOrchestrator {
   }
 
   private async xssStage(ctx: StageContext): Promise<StageOutcome> {
+    const blockedByRecon = this.needsReconFirst(ctx);
+    if (blockedByRecon) return blockedByRecon;
     const proxyUrl = ctx.proxyUrl;
     if (!proxyUrl)
       return { state: 'failed', note: 'the pinning proxy is not running' };

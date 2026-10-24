@@ -1,0 +1,88 @@
+# Local development worker: the REAL worker image (every pentest tool inside),
+# running against the Postgres and API you already run on your machine. Nothing
+# has to be installed on the host: no httpx, nuclei, katana, naabu...
+#
+#   Windows PowerShell, from the repo root:
+#     .\scripts\worker-dev.ps1 up          # build if needed, start the worker
+#     .\scripts\worker-dev.ps1 lab-up      # Juice Shop + DVWA on the lab network
+#     .\scripts\worker-dev.ps1 logs
+#     .\scripts\worker-dev.ps1 down
+#
+# See docs/operations/local-worker.md. The compose file is standalone on purpose:
+# `docker compose up` for the main stack never starts it.
+name: secora-worker-dev
+
+services:
+  worker-dev:
+    image: pentesthub-worker:dev
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.worker
+    restart: unless-stopped
+    # Same config file the API reads, so the two always agree (JWT, encryption key,
+    # AI keys...). The values below override what must differ inside a container.
+    env_file:
+      - apps/api/.env
+    environment:
+      # Not "production": the lab (Juice Shop, DVWA) lives on private addresses, and
+      # production refuses ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS. NEVER copy this block
+      # to a server.
+      NODE_ENV: development
+      ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: "true"
+      # The script rewrites 127.0.0.1 / localhost in DATABASE_URL to host.docker.internal.
+      DATABASE_URL: ${WORKER_DEV_DATABASE_URL:?start it with scripts/worker-dev.ps1 up}
+      WORKER_NAME: worker-dev
+      # DEEP is off unless you ask for it (`worker-dev.ps1 up -Deep`); the API must
+      # have the same value.
+      SCAN_DEEP_PROFILE_ENABLED: ${SCAN_DEEP_PROFILE_ENABLED:-false}
+      # Guard rails that mirror the 2-CPU server: memory per tool and per container.
+      SCAN_TOOL_MAX_RSS_MB: ${SCAN_TOOL_MAX_RSS_MB:-1536}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 3g
+    cpus: 1.5
+    pids_limit: 1024
+    networks:
+      - lab-net
+
+  # ---- the lab: the only things the dev worker is meant to scan ----
+  juice:
+    profiles: ["lab"]
+    image: bkimminich/juice-shop:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3300:3000"
+    networks:
+      lab-net:
+        aliases: [juice.lab.test]
+
+  dvwa:
+    profiles: ["lab"]
+    image: vulnerables/web-dvwa:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4280:80"
+    networks:
+      lab-net:
+        aliases: [dvwa.lab.test]
+
+  # Juice Shop behind a proxy that can serve the ownership proof file: the DEEP
+  # profile needs proof of control, and this is how the lab provides it.
+  proof:
+    profiles: ["lab"]
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on: [juice]
+    volumes:
+      - ./docker/lab-proof/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/lab-proof/www:/www:ro
+      - ./docker/lab-proof/tls:/tls:ro
+    ports:
+      - "127.0.0.1:3301:443"
+    networks:
+      lab-net:
+        aliases: [proof.lab.test]
+
+networks:
+  lab-net:
+    name: lab-net

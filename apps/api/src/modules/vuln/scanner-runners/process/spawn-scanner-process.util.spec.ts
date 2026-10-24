@@ -1,8 +1,9 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ScannerProcessSpawner } from './spawn-scanner-process.util.js';
+import { ToolUnavailableError } from '../../pipeline/tool-preflight.js';
 
 /// These tests run real child processes (the current Node binary), never a
 /// security tool and never the network. `niceLevel: 0` keeps them independent
@@ -75,5 +76,45 @@ describe('ScannerProcessSpawner — output and time limits', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('ScannerProcessSpawner — tool preflight', () => {
+  const never = new AbortController().signal;
+
+  it('refuses to start a tool the preflight says is unavailable, naming it', async () => {
+    const preflight = {
+      assertAvailable: async () => {
+        throw new ToolUnavailableError('httpx', 'not found');
+      },
+      invalidate: () => undefined,
+    };
+    const guarded = new ScannerProcessSpawner(preflight as never);
+    await expect(guarded.spawn({ command: process.execPath, args: ['-e', '0'], signal: never })).rejects.toThrow(
+      'tool httpx is not available on this worker (not found)',
+    );
+  });
+
+  it('turns "command not found" (exit 127 and no output) into the same error and forgets the cached OK', async () => {
+    const invalidate = jest.fn();
+    const preflight = { assertAvailable: async () => undefined, invalidate };
+    const guarded = new ScannerProcessSpawner(preflight as never);
+    await expect(
+      guarded.spawn({ command: process.execPath, args: ['-e', 'process.exit(127)'], signal: never, niceLevel: 0 }),
+    ).rejects.toBeInstanceOf(ToolUnavailableError);
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('an ordinary non-zero exit with output is a normal result (dalfox exits 1 on findings)', async () => {
+    const preflight = { assertAvailable: async () => undefined, invalidate: () => undefined };
+    const guarded = new ScannerProcessSpawner(preflight as never);
+    const result = await guarded.spawn({
+      command: process.execPath,
+      args: ['-e', 'console.log("found"); process.exit(1)'],
+      signal: never,
+      niceLevel: 0,
+    });
+    expect(result).toMatchObject({ exitCode: 1, timedOut: false });
+    expect(result.stdout).toContain('found');
   });
 });

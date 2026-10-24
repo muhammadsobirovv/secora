@@ -34,6 +34,7 @@ import { TargetVulnFindingsController } from './controllers/target-vuln-findings
 import { VulnFindingsController } from './controllers/vuln-findings.controller.js';
 import { VulnScanTemplatesController } from './controllers/vuln-scan-templates.controller.js';
 import { VulnDashboardController } from './controllers/vuln-dashboard.controller.js';
+import { WorkerToolsController } from './controllers/worker-tools.controller.js';
 
 /// The HTTP-facing half: VulnCoreModule's repositories/services plus
 /// controllers and CQRS handlers. Controllers only ever insert a
@@ -66,6 +67,7 @@ import { VulnDashboardController } from './controllers/vuln-dashboard.controller
     VulnDashboardController,
     VulnReportController,
     PublicVulnReportController,
+    WorkerToolsController,
   ],
   providers: [
     CreateVulnScanJobHandler,

@@ -259,6 +259,7 @@ export function renderReportPdf(
   };
 
   doc.line(text(l, 'title'), { font: 'F2', size: 18 });
+  if (report.incomplete) doc.line(text(l, 'incompleteBanner'), { font: 'F2', color: COLORS.muted });
   doc.line(report.target.value, { color: COLORS.muted, size: 11 });
   doc.gap(6);
   doc.line(

@@ -91,6 +91,14 @@ interface NucleiStageInput {
 /// ReconJobExecutionService (Module 3) exactly except: (a) no
 /// materializeScreenshots step (no v1 scanner produces an image), and (b)
 /// the pause gate below, which Module 3 never needed.
+/// "2 stages could not run: recon (tool httpx is not available on this worker (not found)); ..."
+export function summarizeFailures(failed: { stage: string; note: string }[]): string | null {
+  if (failed.length === 0) return null;
+  const parts = failed.map((item) => `${item.stage} (${item.note})`).join('; ');
+  const text = `${failed.length} stage${failed.length === 1 ? '' : 's'} could not run: ${parts}`;
+  return text.length > 480 ? `${text.slice(0, 479)}…` : text;
+}
+
 @Injectable()
 export class VulnScanJobExecutionService {
   private readonly logger = new Logger(VulnScanJobExecutionService.name);
@@ -131,6 +139,7 @@ export class VulnScanJobExecutionService {
       new VulnScanJobStartedEvent(job.workspaceId, job.projectId, null, job.id),
     );
 
+    let pipelineFailures: { stage: string; note: string }[] = [];
     try {
       const target = await this.targetsRepository.findById(job.targetId);
       if (!target) {
@@ -155,6 +164,7 @@ export class VulnScanJobExecutionService {
           signal,
           host: this.buildPipelineHost(job, target, profileRun, signal),
         });
+        pipelineFailures = outcome?.failedStages ?? [];
         if (outcome?.authorizationLost) {
           // Partial findings stay saved; the job just ends here, clearly marked.
           await this.finalizeAuthorizationLost(job, target, outcome.authorizationLost);
@@ -177,6 +187,7 @@ export class VulnScanJobExecutionService {
       }
 
       const fresh = await this.jobsRepository.findById(job.id);
+      const failedStages = pipelineFailures;
 
       if (fresh?.cancelRequestedAt) {
         // cancelIfPending (StopVulnScanJobCommand) only handles
@@ -213,7 +224,10 @@ export class VulnScanJobExecutionService {
         return;
       }
 
-      await this.jobsRepository.markCompleted(job.id);
+      // A scan whose stages could not all run is completed WITH ERRORS: the
+      // reason is kept on the job, the report lists what was not tested, and the
+      // UI never shows it as a plain "Completed".
+      await this.jobsRepository.markCompleted(job.id, summarizeFailures(failedStages));
       const findingsCount = await this.countFindings(job.workspaceId, job.id);
       this.eventBus.publish(
         new VulnScanJobCompletedEvent(

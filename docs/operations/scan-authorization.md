@@ -248,3 +248,33 @@ independently, so a DNS failure never stops the web-based checks.
   time and the approving mailbox, and say that the approval does not prove the
   approver's identity or authority. On a shared (public) report the mailbox is
   masked (`ci***@acme.example`).
+
+## Legal text: what was checked, what is proposed (not applied)
+
+Checked against the current Terms, Acceptable Use Policy and Privacy Policy
+(`apps/web/features/legal/content`, `LEGAL_VERSION` 2026-10-13):
+
+- **Attested scans (owner confirmation without proof)**: already covered. The Terms say
+  the Service "does not verify your authorization on your behalf (except where a
+  verification feature is explicitly enabled)", the user declares authorization for
+  each target, and the declaration is audited (Terms section on audit records, Privacy
+  Policy list of records). The AUP requires ownership or written authorization.
+  Nothing to change.
+- **Client engagements (ROE)**: the AUP and Terms cover the *requester's* duty to hold
+  written authorization. What they do not mention is data about the **client**:
+  Secora emails a third party, stores their mailbox address, the time, IP address and
+  browser of their decision, and an optional evidence file.
+
+No legal text was changed: editing it means bumping `LEGAL_VERSION`, which makes every
+user re-accept, and the Uzbek and Russian versions are marked for legal review. For the
+next legal revision, proposed wording (English; the other languages follow it):
+
+- Privacy Policy, "What we collect": *"When you ask a client to approve a test, we process
+  the client contact's name and email address that you give us, the approval request
+  (assets, test window, signatory), the client's decision with its time, IP address and
+  browser, and any evidence file you attach. We use them to send the request, to
+  record the authorization and to investigate abuse, and keep them as long as audit
+  records are kept."*
+- AUP, section 1: *"A client's email approval confirms only that someone with access to
+  that mailbox approved. You remain responsible for making sure that the person is
+  entitled to authorize the test."*

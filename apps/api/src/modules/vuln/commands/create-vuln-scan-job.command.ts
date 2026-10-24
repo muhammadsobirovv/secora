@@ -109,6 +109,30 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
       );
     }
 
+    const profile = command.data.profile;
+    // DEEP is refused for the plain reasons first (switched off on this deployment,
+    // not confirmed), so the caller hears the real reason instead of a missing-proof
+    // error. These are input checks only: every authorization gate below still runs.
+    if (
+      profile === 'DEEP' &&
+      !this.configService.get('SCAN_DEEP_PROFILE_ENABLED', { infer: true })
+    ) {
+      throw new AppException(
+        'SCAN_PROFILE_DISABLED',
+        'The DEEP scan profile is not enabled on this deployment.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // DEEP includes default-credential checks: the caller must say so.
+    if (profile === 'DEEP' && command.data.confirmDeep !== true) {
+      throw new AppException(
+        'SCAN_DEEP_CONFIRMATION_REQUIRED',
+        'The DEEP scan profile submits default credentials to login forms. Confirm it explicitly to continue.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     // Module 16 — task #370. Scope Engine gate: refuses to start a Vuln
     // scan against a target that is OUT_OF_SCOPE (Target.scopeStatus or
     // any linked program's scope rules) or still PENDING_REVIEW. Mirrors
@@ -139,32 +163,15 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
         target,
         operationType: 'VULN_SCAN',
         context: command.context,
+        // Quick and Standard run on an owner's attestation alone; DEEP (default
+        // credentials, port scan, content discovery) still needs proof of control
+        // or an approved client engagement.
+        allowOwnerAttestation: command.data.profile !== 'DEEP',
       });
 
     // Rate limits first (cheap), plan quota after: one scan per target at a
     // time, N per target and M per workspace per hour. 429 with a stable code.
     await this.scanAdmission.assertAllowed({ workspaceId, targetId: target.id });
-
-    const profile = command.data.profile;
-    if (
-      profile === 'DEEP' &&
-      !this.configService.get('SCAN_DEEP_PROFILE_ENABLED', { infer: true })
-    ) {
-      throw new AppException(
-        'SCAN_PROFILE_DISABLED',
-        'The DEEP scan profile is not enabled on this deployment.',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    // DEEP includes default-credential checks: the caller must say so.
-    if (profile === 'DEEP' && command.data.confirmDeep !== true) {
-      throw new AppException(
-        'SCAN_DEEP_CONFIRMATION_REQUIRED',
-        'The DEEP scan profile submits default credentials to login forms. Confirm it explicitly to continue.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
 
     let scanners = command.data.scanners;
     let config = command.data.config ?? null;
@@ -207,12 +214,15 @@ export class CreateVulnScanJobHandler implements ICommandHandler<
     // The engagement a scan runs under is decided here, never by the caller:
     // a roeId smuggled in through config or a template is dropped.
     {
-      const { roeId: _ignored, ...rest } = (config ?? {}) as Record<string, unknown>;
+      const { roeId: _ignored, attestedOnly: _ignoredToo, ...rest } = (config ?? {}) as Record<string, unknown>;
       void _ignored;
-      config =
-        authorization.roeId || Object.keys(rest).length > 0
-          ? { ...rest, ...(authorization.roeId ? { roeId: authorization.roeId } : {}) }
-          : null;
+      void _ignoredToo;
+      const decided = {
+        ...(authorization.roeId ? { roeId: authorization.roeId } : {}),
+        // Recorded so the report says plainly that nothing was technically verified.
+        ...(authorization.attestedOnly ? { attestedOnly: true } : {}),
+      };
+      config = Object.keys(decided).length > 0 || Object.keys(rest).length > 0 ? { ...rest, ...decided } : null;
     }
 
     // A profile's scanners are driven by the pipeline (against the verified

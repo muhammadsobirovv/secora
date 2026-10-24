@@ -30,6 +30,7 @@ import type { PipelineProbeStage } from './probe-stage.service.js';
 import { ScopeGuard, type ScopeGuardOptions } from './scope-guard.js';
 import type { ScopeRule } from './scope.util.js';
 import { makeFinding } from './stage-findings.js';
+import { ToolUnavailableError } from './tool-preflight.js';
 
 const PUBLIC_IP = '93.184.216.34';
 const pin: PinnedHost = { host: 'shop.example.org', ip: PUBLIC_IP, family: 4 };
@@ -88,6 +89,10 @@ interface Scenario {
   authorizationLost?: () => Promise<string | null>;
   /// The nuclei stage blocks until the scan's own signal is aborted.
   nucleiWaitsForAbort?: boolean;
+  /// The probe (httpx) cannot run at all, e.g. the binary is missing.
+  probeError?: Error;
+  /// A tool of the pipeline (by binary name) that is missing.
+  missingTools?: string[];
 }
 
 function build(scenario: Scenario = {}) {
@@ -154,6 +159,7 @@ function build(scenario: Scenario = {}) {
     spawn: jest.fn(async (options: SpawnScannerProcessOptions) => {
       const tool = options.command.split('/').pop() ?? options.command;
       spawned.push({ tool, options });
+      if (scenario.missingTools?.includes(tool)) throw new ToolUnavailableError(tool, 'not found');
       const handler = scenario.tools?.[tool];
       const out = handler ? handler(options) : { stdout: '' };
       if (out instanceof Error) throw out;
@@ -174,6 +180,7 @@ function build(scenario: Scenario = {}) {
           argv: string[];
         }) => void;
       }) => {
+        if (scenario.probeError) throw scenario.probeError;
         input.onCommand?.({
           tool: 'httpx',
           command: '/bin/httpx',
@@ -533,7 +540,7 @@ describe('PipelineOrchestrator — STANDARD', () => {
 
   it('a nuclei failure or time limit is reported and does not throw', async () => {
     const failed = build({ nuclei: { failed: true } });
-    await expect(failed.run('STANDARD')).resolves.toEqual({ authorizationLost: null });
+    await expect(failed.run('STANDARD')).resolves.toMatchObject({ authorizationLost: null });
     expect(failed.markers()).toContain('[stage] scan failed');
 
     const partial = build({ nuclei: { partial: true } });
@@ -987,6 +994,62 @@ describe('PipelineOrchestrator — recorded lab output (Juice Shop)', () => {
     expect(
       persisted.find((entry) => entry.scanner === 'NAABU')!.findings,
     ).toHaveLength(1);
+  });
+});
+
+describe('PipelineOrchestrator — tools that cannot run', () => {
+  const unavailable = () => new ToolUnavailableError('httpx', 'not found');
+
+  it('a missing httpx fails the recon stage with the reason, never "no live web service"', async () => {
+    const h = build({ probeError: unavailable(), tools: { katana: () => ({ stdout: '' }) } });
+    const result = await h.run('STANDARD');
+
+    expect(h.messages()).toContain('[stage] recon failed - tool httpx is not available on this worker (not found)');
+    expect(h.messages().join('\n')).not.toMatch(/no live web service/);
+    expect(result.failedStages[0]).toEqual({ stage: 'recon', note: 'tool httpx is not available on this worker (not found)' });
+  });
+
+  it('the stages that need recon fail too, with the real reason, and nothing is sent to the target by them', async () => {
+    const h = build({ probeError: unavailable(), tools: { katana: () => ({ stdout: '' }) } });
+    const result = await h.run('STANDARD');
+
+    for (const stage of ['crawl', 'scan']) {
+      expect(h.messages().find((m) => m.startsWith(`[stage] ${stage} failed`))).toMatch(
+        /not run: the recon stage could not run \(tool httpx is not available/,
+      );
+    }
+    expect(h.spawned.some((call) => call.tool === 'katana')).toBe(false);
+    expect(h.nucleiCalls).toHaveLength(0);
+    expect(result.failedStages.map((item) => item.stage)).toEqual(expect.arrayContaining(['recon', 'crawl', 'scan']));
+    // the scanner's tool run is FAILED, not "completed with nothing to scan"
+    expect(h.closed.find((entry) => entry.scanner === 'NUCLEI')).toMatchObject({ outcome: 'FAILED' });
+  });
+
+  it('the native checks still run, so what could be tested is reported', async () => {
+    const h = build({ probeError: unavailable() });
+    await h.run('STANDARD');
+    expect(h.markers()).toContain('[stage] checks done');
+    expect(h.persisted.map((entry) => entry.scanner)).toContain('SECORA_CHECKS');
+  });
+
+  it('a missing tool in a later stage fails that stage only, and the scan carries on', async () => {
+    const h = build({ missingTools: ['katana'], liveUrls: ['https://shop.example.org'] });
+    const result = await h.run('STANDARD');
+    expect(h.messages()).toContain('[stage] crawl failed - tool katana is not available on this worker (not found)');
+    expect(h.markers()).toContain('[stage] scan done');
+    expect(result.failedStages.map((item) => item.stage)).toEqual(['crawl']);
+  });
+
+  it('a probe that really finds nothing stays "skipped" and is not an error', async () => {
+    const h = build({ liveUrls: [], tools: { katana: () => ({ stdout: '' }) } });
+    const result = await h.run('STANDARD');
+    expect(h.messages()).toContain('[stage] recon skipped - no live web service was found on the host');
+    expect(result.failedStages).toEqual([]);
+  });
+
+  it('a clean run reports no failed stages', async () => {
+    const h = build({ tools: { katana: () => ({ stdout: '' }) } });
+    expect((await h.run('STANDARD')).failedStages).toEqual([]);
   });
 });
 

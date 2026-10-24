@@ -165,7 +165,9 @@ export class VulnReportService {
             ...(roe.approvedAt ? { approvedAt: roe.approvedAt.toISOString() } : {}),
             approvedBy: roe.clientEmail,
           }
-        : { kind: 'OWNERSHIP' },
+        : (job.config as Record<string, unknown> | null)?.attestedOnly === true
+          ? { kind: 'ATTESTATION' }
+          : { kind: 'OWNERSHIP' },
       job: {
         id: job.id,
         status: job.status,
