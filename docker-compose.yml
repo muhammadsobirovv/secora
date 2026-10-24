@@ -95,6 +95,23 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET:-}
+      # Client-engagement (ROE) approval emails are sent by the API. MAIL_PROVIDER
+      # "dev" only writes files; use "smtp" with a real relay in production.
+      # SMTP_SECURE is parsed with z.coerce.boolean, so leave it EMPTY for STARTTLS
+      # (port 587) and set it to any non-empty value (1) only for implicit TLS (465);
+      # the string "false" would read as true.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-dev}
+      MAIL_FROM: ${MAIL_FROM:-Secora AI <no-reply@secora.group>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # Scan engine switches the API enforces at job creation. Must match the worker.
+      SCAN_DEEP_PROFILE_ENABLED: ${SCAN_DEEP_PROFILE_ENABLED:-false}
+      ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: ${ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS:-false}
+      VULN_SCAN_MAX_PER_TARGET_PER_HOUR: ${VULN_SCAN_MAX_PER_TARGET_PER_HOUR:-6}
+      VULN_SCAN_MAX_PER_WORKSPACE_PER_HOUR: ${VULN_SCAN_MAX_PER_WORKSPACE_PER_HOUR:-30}
     ports:
       - "3000:3000"
     volumes:
@@ -140,6 +157,20 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET:-}
+      # Scan engine. Defaults are sized for the 2 vCPU / 11 GB reference VM: one scan
+      # at a time, 1 GB resident-memory ceiling per scan tool. The worker and the
+      # API both refuse to start if ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS is true in
+      # production. The tool binaries (VULN_TOOL_BIN_*) are set in Dockerfile.worker.
+      SCAN_DEEP_PROFILE_ENABLED: ${SCAN_DEEP_PROFILE_ENABLED:-false}
+      ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS: ${ACTIVE_SCAN_ALLOW_PRIVATE_TARGETS:-false}
+      VULN_WORKER_CONCURRENCY: ${VULN_WORKER_CONCURRENCY:-1}
+      SCAN_TOOL_MAX_RSS_MB: ${SCAN_TOOL_MAX_RSS_MB:-1024}
+      VULN_JOB_TIMEOUT_SECONDS: ${VULN_JOB_TIMEOUT_SECONDS:-1800}
+      VULN_SCAN_MAX_PER_TARGET_PER_HOUR: ${VULN_SCAN_MAX_PER_TARGET_PER_HOUR:-6}
+      VULN_SCAN_MAX_PER_WORKSPACE_PER_HOUR: ${VULN_SCAN_MAX_PER_WORKSPACE_PER_HOUR:-30}
+    # A runaway scan must not take the whole VM (API, Postgres and web share it).
+    mem_limit: 3g
+    cpus: 1.5
     volumes:
       - api-storage:/workspace/apps/api/.storage # must match the api service's mount -- LocalDiskStorageService writes to process.cwd()/.storage, so worker-written artifacts (gowitness screenshots) are readable by the API
 

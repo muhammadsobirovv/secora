@@ -81,8 +81,13 @@ has the future-dated ones (checked on the development database). The rules:
       ones are independent: ROE adds enum values and its own tables, the worker
       tool status is one standalone table.
 - [ ] Take a database backup first ([backup-recovery.md](./backup-recovery.md)).
-- [ ] Apply: `docker compose run --rm migrate` (see `docker-compose.yml`), which
-      runs `prisma migrate deploy`. Expect the two new migrations and nothing else.
+- [ ] Apply. **Note:** the compose `migrate` service runs `prisma db push
+      --accept-data-loss`, not `prisma migrate deploy`: it brings the database to
+      `schema.prisma` and forces through any destructive change. So first run it
+      WITHOUT the flag, which refuses (and prints why) if anything would be lost:
+      `docker compose run --rm migrate sh node_modules/.bin/prisma db push`.
+      Only if it applies cleanly, or the only warnings are ones you understand,
+      continue. Do not use `--accept-data-loss` on production without a fresh backup.
 - [ ] Known limitation, unchanged: replaying the whole history on an **empty**
       database fails on an old migration that references a missing `organizations`
       table. Production and dev databases are not affected (they are migrated
