@@ -51,7 +51,7 @@ RUN NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter api build
 #
 # Intentionally NOT installed: gowitness (needs a full Chromium) and
 # whatweb (Ruby) — jobs that request those tools record a FAILED tool run.
-FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS recon-tools
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS recon-tools
 # v4, not v5: AmassToolRunner calls the v4 CLI (`enum -passive -silent`).
 ARG AMASS_VERSION=v4.2.0
 ARG GAU_VERSION=v2.2.4
