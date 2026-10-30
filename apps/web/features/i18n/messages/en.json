@@ -874,6 +874,8 @@
   "report.public.wrongPassword": "That password is not correct.",
   "report.public.expired": "This link has expired or was revoked.",
   "report.public.invalid": "This link is not valid.",
+  "report.public.scannedBy": "Scanned with Secora",
+  "report.public.cta": "Check your own website for free",
   "quickScan.steps.label": "How it works",
   "quickScan.steps.add": "Add your site",
   "quickScan.steps.verify": "Confirm it is yours",

@@ -874,6 +874,8 @@
   "report.public.wrongPassword": "Parol noto'g'ri.",
   "report.public.expired": "Bu havolaning muddati tugagan yoki u bekor qilingan.",
   "report.public.invalid": "Bu havola yaroqsiz.",
+  "report.public.scannedBy": "Secora bilan skanerlangan",
+  "report.public.cta": "O'z saytingizni bepul tekshiring",
   "quickScan.steps.label": "Bu qanday ishlaydi",
   "quickScan.steps.add": "Saytingizni qo'shing",
   "quickScan.steps.verify": "Sizniki ekanini tasdiqlang (katak)",

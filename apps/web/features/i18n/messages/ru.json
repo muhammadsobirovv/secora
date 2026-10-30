@@ -874,6 +874,8 @@
   "report.public.wrongPassword": "Неверный пароль.",
   "report.public.expired": "Срок действия ссылки истёк, либо она отозвана.",
   "report.public.invalid": "Ссылка недействительна.",
+  "report.public.scannedBy": "Проверено в Secora",
+  "report.public.cta": "Проверьте свой сайт бесплатно",
   "quickScan.steps.label": "Как это работает",
   "quickScan.steps.add": "Добавьте сайт",
   "quickScan.steps.verify": "Подтвердите, что сайт ваш",

@@ -106,6 +106,18 @@ export default function SharedReportPage({ params }: { params: Promise<{ token: 
       )}
 
       {state.kind === "ready" && <ReportView report={state.report} />}
+
+      <footer className="mt-4 flex flex-col items-center gap-2 border-t border-border py-6 text-center">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <ShieldCheck className="size-4" aria-hidden="true" /> {t("report.public.scannedBy")}
+        </p>
+        <a
+          href="https://secora.group/register"
+          className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          {t("report.public.cta")}
+        </a>
+      </footer>
     </main>
   );
 }
