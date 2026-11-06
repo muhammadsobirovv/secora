@@ -8,7 +8,7 @@
 # *build* time by Next.js, not read at container start — hence the
 # `--build-arg`/`ARG`/`ENV` dance below rather than a runtime env file,
 # which is a common Next.js Docker gotcha worth calling out explicitly.
-FROM node:22-bookworm-slim AS base
+FROM node:25-bookworm-slim AS base
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /workspace
 
@@ -31,7 +31,7 @@ COPY . .
 RUN pnpm --filter shared build
 RUN pnpm --filter web build
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 ENV NODE_ENV=production
 RUN groupadd --gid 1001 pentesthub && useradd --uid 1001 --gid pentesthub --shell /bin/bash --create-home pentesthub
 WORKDIR /workspace/apps/web
