@@ -79,7 +79,7 @@ jobs:
       - name: Apply schema to the test database
         run: pnpm --filter api exec prisma db push --skip-generate
       - name: Cache Turborepo task outputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-release-${{ github.sha }}
